@@ -54,7 +54,7 @@ static char tab[16] = {'0','1','2','3','4','5','6','7','8','9','a','b','c','d','
 	return RET_OK;
 }
 
-static retvalue md5sum_calc(int infd,int outfd, char **result, size_t bufsize) {
+static retvalue md5sum_calc(int infd,int outfd, /*@out@*/char **result, size_t bufsize) {
 	struct MD5Context context;
 	unsigned char *buffer;
 	off_t filesize;

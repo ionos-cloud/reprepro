@@ -61,6 +61,8 @@ bool_t strlist_subset(const struct strlist *strlist,const struct strlist *subset
 retvalue strlist_init_n(int startsize,struct strlist *strlist) {
 	assert(strlist != NULL && startsize >= 0);
 
+	if( startsize == 0 )
+		startsize = 1;
 	strlist->count = 0;
 	strlist->size = startsize;
 	strlist->values = malloc(startsize*sizeof(char *));
@@ -75,8 +77,10 @@ retvalue strlist_init_singleton(char *value,struct strlist *strlist) {
 	strlist->count = 1;
 	strlist->size = 1;
 	strlist->values = malloc(sizeof(char *));
-	if( strlist->values == NULL )
+	if( strlist->values == NULL ) {
+		free(value);
 		return RET_ERROR_OOM;
+	}
 	strlist->values[0] = value;
 
 	return RET_OK;
@@ -178,7 +182,7 @@ retvalue strlist_dup(struct strlist *dest,const struct strlist *orig) {
 	if( !dest->values )
 		return RET_ERROR_OOM;
 	for( i = 0 ; i < dest->count ; i++ ) {
-		if( !(dest->values[i] = strdup(orig->values[i])) ) {
+		if( (dest->values[i] = strdup(orig->values[i])) == NULL ) {
 			strlist_done(dest);
 			return RET_ERROR_OOM;
 		}

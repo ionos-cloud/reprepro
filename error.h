@@ -38,14 +38,23 @@ typedef int retvalue;
 
 #define EXIT_RET(ret) (RET_WAS_NO_ERROR(ret)?((nothingiserror&&ret==RET_NOTHING)?EXIT_FAILURE:EXIT_SUCCESS):(int)ret)
 
+// Now it gets more to global.h ... :-)
+
 typedef int bool_t;
 #define TRUE (1==1)
 #define FALSE (0==42)
 
-#ifndef NOUNUSEDATTRIBUTE
-#define UNUSED __attribute((unused))
+#define ISSET(a,b) (a&b)!=0
+#define NOTSET(a,b) (a&b)==0
+
+#ifdef SPLINT
+#define UNUSED(a) /*@unused@*/ a
 #else
-#define UNUSED
+#ifndef NOUNUSEDATTRIBUTE
+#define UNUSED(a) a __attribute((unused))
+#else
+#define UNUSED(a) a
+#endif
 #endif
 
 #endif

@@ -27,13 +27,13 @@ void override_free(/*@only@*//*@null@*/struct overrideinfo *info);
  * otherwise from filename directly.. */
 retvalue override_read(const char *overridedir,const char *filename,/*@out@*/struct overrideinfo **info);
 
-const struct overrideinfo *override_search(const struct overrideinfo *overrides,const char *package);
-const char *override_get(const struct overrideinfo *override,const char *field);
+/*@null@*//*@dependent@*/const struct overrideinfo *override_search(/*@null@*/const struct overrideinfo *overrides,const char *package);
+/*@null@*//*@dependent@*/const char *override_get(/*@null@*/const struct overrideinfo *override,const char *field);
 
 
 /* add new fields to otherreplaces, but not "Section", or "Priority".
  * incorporates otherreplaces, or frees them on error */
-struct fieldtoadd *override_addreplacefields(const struct overrideinfo *override,
-		struct fieldtoadd *otherreplaces);
+/*@null@*/struct fieldtoadd *override_addreplacefields(const struct overrideinfo *override,
+		/*@only@*/struct fieldtoadd *otherreplaces);
 
 #endif

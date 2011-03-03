@@ -29,12 +29,13 @@
 
 
 struct downloaditem {
-	struct downloaditem *parent,*left,*right;
+	/*@dependent@*//*@null@*/struct downloaditem *parent;
+	/*@null@*/struct downloaditem *left,*right;
 	struct tobedone *todo;
 };
 
 struct downloadcache {
-	struct downloaditem *items;
+	/*@null@*/struct downloaditem *items;
 };
 
 /* Initialize a new download session */
@@ -50,7 +51,7 @@ retvalue downloadcache_initialize(struct downloadcache **download) {
 }
 
 /* free all memory */
-static void freeitem(struct downloaditem *item) {
+static void freeitem(/*@null@*//*@only@*/struct downloaditem *item) {
 	if( item == NULL )
 		return;
 	freeitem(item->left);
@@ -67,15 +68,15 @@ retvalue downloadcache_free(struct downloadcache *download) {
 	return RET_OK;
 }
 
-const struct downloaditem *searchforitem(struct downloadcache *list,
+/*@null@*//*@dependent@*/ static const struct downloaditem *searchforitem(struct downloadcache *list,
 					const char *filekey,
-					struct downloaditem **p,
-					struct downloaditem ***h) {
+					/*@out@*/struct downloaditem **p,
+					/*@out@*/struct downloaditem ***h) {
 	struct downloaditem *item;
 	int c;
 
 	item = list->items;
-	while( item ) {
+	while( item != NULL ) {
 		*p = item;
 		c = strcmp(filekey,item->todo->filekey);
 		if( c == 0 )
@@ -151,7 +152,7 @@ retvalue downloadcache_addfiles(struct downloadcache *cache,filesdb filesdb,
 	retvalue result,r;
 	int i;
 
-	assert(origfiles && filekeys && md5sums
+	assert(origfiles != NULL && filekeys != NULL && md5sums != NULL
 		&& origfiles->count == filekeys->count
 		&& md5sums->count == filekeys->count);
 

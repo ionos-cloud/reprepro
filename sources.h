@@ -9,16 +9,16 @@
 #include "target.h"
 #endif
 
-retvalue sources_parse_getmd5sums(const char *chunk,struct strlist *basenames, struct strlist *md5sums);
+retvalue sources_parse_getmd5sums(const char *chunk,/*@out@*/struct strlist *basenames, /*@out@*/struct strlist *md5sums);
 
 /* Calculate the filelines in a form suitable for chunk_replacefields: */
-retvalue sources_calcfilelines(const struct strlist *basenames,const struct strlist *md5sums,char **item);
+retvalue sources_calcfilelines(const struct strlist *basenames,const struct strlist *md5sums,/*@out@*/char **item);
 
 /* Functions for the target.h-stuff: */
-retvalue sources_getname(struct target * t,const char *chunk,char **packagename);
-retvalue sources_getversion(struct target *t,const char *chunk,char **version);
-retvalue sources_getinstalldata(struct target *t,const char *packagename,const char *version,const char *chunk,char **control,struct strlist *filekeys,struct strlist *md5sums,struct strlist *origfiles);
-retvalue sources_getfilekeys(struct target *t,const char *chunk,struct strlist *filekeys,struct strlist *md5sums);
+retvalue sources_getname(struct target * t,const char *chunk,/*@out@*/char **packagename);
+retvalue sources_getversion(struct target *t,const char *chunk,/*@out@*/char **version);
+retvalue sources_getinstalldata(struct target *t,const char *packagename,const char *version,const char *chunk,char **control,/*@out@*/struct strlist *filekeys,/*@out@*/struct strlist *md5sums,/*@out@*/struct strlist *origfiles);
+retvalue sources_getfilekeys(struct target *t,const char *chunk,/*@out@*/struct strlist *filekeys,/*@out@*/struct strlist *md5sums);
 char *sources_getupstreamindex(struct target *target,const char *suite_from,
 		const char *component_from,const char *architecture);
 #endif

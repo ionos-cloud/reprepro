@@ -10,15 +10,17 @@
 #ifndef REPREPRO_PACKAGES_H
 #include "packages.h"
 #endif
-
+#ifndef REPREPRO_EXPORTS_H
+#include "exports.h"
+#endif
 
 struct target;
 
-typedef retvalue get_name(struct target *,const char *,char **);
-typedef retvalue get_version(struct target *,const char *,char **);
-typedef retvalue get_installdata(struct target *,const char *,const char *,const char *,char **,struct strlist *,struct strlist *,struct strlist *);
+typedef retvalue get_name(struct target *,const char *,/*@out@*/char **);
+typedef retvalue get_version(struct target *,const char *,/*@out@*/char **);
+typedef retvalue get_installdata(struct target *,const char *,const char *,const char *,/*@out@*/char **,/*@out@*/struct strlist *,/*@out@*/struct strlist *,/*@out@*/struct strlist *);
 /* md5sums may be NULL */
-typedef retvalue get_filekeys(struct target *,const char *,struct strlist *filekeys,struct strlist *md5sum);
+typedef retvalue get_filekeys(struct target *,const char *,/*@out@*/struct strlist *filekeys,/*@out@*/struct strlist *md5sum);
 typedef char *get_upstreamindex(struct target *,const char *suite_from,
 		const char *component_from,const char *architecture);
 
@@ -28,11 +30,12 @@ struct target {
 	char *architecture;
 	char *identifier;
 	/* "deb" "udeb" or "dsc" */
-	const char *packagetype;
-	char *directory;
-	bool_t compressions[ic_max+1];
-	bool_t hasrelease;
-	const char *indexfile;
+	/*@observer@*/const char *packagetype;
+	/* links into the correct description in distribution */
+	/*@dependent@*/const struct exportmode *exportmode;
+	/* the directory relative to <distdir>/<codename>/ to use */
+	char *relativedirectory;
+	/* functions to use on the packages included */
 	get_name *getname;
 	get_version *getversion;
 	get_installdata *getinstalldata;
@@ -45,15 +48,15 @@ struct target {
 	packagesdb packages;
 };
 
-retvalue target_initialize_ubinary(const char *codename,const char *component,const char *architecture,struct target **target);
-retvalue target_initialize_binary(const char *codename,const char *component,const char *architecture,struct target **target);
-retvalue target_initialize_source(const char *codename,const char *component,struct target **target);
+retvalue target_initialize_ubinary(const char *codename,const char *component,const char *architecture,/*@dependent@*/const struct exportmode *exportmode,/*@out@*/struct target **target);
+retvalue target_initialize_binary(const char *codename,const char *component,const char *architecture,/*@dependent@*/const struct exportmode *exportmode,/*@out@*/struct target **target);
+retvalue target_initialize_source(const char *codename,const char *component,/*@dependent@*/const struct exportmode *exportmode,/*@out@*/struct target **target);
 retvalue target_free(struct target *target);
 
 retvalue target_mkdistdir(struct target *target,const char *distdir);
-retvalue target_export(struct target *target,const char *dbdir,const char *distdir,int force,bool_t onlyneeded);
+retvalue target_export(struct target *target,const char *confdir,const char *dbdir,const char *dirofdist,int force,bool_t onlyneeded, struct strlist *releasedfiles );
 
-retvalue target_printmd5sums(const struct target *target,const char *distdir,FILE *out,int force);
+retvalue target_printmd5sums(const char *dirofdist,const struct target *target,FILE *out,int force);
 
 /* This opens up the database, if db != NULL, *db will be set to it.. */
 retvalue target_initpackagesdb(struct target *target, const char *dbdir);
@@ -62,9 +65,9 @@ retvalue target_closepackagesdb(struct target *target);
 
 /* The following calls can only be called if target_initpackagesdb was called before: */
 
-retvalue target_addpackage(struct target *target,references refs,const char *name,const char *version,const char *control,const struct strlist *filekeys,int force,bool_t downgrade,struct strlist *dereferencedfilekeys);
-retvalue target_removepackage(struct target *target,references refs,const char *name, struct strlist *dereferencedfilekeys);
-retvalue target_writeindices(struct target *target,const char *distdir, int force,bool_t onlyneeded);
+retvalue target_addpackage(struct target *target,references refs,const char *name,const char *version,const char *control,const struct strlist *filekeys,int force,bool_t downgrade,/*@null@*/struct strlist *dereferencedfilekeys);
+retvalue target_removepackage(struct target *target,references refs,const char *name, /*@null@*/struct strlist *dereferencedfilekeys);
+retvalue target_writeindices(const char *dirofdist,struct target *target,int force,bool_t onlyneeded);
 retvalue target_check(struct target *target,filesdb filesdb,references refsdb,int force);
 retvalue target_rereference(struct target *target,references refs,int force);
 

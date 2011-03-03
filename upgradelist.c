@@ -41,7 +41,7 @@ struct package_data {
 	char *version_in_use;
 	/* the most recent version we found 
 	 * (either is version_in_use or version_new)*/
-	const char *version;
+	/*@dependent@*/const char *version;
 
 	/* if this is != 0, package will be deleted afterwards,
 	 * (or new version simply ignored if it is not yet in the
@@ -52,7 +52,7 @@ struct package_data {
 	 * NULL means nothing found. */
 	char *new_version;
 	/* where the recent version comes from: */
-	struct aptmethod *aptmethod;
+	/*@dependent@*/struct aptmethod *aptmethod;
 
 	/* the new control-chunk for the package to go in 
 	 * non-NULL if new_version && newversion == version_in_use */
@@ -65,18 +65,18 @@ struct package_data {
 };
 
 struct upgradelist {
-	struct target *target;
+	/*@dependent@*/struct target *target;
 	struct package_data *list;
 	/* package the next package will most probably be after. 
 	 * (NULL=before start of list) */
-	struct package_data *last;
+	/*@null@*//*@dependent@*/struct package_data *last;
 	/* internal...*/
-	struct aptmethod *currentaptmethod;
-	upgrade_decide_function *predecide;
-	void *predecide_data;
+	/*@dependent@*/struct aptmethod *currentaptmethod;
+	/*@temp@*/upgrade_decide_function *predecide;
+	/*@temp@*/void *predecide_data;
 };
 
-static void package_data_free(struct package_data *data){
+static void package_data_free(/*@only@*/struct package_data *data){
 	if( data == NULL )
 		return;
 	free(data->name);
@@ -99,7 +99,7 @@ static retvalue save_package_version(void *d,const char *packagename,const char 
 	retvalue r;
 	struct package_data *package;
 
-	r = upgrade->target->getversion(upgrade->target,chunk,&version);
+	r = (*upgrade->target->getversion)(upgrade->target,chunk,&version);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
@@ -153,7 +153,7 @@ retvalue upgradelist_initialize(struct upgradelist **ul,struct target *t,const c
 
 	r = target_initpackagesdb(t,dbdir);
 	if( RET_WAS_ERROR(r) ) {
-		upgradelist_free(upgrade);
+		(void)upgradelist_free(upgrade);
 		return r;
 	}
 
@@ -163,7 +163,7 @@ retvalue upgradelist_initialize(struct upgradelist **ul,struct target *t,const c
 	RET_UPDATE(r,r2);
 
 	if( RET_WAS_ERROR(r) ) {
-		upgradelist_free(upgrade);
+		(void)upgradelist_free(upgrade);
 		return r;
 	}
 
@@ -176,7 +176,7 @@ retvalue upgradelist_initialize(struct upgradelist **ul,struct target *t,const c
 retvalue upgradelist_free(struct upgradelist *upgrade) {
 	struct package_data *l;
 	
-	if( ! upgrade )
+	if( upgrade == NULL )
 		return RET_NOTHING;
 
 	l = upgrade->list;
@@ -197,10 +197,10 @@ static retvalue upgradelist_trypackage(void *data,const char *chunk){
 	upgrade_decision decision;
 	struct package_data *current,*insertafter;
 
-	r = upgrade->target->getname(upgrade->target,chunk,&packagename);
+	r = (*upgrade->target->getname)(upgrade->target,chunk,&packagename);
 	if( RET_WAS_ERROR(r) )
 		return r;
-	r = upgrade->target->getversion(upgrade->target,chunk,&version);
+	r = (*upgrade->target->getversion)(upgrade->target,chunk,&version);
 	if( RET_WAS_ERROR(r) ) {
 		free(packagename);
 		return r;
@@ -440,7 +440,12 @@ retvalue upgradelist_listmissing(struct upgradelist *upgrade,filesdb files){
 
 	for( pkg = upgrade->list ; pkg ; pkg = pkg->next ) {
 		if( pkg->version == pkg->new_version ) {
-			files_printmissing(files,&pkg->new_filekeys,&pkg->new_md5sums,&pkg->new_origfiles);
+			retvalue r;
+			r = files_printmissing(files,
+					&pkg->new_filekeys,&pkg->new_md5sums,
+					&pkg->new_origfiles);
+			if( RET_WAS_ERROR(r) )
+				return r;
 
 		}
 
@@ -455,7 +460,7 @@ retvalue upgradelist_enqueue(struct upgradelist *upgrade,struct downloadcache *c
 	result = RET_NOTHING;
 	for( pkg = upgrade->list ; pkg ; pkg = pkg->next ) {
 		if( pkg->version == pkg->new_version && !pkg->deleted) {
-			assert(pkg->aptmethod);
+			assert(pkg->aptmethod != NULL);
 			r = downloadcache_addfiles(cache,filesdb,pkg->aptmethod,
 				&pkg->new_origfiles,
 				&pkg->new_filekeys,
@@ -508,7 +513,8 @@ void upgradelist_dump(struct upgradelist *upgrade){
 
 	for( pkg = upgrade->list ; pkg ; pkg = pkg->next ) {
 		if( pkg->deleted ) {
-			if( pkg->version_in_use && pkg->new_version ) {
+			if( pkg->version_in_use != NULL && 
+					pkg->new_version != NULL ) {
 				printf("'%s': '%s' will be deleted"
 				       " (best new: '%s')\n",
 				       pkg->name,pkg->version_in_use,
@@ -538,24 +544,24 @@ void upgradelist_dump(struct upgradelist *upgrade){
 
 			} else {
 				if( pkg->version_in_use ) 
-					printf("'%s': '%s' will be upgraded"
+					(void)printf("'%s': '%s' will be upgraded"
 					       " to '%s':\n files needed: ",
 						pkg->name,pkg->version_in_use,
 						pkg->new_version);
 				else
-					printf("'%s': newly installed"
+					(void)printf("'%s': newly installed"
 					       " as '%s':\n files needed: ",
 					       pkg->name, pkg->new_version);
-				strlist_fprint(stdout,&pkg->new_filekeys);
-				printf("\nwith md5sums: ");
-				strlist_fprint(stdout,&pkg->new_md5sums);
-				printf("\ninstalling as: '%s'\n",pkg->new_control);
+				(void)strlist_fprint(stdout,&pkg->new_filekeys);
+				(void)printf("\nwith md5sums: ");
+				(void)strlist_fprint(stdout,&pkg->new_md5sums);
+				(void)printf("\ninstalling as: '%s'\n",pkg->new_control);
 			}
 		}
 	}
 }
 
 /* standard answer function */
-upgrade_decision ud_always(void *privdata UNUSED,const char *package UNUSED,const char *old_version UNUSED,const char *new_version UNUSED,const char *new_controlchunk UNUSED) {
+upgrade_decision ud_always(UNUSED(void *privdata),UNUSED(const char *package),UNUSED(const char *old_version),UNUSED(const char *new_version),UNUSED(const char *new_controlchunk)) {
 	return UD_UPGRADE;
 }

@@ -1,3 +1,62 @@
+2005-02-20  Bernhard R. Link <brlink@debian.org>
+	* add docs/tiffany.example, which generates
+	apt-qupdate'able .diff directories.
+
+	* Many small changes to make splint more
+	happy. (Mostly annotations, some clearance
+	and some fixes of memory holes or possible
+	segfaults if running out of memory)
+
+2005-02-19  Bernhard R. Link <brlink@debian.org>
+	* Refactor Index Exporting and Release generation 
+	to reduce the time Release files and Package indices
+	are out of sync (Everything is written to files
+	ending in .new now, only when everything is ready
+	all are moved to their final place) and to prepare
+	DebIndices UDebIndices and DscIndices Options.
+
+	* add another test-case
+	* FIX the overflow bug in chunks_replacefield
+
+	* add DebIndices UDebIndices and DscIndices
+	  options for conf/distributions. This allows
+	  to change which Indices to generate for this
+	  type, or calls hook to even generate additional
+	  ones. (See docs/bzip.example).
+
+2005-02-14  Bernhard R. Link <brlink@debian.org>
+	* Some little changes to make splint
+	and valgrind happier.
+
+2005-02-13  Bernhard R. Link <brlink@debian.org>
+	* Remove some code duplication in main.c
+	  (and renamed _md5sums to _listmd5sums)
+	* change -b to not overwrite prior given
+	--listdir --distdir ...
+
+2005-02-12  Bernhard R. Link <brlink@debian.org>
+	* Some clean up of the code and added some
+	paranoia checks.
+
+2005-02-10  Bernhard R. Link <brlink@debian.org>
+	* No longer shutdown aptmethods when nothing is to do.
+	(This caused problems when index files are already in
+	 place but still packages to be downloaded).
+
+	* Do not warn about deleting _changed files from listdir.
+
+2005-02-08  Bernhard R. Link <brlink@debian.org>
+	* Do some more checks reading signed sources.
+
+	* Release 0.1.1
+
+2005-02-07  Bernhard R. Link <brlink@debian.org>
+	* Fix --onlyacceptsigned to savely handle unknown
+	keys or multiple keys of different state.
+
+2005-02-06  Bernhard R. Link <brlink@debian.org>
+	* Release 0.1
+
 2005-02-05  Bernhard R. Link <brlink@debian.org>
 	* Add --onlyacceptsigned to make include and includedsc only
 	accept signed files.

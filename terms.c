@@ -42,10 +42,10 @@ void term_free(term *term) {
 	}
 }
 
-static retvalue parseatom(const char **formula,struct term_atom **atom,int options) {
+static retvalue parseatom(const char **formula,/*@out@*/struct term_atom **atom,int options) {
 	struct term_atom *a;
 	const char *f = *formula;
-#define overspace() while( *f && isspace(*f) ) f++
+#define overspace() while( *f != '\0' && isspace(*f) ) f++
 	const char *keystart,*keyend;
 	const char *valuestart,*valueend;
 	enum term_comparison comparison = tc_none;
@@ -53,7 +53,7 @@ static retvalue parseatom(const char **formula,struct term_atom **atom,int optio
 
 
 	overspace();
-	if( *f == '!' && options & T_NEGATION) {
+	if( *f == '!' && ISSET(options,T_NEGATION) ) {
 		negated = TRUE;
 		f++;
 	}
@@ -67,7 +67,7 @@ static retvalue parseatom(const char **formula,struct term_atom **atom,int optio
 		return RET_NOTHING;
 	}
 	overspace();
-	if( options & T_VERSION && *f == '(' ) {
+	if( ISSET(options,T_VERSION) && *f == '(' ) {
 		f++;
 		overspace();
 		switch( *f ) {
@@ -107,7 +107,7 @@ static retvalue parseatom(const char **formula,struct term_atom **atom,int optio
 				comparison = tc_equal;
 				break;
 			case '!':
-				if( options & T_NOTEQUAL ) {
+				if( ISSET(options,T_NOTEQUAL) ) {
 					f++;
 					if( *f != '=' ) {
 						*formula = f;
@@ -124,10 +124,10 @@ static retvalue parseatom(const char **formula,struct term_atom **atom,int optio
 		}
 		overspace();
 		valueend = valuestart = f;
-		while( *f && *f != ')' ) {
+		while( *f != '\0' && *f != ')' ) {
 			valueend = f+1;
 			f++;
-			while( *f && isspace(*f) )
+			while( *f != '\0' && isspace(*f) )
 				f++;
 		}
 		if( *f != ')' || valueend == valuestart ) {
@@ -137,11 +137,11 @@ static retvalue parseatom(const char **formula,struct term_atom **atom,int optio
 		f++;
 
 	} else {
-		comparison = '\0';
+		comparison = tc_none;
 		valuestart = valueend = NULL;
 	}
 	overspace();
-	if( options & T_ARCHITECTURES && *f == '[' ) {
+	if( ISSET(options,T_ARCHITECTURES) && *f == '[' ) {
 		//TODO: implement this one...
 		assert( "Not yet implemented!" == NULL); 
 	}
@@ -176,7 +176,7 @@ static retvalue parseatom(const char **formula,struct term_atom **atom,int optio
  * the places where True and False can be found are
  * quite easy and fast to find: */
 
-static void orterm(term *termtochange, term *termtoor) {
+static void orterm(term *termtochange, /*@dependent@*/term *termtoor) {
 	struct term_atom *p = termtochange;
 
 	while( p ) {
@@ -186,7 +186,7 @@ static void orterm(term *termtochange, term *termtoor) {
 		p = p->nextiftrue;
 	}
 }
-static void andterm(term *termtochange, term *termtoand) {
+static void andterm(term *termtochange, /*@dependent@*/term *termtoand) {
 	struct term_atom *p = termtochange;
 
 	while( p ) {
@@ -203,7 +203,7 @@ retvalue term_compile(term **term, const char *origformula, int options) {
 	struct term_atom *first,*last;
 	/* the atom just read */
 	struct term_atom *atom;
-	struct {struct term_atom *firstinand,*firstinor;} levels[50];
+	struct {/*@dependent@*/struct term_atom *firstinand,*firstinor;} levels[50];
 	int lastinitializeddepth=-1;
 	int depth=0;
 	retvalue r;
@@ -212,20 +212,20 @@ retvalue term_compile(term **term, const char *origformula, int options) {
 	int atbeginning = 1;
 	char junction = '\0';
 	
-	if( options & T_ARCHITECTURES  ) {
+	if( ISSET(options,T_ARCHITECTURES) ) {
 		//TODO: implement this one...
 		assert( "Not yet implemented!" == NULL); 
 	}
 
-#define overspace() while( *formula && isspace(*formula) ) formula++
+#define overspace() while( *formula!='\0' && isspace(*formula) ) formula++
 
 	lastinitializeddepth=-1;
 	depth=0;
 	first = last = NULL;
 
-	while( 1 ) {
+	while( TRUE ) {
 		overspace();
-		while( *formula == '(' && (options & T_BRACKETS)) {
+		while( *formula == '(' && ISSET(options,T_BRACKETS)) {
 			depth++;formula++;
 			overspace();
 		}
@@ -272,7 +272,7 @@ retvalue term_compile(term **term, const char *origformula, int options) {
 		}
 		lastinitializeddepth = depth;
 		overspace();
-		if( *formula == ')' && (options & T_BRACKETS)) {
+		if( *formula == ')' && ISSET(options,T_BRACKETS)) {
 			formula++;
 			if( depth > 0 ) {
 				depth--;
@@ -286,9 +286,9 @@ retvalue term_compile(term **term, const char *origformula, int options) {
 			overspace();
 		}
 		overspace();
-		if( !*formula )
+		if( *formula == '\0' )
 			break;
-		if( *formula != ',' && ( *formula != '|' || (options & T_OR)==0 )) {
+		if( *formula != ',' && ( *formula != '|' || NOTSET(options,T_OR) )) {
 			fprintf(stderr,"Unexpected character '%c' within '%s'!\n",*formula,origformula);
 			term_free(first);
 			return RET_ERROR;

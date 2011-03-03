@@ -34,6 +34,7 @@
 #include "strlist.h"
 #include "chunks.h"
 #include "md5sum.h"
+#include "copyfile.h"
 #include "dirs.h"
 #include "names.h"
 #include "signature.h"
@@ -62,14 +63,17 @@ retvalue release_getchecksums(const char *releasefile,struct strlist *info) {
 	}
 	r = chunk_read(fi,&chunk);
 	i = gzclose(fi);
-	if( i < 0)
-		return RET_ZERRNO(i);
 	if( !RET_IS_OK(r) ) {
 		fprintf(stderr,"Error reading %s.\n",releasefile);
 		if( r == RET_NOTHING )
 			return RET_ERROR;
 		else
 			return r;
+	}
+	if( i < 0) {
+		fprintf(stderr,"Closing revealed reading error in %s.\n",releasefile);
+		free(chunk);
+		return RET_ZERRNO(i);
 	}
 	r = chunk_getextralinelist(chunk,"MD5Sum",&files);
 	free(chunk);
@@ -114,36 +118,42 @@ retvalue release_getchecksums(const char *releasefile,struct strlist *info) {
 }
 
 /* Generate a "Release"-file for arbitrary directory */
-retvalue release_genrelease(const struct distribution *distribution,const struct target *target,const char *distdir, bool_t onlyifneeded) {
+retvalue release_genrelease(const char *distributiondir,const struct distribution *distribution,const struct target *target,const char *releasename,bool_t onlyifneeded, struct strlist *releasedfiles) {
 	FILE *f;
-	char *filename;
+	char *filename,*h;
+	retvalue r;
 	int e;
 
-
-	filename = calc_dirconcat3(distdir,target->directory,"Release");
-	if( !filename ) {
+	filename = calc_dirconcat3(distributiondir,target->relativedirectory,releasename);
+	if( filename == NULL ) {
 		return RET_ERROR_OOM;
 	}
-	if( onlyifneeded ) {
-		struct stat s;
-		int i;
-
-		i = stat(filename,&s);
-		if( i == 0 && S_ISREG(s.st_mode) ) {
-			free(filename);
-			return RET_NOTHING;
-		}
+	if( onlyifneeded && isregularfile(filename) ) {
+		free(filename);
+		filename = calc_dirconcat(target->relativedirectory,releasename);
+		r = strlist_add(releasedfiles,filename);
+		if( RET_WAS_ERROR(r) )
+			return r;
+		return RET_NOTHING;
+	}
+	h = filename;
+	filename = calc_addsuffix(h,"new");
+	free(h);
+	if( filename == NULL ) {
+		return RET_ERROR_OOM;
 	}
 
+	(void)unlink(filename);
 	f = fopen(filename,"w");
 	if( !f ) {
 		e = errno;
-		fprintf(stderr,"Error (re)writing file %s: %m\n",filename);
+		fprintf(stderr,"Error writing file %s: %m\n",filename);
 		free(filename);
 		return RET_ERRNO(e);
 	}
 	free(filename);
 
+	// TODO: check all return codes...
 	if( distribution->suite != NULL )
 		fprintf(f,	"Archive: %s\n",distribution->suite);
 	if( distribution->version != NULL )
@@ -160,112 +170,155 @@ retvalue release_genrelease(const struct distribution *distribution,const struct
 	if( fclose(f) != 0 )
 		return RET_ERRNO(errno);
 
+	filename = calc_dirsuffixconcat(target->relativedirectory,releasename,"new");
+	if( filename == NULL )
+		return RET_ERROR_OOM;
+	r = strlist_add(releasedfiles,filename);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
 	return RET_OK;
 	
 }
 
-struct genrel { FILE *f; const char *distdir; int force; };
-
-static retvalue printmd5(void *data,struct target *target) {
-	struct genrel *d = data;
-
-	return target_printmd5sums(target,d->distdir,d->f,d->force);
-}
-
 /* Generate a main "Release" file for a distribution */
-retvalue release_gen(const struct distribution *distribution,const char *distdir,int force) {
+retvalue release_gen(const char *dirofdist,const struct distribution *distribution,struct strlist *releasedfiles,int force) {
 	FILE *f;
 	char *filename;
-	char *dirofdist;
-	size_t e;
+	size_t s;
+	int e;
 	retvalue result,r;
 	char buffer[100];
 	time_t t;
 	struct tm *gmt;
 	int i;
 
-	struct genrel data;
-
 	(void)time(&t);
 	gmt = gmtime(&t);
 	if( gmt == NULL )
 		return RET_ERROR_OOM;
-	// e=strftime(buffer,99,"%a, %d %b %Y %H:%M:%S %z",localtime(&t));
-	e=strftime(buffer,99,"%a, %d %b %Y %H:%M:%S +0000",gmt);
-	if( e == 0 || e == 99) {
+	// s=strftime(buffer,99,"%a, %d %b %Y %H:%M:%S %z",localtime(&t));
+	s=strftime(buffer,99,"%a, %d %b %Y %H:%M:%S +0000",gmt);
+	if( s == 0 || s == 99) {
 		fprintf(stderr,"strftime is doing strange things...\n");
 		return RET_ERROR;
 	}
 
-	dirofdist = calc_dirconcat(distdir,distribution->codename);
-	if( !dirofdist ) {
-		return RET_ERROR_OOM;
-	}
-
-	filename = calc_dirconcat(dirofdist,"Release");
-	free(dirofdist);
+	filename = calc_dirconcat(dirofdist,"Release.new");
 	if( !filename ) {
 		return RET_ERROR_OOM;
 	}
 	(void)dirs_make_parent(filename);
+	(void)unlink(filename);
 	f = fopen(filename,"w");
 	if( !f ) {
 		e = errno;
-		fprintf(stderr,"Error rewriting file %s: %m\n",filename);
+		fprintf(stderr,"Error writing file %s: %m\n",filename);
 		free(filename);
 		return RET_ERRNO(e);
 	}
+#define checkwritten if( e < 0 ) { \
+		e = errno; \
+		fprintf(stderr,"Error writing to %s: %d=$m!\n",filename,e); \
+		free(filename); \
+		(void)fclose(f); \
+		return RET_ERRNO(e); \
+	}
 
-	// TODO: check all those return values...
-
-	if( distribution->origin != NULL )
-		fprintf(f,"Origin: %s\n", distribution->origin);
-	if( distribution->label != NULL )
-		fprintf(f,"Label: %s\n", distribution->label);
-	if( distribution->suite != NULL )
-		fprintf(f,"Suite: %s\n", distribution->suite);
-	fprintf(f,"Codename: %s\n", distribution->codename);
-	if( distribution->version != NULL )
-		fprintf(f,"Version: %s\n", distribution->version);
-	fprintf(f,"Date: %s\n",buffer);
-	fprintf(f,"Architectures:");
+	if( distribution->origin != NULL ) {
+		e = fputs("Origin: ",f);
+		checkwritten;
+		e = fputs(distribution->origin,f);
+		checkwritten;
+		e = fputc('\n',f) - 1;
+		checkwritten;
+	}
+	if( distribution->label != NULL ) {
+		e = fputs("Label: ",f);
+		checkwritten;
+		e = fputs(distribution->label,f);
+		checkwritten;
+		e = fputc('\n',f) - 1;
+		checkwritten;
+	}
+	if( distribution->suite != NULL ) {
+		e = fputs("Suite: ",f);
+		checkwritten;
+		e = fputs(distribution->suite,f);
+		checkwritten;
+		e = fputc('\n',f) - 1;
+		checkwritten;
+	}
+	e = fputs("Codename: ",f);
+	checkwritten;
+	e = fputs(distribution->codename,f);
+	checkwritten;
+	if( distribution->version != NULL ) {
+		e = fputs("\nVersion: ",f);
+		checkwritten;
+		e = fputs(distribution->version,f);
+		checkwritten;
+	}
+	e = fputs("\nDate: ",f);
+	checkwritten;
+	e = fputs(buffer,f);
+	checkwritten;
+	e = fputs("\nArchitectures:",f);
+	checkwritten;
 	for( i = 0 ; i < distribution->architectures.count ; i++ ) {
 		/* Debian's topmost Release files do not list it, so we won't either */
 		if( strcmp(distribution->architectures.values[i],"source") == 0 )
 			continue;
-		fputc(' ',f);
-		fputs(distribution->architectures.values[i],f);
+		e = fputc(' ',f) - 1;
+		checkwritten;
+		e = fputs(distribution->architectures.values[i],f);
+		checkwritten;
 	}
-	fprintf(f,"\nComponents: ");
-	strlist_fprint(f,&distribution->components);
-	fprintf(f,"\n");
-	if( distribution->description != NULL )
-		fprintf(f,"Description: %s\n", distribution->description);
-	fprintf(f,"MD5Sum:\n");
-
-	/* generate bin/source-Release-files and add md5sums */
-
-	data.f = f;
-	data.distdir = distdir;
-	data.force = force;
-	result = distribution_foreach_part(distribution,NULL,NULL,NULL,printmd5,&data,force);
-
-	if( fclose(f) != 0 ) {
+	e = fputs("\nComponents: ",f);
+	checkwritten;
+	r = strlist_fprint(f,&distribution->components);
+	if( RET_WAS_ERROR(r) ) {
+		fprintf(stderr,"Error writing to %s!\n",filename);
 		free(filename);
-		return RET_ERRNO(errno);
+		(void)fclose(f);
+		return r;
+	}
+	if( distribution->description != NULL ) {
+		e = fputs("\nDescription: ",f);
+		checkwritten;
+		e = fputs(distribution->description,f);
+		checkwritten;
 	}
 
-	if( RET_WAS_ERROR(result) ){
-		free(filename);
-		return result;
-	}
+	e = fputc('\n',f);
+	checkwritten;
 
-	/* in case of error or nothing to do there is nothing to do... */
+	result = export_checksums(dirofdist,f,releasedfiles,force);
+
+	e = fclose(f);
+	checkwritten;
+#undef checkwritten
+
 	if( distribution->signwith ) { 
-		r = signature_sign(distribution->signwith,filename);
+		char *newfilename;
+
+		newfilename = calc_dirconcat(dirofdist,"Release.gpg.new");
+		if( newfilename == NULL ) {
+			free(filename);
+			return RET_ERROR_OOM;
+		}
+
+		r = signature_sign(distribution->signwith,filename,newfilename);
 		RET_UPDATE(result,r);
+		free(newfilename);
 	}
 	free(filename);
+	if( !RET_WAS_ERROR(result) || force > 0 ) {
+
+		r = export_finalize(dirofdist,releasedfiles,force,distribution->signwith!=NULL);
+		RET_UPDATE(result,r);
+	}
+
 	return result;
 }
 

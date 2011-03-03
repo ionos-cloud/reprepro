@@ -44,18 +44,19 @@ struct aptmethod {
 	struct aptmethod *next;
 	char *name;
 	char *baseuri;
-	char *config;
+	/*@null@*/char *config;
 	int stdin,stdout;
 	pid_t child;
 
-	enum { ams_waitforcapabilities=0, ams_ok, ams_failed } status;
+	enum { ams_notstarted=0, ams_waitforcapabilities, ams_ok, ams_failed } status;
 	
-	struct tobedone *tobedone,*lasttobedone,*nexttosend;
+	struct tobedone *tobedone,*lasttobedone;
+	/*@dependent@*/const struct tobedone *nexttosend;
 	/* what is currently read: */
-	char *inputbuffer;
+	/*@null@*/char *inputbuffer;
 	size_t input_size,alreadyread;
 	/* What is currently written: */
-	char *command;
+	/*@null@*/char *command;
 	size_t alreadywritten,output_length;
 };
 
@@ -63,7 +64,7 @@ struct aptmethodrun {
 	struct aptmethod *methods;
 };
 
-static void aptmethod_free(struct aptmethod *method) {
+static void aptmethod_free(/*@only@*/struct aptmethod *method) {
 	if( method == NULL )
 		return;
 	free(method->name);
@@ -116,13 +117,13 @@ retvalue aptmethod_shutdown(struct aptmethodrun *run) {
 		if( method->stdin >= 0 ) {
 			(void)close(method->stdin);
 			if( verbose > 30 )
-				fprintf(stderr,"Closing stdin of %d\n",method->child);
+				fprintf(stderr,"Closing stdin of %d\n",(int)method->child);
 		}
 		method->stdin = -1;
 		if( method->stdout >= 0 ) {
 			(void)close(method->stdout);
 			if( verbose > 30 )
-				fprintf(stderr,"Closing stdout %d\n",method->child);
+				fprintf(stderr,"Closing stdout %d\n",(int)method->child);
 		}
 		method->stdout = -1;
 	}
@@ -148,6 +149,7 @@ retvalue aptmethod_shutdown(struct aptmethodrun *run) {
 			}
 		}
 	}
+	free(run);
 	return RET_OK;
 }
 
@@ -175,9 +177,9 @@ retvalue aptmethod_newmethod(struct aptmethodrun *run,const char *uri,const char
 	method->stdin = -1;
 	method->stdout = -1;
 	method->child = -1;
-	method->status = ams_waitforcapabilities;
+	method->status = ams_notstarted;
 	p = uri;
-	while( *p && ( *p == '_' || *p == '-' ||
+	while( *p != '\0' && ( *p == '_' || *p == '-' ||
 		(*p>='a' && *p<='z') || (*p>='A' && *p<='Z') ||
 		(*p>='0' && *p<='9') ) ) {
 		p++;
@@ -235,11 +237,11 @@ inline static retvalue aptmethod_startup(struct aptmethodrun *run,struct aptmeth
 	int r;
 
 	/* When there is nothing to get, there is no reason to startup
-	 * the method. (And whoever adds methods only to execute commands
-	 * will have the tough time they deserve) */
+	 * the method. */
 	if( method->tobedone == NULL ) {
 		return RET_NOTHING;
 	}
+
 	/* when we are already running, we are already ready...*/
 	if( method->child > 0 ) {
 		return RET_OK;
@@ -256,7 +258,7 @@ inline static retvalue aptmethod_startup(struct aptmethodrun *run,struct aptmeth
 	r = pipe(stdout);	
 	if( r < 0 ) {
 		int err = errno;
-		close(stdin[0]);close(stdin[1]);
+		(void)close(stdin[0]);(void)close(stdin[1]);
 		fprintf(stderr,"Error while pipe: %d=%m\n",err);
 		return RET_ERRNO(err);
 	}
@@ -264,8 +266,8 @@ inline static retvalue aptmethod_startup(struct aptmethodrun *run,struct aptmeth
 	f = fork();
 	if( f < 0 ) {
 		int err = errno;
-		close(stdin[0]);close(stdin[1]);
-		close(stdout[0]);close(stdout[1]);
+		(void)close(stdin[0]);(void)close(stdin[1]);
+		(void)close(stdout[0]);(void)close(stdout[1]);
 		fprintf(stderr,"Error while forking: %d=%m\n",err);
 		return RET_ERRNO(err);
 	}
@@ -273,8 +275,8 @@ inline static retvalue aptmethod_startup(struct aptmethodrun *run,struct aptmeth
 		long maxopen;
 		char *methodname;
 		/* child: */
-		close(stdin[1]);
-		close(stdout[0]);
+		(void)close(stdin[1]);
+		(void)close(stdout[0]);
 		if( dup2(stdin[0],0) < 0 ) {
 			fprintf(stderr,"Error while setting stdin: %d=%m\n",errno);
 			exit(255);
@@ -288,14 +290,14 @@ inline static retvalue aptmethod_startup(struct aptmethodrun *run,struct aptmeth
 		if( maxopen > 0 ) {
 			int fd;
 			for( fd = 3 ; fd < maxopen ; fd++ )
-				close(fd);
+				(void)close(fd);
 		} else {
 			/* closeat least the ones definitly causing problems*/
 			const struct aptmethod *m;
 			for( m = run->methods; m ; m = m->next ) {
 				if( m != method ) {
-					close(m->stdin);
-					close(m->stdout);
+					(void)close(m->stdin);
+					(void)close(m->stdout);
 				}
 			}
 		}
@@ -313,9 +315,9 @@ inline static retvalue aptmethod_startup(struct aptmethodrun *run,struct aptmeth
 	/* the main program continues... */
 	method->child = f;
 	if( verbose > 10 )
-		fprintf(stderr,"Method '%s' started as %d\n",method->baseuri,f);
-	close(stdin[0]);
-	close(stdout[1]);
+		fprintf(stderr,"Method '%s' started as %d\n",method->baseuri,(int)f);
+	(void)close(stdin[0]);
+	(void)close(stdout[1]);
 	method->stdin = stdin[1];
 	method->stdout = stdout[0];
 	method->inputbuffer = NULL;
@@ -351,7 +353,7 @@ static inline retvalue sendconfig(struct aptmethod *method) {
 	}
 
 	l = sizeof(CONF601)+sizeof(CONFITEM)+1;
-	for( p = method->config; *p ; p++ ) {
+	for( p = method->config; *p != '\0' ; p++ ) {
 		if( *p == '\n' )
 			l += sizeof(CONFITEM)-1;
 		else 
@@ -365,7 +367,7 @@ static inline retvalue sendconfig(struct aptmethod *method) {
 	strcpy(c,CONF601 CONFITEM);
 	c += sizeof(CONF601)+sizeof(CONFITEM)-2;
 	wasnewline = TRUE;
-	for( p = method->config; *p ; p++ ) {
+	for( p = method->config; *p != '\0'  ; p++ ) {
 		if( *p != '\n' ) {
 			if( !wasnewline || !isspace(*p) )
 				*(c++) = *p;
@@ -390,7 +392,7 @@ static inline retvalue sendconfig(struct aptmethod *method) {
 
 /**************************how to add files*****************************/
 
-static inline struct tobedone *newtodo(const char *baseuri,const char *origfile,const char *destfile,const char *md5sum,const char *filekey) {
+/*@null@*/static inline struct tobedone *newtodo(const char *baseuri,const char *origfile,const char *destfile,/*@null@*/const char *md5sum,/*@null@*/const char *filekey) {
 	struct tobedone *todo;
 
 	todo = malloc(sizeof(struct tobedone));
@@ -420,7 +422,7 @@ static inline struct tobedone *newtodo(const char *baseuri,const char *origfile,
 	return todo;
 }
 
-retvalue aptmethod_queuefile(struct aptmethod *method,const char *origfile,const char *destfile,const char *md5sum,const char *filekey,struct tobedone **t) {
+retvalue aptmethod_queuefile(struct aptmethod *method,const char *origfile,const char *destfile,/*@null@*/const char *md5sum,/*@null@*/const char *filekey,/*@null@*/struct tobedone **t) {
 	struct tobedone *todo;
 
 	todo = newtodo(method->baseuri,origfile,destfile,md5sum,filekey);
@@ -471,7 +473,7 @@ static inline retvalue todo_done(const struct tobedone *todo,const char *filenam
 	} else {
 		retvalue r;
 	/* if it should be in place, calculate its md5sum, if needed */
-		if( todo->md5sum && !md5sum ) {
+		if( todo->md5sum != NULL && md5sum == NULL) {
 			r = md5sum_read(filename,&calculatedmd5);
 			if( r == RET_NOTHING ) {
 				fprintf(stderr,"Cannot open '%s', which was given by method.\n",filename);
@@ -495,8 +497,8 @@ static inline retvalue todo_done(const struct tobedone *todo,const char *filenam
 	if( todo->filekey ) {
 		retvalue r;
 
-		assert(filesdb);
-		assert(todo->md5sum);
+		assert(filesdb != NULL);
+		assert(todo->md5sum != NULL);
 		
 		r = files_add(filesdb,todo->filekey,todo->md5sum);
 		if( RET_WAS_ERROR(r) )
@@ -706,7 +708,7 @@ static inline retvalue goturierror(struct aptmethod *method,const char *chunk) {
 	
 static inline retvalue parsereceivedblock(struct aptmethod *method,const char *input,filesdb filesdb) {
 	const char *p;
-#define OVERLINE {while( *p && *p != '\n') p++; if(*p == '\n') p++; }
+#define OVERLINE {while( *p != '\0' && *p != '\n') p++; if(*p == '\n') p++; }
 
 	while( *input == '\n' || *input == '\r' )
 		input++;
@@ -739,6 +741,9 @@ static inline retvalue parsereceivedblock(struct aptmethod *method,const char *i
 						return logmessage(method,p,"102");
 					}
 					return RET_OK;
+				default:
+					fprintf(stderr,"Got error or unsupported mesage: '%s'\n",input);
+					return RET_ERROR;
 			}
 		case '2':
 			switch( *(input+2) ) {
@@ -755,6 +760,9 @@ static inline retvalue parsereceivedblock(struct aptmethod *method,const char *i
 					if( verbose >= 1 )
 						logmessage(method,p,"got");
 					return goturidone(method,p,filesdb);
+				default:
+					fprintf(stderr,"Got error or unsupported mesage: '%s'\n",input);
+					return RET_ERROR;
 			}
 
 		case '4':
@@ -785,6 +793,10 @@ static retvalue receivedata(struct aptmethod *method,filesdb filesdb) {
 	char *p;
 	int consecutivenewlines;
 
+	assert( method->status != ams_ok || method->tobedone );
+	if( method->status != ams_waitforcapabilities && method->status != ams_ok )
+		return RET_NOTHING;
+
 	/* First look if we have enough room to read.. */
 	if( method->alreadyread + 1024 >= method->input_size ) {
 		char *newptr;
@@ -802,6 +814,7 @@ static retvalue receivedata(struct aptmethod *method,filesdb filesdb) {
 		method->inputbuffer = newptr;
 		method->input_size = method->alreadyread + 1024;
 	}
+	assert( method->inputbuffer != NULL );
 	/* then read as much as the pipe is able to fill of our buffer */
 
 	r = read(method->stdout,method->inputbuffer+method->alreadyread,method->input_size-method->alreadyread-1);
@@ -815,7 +828,7 @@ static retvalue receivedata(struct aptmethod *method,filesdb filesdb) {
 	method->alreadyread += r;
 
 	result = RET_NOTHING;
-	while(1) {
+	while(TRUE) {
 		retvalue res;
 
 		r = method->alreadyread; 
@@ -852,7 +865,6 @@ static retvalue senddata(struct aptmethod *method) {
 	size_t l;
 	ssize_t r;
 
-	assert(method->status == ams_ok);
 	if( method->status != ams_ok )
 		return RET_NOTHING;
 
@@ -864,7 +876,7 @@ static retvalue senddata(struct aptmethod *method) {
 
 		method->alreadywritten = 0;
 		// TODO: make sure this is already checked for earlier...
-		assert(index(method->nexttosend->uri,'\n')==NULL || index(method->nexttosend->filename,'\n') == 0);
+		assert(strchr(method->nexttosend->uri,'\n')==NULL || strchr(method->nexttosend->filename,'\n') == 0);
 		/* http-aptmethod seems to loose the last byte if the file is already 
 		 * in place, so we better unlink the target first... */
 		unlink(method->nexttosend->filename);
@@ -906,24 +918,28 @@ static retvalue checkchilds(struct aptmethodrun *run) {
 	retvalue result = RET_OK;
 
 	while( (child = waitpid(-1,&status,WNOHANG)) > 0 ) {
-		struct aptmethod *method,*lastmethod;
+		struct aptmethod *method;
 
-		lastmethod = NULL; method = run->methods;
-		while( method ) {
+		for( method = run->methods; method != NULL ; method = method->next) {
 			if( method->child == child )
 				break;
-			lastmethod = method;
-			method = method->next;
 		}
 		if( method == NULL ) {
 			fprintf(stderr,"Unexpected child died(maybe gpg if signing/verifing was done): %d\n",(int)child);
 			continue;
 		}
-		/* remove this child out of the list: */
-		if( lastmethod ) {
-			lastmethod->next = method->next;
-		} else
-			run->methods = method->next;
+		/* Make sure we do not cope with this child any more */
+		if( method->stdin != -1 ) {
+			(void)close(method->stdin);
+			method->stdin = -1;
+		}
+		if( method->stdout != -1 ) {
+			(void)close(method->stdout);
+			method->stdout = -1;
+		}
+		method->child = -1;
+		if( method->status != ams_failed )
+			method->status = ams_notstarted;
 
 		/* say something if it exited unnormal: */
 		if( WIFEXITED(status) ) {
@@ -932,15 +948,14 @@ static retvalue checkchilds(struct aptmethodrun *run) {
 			exitcode = WEXITSTATUS(status);
 			if( exitcode != 0 ) {
 				fprintf(stderr,"Method %s://%s exited with non-zero exit-code %d!\n",method->name,method->baseuri,exitcode);
+				method->status = ams_notstarted;
 				result = RET_ERROR;
 			}
 		} else {
 			fprintf(stderr,"Method %s://%s exited unnormally!\n",method->name,method->baseuri);
-				result = RET_ERROR;
+			method->status = ams_notstarted;
+			result = RET_ERROR;
 		}
-
-		/* free the data... */
-		aptmethod_free(method);
 	}
 	return result;
 }
@@ -967,7 +982,8 @@ static retvalue readwrite(struct aptmethodrun *run,int *workleft,filesdb filesdb
 				fprintf(stderr,"want to write to '%s'\n",method->baseuri);
 		}
 		if( method->status == ams_waitforcapabilities ||
-				method->tobedone ) {
+				(method->status == ams_ok &&
+				method->tobedone) ) {
 			FD_SET(method->stdout,&readfds);
 			if( method->stdout > maxfd )
 				maxfd = method->stdout;
@@ -1007,30 +1023,19 @@ static retvalue readwrite(struct aptmethodrun *run,int *workleft,filesdb filesdb
 }
 
 retvalue aptmethod_download(struct aptmethodrun *run,const char *methoddir,filesdb filesdb) {
-	struct aptmethod *method,*lastmethod;
+	struct aptmethod *method;
 	retvalue result,r;
 	int workleft;
 
 	result = RET_NOTHING;
 
 	/* fire up all methods, removing those that do not work: */
-	lastmethod = NULL; method = run->methods;
-	while( method ) {
+	for( method = run->methods; method != NULL ; method = method->next ) {
 		r = aptmethod_startup(run,method,methoddir);
-		if( !RET_IS_OK(r) ) {
-			struct aptmethod *next = method->next;
-
-			if( lastmethod ) {
-				lastmethod->next = next;
-			} else
-				run->methods = next;
-
-			aptmethod_free(method);
-			method = next;
-		} else {
-			lastmethod = method;
-			method = method->next;
-		}
+		/* do not remove failed methods here any longer,
+		 * and not remove methods having nothing to do,
+		 * as this breaks when no index files are downloaded
+		 * due to all already beeing in place... */
 		RET_UPDATE(result,r);
 	}
 	/* waiting for them to finish: */

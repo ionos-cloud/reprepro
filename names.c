@@ -30,6 +30,8 @@
 
 extern int verbose;
 
+typedef unsigned char uchar;
+
 /* check if the character starting where <character> points
  * at is a overlong one */
 static inline bool_t overlongUTF8(const char *character) {
@@ -40,30 +42,34 @@ static inline bool_t overlongUTF8(const char *character) {
 	 * this out if we knew it is utf8 we arec coping
 	 * with. (Well, you should not use --ignore=validchars
 	 * anyway). */
-	unsigned char c = *character;
+	uchar c = *character;
 
-	if( (c & 0xC2 /*11000010*/) == 0xC0 /*11000000*/ ) {
-		unsigned char nextc = *(character+1);
+	if( (c & (uchar)0xC2 /*11000010*/) == (uchar)0xC0 /*11000000*/ ) {
+		uchar nextc = *(character+1);
 
-		if( (nextc & 0xC0 /*11000000*/ ) != 0x80 /*10000000*/ )
+		if( (nextc & (uchar)0xC0 /*11000000*/ ) != (uchar)0x80 /*10000000*/ )
 			return FALSE;
 
-		if( (c & 0x3E /* 00111110 */ ) == 0 )
+		if( (c & (uchar)0x3E /* 00111110 */ ) == (uchar)0 )
 			return TRUE;
-		if( c == 0xE0 /*11100000*/ && (nextc & 0x20 /*00100000*/ ) == 0) 
+		if( c == (uchar)0xE0 /*11100000*/ && 
+		    (nextc & (uchar)0x20 /*00100000*/ ) == (uchar)0) 
 			return TRUE;
-		if( c == 0xF0 /*11110000*/ && (nextc & 0x30 /*00110000*/ ) == 0) 
+		if( c == (uchar)0xF0 /*11110000*/ && 
+		    (nextc & (uchar)0x30 /*00110000*/ ) == (uchar)0) 
 			return TRUE;
-		if( c == 0xF8 /*11111000*/ && (nextc & 0x38 /*00111000*/ ) == 0) 
+		if( c == (uchar)0xF8 /*11111000*/ && 
+		    (nextc & (uchar)0x38 /*00111000*/ ) == (uchar)0) 
 			return TRUE;
-		if( c == 0xFC /*11111100*/ && (nextc & 0x3C /*00111100*/ ) == 0) 
+		if( c == (uchar)0xFC /*11111100*/ && 
+		    (nextc & (uchar)0x3C /*00111100*/ ) == (uchar)0) 
 			return TRUE;
 	}
 	return FALSE;
 }
 
 #define REJECTLOWCHARS(s,str,descr) \
-	if( (unsigned char)*s < ' ' ) { \
+	if( (uchar)*s < (uchar)' ' ) { \
 		fprintf(stderr, \
 			"Character 0x%02hhx not allowed within %s '%s'!\n", \
 			*s,descr,str); \
@@ -97,7 +103,7 @@ retvalue propersourcename(const char *string) {
 		return RET_ERROR;
 	}
 	s = string;
-	while( *s ) {
+	while( *s != '\0' ) {
 		if( (*s > 'z' || *s < 'a' ) && 
 		    (*s > '9' || *s < '0' ) && 
 		    (firstcharacter || 
@@ -455,7 +461,7 @@ char *calc_downloadedlistpattern(const char *codename) {
 
 char *calc_identifier(const char *codename,const char *component,const char *architecture,const char *packagetype) {
 	// TODO: add checks to all data possibly given into here...
-	assert( index(codename,'|') == NULL && index(component,'|') == NULL && index(architecture,'|') == NULL );
+	assert( strchr(codename,'|') == NULL && strchr(component,'|') == NULL && strchr(architecture,'|') == NULL );
 	assert( codename && component && architecture && packagetype );
 	if( packagetype[0] == 'u' ) 
 		return mprintf("u|%s|%s|%s",codename,component,architecture);
@@ -470,23 +476,30 @@ char *calc_addsuffix(const char *str1,const char *str2) {
 char *calc_dirconcat(const char *str1,const char *str2) {
 	return mprintf("%s/%s",str1,str2);
 }
+char *calc_dirconcatn(const char *str1,const char *str2,size_t len2) {
+	size_t len1;
+	char *r;
+	
+	assert(str1 != NULL);
+	assert(str2 != NULL);
+	len1 = strlen(str1);
+	if( (size_t)(len1+len2+2) < len1 || (size_t)(len1+len2+2) < len2 )
+		return NULL;
+	r = malloc(len1+len2+2);
+	if( r == NULL )
+		return NULL;
+	strcpy(r,str1);
+	r[len1] = '/';
+	memcpy(r+len1+1,str2,len2);
+	r[len1+1+len2] = '\0';
+	return r;
+}
 
 char *calc_dirconcat3(const char *str1,const char *str2,const char *str3) {
 	return mprintf("%s/%s/%s",str1,str2,str3);
 }
-
-char *calc_comprconcat(const char *str1,const char *str2,const char *str3,indexcompression compr) {
-	assert(compr >= 0 && compr <= ic_max );
-
-	switch( compr ) {
-		case ic_uncompressed:
-			return mprintf("%s/%s/%s",str1,str2,str3);
-		case ic_gzip:
-			return mprintf("%s/%s/%s.gz",str1,str2,str3);
-		default:
-			assert(0);
-			return NULL;
-	}
+char *calc_dirsuffixconcat(const char *str1,const char *str2,const char *suffix) {
+	return mprintf("%s/%s.%s",str1,str2,suffix);
 }
 
 char *calc_srcfilekey(const char *sourcedir,const char *filename){
@@ -528,7 +541,7 @@ char *calc_filekey(const char *component,const char *sourcename,const char *file
 char *calc_binary_basename(const char *name,const char *version,const char *arch,const char *packagetype) {
 	const char *v;
 	assert( name && version && arch && packagetype );
-	v = index(version,':');
+	v = strchr(version,':');
 	if( v )
 		v++;
 	else
@@ -537,7 +550,7 @@ char *calc_binary_basename(const char *name,const char *version,const char *arch
 }
 
 char *calc_source_basename(const char *name,const char *version) {
-	const char *v = index(version,':');
+	const char *v = strchr(version,':');
 	if( v )
 		v++;
 	else
@@ -589,7 +602,6 @@ retvalue calc_dirconcats(const char *directory, const struct strlist *basefilena
 		}
 		r = strlist_add(files,file);
 		if( RET_WAS_ERROR(r) ) {
-			free(file);
 			strlist_done(files);
 			return r;
 		}

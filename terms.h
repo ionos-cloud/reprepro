@@ -11,7 +11,7 @@ typedef struct term_atom {
 	/* the next atom to look at if this is true, resp. false,
 	 * nextiftrue  == NULL means total result is true, 
 	 * nextiffalse == NULL means total result is false. */
-	struct term_atom *nextiftrue,*nextiffalse;
+	/*@dependent@*/struct term_atom *nextiftrue,*nextiffalse;
 	bool_t negated; 
 	
 	/* package-name or key */
@@ -37,10 +37,10 @@ typedef struct term_atom {
 /* (!= value) is allowed */
 #define T_NOTEQUAL	0x40
 
-retvalue term_compile(term **term, const char *formula, int options);
-void term_free(term *term);
+retvalue term_compile(/*@out@*/term **term, const char *formula, int options);
+void term_free(/*@null@*//*@only@*/term *term);
 
-/* decide based on a chunk, (warning: string comparisons even for architecture!)*/
+/* decide based on a chunk, (warning: string comparisons even for version!)*/
 retvalue term_decidechunk(term *condition,const char *controlchunk);
 
 #endif

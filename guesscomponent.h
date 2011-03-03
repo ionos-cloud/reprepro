@@ -12,6 +12,6 @@
 
 retvalue guess_component(const char *codename,const struct strlist *components,
 			const char *package,const char *section,
-			const char *givencomponent,char **component);
+			/*@null@*/const char *givencomponent,char **component);
 
 #endif

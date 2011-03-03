@@ -67,6 +67,13 @@ static retvalue signature_init(void){
 	return RET_OK;
 }
 
+void signatures_done(void) {
+	if( context != NULL ) {
+		gpgme_release(context);
+		context = NULL;
+	}
+}
+
 static inline retvalue containskey(const char *key, const char *fingerprint) {
 
 	size_t fl,kl;
@@ -135,7 +142,7 @@ static inline retvalue checksignatures(GpgmeCtx context,const char *key,const ch
 					break;
 #endif
 				default:
-					fprintf(stderr,"Error checking!\n");
+					fprintf(stderr,"Error checking (libgpgme returned %d)!\n",status);
 					break;
 			}
 		}
@@ -211,6 +218,10 @@ retvalue signature_check(const char *options, const char *releasegpg, const char
 			fprintf(stderr,"No signature found within '%s'!\n",releasegpg);
 			return RET_ERROR_GPGME;
 		case GPGME_SIG_STAT_NONE:
+			fprintf(stderr,"gpgme returned an impossible condition for '%s'!\n"
+"If you are using woody and there was no ~/.gnupg yet, try repeating the last command.\n"
+,releasegpg);
+			return RET_ERROR_GPGME;
 		case GPGME_SIG_STAT_ERROR:
 			fprintf(stderr,"gpgme reported errors checking '%s'!\n",releasegpg);
 			return RET_ERROR_GPGME;
@@ -222,9 +233,8 @@ retvalue signature_check(const char *options, const char *releasegpg, const char
 }
 
 
-retvalue signature_sign(const char *options,const char *filename) {
+retvalue signature_sign(const char *options, const char *filename, const char *signaturename) {
 	retvalue r;
-	char *sigfilename;
 	GpgmeError err;
 	GpgmeData dh,dh_gpg;
 	int ret;
@@ -233,34 +243,24 @@ retvalue signature_sign(const char *options,const char *filename) {
 	if( RET_WAS_ERROR(r) )
 		return r;
 
-	//TODO: speifiy which key to use...
+	//TODO: specify which key to use...
 
-	/* First calculate the filename of the signature */
-
-	sigfilename = calc_addsuffix(filename,"gpg");
-	if( !sigfilename ) {
-		return RET_ERROR_OOM;
-	}
-
-	/* Then make sure it does not already exists */
+	/* make sure it does not already exists */
 	
-	ret = unlink(sigfilename);
+	ret = unlink(signaturename);
 	if( ret != 0 && errno != ENOENT ) {
-		fprintf(stderr,"Could not remove '%s' to prepare replacement: %m\n",sigfilename);
-		free(sigfilename);
+		fprintf(stderr,"Could not remove '%s' to prepare replacement: %m\n",signaturename);
 		return RET_ERROR;
 	}
 
 	// TODO: Supply our own read functions to get sensible error messages.
 	err = gpgme_data_new(&dh_gpg);
 	if( err ) {
-		free(sigfilename);
 		return gpgerror(err);
 	}
 	err = gpgme_data_new_from_file(&dh,filename,1);
 	if( err ) {
 		gpgme_data_release(dh_gpg);
-		free(sigfilename);
 		return gpgerror(err);
 	}
 
@@ -268,7 +268,6 @@ retvalue signature_sign(const char *options,const char *filename) {
 	gpgme_data_release(dh);
 	if( err ) {
 		gpgme_data_release(dh_gpg);
-		free(sigfilename);
 		return gpgerror(err);
 	} else {
 		char *signature_data;
@@ -279,10 +278,9 @@ retvalue signature_sign(const char *options,const char *filename) {
 		if( signature_data == NULL ) {
 			return RET_ERROR_OOM;
 		}
-		fd = creat(sigfilename,0777);
+		fd = creat(signaturename,0777);
 		if( fd < 0 ) {
 			free(signature_data);
-			free(sigfilename);
 			return RET_ERRNO(errno);
 		}
 		ret = write(fd,signature_data,signature_len);
@@ -291,9 +289,8 @@ retvalue signature_sign(const char *options,const char *filename) {
 		//TODO check return values...
 	}
 	if( verbose > 1 ) {
-		fprintf(stderr,"Successfully created '%s'\n",sigfilename);
+		fprintf(stderr,"Successfully created '%s'\n",signaturename);
 	}
-	free(sigfilename);
 
 	return r;
 }
@@ -301,7 +298,7 @@ retvalue signature_sign(const char *options,const char *filename) {
 /* Read a single chunk from a file, that may be signed. */
 // TODO: Think about ways to check the signature...
 retvalue signature_readsignedchunk(const char *filename, char **chunkread, bool_t onlyacceptsigned) {
-	const char *startofchanges,*endofchanges;
+	const char *startofchanges,*endofchanges,*afterchanges;
 	char *chunk;
 	GpgmeError err;
 	GpgmeData dh,dh_gpg;
@@ -343,9 +340,22 @@ retvalue signature_readsignedchunk(const char *filename, char **chunkread, bool_
 			gpgme_data_release(dh);
 			break;
 		case GPGME_SIG_STAT_DIFF:
+			gpgme_data_release(dh_gpg);
+			gpgme_data_release(dh);
+			fprintf(stderr,"Multiple signatures of different state, which is not yet supported in '%s'!\n",filename);
+			return RET_ERROR_BADSIG;
 		case GPGME_SIG_STAT_NOKEY:
+			if( onlyacceptsigned ) {
+				gpgme_data_release(dh_gpg);
+				gpgme_data_release(dh);
+				fprintf(stderr,"Unknown key involved in'%s'!\n",filename);
+				return RET_ERROR_BADSIG;
+			}
 			if( verbose > -1 ) 
-				fprintf(stderr,"Signature could not be checked or multiple signatures with different states, proceeding anyway...\n");
+				fprintf(stderr,"Signature with unknown key, proceeding anyway...\n");
+			gpgme_data_release(dh_gpg);
+			plain_data = gpgme_data_release_and_get_mem(dh,&plain_len);
+			break;
 		case GPGME_SIG_STAT_GOOD:
 			gpgme_data_release(dh_gpg);
 			plain_data = gpgme_data_release_and_get_mem(dh,&plain_len);
@@ -367,28 +377,57 @@ retvalue signature_readsignedchunk(const char *filename, char **chunkread, bool_
 			fprintf(stderr,"Signature is valid but the key is expired!\n");
 			return RET_ERROR_BADSIG;
 #endif
+		case GPGME_SIG_STAT_NONE:
+			gpgme_data_release(dh_gpg);
+			gpgme_data_release(dh);
+			fprintf(stderr,"gpgme returned an impossible condition in '%s'!\n"
+"If you are using woody and there was no ~/.gnupg yet, try repeating the last command.\n"
+,filename);
+			return RET_ERROR_GPGME;
+		case GPGME_SIG_STAT_ERROR:
+			gpgme_data_release(dh_gpg);
+			gpgme_data_release(dh);
+			fprintf(stderr,"gpgme reported an error checking '%s'!\n",filename);
+			return RET_ERROR_GPGME;
 		default:
 			gpgme_data_release(dh_gpg);
 			gpgme_data_release(dh);
-			fprintf(stderr,"Error checking the signature within '%s'!\n",filename);
+			fprintf(stderr,"Error checking the signature within '%s' (gpgme gave error code %d)!\n",filename,(int)stat);
 			return RET_ERROR_BADSIG;
 	}
 
 	startofchanges = plain_data;
-	while( startofchanges < plain_data+plain_len && 
+	while( startofchanges - plain_data < plain_len && 
 			*startofchanges && isspace(*startofchanges)) {
 		startofchanges++;
 	}
-	if( startofchanges >= plain_data+plain_len ) {
+	if( startofchanges - plain_data >= plain_len ) {
 		fprintf(stderr,"Could only find spaces within '%s'!\n",filename);
 		free(plain_data);
 		return RET_ERROR;
 	}
 	endofchanges = startofchanges;
-	// TODO check for double newline and complain if there are things after it, that are not spaces...
-	// TODO: check that the len is finaly reached and no \0 before...
+	while( endofchanges - plain_data < plain_len && 
+		*endofchanges && ( *endofchanges != '\n' || *(endofchanges-1)!= '\n')) {
+		endofchanges++;
+	}
+	afterchanges = endofchanges;
+	while( afterchanges - plain_data < plain_len && 
+		*afterchanges && isspace(*afterchanges)) {
+		afterchanges++;
+	}
+	if( afterchanges - plain_data != plain_len ) {
+		if( *afterchanges == '\0' ) {
+			fprintf(stderr,"Unexpected \\0 character within '%s'!\n",filename);
+			free(plain_data);
+			return RET_ERROR;
+		}
+		fprintf(stderr,"Unexpected data after ending empty line in '%s'!\n",filename);
+		free(plain_data);
+		return RET_ERROR;
+	}
 
-	chunk = strndup(startofchanges,plain_len-(startofchanges-plain_data));
+	chunk = strndup(startofchanges,endofchanges-startofchanges);
 	free(plain_data);
 	if( chunk == NULL )
 		return RET_ERROR_OOM;

@@ -33,14 +33,15 @@ Origin: Brain
 Label: Only a test
 Suite: broken
 Version: 9999999.02
+DebIndices: Packages Release . .gz $SRCDIR/docs/bzip.example
+UDebIndices: Packages .gz
+DscIndices: Sources Release . .gz $SRCDIR/docs/bzip.example
 Description: test with all fields set
 Override: binoverride
 SourceOverride: srcoverride
 CONFEND
 
-#This is a bit ugly, as there could be a second in between...
 "$REPREPRO" -b . export
-CURDATE="`TZ=GMT LC_ALL=C date +'%a, %d %b %Y %H:%M:%S +0000'`"
 test -f dists/test1/Release
 test -f dists/test2/Release
 
@@ -50,16 +51,16 @@ Date: normalized
 Architectures: abacus
 Components: stupid ugly
 MD5Sum:
- d9f0fad5d54ad09dd4ecee86c73b64d4 39 stupid/binary-abacus/Release
  d41d8cd98f00b204e9800998ecf8427e 0 stupid/binary-abacus/Packages
  7029066c27ac6f5ef18d660d5741979a 20 stupid/binary-abacus/Packages.gz
- e38c7da133734e1fd68a7e344b94fe96 39 stupid/source/Release
+ d9f0fad5d54ad09dd4ecee86c73b64d4 39 stupid/binary-abacus/Release
  7029066c27ac6f5ef18d660d5741979a 20 stupid/source/Sources.gz
- 236fcd9339b1813393819d464e37c7c6 37 ugly/binary-abacus/Release
+ e38c7da133734e1fd68a7e344b94fe96 39 stupid/source/Release
  d41d8cd98f00b204e9800998ecf8427e 0 ugly/binary-abacus/Packages
  7029066c27ac6f5ef18d660d5741979a 20 ugly/binary-abacus/Packages.gz
- ed4ee9aa5d080f67926816133872fd02 37 ugly/source/Release
+ 236fcd9339b1813393819d464e37c7c6 37 ugly/binary-abacus/Release
  7029066c27ac6f5ef18d660d5741979a 20 ugly/source/Sources.gz
+ ed4ee9aa5d080f67926816133872fd02 37 ugly/source/Release
 END
 cat > dists/test2/Release.expected <<END
 Origin: Brain
@@ -72,27 +73,35 @@ Architectures: abacus coal
 Components: stupid ugly
 Description: test with all fields set
 MD5Sum:
- e142c47c1be0c32cd120138066b73c73 146 stupid/binary-abacus/Release
+ 4059d198768f9f8dc9372dc1c54bc3c3 14 stupid/binary-abacus/Packages.bz2
  d41d8cd98f00b204e9800998ecf8427e 0 stupid/binary-abacus/Packages
  7029066c27ac6f5ef18d660d5741979a 20 stupid/binary-abacus/Packages.gz
- 10ae2f283e1abdd3facfac6ed664035d 144 stupid/binary-coal/Release
+ e142c47c1be0c32cd120138066b73c73 146 stupid/binary-abacus/Release
+ 4059d198768f9f8dc9372dc1c54bc3c3 14 stupid/binary-coal/Packages.bz2
  d41d8cd98f00b204e9800998ecf8427e 0 stupid/binary-coal/Packages
  7029066c27ac6f5ef18d660d5741979a 20 stupid/binary-coal/Packages.gz
- b923b3eb1141e41f0b8bb74297ac8a36 146 stupid/source/Release
+ 10ae2f283e1abdd3facfac6ed664035d 144 stupid/binary-coal/Release
+ 4059d198768f9f8dc9372dc1c54bc3c3 14 stupid/source/Sources.bz2
+ d41d8cd98f00b204e9800998ecf8427e 0 stupid/source/Sources
  7029066c27ac6f5ef18d660d5741979a 20 stupid/source/Sources.gz
- 22eb57e60d3c621b8bd8461eae218b16 144 ugly/binary-abacus/Release
+ b923b3eb1141e41f0b8bb74297ac8a36 146 stupid/source/Release
+ 4059d198768f9f8dc9372dc1c54bc3c3 14 ugly/binary-abacus/Packages.bz2
  d41d8cd98f00b204e9800998ecf8427e 0 ugly/binary-abacus/Packages
  7029066c27ac6f5ef18d660d5741979a 20 ugly/binary-abacus/Packages.gz
- 7a05de3b706d08ed06779d0ec2e234e9 142 ugly/binary-coal/Release
+ 22eb57e60d3c621b8bd8461eae218b16 144 ugly/binary-abacus/Release
+ 4059d198768f9f8dc9372dc1c54bc3c3 14 ugly/binary-coal/Packages.bz2
  d41d8cd98f00b204e9800998ecf8427e 0 ugly/binary-coal/Packages
  7029066c27ac6f5ef18d660d5741979a 20 ugly/binary-coal/Packages.gz
- e73a8a85315766763a41ad4dc6744bf5 144 ugly/source/Release
+ 7a05de3b706d08ed06779d0ec2e234e9 142 ugly/binary-coal/Release
+ 4059d198768f9f8dc9372dc1c54bc3c3 14 ugly/source/Sources.bz2
+ d41d8cd98f00b204e9800998ecf8427e 0 ugly/source/Sources
  7029066c27ac6f5ef18d660d5741979a 20 ugly/source/Sources.gz
+ e73a8a85315766763a41ad4dc6744bf5 144 ugly/source/Release
 END
 echo -e '%g/^Date:/s/Date: .*/Date: normalized/\nw\nq' | ed -s dists/test1/Release
 echo -e '%g/^Date:/s/Date: .*/Date: normalized/\nw\nq' | ed -s dists/test2/Release
-diff dists/test1/Release.expected dists/test1/Release || exit 1
-diff dists/test2/Release.expected dists/test2/Release || exit 1
+diff -u dists/test1/Release.expected dists/test1/Release || exit 1
+diff -u dists/test2/Release.expected dists/test2/Release || exit 1
 
 PACKAGE=simple EPOCH="" VERSION=123 REVISION=-0 SECTION="stupid/base" genpackage.sh
 "$REPREPRO" -b . include test1 test.changes
@@ -205,11 +214,16 @@ bloat+-0a9z.app-addons	install
 END
 
 "$REPREPRO" -b . update test1
+"$REPREPRO" -b . update test1
 "$REPREPRO" --nolistsdownload -b . update test1
 find dists/test2/ \( -name "Packages.gz" -o -name "Sources.gz" \) -print0 | xargs -0 zgrep '^Package: ' | sed -e 's/test2/test1/' -e 's/coal/abacus/' > test2
 find dists/test1/ \( -name "Packages.gz" -o -name "Sources.gz" \) -print0 | xargs -0 zgrep '^Package: ' > test1
 diff -u test2 test1
 
+"$REPREPRO" -b . check test1 test2
+"$REPREPRO" -b . checkpool
+"$REPREPRO" -b . rereference test1 test2
+"$REPREPRO" -b . check test1 test2
 
 set +v
 echo

@@ -7,20 +7,22 @@
 #include "error.h"
 #warning "What's hapening here?"
 #endif
+#ifndef REPREPRO_STRLIST_H
 #include "strlist.h"
+#endif
 
 /* get the next chunk from file f ( return RET_NOTHING, if there are none )*/
 retvalue chunk_read(gzFile f,/*@out@*/char **chunk);
 
 /* look for name in chunk. returns RET_NOTHING if not found */
-retvalue chunk_getvalue(const char *chunk,const char *name,char **value);
-retvalue chunk_getfirstword(const char *chunk,const char *name,char **value);
-retvalue chunk_getextralinelist(const char *chunk,const char *name,struct strlist *strlist);
-retvalue chunk_getwordlist(const char *chunk,const char *name,struct strlist *strlist);
-retvalue chunk_getwholedata(const char *chunk,const char *name,char **value);
+retvalue chunk_getvalue(const char *chunk,const char *name,/*@out@*/char **value);
+retvalue chunk_getfirstword(const char *chunk,const char *name,/*@out@*/char **value);
+retvalue chunk_getextralinelist(const char *chunk,const char *name,/*@out@*/struct strlist *strlist);
+retvalue chunk_getwordlist(const char *chunk,const char *name,/*@out@*/struct strlist *strlist);
+retvalue chunk_getwholedata(const char *chunk,const char *name,/*@out@*/char **value);
 
 /* Parse a package/source-field: ' *value( ?\(version\))? *' */
-retvalue chunk_getname(const char *chunk,const char *name,char **pkgname,bool_t allowversion);
+retvalue chunk_getname(const char *chunk,const char *name,/*@out@*/char **pkgname,bool_t allowversion);
 
 /* return RET_OK, if field is found, RET_NOTHING, if not (or value indicates false in future variants) */ 
 retvalue chunk_gettruth(const char *chunk,const char *name);
@@ -28,11 +30,11 @@ retvalue chunk_gettruth(const char *chunk,const char *name);
 retvalue chunk_checkfield(const char *chunk,const char *name);
 
 
-typedef retvalue chunkaction(void *data,const char *chunk);
+typedef retvalue chunkaction(/*@temp@*/void *data,/*@temp@*/const char *chunk);
 
 /* Call action for each chunk in <filename>, 
  * until error when not <force> or until ok when <stopwhenok> */
-retvalue chunk_foreach(const char *filename,chunkaction action,void *data,int force,bool_t stopwhenok);
+retvalue chunk_foreach(const char *filename,chunkaction action,/*@null@*/ /*@temp@*/void *data,int force,bool_t stopwhenok);
 
 /* modifications of a chunk: */
 struct fieldtoadd {

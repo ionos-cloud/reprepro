@@ -1,0 +1,24 @@
+#!/bin/sh
+# Copy this script to your conf/ dir as bzip2.sh, make it executable
+# and add to some definition in conf/distributions
+# DscIndices Sources Release . .gz bzip2.sh
+# DebIndices Packages Release . .gz bzip2.sh
+# UDebIndices Packages . .gz bzip2.sh
+# and you have .bz2'd Packages and Sources.
+# (alternatively, if you are very brave, put the full path to this file in there)
+
+DIROFDIST="$1"
+NEWNAME="$2"
+OLDNAME="$3"
+# this can be old($3 exists), new($2 exists) or change (both):
+STATUS="$4"
+BASENAME="`basename "$OLDNAME"`"
+
+if [ "xPackages" = "x$BASENAME" ] || [ "xSources" = "x$BASENAME" ] ; then
+	if [ "x$STATUS" == "xold" ] && [ -f "$DIROFDIST/$OLDNAME.bz2" ] ; then
+		echo "$OLDNAME.bz2" >&3
+	else
+		bzip2 -c -- "$DIROFDIST/$NEWNAME" >"$DIROFDIST/$OLDNAME.bz2.new" 3>/dev/null
+		echo "$OLDNAME.bz2.new" >&3
+	fi
+fi

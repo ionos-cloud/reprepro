@@ -20,7 +20,7 @@ are known. Files not in here will not be deleted with
 "deleteunreferenced". Files beeing wrong here will not realized
 (and thus not corrected even if told to be newly included)
 
-To get this database in textform use "_md5sums" without argument,
+To get this database in textform use "_listmd5sums" without argument,
 to add items manualy pipe it into "_addmd5sums". (Filenames
 are handled as strings, so be careful).
 

@@ -37,7 +37,7 @@ extern int verbose;
 
 /* Copy a file and calculate the md5sum of the result,
  * return RET_NOTHING (and no md5sum), if it already exists*/
-static retvalue copyfile(const char *origfile,const char *destfullfilename,char **md5sum) {
+static retvalue copyfile(const char *origfile,const char *destfullfilename,/*@out@*/char **md5sum) {
 	retvalue r;
 
 	r = md5sum_copy(origfile,destfullfilename,md5sum);
@@ -84,7 +84,7 @@ static retvalue copyfile_force(const char *fullfilename,const char *origfile,con
 			return r;
 	}
 	if( strcmp(md5old,md5expected) != 0 ) {
-		unlink(fullfilename);
+		(void)unlink(fullfilename);
 		fprintf(stderr,"'%s' has md5sum '%s', while '%s' was expected.\n",origfile,md5old,md5expected);
 		r = RET_ERROR_WRONG_MD5;
 	}
@@ -110,7 +110,7 @@ retvalue copyfile_md5known(const char *mirrordir,const char *filekey,const char 
 		if( strcmp(md5sum,md5expected) == 0 ) {
 			r = RET_OK;
 		} else {
-			unlink(fullfilename);
+			(void)unlink(fullfilename);
 			fprintf(stderr,"'%s' has md5sum '%s', while '%s' was expected.\n",origfile,md5sum,md5expected);
 			r = RET_ERROR_WRONG_MD5;
 		}
@@ -130,20 +130,23 @@ retvalue copyfile_getmd5(const char *mirrordir,const char *filekey,const char *o
 
 	r = copyfile(origfile,fullfilename,md5sum);
 	if( r == RET_ERROR_EXIST || r == RET_NOTHING ) {
-		r = md5sum_read(origfile,md5sum);
+		char *md5;
+
+		r = md5sum_read(origfile,&md5);
 		if( r == RET_NOTHING ) {
 			/* where did it go? */
 			fprintf(stderr,"File '%s' disapeared!\n",fullfilename);
 			r = RET_ERROR;
 		}
 		if( RET_IS_OK(r) )
-			r = copyfile_force(origfile,fullfilename,*md5sum);
+			r = copyfile_force(origfile,fullfilename,md5);
 		if( RET_WAS_ERROR(r) ) {
-			free(*md5sum);
-			*md5sum = NULL;
+			free(md5);
 			free(fullfilename);
 			return r;
 		}
+		*md5sum = md5;
+		r = RET_OK;
 
 	} 
 	free(fullfilename);
@@ -159,7 +162,7 @@ void copyfile_delete(const char *fullfilename) {
 
 }
 
-static retvalue copy(const char *fullfilename,const char *origfile,const char *md5expected,char **calculatedmd5sum) {
+static retvalue copy(const char *fullfilename,const char *origfile,/*@null@*/const char *md5expected,/*@null@*//*@out@*/char **calculatedmd5sum) {
 	char *md5sum;
 	retvalue r;
 
@@ -178,7 +181,7 @@ static retvalue copy(const char *fullfilename,const char *origfile,const char *m
 		if( strcmp(md5sum,md5expected) == 0 ) {
 			r = RET_OK;
 		} else {
-			unlink(fullfilename);
+			(void)unlink(fullfilename);
 			fprintf(stderr,"WARNING: '%s' has md5sum '%s', while '%s' was expected.\n",origfile,md5sum,md5expected);
 			r = RET_ERROR_WRONG_MD5;
 		}
@@ -186,13 +189,13 @@ static retvalue copy(const char *fullfilename,const char *origfile,const char *m
 
 	if( calculatedmd5sum != NULL )
 		*calculatedmd5sum = md5sum;
-	if( calculatedmd5sum == NULL )
+	else
 		free(md5sum);
 
 	return r;
 }
 
-static retvalue move(const char *fullfilename,const char *origfile,const char *md5expected,char **md5sum) {
+static retvalue move(const char *fullfilename,const char *origfile,/*@null@*/const char *md5expected,/*@out@*/char **md5sum) {
 	retvalue r;
 	// TODO: try a rename first, if md5sum is know and correct??
 	
@@ -240,4 +243,12 @@ retvalue regularfileexists(const char *fullfilename) {
 		return RET_OK;
 	else
 		return RET_ERROR_MISSING;
+}
+
+bool_t isregularfile(const char *fullfilename) {
+	struct stat s;
+	int i;
+
+	i = stat(fullfilename,&s);
+	return i == 0 && S_ISREG(s.st_mode);
 }

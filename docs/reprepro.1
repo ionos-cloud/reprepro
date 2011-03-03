@@ -47,11 +47,12 @@ Do things nevertheless. Might be dangerous and destructive.
 .B \-b, \-\-basedir \fIbasedir\fP
 Sets the base\-dir of the repository to manage, i.e. where the
 .B pool/
-subdirectory resides. Also sets
+subdirectory resides. If no prior or later command
+sets other values, that also means
 .B \-\-distdir \fIbasedir\fP/dists \-\-dbdir \fIbasedir\fP/db 
 .B \-\-listdir \fIbasedir\fP/lists \-\-confdir \fIbasedir\fP/conf 
 .B \-\-overridedir \fIbasedir\fP/override
-(that means especially: use those options afterwards if you want to use them).
+\&.
 .TP
 .B \-\-confdir \fIconfdir\fP
 Sets the directory where the configuration is searched in.
@@ -247,12 +248,12 @@ files.
 (Warning: this is a low level operation, no input validation
  or normalisation is done.)
 .TP
-.B _md5sums
+.B _listmd5sums
 Print a list of all known files and their md5sums.
 .TP
 .B _addmd5sums
 Add information of known files (without any check done)
-in the strict format of _md5sums output (i.e. don't dare to
+in the strict format of _listmd5sums output (i.e. don't dare to
 use a single space anywhere more than needed). 
 .TP
 .BI _dumpcontents " identifier"
@@ -365,6 +366,24 @@ When this field is present, it describes the binary override file.
 .TP
 .B SourceOverride
 When this field is present, it describes the source override file.
+.TP
+.B DebIndices\fR, \fBUDebIndices\fR, \fBDscIndices
+Choose what kind of Index files to export. The first
+part describes what the Index file shall be called.
+The second argument determines the name of a Release
+file to generate or not to generate if missing.
+Then one or two of "\fB.\fP" or "\fB.gz\fP"
+specifing whether to generate uncompressed output, gzipped
+output or both. If an argument not starting with dot follows,
+it will be executed after each index file is generated.
+(See the examples for what argument this gets).
+The default is:
+.br
+DebIndices Packages Release . .gz
+.br
+UDebIndices Packages . .gz
+.br
+DscIndices Sources Release .gz
 .SS conf/updates
 .TP
 .B Name

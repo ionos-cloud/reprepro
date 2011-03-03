@@ -68,8 +68,9 @@ MAKEINFO = @MAKEINFO@
 PACKAGE = @PACKAGE@
 VERSION = @VERSION@
 
-EXTRA_DIST =  short-howto reprepro.1 recovery
+EXTRA_DIST = short-howto reprepro.1 recovery bzip.example tiffany.example
 man_MANS = reprepro.1
+MAINTAINERCLEANFILES = Makefile.in
 mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
 CONFIG_HEADER = ../config.h
 CONFIG_CLEAN_FILES = 
@@ -187,6 +188,7 @@ distclean-generic:
 	-rm -f config.cache config.log stamp-h stamp-h[0-9]*
 
 maintainer-clean-generic:
+	-test -z "$(MAINTAINERCLEANFILES)" || rm -f $(MAINTAINERCLEANFILES)
 mostlyclean-am:  mostlyclean-generic
 
 mostlyclean: mostlyclean-am

@@ -8,6 +8,6 @@
 
 /* return error if those are not proper versions,
  * otherwise RET_OK and result is <0, ==0 or >0, if first is smaller, equal or larger */
-retvalue dpkgversions_cmp(const char *first,const char *second,int *result);
+retvalue dpkgversions_cmp(const char *first,const char *second,/*@out@*/int *result);
 
 #endif

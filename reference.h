@@ -30,8 +30,8 @@ retvalue references_insert(references ref,const char *identifer,
  * if dereferencedfilekeys is != NULL, add those losing one reference,
  * files will be freed (or moved to dereferencedfilekeys) */
 retvalue references_delete(references ref,const char *identifer,
-		struct strlist *files,const struct strlist *exclude,
-		struct strlist *dereferencedfilekeys);
+		struct strlist *files,/*@null@*/const struct strlist *exclude,
+		/*@null@*/struct strlist *dereferencedfilekeys);
 
 /* add an reference to a file for an identifier. multiple calls
  * will add multiple references to allow source packages to share

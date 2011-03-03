@@ -103,7 +103,7 @@ struct debpackage {
 	char *md5sum;
 };
 
-void deb_free(struct debpackage *pkg) {
+static void deb_free(/*@only@*/struct debpackage *pkg) {
 	if( pkg ) {
 		free(pkg->package);free(pkg->version);
 		free(pkg->source);free(pkg->architecture);
@@ -118,7 +118,7 @@ void deb_free(struct debpackage *pkg) {
 }
 
 /* read the data from a .deb, make some checks and extract some data */
-retvalue deb_read(struct debpackage **pkg, const char *filename) {
+static retvalue deb_read(/*@out@*/struct debpackage **pkg, const char *filename) {
 	retvalue r;
 	struct debpackage *deb;
 
@@ -206,7 +206,7 @@ retvalue deb_read(struct debpackage **pkg, const char *filename) {
 }
 
 /* do overwrites, add Filename, Size and md5sum to the control-item */
-retvalue deb_complete(struct debpackage *pkg,const struct overrideinfo *override) {
+static retvalue deb_complete(struct debpackage *pkg,const struct overrideinfo *override) {
 	const char *size;
 	struct fieldtoadd *replace;
 	char *newchunk;
@@ -250,7 +250,7 @@ retvalue deb_complete(struct debpackage *pkg,const struct overrideinfo *override
 	return RET_OK;
 }
 
-static retvalue deb_calclocations(struct debpackage *pkg,const char *givenfilekey,const char *packagetype) {
+static retvalue deb_calclocations(struct debpackage *pkg,/*@null@*/const char *givenfilekey,const char *packagetype) {
 	retvalue r;
 	char *basename;
 	
@@ -259,13 +259,15 @@ static retvalue deb_calclocations(struct debpackage *pkg,const char *givenfileke
 		return RET_ERROR_OOM;
 
 	r = binaries_calcfilekeys(pkg->component,pkg->source,basename,&pkg->filekeys);
-	if( RET_WAS_ERROR(r) )
+	if( RET_WAS_ERROR(r) ) {
+		free(basename);
 		return r;
+	}
 
 	pkg->filekey = pkg->filekeys.values[0];
 	free(basename);
 
-	if( givenfilekey && strcmp(givenfilekey,pkg->filekey) != 0 ) {
+	if( givenfilekey!=NULL && strcmp(givenfilekey,pkg->filekey) != 0 ) {
 		fprintf(stderr,"Name mismatch, .changes indicates '%s', but the file itself says '%s'!\n",givenfilekey,pkg->filekey);
 		return RET_ERROR;
 	}
@@ -301,7 +303,7 @@ retvalue deb_add(const char *dbdir,references refs,filesdb filesdb,const char *f
 	const struct strlist *components;
 	int i;
 
-	assert( (givenmd5sum && givenfilekey) ||
+	assert( (givenmd5sum!=NULL && givenfilekey!=NULL ) ||
 		(givenmd5sum==NULL && givenfilekey==NULL ) );
 
 	//TODO: add some check here to make sure it is really a .deb file...
@@ -368,10 +370,10 @@ retvalue deb_add(const char *dbdir,references refs,filesdb filesdb,const char *f
 	
 	/* some sanity checks: */
 
-	if( forcearchitecture && strcmp(forcearchitecture,"all") == 0 )
+	if( forcearchitecture != NULL && strcmp(forcearchitecture,"all") == 0 )
 		forcearchitecture = NULL;
 
-	if( forcearchitecture && 
+	if( forcearchitecture != NULL && 
 			strcmp(pkg->architecture,forcearchitecture) != 0 &&
 			strcmp(pkg->architecture,"all") != 0 ) {
 		fprintf(stderr,"Cannot checking in '%s' into architecture '%s', as it is '%s'!",
@@ -387,10 +389,10 @@ retvalue deb_add(const char *dbdir,references refs,filesdb filesdb,const char *f
 		return RET_ERROR;
 	} else if( strcmp(pkg->architecture,"all") != 0 &&
 	    !strlist_in( &distribution->architectures, pkg->architecture )) {
-		fprintf(stderr,"While checking in '%s': '%s' is not listed in '",
+		(void)fprintf(stderr,"While checking in '%s': '%s' is not listed in '",
 				debfilename,pkg->architecture);
-		strlist_fprint(stderr,&distribution->architectures);
-		fputs("'\n",stderr);
+		(void)strlist_fprint(stderr,&distribution->architectures);
+		(void)fputs("'\n",stderr);
 		if( force <= 0 ) {
 			deb_free(pkg);
 			return RET_ERROR;
@@ -410,7 +412,7 @@ retvalue deb_add(const char *dbdir,references refs,filesdb filesdb,const char *f
 
 	/* then looking if we already have this, or copy it in */
 
-	if( givenfilekey && givenmd5sum ) {
+	if( givenfilekey != NULL && givenmd5sum != NULL ) {
 		assert( delete == D_INPLACE );
 		r = deb_checkfiles(pkg,givenmd5sum);
 	} else
@@ -451,7 +453,7 @@ retvalue deb_add(const char *dbdir,references refs,filesdb filesdb,const char *f
 		}
 		RET_UPDATE(result,r);
 	} else for( i = 0 ; i < distribution->architectures.count ; i++ ) {
-		struct target *t;
+		/*@dependent@*/struct target *t;
 		if( strcmp(distribution->architectures.values[i],"source") == 0 )
 			continue;
 		t = distribution_getpart(distribution,pkg->component,distribution->architectures.values[i],packagetype);
