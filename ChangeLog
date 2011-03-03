@@ -1,3 +1,14 @@
+2008-11-24 backported to 3.6 2008-11-24
+	* fix bug in sha256 calculation over very large files
+
+2008-10-21 backported to 3.6 2008-11-24
+	* use gpgerror for error codes directly
+	  (avoids some warnings about linkage and hopefully makes it
+	   more robust)
+
+2008-08-16 backported to 3.6 2008-11-24
+	* allow multiple export hooks
+
 2008-09-07 backported to 3.6 2008-11-04
 	* make --nooldfilesdb the default
 
@@ -11,9 +22,10 @@
 
 2008-10-05 backported to 3.6 2008-11-04
 
-	* change bug in (tracking enabled) removesrc to cause malformed
+	* fix bug in (tracking enabled) removesrc that caused malformed
 	  tracking data when a source package's track record contains a
-	  file no longer found in any distribution
+	  file no longer found in any distribution (which should not
+	  happen without other bugs).
 
 2008-08-12
 	* check for Ctrl-C in file_foreach (dumpunreferenced, ...)

@@ -10,7 +10,7 @@ runtest snapshotcopyrestore
 runtest various1
 
 echo "Running various other old test..."
-mkdir -p conf
+mkdir -p conf logs
 cat > conf/options <<CONFEND
 export changed
 CONFEND
@@ -32,14 +32,28 @@ Origin: Brain
 Label: Only a test
 Suite: broken
 Version: 9999999.02
-DebIndices: Packages Release . .gz $SRCDIR/docs/bzip.example
+DebIndices: Packages Release . .gz $SRCDIR/docs/bzip.example testhook
 UDebIndices: Packages .gz
-DscIndices: Sources Release . .gz $SRCDIR/docs/bzip.example
+DscIndices: Sources Release . .gz $SRCDIR/docs/bzip.example testhook
 Description: test with all fields set
 DebOverride: binoverride
 DscOverride: srcoverride
 Log: log2
 CONFEND
+
+cat > conf/testhook <<'EOF'
+#!/bin/sh
+echo "testhook got $#: '$1' '$2' '$3' '$4'"
+if test -f "$1/$3.deprecated" ; then
+	echo "$3.deprecated.tobedeleted" >&3
+fi
+echo "super-compressed" > "$1/$3.super.new"
+echo "$3.super.new" >&3
+EOF
+chmod a+x conf/testhook
+
+mkdir -p "dists/test2/stupid/binary-${FAKEARCHITECTURE}"
+touch "dists/test2/stupid/binary-${FAKEARCHITECTURE}/Packages.deprecated"
 
 set -v
 checknolog logfile
@@ -48,37 +62,33 @@ if test -n "$TESTNEWFILESDB" ; then
 fi
 testrun - -b . export 3<<EOF
 stdout
+*=testhook got 4: './dists/test2' 'stupid/binary-${FAKEARCHITECTURE}/Packages.new' 'stupid/binary-${FAKEARCHITECTURE}/Packages' 'new'
+*=testhook got 4: './dists/test2' 'stupid/binary-coal/Packages.new' 'stupid/binary-coal/Packages' 'new'
+*=testhook got 4: './dists/test2' 'stupid/source/Sources.new' 'stupid/source/Sources' 'new'
+*=testhook got 4: './dists/test2' 'ugly/binary-${FAKEARCHITECTURE}/Packages.new' 'ugly/binary-${FAKEARCHITECTURE}/Packages' 'new'
+*=testhook got 4: './dists/test2' 'ugly/binary-coal/Packages.new' 'ugly/binary-coal/Packages' 'new'
+*=testhook got 4: './dists/test2' 'ugly/source/Sources.new' 'ugly/source/Sources' 'new'
 -v2*=Created directory "./db"
 -v1*=Exporting test2...
--v2*=Created directory "./dists"
--v2*=Created directory "./dists/test2"
--v2*=Created directory "./dists/test2/stupid"
--v2*=Created directory "./dists/test2/stupid/binary-${FAKEARCHITECTURE}"
 -v6*= exporting 'test2|stupid|${FAKEARCHITECTURE}'...
--v6*=  creating './dists/test2/stupid/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-${FAKEARCHITECTURE}/Packages.new' 'stupid/binary-${FAKEARCHITECTURE}/Packages' 'new'
+-v6*=  creating './dists/test2/stupid/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped,script: bzip.example,testhook)
 -v11*=Exporthook successfully returned!
 -v2*=Created directory "./dists/test2/stupid/binary-coal"
 -v6*= exporting 'test2|stupid|coal'...
--v6*=  creating './dists/test2/stupid/binary-coal/Packages' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-coal/Packages.new' 'stupid/binary-coal/Packages' 'new'
+-v6*=  creating './dists/test2/stupid/binary-coal/Packages' (uncompressed,gzipped,script: bzip.example,testhook)
 -v2*=Created directory "./dists/test2/stupid/source"
 -v6*= exporting 'test2|stupid|source'...
--v6*=  creating './dists/test2/stupid/source/Sources' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/source/Sources.new' 'stupid/source/Sources' 'new'
+-v6*=  creating './dists/test2/stupid/source/Sources' (uncompressed,gzipped,script: bzip.example,testhook)
 -v2*=Created directory "./dists/test2/ugly"
 -v2*=Created directory "./dists/test2/ugly/binary-${FAKEARCHITECTURE}"
 -v6*= exporting 'test2|ugly|${FAKEARCHITECTURE}'...
--v6*=  creating './dists/test2/ugly/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/binary-${FAKEARCHITECTURE}/Packages.new' 'ugly/binary-${FAKEARCHITECTURE}/Packages' 'new'
+-v6*=  creating './dists/test2/ugly/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped,script: bzip.example,testhook)
 -v2*=Created directory "./dists/test2/ugly/binary-coal"
 -v6*= exporting 'test2|ugly|coal'...
--v6*=  creating './dists/test2/ugly/binary-coal/Packages' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/binary-coal/Packages.new' 'ugly/binary-coal/Packages' 'new'
+-v6*=  creating './dists/test2/ugly/binary-coal/Packages' (uncompressed,gzipped,script: bzip.example,testhook)
 -v2*=Created directory "./dists/test2/ugly/source"
 -v6*= exporting 'test2|ugly|source'...
--v6*=  creating './dists/test2/ugly/source/Sources' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/source/Sources.new' 'ugly/source/Sources' 'new'
+-v6*=  creating './dists/test2/ugly/source/Sources' (uncompressed,gzipped,script: bzip.example,testhook)
 -v1*=Exporting test1...
 -v2*=Created directory "./dists/test1"
 -v2*=Created directory "./dists/test1/stupid"
@@ -96,6 +106,7 @@ stdout
 -v6*= exporting 'test1|ugly|source'...
 -v6*=  creating './dists/test1/ugly/source/Sources' (gzipped,bzip2ed)
 EOF
+dodo test '!' -e "dists/test2/stupid/binary-${FAKEARCHITECTURE}/Packages.deprecated"
 if test -n "$TESTNEWFILESDB" ; then
 	dodo test '!' -f db/files.db
 else
@@ -113,6 +124,11 @@ cat > dists/test1/ugly/binary-${FAKEARCHITECTURE}/Release.expected <<END
 Component: ugly
 Architecture: ${FAKEARCHITECTURE}
 END
+echo "super-compressed" > "fakesuper"
+FAKESUPERMD5="$(mdandsize fakesuper)"
+FAKESUPERSHA1="$(sha1andsize fakesuper)"
+FAKESUPERSHA2="$(sha2andsize fakesuper)"
+
 dodiff dists/test1/ugly/binary-${FAKEARCHITECTURE}/Release.expected dists/test1/ugly/binary-${FAKEARCHITECTURE}/Release
 cat > dists/test1/Release.expected <<END
 Codename: test1
@@ -205,76 +221,94 @@ MD5Sum:
  $EMPTYMD5 stupid/binary-${FAKEARCHITECTURE}/Packages
  $EMPTYGZMD5 stupid/binary-${FAKEARCHITECTURE}/Packages.gz
  $EMPTYBZ2MD5 stupid/binary-${FAKEARCHITECTURE}/Packages.bz2
+ $FAKESUPERMD5 stupid/binary-${FAKEARCHITECTURE}/Packages.super
  $(mdandsize dists/test2/stupid/binary-${FAKEARCHITECTURE}/Release) stupid/binary-${FAKEARCHITECTURE}/Release
  $EMPTYMD5 stupid/binary-coal/Packages
  $EMPTYGZMD5 stupid/binary-coal/Packages.gz
  $EMPTYBZ2MD5 stupid/binary-coal/Packages.bz2
+ $FAKESUPERMD5 stupid/binary-coal/Packages.super
  10ae2f283e1abdd3facfac6ed664035d 144 stupid/binary-coal/Release
  $EMPTYMD5 stupid/source/Sources
  $EMPTYGZMD5 stupid/source/Sources.gz
  $EMPTYBZ2MD5 stupid/source/Sources.bz2
+ $FAKESUPERMD5 stupid/source/Sources.super
  b923b3eb1141e41f0b8bb74297ac8a36 146 stupid/source/Release
  $EMPTYMD5 ugly/binary-${FAKEARCHITECTURE}/Packages
  $EMPTYGZMD5 ugly/binary-${FAKEARCHITECTURE}/Packages.gz
  $EMPTYBZ2MD5 ugly/binary-${FAKEARCHITECTURE}/Packages.bz2
+ $FAKESUPERMD5 ugly/binary-${FAKEARCHITECTURE}/Packages.super
  $(mdandsize dists/test2/ugly/binary-${FAKEARCHITECTURE}/Release) ugly/binary-${FAKEARCHITECTURE}/Release
  $EMPTYMD5 ugly/binary-coal/Packages
  $EMPTYGZMD5 ugly/binary-coal/Packages.gz
  $EMPTYBZ2MD5 ugly/binary-coal/Packages.bz2
+ $FAKESUPERMD5 ugly/binary-coal/Packages.super
  7a05de3b706d08ed06779d0ec2e234e9 142 ugly/binary-coal/Release
  $EMPTYMD5 ugly/source/Sources
  $EMPTYGZMD5 ugly/source/Sources.gz
  $EMPTYBZ2MD5 ugly/source/Sources.bz2
+ $FAKESUPERMD5 ugly/source/Sources.super
  e73a8a85315766763a41ad4dc6744bf5 144 ugly/source/Release
 SHA1:
  $EMPTYSHA1 stupid/binary-${FAKEARCHITECTURE}/Packages
  $EMPTYGZSHA1 stupid/binary-${FAKEARCHITECTURE}/Packages.gz
  $EMPTYBZ2SHA1 stupid/binary-${FAKEARCHITECTURE}/Packages.bz2
+ $FAKESUPERSHA1 stupid/binary-${FAKEARCHITECTURE}/Packages.super
  $(sha1andsize dists/test2/stupid/binary-${FAKEARCHITECTURE}/Release) stupid/binary-${FAKEARCHITECTURE}/Release
  $EMPTYSHA1 stupid/binary-coal/Packages
  $EMPTYGZSHA1 stupid/binary-coal/Packages.gz
  $EMPTYBZ2SHA1 stupid/binary-coal/Packages.bz2
+ $FAKESUPERSHA1 stupid/binary-coal/Packages.super
  $(sha1andsize dists/test2/stupid/binary-coal/Release) stupid/binary-coal/Release
  $EMPTYSHA1 stupid/source/Sources
  $EMPTYGZSHA1 stupid/source/Sources.gz
  $EMPTYBZ2SHA1 stupid/source/Sources.bz2
+ $FAKESUPERSHA1 stupid/source/Sources.super
  $(sha1andsize dists/test2/stupid/source/Release) stupid/source/Release
  $EMPTYSHA1 ugly/binary-${FAKEARCHITECTURE}/Packages
  $EMPTYGZSHA1 ugly/binary-${FAKEARCHITECTURE}/Packages.gz
  $EMPTYBZ2SHA1 ugly/binary-${FAKEARCHITECTURE}/Packages.bz2
+ $FAKESUPERSHA1 ugly/binary-${FAKEARCHITECTURE}/Packages.super
  $(sha1andsize dists/test2/ugly/binary-${FAKEARCHITECTURE}/Release) ugly/binary-${FAKEARCHITECTURE}/Release
  $EMPTYSHA1 ugly/binary-coal/Packages
  $EMPTYGZSHA1 ugly/binary-coal/Packages.gz
  $EMPTYBZ2SHA1 ugly/binary-coal/Packages.bz2
+ $FAKESUPERSHA1 ugly/binary-coal/Packages.super
  $(sha1andsize dists/test2/ugly/binary-coal/Release) ugly/binary-coal/Release
  $EMPTYSHA1 ugly/source/Sources
  $EMPTYGZSHA1 ugly/source/Sources.gz
  $EMPTYBZ2SHA1 ugly/source/Sources.bz2
+ $FAKESUPERSHA1 ugly/source/Sources.super
  $(sha1andsize dists/test2/ugly/source/Release) ugly/source/Release
 SHA256:
  $EMPTYSHA2 stupid/binary-${FAKEARCHITECTURE}/Packages
  $EMPTYGZSHA2 stupid/binary-${FAKEARCHITECTURE}/Packages.gz
  $EMPTYBZ2SHA2 stupid/binary-${FAKEARCHITECTURE}/Packages.bz2
+ $FAKESUPERSHA2 stupid/binary-${FAKEARCHITECTURE}/Packages.super
  $(sha2andsize dists/test2/stupid/binary-${FAKEARCHITECTURE}/Release) stupid/binary-${FAKEARCHITECTURE}/Release
  $EMPTYSHA2 stupid/binary-coal/Packages
  $EMPTYGZSHA2 stupid/binary-coal/Packages.gz
  $EMPTYBZ2SHA2 stupid/binary-coal/Packages.bz2
+ $FAKESUPERSHA2 stupid/binary-coal/Packages.super
  $(sha2andsize dists/test2/stupid/binary-coal/Release) stupid/binary-coal/Release
  $EMPTYSHA2 stupid/source/Sources
  $EMPTYGZSHA2 stupid/source/Sources.gz
  $EMPTYBZ2SHA2 stupid/source/Sources.bz2
+ $FAKESUPERSHA2 stupid/source/Sources.super
  $(sha2andsize dists/test2/stupid/source/Release) stupid/source/Release
  $EMPTYSHA2 ugly/binary-${FAKEARCHITECTURE}/Packages
  $EMPTYGZSHA2 ugly/binary-${FAKEARCHITECTURE}/Packages.gz
  $EMPTYBZ2SHA2 ugly/binary-${FAKEARCHITECTURE}/Packages.bz2
+ $FAKESUPERSHA2 ugly/binary-${FAKEARCHITECTURE}/Packages.super
  $(sha2andsize dists/test2/ugly/binary-${FAKEARCHITECTURE}/Release) ugly/binary-${FAKEARCHITECTURE}/Release
  $EMPTYSHA2 ugly/binary-coal/Packages
  $EMPTYGZSHA2 ugly/binary-coal/Packages.gz
  $EMPTYBZ2SHA2 ugly/binary-coal/Packages.bz2
+ $FAKESUPERSHA2 ugly/binary-coal/Packages.super
  $(sha2andsize dists/test2/ugly/binary-coal/Release) ugly/binary-coal/Release
  $EMPTYSHA2 ugly/source/Sources
  $EMPTYGZSHA2 ugly/source/Sources.gz
  $EMPTYBZ2SHA2 ugly/source/Sources.bz2
+ $FAKESUPERSHA2 ugly/source/Sources.super
  $(sha2andsize dists/test2/ugly/source/Release) ugly/source/Release
 END
 printf '%%g/^Date:/s/Date: .*/Date: normalized/\n%%g/gz$/s/^ 163be0a88c70ca629fd516dbaadad96a / 7029066c27ac6f5ef18d660d5741979a /\nw\nq\n' | ed -s dists/test1/Release
@@ -503,6 +537,12 @@ stderr
 -v0=Data seems not to be signed trying to use directly...
 -v1=simple_1.dsc: component guessed as 'ugly'
 stdout
+*=testhook got 4: './dists/test2' 'stupid/binary-${FAKEARCHITECTURE}/Packages.new' 'stupid/binary-${FAKEARCHITECTURE}/Packages' 'old'
+*=testhook got 4: './dists/test2' 'stupid/binary-coal/Packages.new' 'stupid/binary-coal/Packages' 'old'
+*=testhook got 4: './dists/test2' 'stupid/source/Sources.new' 'stupid/source/Sources' 'old'
+*=testhook got 4: './dists/test2' 'ugly/binary-${FAKEARCHITECTURE}/Packages.new' 'ugly/binary-${FAKEARCHITECTURE}/Packages' 'old'
+*=testhook got 4: './dists/test2' 'ugly/binary-coal/Packages.new' 'ugly/binary-coal/Packages' 'old'
+*=testhook got 4: './dists/test2' 'ugly/source/Sources.new' 'ugly/source/Sources' 'change'
 -v2*=Created directory "./pool/ugly/s"
 -v2*=Created directory "./pool/ugly/s/simple"
 -e1*=db: 'pool/ugly/s/simple/simple_1.dsc' added to files.db(md5sums).
@@ -512,19 +552,13 @@ stdout
 -d1*=db: 'simple' added to packages.db(test2|ugly|source).
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test2|stupid|${FAKEARCHITECTURE}'...
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-${FAKEARCHITECTURE}/Packages.new' 'stupid/binary-${FAKEARCHITECTURE}/Packages' 'old'
 -v11*=Exporthook successfully returned!
 -v6*= looking for changes in 'test2|stupid|coal'...
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-coal/Packages.new' 'stupid/binary-coal/Packages' 'old'
 -v6*= looking for changes in 'test2|stupid|source'...
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/source/Sources.new' 'stupid/source/Sources' 'old'
 -v6*= looking for changes in 'test2|ugly|${FAKEARCHITECTURE}'...
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/binary-${FAKEARCHITECTURE}/Packages.new' 'ugly/binary-${FAKEARCHITECTURE}/Packages' 'old'
 -v6*= looking for changes in 'test2|ugly|coal'...
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/binary-coal/Packages.new' 'ugly/binary-coal/Packages' 'old'
 -v6*= looking for changes in 'test2|ugly|source'...
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/source/Sources.new' 'ugly/source/Sources' 'change'
--v6*=  replacing './dists/test2/ugly/source/Sources' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
+-v6*=  replacing './dists/test2/ugly/source/Sources' (uncompressed,gzipped,script: bzip.example,testhook)
 EOF
 checklog log2 <<EOF
 DATESTR add test2 dsc ugly source simple 1
@@ -543,19 +577,19 @@ stdout
 -d1*=db: 'bloat+-0a9z.app' added to packages.db(test2|stupid|source).
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test2|stupid|${FAKEARCHITECTURE}'...
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-${FAKEARCHITECTURE}/Packages.new' 'stupid/binary-${FAKEARCHITECTURE}/Packages' 'old'
 -v11*=Exporthook successfully returned!
 -v6*= looking for changes in 'test2|stupid|coal'...
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-coal/Packages.new' 'stupid/binary-coal/Packages' 'old'
 -v6*= looking for changes in 'test2|stupid|source'...
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/source/Sources.new' 'stupid/source/Sources' 'change'
--v6*=  replacing './dists/test2/stupid/source/Sources' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
+-v6*=  replacing './dists/test2/stupid/source/Sources' (uncompressed,gzipped,script: bzip.example,testhook)
 -v6*= looking for changes in 'test2|ugly|${FAKEARCHITECTURE}'...
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/binary-${FAKEARCHITECTURE}/Packages.new' 'ugly/binary-${FAKEARCHITECTURE}/Packages' 'old'
 -v6*= looking for changes in 'test2|ugly|coal'...
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/binary-coal/Packages.new' 'ugly/binary-coal/Packages' 'old'
 -v6*= looking for changes in 'test2|ugly|source'...
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/source/Sources.new' 'ugly/source/Sources' 'old'
+*=testhook got 4: './dists/test2' 'stupid/binary-${FAKEARCHITECTURE}/Packages.new' 'stupid/binary-${FAKEARCHITECTURE}/Packages' 'old'
+*=testhook got 4: './dists/test2' 'stupid/binary-coal/Packages.new' 'stupid/binary-coal/Packages' 'old'
+*=testhook got 4: './dists/test2' 'stupid/source/Sources.new' 'stupid/source/Sources' 'change'
+*=testhook got 4: './dists/test2' 'ugly/binary-${FAKEARCHITECTURE}/Packages.new' 'ugly/binary-${FAKEARCHITECTURE}/Packages' 'old'
+*=testhook got 4: './dists/test2' 'ugly/binary-coal/Packages.new' 'ugly/binary-coal/Packages' 'old'
+*=testhook got 4: './dists/test2' 'ugly/source/Sources.new' 'ugly/source/Sources' 'old'
 EOF
 checklog log2 <<EOF
 DATESTR add test2 dsc stupid source bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
@@ -570,19 +604,19 @@ stdout
 -d1*=db: 'simple' added to packages.db(test2|ugly|${FAKEARCHITECTURE}).
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test2|stupid|${FAKEARCHITECTURE}'...
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-${FAKEARCHITECTURE}/Packages.new' 'stupid/binary-${FAKEARCHITECTURE}/Packages' 'old'
 -v11*=Exporthook successfully returned!
 -v6*= looking for changes in 'test2|stupid|coal'...
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-coal/Packages.new' 'stupid/binary-coal/Packages' 'old'
 -v6*= looking for changes in 'test2|stupid|source'...
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/source/Sources.new' 'stupid/source/Sources' 'old'
 -v6*= looking for changes in 'test2|ugly|${FAKEARCHITECTURE}'...
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/binary-${FAKEARCHITECTURE}/Packages.new' 'ugly/binary-${FAKEARCHITECTURE}/Packages' 'change'
--v6*=  replacing './dists/test2/ugly/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
+-v6*=  replacing './dists/test2/ugly/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped,script: bzip.example,testhook)
 -v6*= looking for changes in 'test2|ugly|coal'...
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/binary-coal/Packages.new' 'ugly/binary-coal/Packages' 'old'
 -v6*= looking for changes in 'test2|ugly|source'...
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/source/Sources.new' 'ugly/source/Sources' 'old'
+*=testhook got 4: './dists/test2' 'stupid/binary-${FAKEARCHITECTURE}/Packages.new' 'stupid/binary-${FAKEARCHITECTURE}/Packages' 'old'
+*=testhook got 4: './dists/test2' 'stupid/binary-coal/Packages.new' 'stupid/binary-coal/Packages' 'old'
+*=testhook got 4: './dists/test2' 'stupid/source/Sources.new' 'stupid/source/Sources' 'old'
+*=testhook got 4: './dists/test2' 'ugly/binary-${FAKEARCHITECTURE}/Packages.new' 'ugly/binary-${FAKEARCHITECTURE}/Packages' 'change'
+*=testhook got 4: './dists/test2' 'ugly/binary-coal/Packages.new' 'ugly/binary-coal/Packages' 'old'
+*=testhook got 4: './dists/test2' 'ugly/source/Sources.new' 'ugly/source/Sources' 'old'
 EOF
 checklog log2  <<EOF
 DATESTR add test2 deb ugly ${FAKEARCHITECTURE} simple 1
@@ -597,19 +631,19 @@ stdout
 -d1*=db: 'simple-addons' added to packages.db(test2|ugly|coal).
 -v0=Exporting indices...
 -v6*= looking for changes in 'test2|stupid|${FAKEARCHITECTURE}'...
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-${FAKEARCHITECTURE}/Packages.new' 'stupid/binary-${FAKEARCHITECTURE}/Packages' 'old'
 -v11*=Exporthook successfully returned!
 -v6*= looking for changes in 'test2|stupid|coal'...
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-coal/Packages.new' 'stupid/binary-coal/Packages' 'old'
 -v6*= looking for changes in 'test2|stupid|source'...
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/source/Sources.new' 'stupid/source/Sources' 'old'
 -v6*= looking for changes in 'test2|ugly|${FAKEARCHITECTURE}'...
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/binary-${FAKEARCHITECTURE}/Packages.new' 'ugly/binary-${FAKEARCHITECTURE}/Packages' 'old'
 -v6*= looking for changes in 'test2|ugly|coal'...
--v6*=  replacing './dists/test2/ugly/binary-coal/Packages' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/binary-coal/Packages.new' 'ugly/binary-coal/Packages' 'change'
+-v6*=  replacing './dists/test2/ugly/binary-coal/Packages' (uncompressed,gzipped,script: bzip.example,testhook)
 -v6*= looking for changes in 'test2|ugly|source'...
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/source/Sources.new' 'ugly/source/Sources' 'old'
+*=testhook got 4: './dists/test2' 'stupid/binary-${FAKEARCHITECTURE}/Packages.new' 'stupid/binary-${FAKEARCHITECTURE}/Packages' 'old'
+*=testhook got 4: './dists/test2' 'stupid/binary-coal/Packages.new' 'stupid/binary-coal/Packages' 'old'
+*=testhook got 4: './dists/test2' 'stupid/source/Sources.new' 'stupid/source/Sources' 'old'
+*=testhook got 4: './dists/test2' 'ugly/binary-${FAKEARCHITECTURE}/Packages.new' 'ugly/binary-${FAKEARCHITECTURE}/Packages' 'old'
+*=testhook got 4: './dists/test2' 'ugly/binary-coal/Packages.new' 'ugly/binary-coal/Packages' 'change'
+*=testhook got 4: './dists/test2' 'ugly/source/Sources.new' 'ugly/source/Sources' 'old'
 EOF
 checklog log2  <<EOF
 DATESTR add test2 deb ugly coal simple-addons 1
@@ -624,19 +658,19 @@ stdout
 -d1*=db: 'bloat+-0a9z.app' added to packages.db(test2|stupid|${FAKEARCHITECTURE}).
 -v0=Exporting indices...
 -v6*= looking for changes in 'test2|stupid|${FAKEARCHITECTURE}'...
--v6*=  replacing './dists/test2/stupid/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-${FAKEARCHITECTURE}/Packages.new' 'stupid/binary-${FAKEARCHITECTURE}/Packages' 'change'
+-v6*=  replacing './dists/test2/stupid/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped,script: bzip.example,testhook)
 -v11*=Exporthook successfully returned!
 -v6*= looking for changes in 'test2|stupid|coal'...
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-coal/Packages.new' 'stupid/binary-coal/Packages' 'old'
 -v6*= looking for changes in 'test2|stupid|source'...
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/source/Sources.new' 'stupid/source/Sources' 'old'
 -v6*= looking for changes in 'test2|ugly|${FAKEARCHITECTURE}'...
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/binary-${FAKEARCHITECTURE}/Packages.new' 'ugly/binary-${FAKEARCHITECTURE}/Packages' 'old'
 -v6*= looking for changes in 'test2|ugly|coal'...
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/binary-coal/Packages.new' 'ugly/binary-coal/Packages' 'old'
 -v6*= looking for changes in 'test2|ugly|source'...
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/source/Sources.new' 'ugly/source/Sources' 'old'
+*=testhook got 4: './dists/test2' 'stupid/binary-${FAKEARCHITECTURE}/Packages.new' 'stupid/binary-${FAKEARCHITECTURE}/Packages' 'change'
+*=testhook got 4: './dists/test2' 'stupid/binary-coal/Packages.new' 'stupid/binary-coal/Packages' 'old'
+*=testhook got 4: './dists/test2' 'stupid/source/Sources.new' 'stupid/source/Sources' 'old'
+*=testhook got 4: './dists/test2' 'ugly/binary-${FAKEARCHITECTURE}/Packages.new' 'ugly/binary-${FAKEARCHITECTURE}/Packages' 'old'
+*=testhook got 4: './dists/test2' 'ugly/binary-coal/Packages.new' 'ugly/binary-coal/Packages' 'old'
+*=testhook got 4: './dists/test2' 'ugly/source/Sources.new' 'ugly/source/Sources' 'old'
 EOF
 checklog log2 <<EOF
 DATESTR add test2 deb stupid ${FAKEARCHITECTURE} bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
@@ -651,19 +685,19 @@ stdout
 -d1*=db: 'bloat+-0a9z.app-addons' added to packages.db(test2|stupid|coal).
 -v0=Exporting indices...
 -v6*= looking for changes in 'test2|stupid|${FAKEARCHITECTURE}'...
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-${FAKEARCHITECTURE}/Packages.new' 'stupid/binary-${FAKEARCHITECTURE}/Packages' 'old'
 -v11*=Exporthook successfully returned!
 -v6*= looking for changes in 'test2|stupid|coal'...
--v6*=  replacing './dists/test2/stupid/binary-coal/Packages' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-coal/Packages.new' 'stupid/binary-coal/Packages' 'change'
+-v6*=  replacing './dists/test2/stupid/binary-coal/Packages' (uncompressed,gzipped,script: bzip.example,testhook)
 -v6*= looking for changes in 'test2|stupid|source'...
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/source/Sources.new' 'stupid/source/Sources' 'old'
 -v6*= looking for changes in 'test2|ugly|${FAKEARCHITECTURE}'...
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/binary-${FAKEARCHITECTURE}/Packages.new' 'ugly/binary-${FAKEARCHITECTURE}/Packages' 'old'
 -v6*= looking for changes in 'test2|ugly|coal'...
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/binary-coal/Packages.new' 'ugly/binary-coal/Packages' 'old'
 -v6*= looking for changes in 'test2|ugly|source'...
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/source/Sources.new' 'ugly/source/Sources' 'old'
+*=testhook got 4: './dists/test2' 'stupid/binary-${FAKEARCHITECTURE}/Packages.new' 'stupid/binary-${FAKEARCHITECTURE}/Packages' 'old'
+*=testhook got 4: './dists/test2' 'stupid/binary-coal/Packages.new' 'stupid/binary-coal/Packages' 'change'
+*=testhook got 4: './dists/test2' 'stupid/source/Sources.new' 'stupid/source/Sources' 'old'
+*=testhook got 4: './dists/test2' 'ugly/binary-${FAKEARCHITECTURE}/Packages.new' 'ugly/binary-${FAKEARCHITECTURE}/Packages' 'old'
+*=testhook got 4: './dists/test2' 'ugly/binary-coal/Packages.new' 'ugly/binary-coal/Packages' 'old'
+*=testhook got 4: './dists/test2' 'ugly/source/Sources.new' 'ugly/source/Sources' 'old'
 EOF
 checklog log2 <<EOF
 DATESTR add test2 deb stupid coal bloat+-0a9z.app-addons 99:0.9-A:Z+a:z-0+aA.9zZ
@@ -2238,10 +2272,16 @@ stdout
 -v6*= looking for changes in 'test2|stupid|coal'...
 -v6*= looking for changes in 'test2|stupid|source'...
 -v6*= looking for changes in 'test2|ugly|${FAKEARCHITECTURE}'...
--v6*=  replacing './dists/test2/ugly/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
+-v6*=  replacing './dists/test2/ugly/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped,script: bzip.example,testhook)
 -v6*= looking for changes in 'test2|ugly|coal'...
 -v6*= looking for changes in 'test2|ugly|source'...
--v6*=  replacing './dists/test2/ugly/source/Sources' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
+-v6*=  replacing './dists/test2/ugly/source/Sources' (uncompressed,gzipped,script: bzip.example,testhook)
+*=testhook got 4: './dists/test2' 'stupid/binary-${FAKEARCHITECTURE}/Packages.new' 'stupid/binary-${FAKEARCHITECTURE}/Packages' 'old'
+*=testhook got 4: './dists/test2' 'stupid/binary-coal/Packages.new' 'stupid/binary-coal/Packages' 'old'
+*=testhook got 4: './dists/test2' 'stupid/source/Sources.new' 'stupid/source/Sources' 'old'
+*=testhook got 4: './dists/test2' 'ugly/binary-${FAKEARCHITECTURE}/Packages.new' 'ugly/binary-${FAKEARCHITECTURE}/Packages' 'change'
+*=testhook got 4: './dists/test2' 'ugly/binary-coal/Packages.new' 'ugly/binary-coal/Packages' 'old'
+*=testhook got 4: './dists/test2' 'ugly/source/Sources.new' 'ugly/source/Sources' 'change'
 -v0=Deleting files no longer referenced...
 -v1=deleting and forgetting pool/ugly/s/simple/simple_1_${FAKEARCHITECTURE}.deb
 -v1=deleting and forgetting pool/ugly/s/simple/simple_1.dsc
@@ -2411,13 +2451,19 @@ stdout
 -d1*=db: '4test' added to packages.db(test2|stupid|source).
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test2|stupid|${FAKEARCHITECTURE}'...
--v6*=  replacing './dists/test2/stupid/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
+-v6*=  replacing './dists/test2/stupid/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped,script: bzip.example,testhook)
 -v6*= looking for changes in 'test2|stupid|coal'...
 -v6*= looking for changes in 'test2|stupid|source'...
--v6*=  replacing './dists/test2/stupid/source/Sources' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
+-v6*=  replacing './dists/test2/stupid/source/Sources' (uncompressed,gzipped,script: bzip.example,testhook)
 -v6*= looking for changes in 'test2|ugly|${FAKEARCHITECTURE}'...
 -v6*= looking for changes in 'test2|ugly|coal'...
 -v6*= looking for changes in 'test2|ugly|source'...
+*=testhook got 4: './dists/test2' 'stupid/binary-${FAKEARCHITECTURE}/Packages.new' 'stupid/binary-${FAKEARCHITECTURE}/Packages' 'change'
+*=testhook got 4: './dists/test2' 'stupid/binary-coal/Packages.new' 'stupid/binary-coal/Packages' 'old'
+*=testhook got 4: './dists/test2' 'stupid/source/Sources.new' 'stupid/source/Sources' 'change'
+*=testhook got 4: './dists/test2' 'ugly/binary-${FAKEARCHITECTURE}/Packages.new' 'ugly/binary-${FAKEARCHITECTURE}/Packages' 'old'
+*=testhook got 4: './dists/test2' 'ugly/binary-coal/Packages.new' 'ugly/binary-coal/Packages' 'old'
+*=testhook got 4: './dists/test2' 'ugly/source/Sources.new' 'ugly/source/Sources' 'old'
 EOF
 checklog log2 <<EOF
 DATESTR add test2 deb stupid ${FAKEARCHITECTURE} 4test 1:b.1-1
@@ -2431,10 +2477,10 @@ stdout
 -d1*=db: '4test' removed from packages.db(test2|stupid|source).
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test2|stupid|${FAKEARCHITECTURE}'...
--v6*=  replacing './dists/test2/stupid/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
+-v6*=  replacing './dists/test2/stupid/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped,script: bzip.example,testhook)
 -v6*= looking for changes in 'test2|stupid|coal'...
 -v6*= looking for changes in 'test2|stupid|source'...
--v6*=  replacing './dists/test2/stupid/source/Sources' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
+-v6*=  replacing './dists/test2/stupid/source/Sources' (uncompressed,gzipped,script: bzip.example,testhook)
 -v6*= looking for changes in 'test2|ugly|${FAKEARCHITECTURE}'...
 -v6*= looking for changes in 'test2|ugly|coal'...
 -v6*= looking for changes in 'test2|ugly|source'...
@@ -2442,6 +2488,12 @@ stdout
 -v1*=deleting and forgetting pool/stupid/4/4test/4test_0orso.dsc
 -e1*=db: 'pool/stupid/4/4test/4test_0orso.dsc' removed from files.db(md5sums).
 -d1*=db: 'pool/stupid/4/4test/4test_0orso.dsc' removed from checksums.db(pool).
+*=testhook got 4: './dists/test2' 'stupid/binary-${FAKEARCHITECTURE}/Packages.new' 'stupid/binary-${FAKEARCHITECTURE}/Packages' 'change'
+*=testhook got 4: './dists/test2' 'stupid/binary-coal/Packages.new' 'stupid/binary-coal/Packages' 'old'
+*=testhook got 4: './dists/test2' 'stupid/source/Sources.new' 'stupid/source/Sources' 'change'
+*=testhook got 4: './dists/test2' 'ugly/binary-${FAKEARCHITECTURE}/Packages.new' 'ugly/binary-${FAKEARCHITECTURE}/Packages' 'old'
+*=testhook got 4: './dists/test2' 'ugly/binary-coal/Packages.new' 'ugly/binary-coal/Packages' 'old'
+*=testhook got 4: './dists/test2' 'ugly/source/Sources.new' 'ugly/source/Sources' 'old'
 EOF
 checklog log2 <<EOF
 DATESTR remove test2 deb stupid ${FAKEARCHITECTURE} 4test 1:b.1-1

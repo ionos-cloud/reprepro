@@ -26,6 +26,7 @@
 #include <malloc.h>
 #include <fcntl.h>
 #ifdef HAVE_LIBGPGME
+#include <gpg-error.h>
 #include <gpgme.h>
 #endif
 #include "globals.h"
@@ -44,11 +45,11 @@ extern int verbose;
 #ifdef HAVE_LIBGPGME
 static gpgme_ctx_t context = NULL;
 
-static retvalue gpgerror(gpgme_error_t err) {
+static retvalue gpgerror(gpg_error_t err) {
 	if( err != 0 ) {
 		fprintf(stderr,"gpgme gave %s error: %s\n",
-				gpgme_strsource(err), gpgme_strerror(err));
-		if( gpgme_err_code(err) == GPG_ERR_ENOMEM )
+				gpg_strsource(err), gpg_strerror(err));
+		if( gpg_err_code(err) == GPG_ERR_ENOMEM )
 			return RET_ERROR_OOM;
 		else
 			return RET_ERROR_GPGME;
@@ -57,7 +58,7 @@ static retvalue gpgerror(gpgme_error_t err) {
 }
 
 /* Quick&dirty passphrase asking */
-static gpgme_error_t signature_getpassphrase(UNUSED(void *hook), const char *uid_hint, UNUSED(const char *info), int prev_was_bad, int fd) {
+static gpg_error_t signature_getpassphrase(UNUSED(void *hook), const char *uid_hint, UNUSED(const char *info), int prev_was_bad, int fd) {
 	char *msg;
 	const char *p;
 
@@ -65,7 +66,7 @@ static gpgme_error_t signature_getpassphrase(UNUSED(void *hook), const char *uid
 			(uid_hint!=NULL)?uid_hint:"key",
 			(prev_was_bad!=0)?" again":"");
 	if( msg == NULL )
-		return gpgme_err_make(GPG_ERR_SOURCE_USER_1, GPG_ERR_ENOMEM);
+		return gpg_err_make(GPG_ERR_SOURCE_USER_1, GPG_ERR_ENOMEM);
 	p = getpass(msg);
 	write(fd, p, strlen(p));
 	write(fd, "\n", 1);
@@ -76,7 +77,7 @@ static gpgme_error_t signature_getpassphrase(UNUSED(void *hook), const char *uid
 
 retvalue signature_init(bool allowpassphrase){
 #ifdef HAVE_LIBGPGME
-	gpgme_error_t err;
+	gpg_error_t err;
 
 	if( context != NULL )
 		return RET_NOTHING;
@@ -147,7 +148,7 @@ static inline retvalue containskey(const char *key, const char *fingerprint) {
 retvalue signature_check(const char *options, const char *releasegpg, const char *release) {
 	retvalue r;
 #ifdef HAVE_LIBGPGME
-	gpgme_error_t err;
+	gpg_error_t err;
 	int fd,gpgfd;
 	gpgme_data_t dh,dh_gpg;
 	gpgme_verify_result_t result;
@@ -207,7 +208,7 @@ retvalue signature_check(const char *options, const char *releasegpg, const char
 		if( RET_WAS_ERROR(r) )
 			return r;
 		if( r == RET_NOTHING ) {
-			if( gpgme_err_code(s->status) == GPG_ERR_NO_ERROR &&
+			if( gpg_err_code(s->status) == GPG_ERR_NO_ERROR &&
 					verbose > 10 ) {
 				printf("Valid signature with key '%s', but that key is not looked at.\n", s->fpr);
 			}
@@ -215,7 +216,7 @@ retvalue signature_check(const char *options, const char *releasegpg, const char
 			continue;
 		}
 		assert( RET_IS_OK(r) );
-		switch( gpgme_err_code(s->status) ) {
+		switch( gpg_err_code(s->status) ) {
 			case GPG_ERR_NO_ERROR:
 				return RET_OK;
 			case GPG_ERR_KEY_EXPIRED:
@@ -277,7 +278,7 @@ retvalue signature_check(const char *options, const char *releasegpg, const char
 		fprintf(stderr,
 "Error checking signature (gpgme returned unexpected value %d)!\n"
 "Please file a bug report, so reprepro can handle this in the future.\n",
-			gpgme_err_code(s->status));
+			gpg_err_code(s->status));
 		return RET_ERROR_GPGME;
 	}
 	return RET_NOTHING;
@@ -293,7 +294,7 @@ retvalue signature_sign(const char *options, const char *filename, const char *s
 	retvalue r;
 	int ret, e;
 #ifdef HAVE_LIBGPGME
-	gpgme_error_t err;
+	gpg_error_t err;
 	gpgme_data_t dh,dh_gpg;
 #endif /* HAVE_LIBGPGME */
 
@@ -328,10 +329,10 @@ retvalue signature_sign(const char *options, const char *filename, const char *s
 		gpgme_signers_clear(context);
 /*		does not work:
  		err = gpgme_get_key(context, options, &key, 1);
-		if( gpgme_err_code(err) == GPG_ERR_AMBIGUOUS_NAME ) {
+		if( gpg_err_code(err) == GPG_ERR_AMBIGUOUS_NAME ) {
 			fprintf(stderr, "'%s' is too ambiguous for gpgme!\n", options);
 			return RET_ERROR;
-		} else if( gpgme_err_code(err) == GPG_ERR_INV_VALUE ) {
+		} else if( gpg_err_code(err) == GPG_ERR_INV_VALUE ) {
 			fprintf(stderr, "gpgme says '%s' is \"not a fingerprint or key ID\"!\n\n", options);
 			return RET_ERROR;
 		}
@@ -346,7 +347,7 @@ retvalue signature_sign(const char *options, const char *filename, const char *s
 		if( err != 0 )
 			return gpgerror(err);
 		err = gpgme_op_keylist_next(context, &key);
-		if( gpgme_err_code(err) == GPG_ERR_EOF ) {
+		if( gpg_err_code(err) == GPG_ERR_EOF ) {
 			fprintf(stderr,"Could not find any key matching '%s'!\n",options);
 			return RET_ERROR;
 		}
@@ -481,7 +482,7 @@ static retvalue checksigs(const char *filename, struct strlist *valid, struct st
 			if( RET_WAS_ERROR(r) )
 				return r;
 		}
-		switch( gpgme_err_code(s->status) ) {
+		switch( gpg_err_code(s->status) ) {
 			case GPG_ERR_NO_ERROR:
 				had_valid = true;
 				if( valid != NULL ) {
@@ -548,7 +549,7 @@ static retvalue checksigs(const char *filename, struct strlist *valid, struct st
 		fprintf(stderr,
 "Error checking signature (gpgme returned unexpected value %d)!\n"
 "Please file a bug report, so reprepro can handle this in the future.\n",
-			gpgme_err_code(s->status));
+			gpg_err_code(s->status));
 		return RET_ERROR_GPGME;
 	}
 	if( broken != NULL && had_broken && ! had_valid )
@@ -595,7 +596,7 @@ static inline void extractchunk(const char *buffer, const char **begin, const ch
 static retvalue extract_signed_data(const char *buffer, size_t bufferlen, const char *filenametoshow, char **chunkread, /*@null@*/ /*@out@*/struct strlist *validkeys, /*@null@*/ /*@out@*/ struct strlist *allkeys, bool *brokensignature, bool *failed) {
 	const char *startofchanges,*endofchanges,*afterchanges;
 	char *chunk;
-	gpgme_error_t err;
+	gpg_error_t err;
 	gpgme_data_t dh,dh_gpg;
 	size_t plain_len;
 	char *plain_data;
@@ -620,7 +621,7 @@ static retvalue extract_signed_data(const char *buffer, size_t bufferlen, const 
 		return gpgerror(err);
 	}
 	err = gpgme_op_verify(context, dh_gpg, NULL, dh);
-	if( gpgme_err_code(err) == GPG_ERR_NO_DATA ) {
+	if( gpg_err_code(err) == GPG_ERR_NO_DATA ) {
 		if( verbose > -1 )
 			fprintf(stderr,"Data seems not to be signed trying to use directly....\n");
 		gpgme_data_release(dh);

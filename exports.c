@@ -31,6 +31,7 @@
 #include "mprintf.h"
 #include "strlist.h"
 #include "names.h"
+#include "dirs.h"
 #include "database.h"
 #include "target.h"
 #include "exports.h"
@@ -49,7 +50,8 @@ static const char *exportdescription(const struct exportmode *mode,char *buffer,
 		,"bzip2ed"
 #endif
 	};
-	bool needcomma = false;
+	bool needcomma = false,
+	     needellipsis = false;
 
 	assert( buffersize > 50 );
 	*buffer++ = ' '; buffersize--;
@@ -66,26 +68,54 @@ static const char *exportdescription(const struct exportmode *mode,char *buffer,
 			needcomma = true;
 		}
 	}
-	if( mode->hook != NULL ) {
-		size_t l = strlen(mode->hook);
+	/* should be long enough for the previous things in all cases */
+	assert( buffersize > 10 );
+	if( mode->hooks.count > 0 ) {
+		int i, left;
+
 		if( needcomma ) {
 			*buffer++ = ','; buffersize--;
 		}
 		strcpy(buffer, "script: ");
 		buffer += 8; buffersize -= 8;
-		if( l > buffersize - 2 ) {
-			memcpy(buffer, mode->hook, buffersize-5);
-			buffer += (buffersize-5);
-			buffersize -= (buffersize-5);
-			*buffer++ = '.'; buffersize--;
-			*buffer++ = '.'; buffersize--;
-			*buffer++ = '.'; buffersize--;
-			assert( buffersize >= 2 );
-		} else {
-			memcpy(buffer, mode->hook, l);
-			buffer += l; buffersize -= l;
-			assert( buffersize >= 2 );
+		needcomma = false;
+
+		for( i = 0 ; i < mode->hooks.count ; i++ ) {
+			const char *hook = dirs_basename(mode->hooks.values[i]);
+			size_t l = strlen(hook);
+			left = buffersize - 2 - (mode->hooks.count - i - 1);
+
+			if( buffersize < 6 ) {
+				needellipsis = true;
+				break;
+			}
+			if( needcomma ) {
+				*buffer++ = ','; buffersize--;
+			}
+
+			if( l > buffersize - 5 ) {
+				memcpy(buffer, hook, buffersize-5);
+				buffer += (buffersize-5);
+				buffersize -= (buffersize-5);
+				needellipsis = true;
+				break;
+			} else {
+				memcpy(buffer, hook, l);
+				buffer += l; buffersize -= l;
+				assert( buffersize >= 2 );
+			}
+			needcomma = true;
 		}
+	}
+	if( needellipsis ) {
+		/* moveing backward here is easier than checking above */
+		if( buffersize < 5 ) {
+			buffer -= (5 - buffersize);
+			buffersize = 5;
+		}
+		*buffer++ = '.'; buffersize--;
+		*buffer++ = '.'; buffersize--;
+		*buffer++ = '.'; buffersize--;
 	}
 	assert( buffersize >= 2  );
 	*buffer++ = ')'; buffersize--;
@@ -94,7 +124,7 @@ static const char *exportdescription(const struct exportmode *mode,char *buffer,
 }
 
 retvalue exportmode_init(/*@out@*/struct exportmode *mode, bool uncompressed, /*@null@*/const char *release, const char *indexfile) {
-	mode->hook = NULL;
+	strlist_init(&mode->hooks);
 	mode->compressions = IC_FLAG(ic_gzip) | (uncompressed?IC_FLAG(ic_uncompressed):0);
 	mode->filename = strdup(indexfile);
 	if( mode->filename == NULL )
@@ -187,31 +217,34 @@ retvalue exportmode_set(struct exportmode *mode, struct configiterator *iter) {
 		if( RET_WAS_ERROR(r) )
 			return r;
 	}
-	if( r != RET_NOTHING ) {
-		if( word[0] == '/' ) {
-			free(mode->hook);
-			mode->hook = word;
+	while( r != RET_NOTHING ) {
+		if( word[0] == '.' ) {
+			fprintf(stderr,
+"Error parsing %s, line %u, column %u:\n"
+"Scripts starting with dot are forbidden to avoid ambiguity ('%s')!\n"
+"Try to put all compressions first and then all scripts to avoid this.\n",
+					config_filename(iter),
+					config_markerline(iter),
+					config_markercolumn(iter),
+					word);
+			free(word);
+			return RET_ERROR;
+		} else if( word[0] == '/' ) {
+			r = strlist_add(&mode->hooks, word);
+			if( RET_WAS_ERROR(r) )
+				return r;
 		} else {
 			char *fullfilename = calc_conffile(word);
 			free(word);
 			if( FAILEDTOALLOC(fullfilename) )
 				return RET_ERROR_OOM;
-			free(mode->hook);
-			mode->hook = fullfilename;
+			r = strlist_add(&mode->hooks, fullfilename);
+			if( RET_WAS_ERROR(r) )
+				return r;
 		}
-	}
-	r = config_getword(iter, &word);
-	if( RET_WAS_ERROR(r) )
-		return r;
-	if( r != RET_NOTHING ) {
-		fprintf(stderr,
-"Error parsing %s, line %u, column %u:\n"
-"Trailing garbage after export hook script!\n",
-				config_filename(iter),
-				config_markerline(iter),
-				config_markercolumn(iter));
-		free(word);
-		return RET_ERROR;
+		r = config_getword(iter, &word);
+		if( RET_WAS_ERROR(r) )
+			return r;
 	}
 	return RET_OK;
 }
@@ -458,20 +491,26 @@ retvalue export_target(const char *relativedir, struct target *target, struct da
 				exportdescription(exportmode, buffer, 100));
 		status = "old";
 	}
-	if( !snapshot )
-		r = callexporthook(exportmode->hook,
-					relfilename,
-					status,
-					release);
+	if( !snapshot ) {
+		int i;
+
+		for( i = 0 ; i < exportmode->hooks.count ; i++ ) {
+			const char *hook = exportmode->hooks.values[i];
+
+			r = callexporthook(hook, relfilename, status, release);
+			if( RET_WAS_ERROR(r) ) {
+				free(relfilename);
+				return r;
+			}
+		}
+	}
 	free(relfilename);
-	if( RET_WAS_ERROR(r) )
-		return r;
 	return RET_OK;
 }
 
 void exportmode_done(struct exportmode *mode) {
 	assert( mode != NULL);
 	free(mode->filename);
-	free(mode->hook);
+	strlist_done(&mode->hooks);
 	free(mode->release);
 }

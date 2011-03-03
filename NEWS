@@ -1,3 +1,8 @@
+Updates between 3.6.2 and 3.6.3:
+- fix sha256 generation of very large files, thanks to Max Bowsher
+- allow multiple export hooks at once
+- use libgpg-error directly (to avoid some warnings in dependency analysis)
+
 Updates between 3.6.1 and 3.6.2:
 - --nooldfilesdb is the default now, create new repositories
   with --oldfilesdb if you do not want to destroy them by accidentially
