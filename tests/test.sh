@@ -433,7 +433,7 @@ dodiff results.expected results
 printindexpart pool/dog/b/bird/bird_1_${FAKEARCHITECTURE}.deb > results.expected
 printindexpart pool/dog/b/bird/bird-addons_1_all.deb >> results.expected
 dodiff results.expected dists/B/dog/binary-${FAKEARCHITECTURE}/Packages
-cat pool/dog/b/bird/bird_1.dsc >results.expected
+withoutchecksums pool/dog/b/bird/bird_1.dsc > results.expected
 ed -s results.expected <<EOF
 H
 /^Source: / m 0
@@ -447,7 +447,6 @@ Directory: pool/dog/b/bird
 'f a
  $DSCMD5S bird_1.dsc
 .
-g/^Checksums-/.,$d
 $ a
 Checksums-Sha1: 
  $DSCSHA1S bird_1.dsc
@@ -553,7 +552,7 @@ w
 q
 EOF
 dodiff results.expected dists/B/cat/binary-${FAKEARCHITECTURE}/Packages
-cat pool/cat/b/bird/bird_1.dsc >results.expected
+withoutchecksums pool/cat/b/bird/bird_1.dsc > results.expected
 ed -s results.expected <<EOF
 H
 /^Source: / m 0
@@ -568,7 +567,6 @@ Directory: pool/cat/b/bird
 'f a
  $DSCMD5S bird_1.dsc
 .
-g/^Checksums-/.,$d
 $ a
 Checksums-Sha1: 
  $DSCSHA1S bird_1.dsc
@@ -760,9 +758,9 @@ stderr
 *=In 'test.changes': file '../ööü_v_all.deb' not found in the incoming dir!
 -v0*=There have been errors!
 EOF
-echo -e '$d\nw\nq\n' | ed -s i/test.changes
-echo -e " ffff 666 - - \300\257.\300\257_v_funny.deb" >> i/test.changes
-touch "$(echo -e 'i/\300\257.\300\257_v_funny.deb')"
+printf '$d\nw\nq\n' | ed -s i/test.changes
+printf ' ffff 666 - - \300\257.\300\257_v_funny.deb\n' >> i/test.changes
+touch "$(printf 'i/\300\257.\300\257_v_funny.deb')"
 testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
@@ -770,9 +768,9 @@ stderr
 *='test.changes' lists architecture 'funny' not found in distribution 'A'!
 -v0*=There have been errors!
 EOF
-echo -e '$d\nw\nq\n' | ed -s i/test.changes
-echo -e " ffff 666 - - \300\257.\300\257_v_all.deb" >> i/test.changes
-mv "$(echo -e 'i/\300\257.\300\257_v_funny.deb')" "$(echo -e 'i/\300\257.\300\257_v_all.deb')"
+printf '$d\nw\nq\n' | ed -s i/test.changes
+printf ' ffff 666 - - \300\257.\300\257_v_all.deb\n' >> i/test.changes
+mv "$(printf 'i/\300\257.\300\257_v_funny.deb')" "$(printf 'i/\300\257.\300\257_v_all.deb')"
 testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
@@ -788,8 +786,8 @@ stderr
 *=Invalid filename 'À¯.À¯_v_all.deb' listed in 'test.changes': contains 8-bit characters
 -v0*=There have been errors!
 EOF
-echo -e '$d\nw\nq\n' | ed -s i/test.changes
-echo -e " ffff 1 - - debfilename_debfileversion~2_coal.deb" >> i/test.changes
+printf '$d\nw\nq\n' | ed -s i/test.changes
+echo " ffff 1 - - debfilename_debfileversion~2_coal.deb" >> i/test.changes
 testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
@@ -798,8 +796,8 @@ stderr
 -v0*=There have been errors!
 EOF
 mv i/debfilename_debfileversion~2_coal.deb i/debfilename_debfileversion~2_all.deb
-echo -e '$d\nw\nq\n' | ed -s i/test.changes
-echo -e " md5sum size - - debfilename_debfileversion~2_all.deb" >> i/test.changes
+printf '$d\nw\nq\n' | ed -s i/test.changes
+echo " md5sum size - - debfilename_debfileversion~2_all.deb" >> i/test.changes
 # TODO: this error message has to be improved:
 testrun - -b . processincoming default 3<<EOF
 returns 255
@@ -808,8 +806,8 @@ stderr
 *=Malformed md5 hash in 'md5sum size - - debfilename_debfileversion~2_all.deb'!
 -v0*=There have been errors!
 EOF
-echo -e '$d\nw\nq\n' | ed -s i/test.changes
-echo -e " ffff 666 - - debfilename_debfileversion~2_all.deb" >> i/test.changes
+printf '$d\nw\nq\n' | ed -s i/test.changes
+echo " ffff 666 - - debfilename_debfileversion~2_all.deb" >> i/test.changes
 testrun - -b . processincoming default 3<<EOF
 returns 254
 stderr
@@ -819,8 +817,8 @@ stderr
 *=size expected: 666, got: $DEBSIZE
 -v0*=There have been errors!
 EOF
-echo -e '$d\nw\nq\n' | ed -s i/test.changes
-echo -e " $DEBMD5S - - debfilename_debfileversion~2_all.deb" >> i/test.changes
+printf '$d\nw\nq\n' | ed -s i/test.changes
+echo " $DEBMD5S - - debfilename_debfileversion~2_all.deb" >> i/test.changes
 # TODO: these will hopefully change to not divulge the place of the temp dir some day...
 testrun - -b . processincoming default 3<<EOF
 returns 255
@@ -832,8 +830,8 @@ EOF
 echo "Maintainer: noone <me@nowhere>" >> pkg/DEBIAN/control
 dpkg-deb -b pkg i/debfilename_debfileversion~2_all.deb
 DEBMD5S="$(md5sum i/debfilename_debfileversion~2_all.deb | cut -d' ' -f1) $(stat -c '%s' i/debfilename_debfileversion~2_all.deb)"
-echo -e '$d\nw\nq\n' | ed -s i/test.changes
-echo -e " $DEBMD5S - - debfilename_debfileversion~2_all.deb" >> i/test.changes
+printf '$d\nw\nq\n' | ed -s i/test.changes
+echo " $DEBMD5S - - debfilename_debfileversion~2_all.deb" >> i/test.changes
 testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
@@ -846,8 +844,8 @@ echo "Description: test-package" >> pkg/DEBIAN/control
 echo " a package to test reprepro" >> pkg/DEBIAN/control
 dpkg-deb -b pkg i/debfilename_debfileversion~2_all.deb
 DEBMD5S="$(md5sum i/debfilename_debfileversion~2_all.deb | cut -d' ' -f1) $(stat -c '%s' i/debfilename_debfileversion~2_all.deb)"
-echo -e '$d\nw\nq\n' | ed -s i/test.changes
-echo -e " $DEBMD5S - - debfilename_debfileversion~2_all.deb" >> i/test.changes
+printf '$d\nw\nq\n' | ed -s i/test.changes
+echo " $DEBMD5S - - debfilename_debfileversion~2_all.deb" >> i/test.changes
 testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
@@ -858,8 +856,8 @@ EOF
 echo "Architecture: coal" >> pkg/DEBIAN/control
 dpkg-deb -b pkg i/debfilename_debfileversion~2_all.deb
 DEBMD5S="$(md5sum i/debfilename_debfileversion~2_all.deb | cut -d' ' -f1) $(stat -c '%s' i/debfilename_debfileversion~2_all.deb)"
-echo -e '$d\nw\nq\n' | ed -s i/test.changes
-echo -e " $DEBMD5S - - debfilename_debfileversion~2_all.deb" >> i/test.changes
+printf '$d\nw\nq\n' | ed -s i/test.changes
+echo " $DEBMD5S - - debfilename_debfileversion~2_all.deb" >> i/test.changes
 testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
@@ -868,8 +866,8 @@ stderr
 -v0*=There have been errors!
 EOF
 mv i/debfilename_debfileversion~2_all.deb i/indebname_debfileversion~2_all.deb
-echo -e '$d\nw\nq\n' | ed -s i/test.changes
-echo -e " $DEBMD5S - - indebname_debfileversion~2_all.deb" >> i/test.changes
+printf '$d\nw\nq\n' | ed -s i/test.changes
+echo " $DEBMD5S - - indebname_debfileversion~2_all.deb" >> i/test.changes
 testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
@@ -880,8 +878,8 @@ EOF
 sed -i -e "s/^Architecture: coal/Architecture: all/" pkg/DEBIAN/control
 dpkg-deb -b pkg i/indebname_debfileversion~2_all.deb
 DEBMD5S="$(md5sum i/indebname_debfileversion~2_all.deb | cut -d' ' -f1) $(stat -c '%s' i/indebname_debfileversion~2_all.deb)"
-echo -e '$d\nw\nq\n' | ed -s i/test.changes
-echo -e " $DEBMD5S - - indebname_debfileversion~2_all.deb" >> i/test.changes
+printf '$d\nw\nq\n' | ed -s i/test.changes
+echo " $DEBMD5S - - indebname_debfileversion~2_all.deb" >> i/test.changes
 testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
@@ -918,8 +916,8 @@ EOF
 echo "Section: sectiontest" >> pkg/DEBIAN/control
 dpkg-deb -b pkg i/indebname_debfileversion~2_all.deb
 DEBMD5S="$(md5sum i/indebname_debfileversion~2_all.deb | cut -d' ' -f1) $(stat -c '%s' i/indebname_debfileversion~2_all.deb)"
-echo -e '$d\nw\nq\n' | ed -s i/test.changes
-echo -e " $DEBMD5S - - indebname_debfileversion~2_all.deb" >> i/test.changes
+printf '$d\nw\nq\n' | ed -s i/test.changes
+echo " $DEBMD5S - - indebname_debfileversion~2_all.deb" >> i/test.changes
 testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
@@ -928,8 +926,8 @@ stderr
 *=No section found for 'indebname' ('indebname_debfileversion~2_all.deb' in 'test.changes')!
 -v0*=There have been errors!
 EOF
-echo -e '$d\nw\nq\n' | ed -s i/test.changes
-echo -e " $DEBMD5S test - indebname_debfileversion~2_all.deb" >> i/test.changes
+printf '$d\nw\nq\n' | ed -s i/test.changes
+echo " $DEBMD5S test - indebname_debfileversion~2_all.deb" >> i/test.changes
 testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
@@ -941,8 +939,8 @@ EOF
 echo "Priority: survival" >> pkg/DEBIAN/control
 dpkg-deb -b pkg i/indebname_debfileversion~2_all.deb
 DEBMD5S="$(md5sum i/indebname_debfileversion~2_all.deb | cut -d' ' -f1) $(stat -c '%s' i/indebname_debfileversion~2_all.deb)"
-echo -e '$d\nw\nq\n' | ed -s i/test.changes
-echo -e " $DEBMD5S test - indebname_debfileversion~2_all.deb" >> i/test.changes
+printf '$d\nw\nq\n' | ed -s i/test.changes
+echo " $DEBMD5S test - indebname_debfileversion~2_all.deb" >> i/test.changes
 testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
@@ -951,8 +949,8 @@ stderr
 *=No priority found for 'indebname' ('indebname_debfileversion~2_all.deb' in 'test.changes')!
 -v0*=There have been errors!
 EOF
-echo -e '$d\nw\nq\n' | ed -s i/test.changes
-echo -e " $DEBMD5S section priority indebname_debfileversion~2_all.deb" >> i/test.changes
+printf '$d\nw\nq\n' | ed -s i/test.changes
+echo " $DEBMD5S section priority indebname_debfileversion~2_all.deb" >> i/test.changes
 checknolog logfile
 testrun - -b . processincoming default 3<<EOF
 returns 0
@@ -1020,7 +1018,7 @@ stderr
 *=size expected: 666, got: 0
 -v0*=There have been errors!
 EOF
-echo -e '$d\nw\nq\n' | ed -s i/test.changes
+printf '$d\nw\nq\n' | ed -s i/test.changes
 echo " $DSCMD5S - - dscfilename_fileversion~.dsc" >> i/test.changes
 testrun - -b . processincoming default 3<<EOF
 returns 255
@@ -1032,7 +1030,7 @@ EOF
 #*=Could only find spaces within './temp/dscfilename_fileversion~.dsc'!
 echo "Dummyheader:" > i/dscfilename_fileversion~.dsc
 DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
-echo -e '$d\nw\nq\n' | ed -s i/test.changes
+printf '$d\nw\nq\n' | ed -s i/test.changes
 echo " $DSCMD5S - - dscfilename_fileversion~.dsc" >> i/test.changes
 testrun - -b . processincoming default 3<<EOF
 returns 255
@@ -1043,7 +1041,7 @@ stderr
 EOF
 echo "Source: nameindsc" > i/dscfilename_fileversion~.dsc
 DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
-echo -e '$d\nw\nq\n' | ed -s i/test.changes
+printf '$d\nw\nq\n' | ed -s i/test.changes
 echo " $DSCMD5S - - dscfilename_fileversion~.dsc" >> i/test.changes
 testrun - -b . processincoming default 3<<EOF
 returns 255
@@ -1054,7 +1052,7 @@ stderr
 EOF
 echo "Format: 1.0" >> i/dscfilename_fileversion~.dsc
 DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
-echo -e '$d\nw\nq\n' | ed -s i/test.changes
+printf '$d\nw\nq\n' | ed -s i/test.changes
 echo " $DSCMD5S - - dscfilename_fileversion~.dsc" >> i/test.changes
 testrun - -b . processincoming default 3<<EOF
 returns 255
@@ -1065,7 +1063,7 @@ stderr
 EOF
 echo "Maintainer: guess who <me@nowhere>" >> i/dscfilename_fileversion~.dsc
 DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
-echo -e '$d\nw\nq\n' | ed -s i/test.changes
+printf '$d\nw\nq\n' | ed -s i/test.changes
 echo " $DSCMD5S - - dscfilename_fileversion~.dsc" >> i/test.changes
 testrun - -b . processincoming default 3<<EOF
 returns 255
@@ -1076,7 +1074,7 @@ stderr
 EOF
 echo "Standards-Version: 0" >> i/dscfilename_fileversion~.dsc
 DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
-echo -e '$d\nw\nq\n' | ed -s i/test.changes
+printf '$d\nw\nq\n' | ed -s i/test.changes
 echo " $DSCMD5S - - dscfilename_fileversion~.dsc" >> i/test.changes
 testrun - -b . processincoming default 3<<EOF
 returns 255
@@ -1087,7 +1085,7 @@ stderr
 EOF
 echo "Version: versionindsc" >> i/dscfilename_fileversion~.dsc
 DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
-echo -e '$d\nw\nq\n' | ed -s i/test.changes
+printf '$d\nw\nq\n' | ed -s i/test.changes
 echo " $DSCMD5S - - dscfilename_fileversion~.dsc" >> i/test.changes
 testrun - -b . processincoming default 3<<EOF
 returns 255
@@ -1098,7 +1096,7 @@ stderr
 EOF
 echo "Files:  " >> i/dscfilename_fileversion~.dsc
 DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
-echo -e '$d\nw\nq\n' | ed -s i/test.changes
+printf '$d\nw\nq\n' | ed -s i/test.changes
 echo " $DSCMD5S - - dscfilename_fileversion~.dsc" >> i/test.changes
 testrun - -b . processincoming default 3<<EOF
 returns 255
@@ -1109,7 +1107,7 @@ stderr
 EOF
 sed -i 's/^Source: nameindsc$/Source: dscfilename/g' i/dscfilename_fileversion~.dsc
 DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
-echo -e '$d\nw\nq\n' | ed -s i/test.changes
+printf '$d\nw\nq\n' | ed -s i/test.changes
 echo " $DSCMD5S - - dscfilename_fileversion~.dsc" >> i/test.changes
 testrun - -b . processincoming default 3<<EOF
 returns 255
@@ -1136,7 +1134,7 @@ stderr
 -v0*=There have been errors!
 EOF
 DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
-echo -e '$d\nw\nq\n' | ed -s i/test.changes
+printf '$d\nw\nq\n' | ed -s i/test.changes
 echo " $DSCMD5S dummy - dscfilename_fileversion~.dsc" >> i/test.changes
 testrun - -b . processincoming default 3<<EOF
 returns 255
@@ -1146,9 +1144,9 @@ stderr
 *=No priority found for 'dscfilename' ('dscfilename_fileversion~.dsc' in 'test.changes')!
 -v0*=There have been errors!
 EOF
-echo -e "g/^Format:/d\nw\nq\n" | ed -s i/dscfilename_fileversion~.dsc
+printf "g/^Format:/d\nw\nq\n" | ed -s i/dscfilename_fileversion~.dsc
 DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
-echo -e '$d\nw\nq\n' | ed -s i/test.changes
+printf '$d\nw\nq\n' | ed -s i/test.changes
 echo " $DSCMD5S dummy can't-live-without dscfilename_fileversion~.dsc" >> i/test.changes
 testrun - -b . processincoming default 3<<EOF
 returns 255
@@ -1158,11 +1156,11 @@ stderr
 *=Cannot find 'Format' field in dscfilename_fileversion~.dsc!
 -v0*=There have been errors!
 EOF
-echo -e "1i\nFormat: 1.0\n.\nw\nq\n" | ed -s i/dscfilename_fileversion~.dsc
+printf "1i\nFormat: 1.0\n.\nw\nq\n" | ed -s i/dscfilename_fileversion~.dsc
 DSCMD5S="$(mdandsize i/dscfilename_fileversion~.dsc )"
 OLDDSCFILENAMEMD5S="$DSCMD5S"
 OLDDSCFILENAMESHA1S="$(sha1andsize i/dscfilename_fileversion~.dsc)"
-echo -e '$d\nw\nq\n' | ed -s i/test.changes
+printf '$d\nw\nq\n' | ed -s i/test.changes
 echo " $DSCMD5S dummy can't-live-without dscfilename_fileversion~.dsc" >> i/test.changes
 checknolog logfile
 testrun - -b . processincoming default 3<<EOF
@@ -1221,7 +1219,7 @@ stderr
 EOF
 sed -i "s/ md5sumindsc / dddddddddddddddddddddddddddddddd /" i/dscfilename_fileversion~.dsc
 DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
-echo -e '$d\nw\nq\n' | ed -s i/test.changes
+printf '$d\nw\nq\n' | ed -s i/test.changes
 echo " $DSCMD5S dummy unneeded dscfilename_fileversion~.dsc" >> i/test.changes
 # this is a stupid error message, needs to get some context
 testrun - -b . processincoming default 3<<EOF
@@ -1233,7 +1231,7 @@ stderr
 EOF
 sed -i "s/ sizeindsc / 666 /" i/dscfilename_fileversion~.dsc
 DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
-echo -e '$d\nw\nq\n' | ed -s i/test.changes
+printf '$d\nw\nq\n' | ed -s i/test.changes
 echo " $DSCMD5S dummy unneeded dscfilename_fileversion~.dsc" >> i/test.changes
 testrun - -b . processincoming default 3<<EOF
 returns 255
@@ -1251,7 +1249,7 @@ stderr
 *=No underscore found in file name in '11111111111111111111111111111111 666 - - strangefile'!
 -v0*=There have been errors!
 EOF
-echo -e '$d\nw\nq\n' | ed -s i/test.changes
+printf '$d\nw\nq\n' | ed -s i/test.changes
 echo " 11111111111111111111111111111111 666 - - strangefile_xyz" >> i/test.changes
 testrun - -b . processincoming default 3<<EOF
 returns 249
@@ -1270,7 +1268,7 @@ stderr
 *=file 'strangefile' is needed for 'dscfilename_fileversion~.dsc', not yet registered in the pool and not found in 'test.changes'
 -v0*=There have been errors!
 EOF
-echo -e '$d\nw\nq\n' | ed -s i/test.changes
+printf '$d\nw\nq\n' | ed -s i/test.changes
 echo " dddddddddddddddddddddddddddddddd 666 - - strangefile_xyz" >> i/test.changes
 testrun - -b . processincoming default 3<<EOF
 returns 254
@@ -1282,13 +1280,13 @@ stderr
 *=size expected: 666, got: 33
 -v0*=There have been errors!
 EOF
-echo -e '$d\nw\nq\n' | ed -s i/dscfilename_fileversion~.dsc
+printf '$d\nw\nq\n' | ed -s i/dscfilename_fileversion~.dsc
 echo " 31a1096ff883d52f0c1f39e652d6336f 33 strangefile_xyz" >> i/dscfilename_fileversion~.dsc
 DSCMD5S="$(mdandsize i/dscfilename_fileversion~.dsc)"
 DSCSHA1S="$(sha1andsize i/dscfilename_fileversion~.dsc)"
 DSCFILENAMEMD5S="$DSCMD5S"
 DSCFILENAMESHA1S="$DSCSHA1S"
-echo -e '$-1,$d\nw\nq\n' | ed -s i/test.changes
+printf '$-1,$d\nw\nq\n' | ed -s i/test.changes
 echo " $DSCMD5S dummy unneeded dscfilename_fileversion~.dsc" >> i/test.changes
 echo " 33a1096ff883d52f0c1f39e652d6336f 33 - - strangefile_xyz" >> i/test.changes
 testrun - -b . processincoming default 3<<EOF
@@ -1343,7 +1341,7 @@ dists/B/Release
 EOF
 dodiff results.expected results
 gunzip -c dists/B/dog/source/Sources.gz > results
-cat pool/dog/b/bird/bird_1.dsc >bird.preprocessed
+withoutchecksums pool/dog/b/bird/bird_1.dsc >bird.preprocessed
 ed -s bird.preprocessed <<EOF
 H
 /^Source: / m 0
@@ -1357,7 +1355,6 @@ Directory: pool/dog/b/bird
 'f a
  $BIRDDSCMD5S bird_1.dsc
 .
-g/^Checksums-/.,$d
 $ a
 Checksums-Sha1: 
  $BIRDDSCSHA1S bird_1.dsc
@@ -1446,7 +1443,7 @@ mkdir tmp
 mv dists/B/Contents-abacus.gz tmp
 mv dists/B/snapshots/now dists/B.snapshot
 mv dists/A/snapshots/now dists/A.snapshot
-echo -e 'g/Contents-/d\nw\nq\n' | ed -s dists/B/Release
+printf 'g/Contents-/d\nw\nq\n' | ed -s dists/B/Release
 rmdir dists/B/snapshots
 rmdir dists/A/snapshots
 dodiff -r -u dists/B.snapshot dists/B
@@ -1455,7 +1452,7 @@ rm -r dists/A.snapshot
 rm -r dists/B.snapshot
 mv tmp/Contents-abacus.gz dists/B/
 ##
-echo -e '$d\nw\nq\n' | ed -s i/test.changes
+printf '$d\nw\nq\n' | ed -s i/test.changes
 echo " 31a1096ff883d52f0c1f39e652d6336f 33 - - strangefile_xyz" >> i/test.changes
 checknolog logfile
 testrun - -b . processincoming default 3<<EOF
@@ -1785,8 +1782,8 @@ SHA1:
  $EMPTYBZ2SHA1 ugly/source/Sources.bz2
  $(sha1andsize dists/test2/ugly/source/Release) ugly/source/Release
 END
-echo -e '%g/^Date:/s/Date: .*/Date: normalized/\n%g/gz$/s/^ 163be0a88c70ca629fd516dbaadad96a / 7029066c27ac6f5ef18d660d5741979a /\nw\nq' | ed -s dists/test1/Release
-echo -e '%g/^Date:/s/Date: .*/Date: normalized/\n%g/gz$/s/^ 163be0a88c70ca629fd516dbaadad96a / 7029066c27ac6f5ef18d660d5741979a /\nw\nq' | ed -s dists/test2/Release
+printf '%%g/^Date:/s/Date: .*/Date: normalized/\n%%g/gz$/s/^ 163be0a88c70ca629fd516dbaadad96a / 7029066c27ac6f5ef18d660d5741979a /\nw\nq\n' | ed -s dists/test1/Release
+printf '%%g/^Date:/s/Date: .*/Date: normalized/\n%%g/gz$/s/^ 163be0a88c70ca629fd516dbaadad96a / 7029066c27ac6f5ef18d660d5741979a /\nw\nq\n' | ed -s dists/test2/Release
 dodiff dists/test1/Release.expected dists/test1/Release || exit 1
 dodiff dists/test2/Release.expected dists/test2/Release || exit 1
 
@@ -1978,7 +1975,7 @@ checklog log1 <<EOF
 DATESTR remove test1 deb stupid ${FAKEARCHITECTURE} simple-addons 1
 EOF
 CURDATE="`TZ=GMT LC_ALL=C date +'%a, %d %b %Y %H:%M:%S +0000'`"
-echo -e '%g/^Date:/s/Date: .*/Date: normalized/\n%g/gz$/s/^ 163be0a88c70ca629fd516dbaadad96a / 7029066c27ac6f5ef18d660d5741979a /\nw\nq' | ed -s dists/test1/Release
+printf '%%g/^Date:/s/Date: .*/Date: normalized/\n%%g/gz$/s/^ 163be0a88c70ca629fd516dbaadad96a / 7029066c27ac6f5ef18d660d5741979a /\nw\nq\n' | ed -s dists/test1/Release
 
 dodiff dists/test1/Release.expected dists/test1/Release || exit 1
 
@@ -3310,7 +3307,7 @@ stderr
 *=No distribution definitions found in conf2/distributions!
 -v0*=There have been errors!
 EOF
-echo -e 'Codename: foo' > conf2/distributions
+echo 'Codename: foo' > conf2/distributions
 testrun - -b . --confdir conf2 update 3<<EOF
 stderr
 *=Error parsing config file conf2/distributions, line 2:
@@ -3318,14 +3315,14 @@ stderr
 -v0*=There have been errors!
 returns 249
 EOF
-echo -e "Architectures: ${FAKEARCHITECTURE} fingers" >> conf2/distributions
+echo "Architectures: ${FAKEARCHITECTURE} fingers" >> conf2/distributions
 testrun - -b . --confdir conf2 update 3<<EOF
 *=Error parsing config file conf2/distributions, line 3:
 *=Required field 'Components' expected (since line 1).
 -v0*=There have been errors!
 returns 249
 EOF
-echo -e 'Components: unneeded bloated i386' >> conf2/distributions
+echo 'Components: unneeded bloated i386' >> conf2/distributions
 testrun - -b . --confdir conf2 update 3<<EOF
 *=Error: packages database contains unused 'test1|stupid|${FAKEARCHITECTURE}' database.
 *=This either means you removed a distribution, component or architecture from

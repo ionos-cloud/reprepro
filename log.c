@@ -833,7 +833,8 @@ static retvalue notificator_enqueue(struct notificator *n, struct target *target
 			free(p);
 			return RET_ERROR_OOM;
 		}
-	}
+	} else
+		p->causingfile = NULL;
 	p->arguments = arguments;
 	p->next = NULL;
 	p->child = 0;

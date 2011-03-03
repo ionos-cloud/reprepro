@@ -131,7 +131,7 @@ sysconfdir = @sysconfdir@
 target_alias = @target_alias@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-EXTRA_DIST = test.sh testchecksums.sh test.inc genpackage.sh dpkg-architecture debtest.sh tooltest.sh
+EXTRA_DIST = test.sh testchecksums.sh testsignatures.sh test.inc genpackage.sh dpkg-architecture debtest.sh tooltest.sh
 MAINTAINERCLEANFILES = $(srcdir)/Makefile.in
 all: all-am
 

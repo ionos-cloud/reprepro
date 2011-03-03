@@ -963,7 +963,7 @@ to update from. (As with components, you can use ">" to download
 from one Architecture and add into an other one. (This only determine
 in which Package list they land, it neither overwrites the Architecture
 line in its description, nor the one in the filename determined from this
-one. In other words, it is no really useful without additional filtering)
+one. In other words, it is no really useful without additional filtering))
 .TP
 .B UDebComponents
 Like
@@ -1057,6 +1057,11 @@ a different meaning.)
 .B Architectures
 The architectures to update.
 If omitted all from the distribution to pull from.
+As in
+.BR conf/updates ,
+you can use ">" to download
+from one Architecture and add into an other one. (And again, only useful
+with filtering to avoid packages not architectur \fBall\fP to migrate).
 .TP
 .B UDebComponents
 Like

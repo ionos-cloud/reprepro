@@ -386,7 +386,7 @@ struct candidate {
 	/* from candidate_read */
 	int ofs;
 	char *control;
-	struct strlist keys;
+	struct strlist keys, allkeys;
 	/* from candidate_parse */
 	char *source, *sourceversion, *changesversion;
 	struct strlist distributions,
@@ -474,6 +474,7 @@ static void candidate_free(/*@only@*/struct candidate *c) {
 		return;
 	free(c->control);
 	strlist_done(&c->keys);
+	strlist_done(&c->allkeys);
 	free(c->source);
 	free(c->sourceversion);
 	free(c->changesversion);
@@ -553,7 +554,7 @@ static retvalue candidate_read(struct incoming *i, int ofs, struct candidate **r
 		return r;
 	}
 	assert( n->files->tempfilename != NULL );
-	r = signature_readsignedchunk(n->files->tempfilename, BASENAME(i,ofs), &n->control, &n->keys, NULL, broken);
+	r = signature_readsignedchunk(n->files->tempfilename, BASENAME(i,ofs), &n->control, &n->keys, &n->allkeys, broken);
 	assert( r != RET_NOTHING );
 	if( RET_WAS_ERROR(r) ) {
 		candidate_free(n);
@@ -1551,9 +1552,8 @@ static retvalue candidate_checkpermissions(const char *confdir, struct incoming 
 		r = uploaders_unsignedpermissions(into->uploaderslist,
 				&permissions);
 		assert( r != RET_NOTHING );
-		if( RET_WAS_ERROR(r) ) {
+		if( RET_WAS_ERROR(r) )
 			return r;
-		}
 		if( permissions != NULL && isallowed(i,c,into,permissions) )
 			return RET_OK;
 	} else for( j = 0; j < c->keys.count ; j++ ) {
@@ -1562,12 +1562,36 @@ static retvalue candidate_checkpermissions(const char *confdir, struct incoming 
 		r = uploaders_permissions(into->uploaderslist,
 				c->keys.values[j], &permissions);
 		assert( r != RET_NOTHING );
-		if( RET_WAS_ERROR(r) ) {
+		if( RET_WAS_ERROR(r) )
 			return r;
-		}
 		if( permissions != NULL && isallowed(i,c,into,permissions) )
 			return RET_OK;
 	}
+	/* reject, check if it would have been accepted with more signatures
+	 * valid: */
+	if( verbose >= 0 &&
+	    c->allkeys.count != 0 && c->allkeys.count != c->keys.count ) {
+		for( j = 0; j < c->allkeys.count ; j++ ) {
+			const struct uploadpermissions *permissions;
+			r = uploaders_permissions(into->uploaderslist,
+					c->allkeys.values[j], &permissions);
+			assert( r != RET_NOTHING );
+			if( RET_WAS_ERROR(r) )
+				return r;
+			if( permissions != NULL &&
+			    isallowed(i,c , into, permissions) ) {
+				// TODO: get information if it was invalid because
+				// missing pub-key, expire-state or something else
+				// here so warning can be more specific.
+				fprintf(stderr,
+"'%s' would have been accepted into '%s' if signature with '%s' was checkable and valid.\n",
+					i->files.values[c->ofs],
+					into->codename,
+					c->allkeys.values[j]);
+			}
+		}
+	}
+
 	/* reject */
 	return RET_NOTHING;
 }

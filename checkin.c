@@ -248,7 +248,7 @@ static retvalue changes_parsefilelines(const char *filename,struct changes *chan
 	return result;
 }
 
-static retvalue changes_addhashes(const char *filename, struct changes *changes, enum checksumtype cs, struct strlist *filelines) {
+static retvalue changes_addhashes(const char *filename, struct changes *changes, enum checksumtype cs, struct strlist *filelines, bool ignoresomefiles) {
 	int i;
 	retvalue r;
 
@@ -267,6 +267,11 @@ static retvalue changes_addhashes(const char *filename, struct changes *changes,
 		while( e != NULL && strcmp(e->basename, basename) != 0 )
 			e = e->next;
 		if( e == NULL ) {
+			if( ignoresomefiles )
+				/* we might already have ignored files when
+				 * creating changes->files, so we cannot say
+				 * if this is an error. */
+				continue;
 			fprintf(stderr,
 "In '%s': file '%s' listed in '%s' but not in 'Files'\n",
 				filename, basename, changes_checksum_names[cs]);
@@ -406,7 +411,9 @@ static retvalue changes_read(const char *filename,/*@out@*/struct changes **chan
 		r = chunk_getextralinelist(c->control,
 				changes_checksum_names[cs], &filelines[cs]);
 		if( RET_IS_OK(r) )
-			r = changes_addhashes(filename, c, cs, &filelines[cs]);
+			r = changes_addhashes(filename, c, cs, &filelines[cs],
+					packagetypeonly != NULL ||
+					forcearchitecture != NULL);
 		else
 			strlist_init(&filelines[cs]);
 		if( RET_WAS_ERROR(r) ) {

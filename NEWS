@@ -1,3 +1,8 @@
+Updates between 3.4.1 and 3.4.2:
+now really fix the nasty bug with notifiers 3.4.1 should
+have fixed and be more verbose when rejecting packages because
+of problems with a key
+
 Updates between 3.4.0 and 3.4.1:
 bugfixes only (though of the ugly segfaults kind)
 
