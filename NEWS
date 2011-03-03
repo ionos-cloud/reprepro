@@ -1,3 +1,6 @@
+Updates since 1.3.0:
+- bugfix in changestool updatechecksums
+
 Updates since 1.2.0:
 - now uses libgpgme11 instead of libgpgme6.
 - remove --onlyacceptsigned switch (soon to be be replaced by something
@@ -15,7 +18,7 @@ Updates since 1.2.0:
   --ignore=surprisingbinary is given. (A .dsc with an other name
   or a .deb with an other Source than the Source-header if the
   .changes file is still not ignoreable due to file naming issues)
-- FilterList in update and pull rules now has a space seperated list
+- FilterList in update and pull rules now has a space separated list
   of filenames instead of only a single filename.
 - new Uploaders field in conf/distributions:
   allows to specify what a .changes file has to be signed with to be allowed in

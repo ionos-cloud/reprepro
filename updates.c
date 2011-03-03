@@ -1233,7 +1233,7 @@ static retvalue calllisthook(const char *listhook,struct update_index *index) {
 			return RET_ERROR;
 		}
 	} else {
-		fprintf(stderr,"Listhook terminated abnormaly. (status is %x)!\n",status);
+		fprintf(stderr,"Listhook terminated abnormally. (status is %x)!\n",status);
 		return RET_ERROR;
 	}
 }

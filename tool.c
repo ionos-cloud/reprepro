@@ -767,7 +767,8 @@ static retvalue write_changes_file(const char *changesfilename,struct changes *c
 		cef = cef_newfield("Files", CEF_ADD, CEF_LATE, filecount, NULL);
 		if( cef == NULL )
 			return RET_ERROR_OOM;
-		for( i=0,f = c->files; f != NULL ; i++,f = f->next ) {
+		i = 0;
+		for( f = c->files; f != NULL ; f = f->next ) {
 			if( f->changesmd5sum == NULL )
 				continue;
 			cef_setline(cef, i, 4,
@@ -775,6 +776,7 @@ static retvalue write_changes_file(const char *changesfilename,struct changes *c
 					f->section?f->section:"-",
 					f->priority?f->priority:"-",
 					f->basename, NULL);
+			i++;
 		}
 		assert( i == filecount );
 	} else {
@@ -1126,7 +1128,7 @@ static retvalue verify(const char *changesfilename, struct changes *changes) {
 					name = NULL;
 					namelen = 0;
 					fprintf(stderr,
-"Warning: '%s' does not contain a '_' seperating name and version!\n",
+"Warning: '%s' does not contain a '_' separating name and version!\n",
 						file->basename);
 				}else {
 					name = file->basename;
@@ -1150,7 +1152,7 @@ static retvalue verify(const char *changesfilename, struct changes *changes) {
 #endif
 					if( name != NULL )
 						fprintf(stderr,
-"ERROR: '%s' does not contain a '_' seperating name and version!\n",
+"ERROR: '%s' does not contain a '_' separating name and version!\n",
 							file->basename);
 				} else {
 					version = p+1;

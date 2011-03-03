@@ -128,7 +128,7 @@ static inline retvalue containskey(const char *key, const char *fingerprint) {
 		if( *keypart == '|' )
 			keypart++;
 		else {
-			fprintf(stderr,"Space seperated values in keyid '%s'!\n(Use | symbols to seperate multiple possible keys!)\n",key);
+			fprintf(stderr,"Space separated values in keyid '%s'!\n(Use | symbols to separate multiple possible keys!)\n",key);
 			return RET_ERROR;
 		}
 	}

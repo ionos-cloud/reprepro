@@ -35,7 +35,7 @@ DebOverride: override
 UDebOverride: override
 DscOverride: srcoverride
 
-Multiple entries are seperated with an empty line.
+Multiple entries are separated with an empty line.
 The codename is used to determine the directory to create.
 The Update line is described later. If SignWith is there,
 it will try to sign it. (Either use "yes" or give something

@@ -29,7 +29,7 @@ retvalue strlist_adduniq(struct strlist *strlist,/*@only@*/char *element);
 /* like strlist_add, but strdup it first */
 retvalue strlist_add_dup(struct strlist *strlist, const char *todup);
 
-/* print a space seperated list of elements */
+/* print a space separated list of elements */
 retvalue strlist_fprint(FILE *file,const struct strlist *strlist);
 
 /* duplicate with content */

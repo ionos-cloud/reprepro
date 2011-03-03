@@ -1,4 +1,4 @@
-.TH REPREPRO 1 "11 October, 2006" "reprepro" REPREPRO
+.TH REPREPRO 1 "1 November, 2006" "reprepro" REPREPRO
 .SH NAME
 reprepro \- produce, manage and sync a local repository of debian packages
 .SH SYNOPSIS
@@ -268,7 +268,7 @@ Plus if you cannot
 download a updated package in the (hopefully) following update
 run, you will end up with no package at all instead of an old one.
 This will also blow up pindex files if you are using the tiffany
-example or somethine similar.
+example or something similar.
 So be careful when using this option or better get some more space so
 that update works.
 .TP
@@ -593,7 +593,7 @@ If it is 3, at least a third of yet uncached files and at most a
 third of all files is read.
 And so on...
 
-After that a space seperated list of options can be given.
+After that a space separated list of options can be given.
 If there is a \fBudebs\fP keyword, \fB.udeb\fPs are also listed
 (in a file called \fBuContents\-\fP\fIarchitecture\fP.)
 If there is a \fBnodebs\fP keyword, \fB.deb\fPs are not listed.
@@ -791,7 +791,7 @@ The codename of the distribution to pull packages from.
 .TP
 .B Components
 The components of the distribution to get from.
-Unknown items are ignored to ease rule reusal.
+Unknown items are ignored to ease rule reuse.
 If there are no items, all components from distribution are taken.
 (Use some non existing like "none", if you want none).
 .TP
@@ -1149,13 +1149,13 @@ does not know anything needing them right know, you can use
 To delete them:
 .br
 \fBreprepro deleteunreferenced\fP
-.SH INTERUPTING
-Interupting reprepro has its problems.
+.SH INTERRUPTING
+Interrupting reprepro has its problems.
 Some things (like speaking with apt methods, database stuff) can cause
-problems when interupted at the wrong time.
-Then there are design problems of the code making it hard to destinguish
-if the current state is dangerous or non-dangerous to interupt.
-Thus if reprepro receives a signal normaly sent to tell a process to
+problems when interrupted at the wrong time.
+Then there are design problems of the code making it hard to distinguish
+if the current state is dangerous or non-dangerous to interrupt.
+Thus if reprepro receives a signal normally sent to tell a process to
 terminate itself softly,
 it continues its operation, but does not start any new operations.
 (I.e. it will not tell the apt-methods any new file to download, it will
@@ -1166,10 +1166,10 @@ it will not delete any files gotten dereferenced, and so on).
 given type will terminate reprepro. You will risk database corruption
 and have to remove the lockfile manually.\fP
 
-Also note that even normal interuption leads to code-paths mostly untested
+Also note that even normal interruption leads to code-paths mostly untested
 and thus expose a multitude of bugs including those leading to data corruption.
 Better think a second more before issuing a command than risking the need
-for interuption.
+for interruption.
 .SH "REPORTING BUGS"
 Report bugs or wishlist requests to <brlink@debian.org>
 .br

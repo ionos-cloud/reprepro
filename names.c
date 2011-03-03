@@ -724,23 +724,23 @@ retvalue splitlist(struct strlist *from,
 	/* * Iterator over components to update * */
 	r = RET_NOTHING;
 	for( i = 0 ; i < list->count ; i++ ) {
-		const char *item,*seperator;
+		const char *item,*separator;
 		char *origin,*destination;
 
 		item = list->values[i];
 		// TODO: isn't this broken for the !*(dest+1) case ?
-		if( (seperator = strchr(item,'>')) == NULL ) {
+		if( (separator = strchr(item,'>')) == NULL ) {
 			destination = strdup(item);
 			origin = strdup(item);
-		} else if( seperator == item ) {
-			destination = strdup(seperator+1);
-			origin = strdup(seperator+1);
-		} else if( *(seperator+1) == '\0' ) {
-			destination = strndup(item,seperator-item);
-			origin = strndup(item,seperator-item);
+		} else if( separator == item ) {
+			destination = strdup(separator+1);
+			origin = strdup(separator+1);
+		} else if( *(separator+1) == '\0' ) {
+			destination = strndup(item,separator-item);
+			origin = strndup(item,separator-item);
 		} else {
-			origin = strndup(item,seperator-item);
-			destination = strdup(seperator+1);
+			origin = strndup(item,separator-item);
+			destination = strdup(separator+1);
 		}
 		if( origin == NULL || destination == NULL ) {
 			free(origin);free(destination);

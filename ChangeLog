@@ -1,3 +1,11 @@
+2006-10-31  Bernhard R. Link <brlink@debian.org>
+	* fix spelling mistakes in manpage (thanks to A. Costa)
+	  fixed the same errors in the code and its messages
+
+2006-10-29  Bernhard R. Link <brlink@debian.org>
+	* fix updatechecksums for .changes files not
+	listing entries from the .dsc
+
 2006-10-11  Bernhard R. Link <brlink@debian.org>
 	* add Uploaders: rule to conf/distributions to
 	limit include to .changes files signed with specific keys.
@@ -11,7 +19,7 @@
 
 2006-10-06  Bernhard R. Link <brlink@debian.org>
 	* FilterList in update and pull rules now
-	  is a space seperated list of files.
+	  is a space separated list of files.
 
 2006-10-03  Bernhard R. Link <brlink@debian.org>
 	* fix typos and spelling errors in manpage (Thanks to Bruce Sass)
@@ -499,7 +507,7 @@
 	* Add some #includes so that it also compiles without
 	warnings on sarge/i386
 
-	* --ignore= allows multiple options seperated by comas.
+	* --ignore= allows multiple options separated by comas.
 
 	* Tell about -b if conf/distributions cannot be found
 

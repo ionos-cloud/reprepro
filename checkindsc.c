@@ -460,7 +460,7 @@ retvalue dsc_addprepared(const struct dscpackage *pkg,const char *dbdir,referenc
 	retvalue r;
 	struct target *t = distribution_getpart(distribution,pkg->component,"source","dsc");
 
-	/* finaly put it into the source distribution */
+	/* finally put it into the source distribution */
 	r = target_initpackagesdb(t,dbdir);
 	if( !RET_WAS_ERROR(r) ) {
 		retvalue r2;

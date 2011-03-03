@@ -12,7 +12,7 @@
 
 /* create recursively all parent directories before the last '/' */
 retvalue dirs_make_parent(const char *filename);
-/* create dirname and any '/'-seperated part of it */
+/* create dirname and any '/'-separated part of it */
 retvalue dirs_make_recursive(const char *directory);
 
 /* Behave like dirname(3) */
