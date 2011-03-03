@@ -1,0 +1,42 @@
+reprepro for Debian
+-------------------
+
+Reprepro is now used by relatively many people, so I guess the common
+functions are working now. The more obscure features you use, the higher
+the chances you hit a bug noone hit before, though.
+Please report all bugs you encounter, either using the BTS or reporting
+to me directly.
+
+Due to threats that libdb3 will no release with etch, reprepro uses
+libdb-4.3 now instead of libdb3. I suggest the following steps to
+avoid problems this might cause:
+
+ - best only use one version of libdb for your repository.
+ - if you need to change, move from lower to higher versions and never back.
+   you might also want to run db4.3_upgrade over the .db files in the db/
+   directory, after creating a backup of the whole directory.
+
+In theory (meaning the db4.3-doc upgrade instructions) the database format
+should not have changed, but I stronly discourage running any reprepro
+linked against an older libdb over a database touched by any newer libdb.
+
+ -- Bernhard R. Link <brlink@debian.org>, Sun, 14 May 2005 17:26:29 +0200
+
+reprepro is now by default linked against libarchive. To compile without
+this library (for example when backporting for sarge) add 
+"reprepro:nolibarchive" to the DEB_BUILD_OPTIONS environment variable.
+
+If you want to create a .deb using libdb3 (for example when backporting to
+woody), you have to add "reprepro:libdb3" to DEB_BUILD_OPTIONS.
+
+For example (to be called from an (e.g. with dpkg-source -x) unpacked source
+tree) to backport the current version to woody:
+
+DEB_BUILD_OPTIONS="reprepro:libdb3,reprepro:nolibarchive" \
+		dpkg-buildpackage -rfakeroot -us -uc -B -d
+
+(-d is necessary because the Build-Dependencies cannot take the options into
+account. Make sure you have all other build-dependencies but libdb4.3-dev and
+libarchive-dev installed)
+
+ -- Bernhard R. Link <brlink@debian.org>, Mon, 22 May 2005 17:25:29 +0200
