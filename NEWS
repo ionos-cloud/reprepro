@@ -1,3 +1,11 @@
+Updates between 3.4.2 and 3.5.0:
+- allow suite names as command line arguments
+  (when there is not codename of this name and only one distribution
+  has this suite name)
+- generate and check Sha256, too.
+- changestool puts Files: last in .changes files so etch's dupload
+  works.
+
 Updates between 3.4.1 and 3.4.2:
 now really fix the nasty bug with notifiers 3.4.1 should
 have fixed and be more verbose when rejecting packages because
@@ -116,7 +124,7 @@ Updates between 2.1.0 and 2.2.0:
 - new notifier type for accepted changes files
 - bugs fixed:
   * not tidy tracking dependencies on package remove
-  * forgot to call some slow notifiers in processincomming
+  * forgot to call some slow notifiers in processincoming
 - new --wait-for-lock option
 - check free space on update (new --spaceheck option to switch this off)
 - extended the changestool helper (add, adddsc, addrawfile, setdistribution)

@@ -1,8 +1,19 @@
+2008-06-06  Bernhard R. Link <brlink@debian.org>
+	* switch to 'new' AC_INIT and AM_INIT_AUTOMAKE syntax,
+	move automaitcally included autoconf to ac/ subdir
+
+2008-05-17  Bernhard R. Link <brlink@debian.org>
+	* Add support for sha256.
+	* changestool puts Files: last, makes it easier
+	to use some versions of dupload.
+
 2008-05-16  Bernhard R. Link <brlink@debian.org>
 	* When include'ing a .changes file with Checksums
 	header and limiting to some files with -A or -T, do
 	not errounously complain about not expecting the
 	skipped files in Checksums-* headers
+	* Look at suite names when no distribution with the
+	requested codename exists.
 
 2008-05-15  Bernhard R. Link <brlink@debian.org>
 	* Print warning when not including when not including a

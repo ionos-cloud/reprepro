@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005,2006,2007 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2006,2007,2008 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -470,7 +470,7 @@ retvalue distribution_foreach_roopenedpart(struct distribution *distribution,str
 retvalue distribution_foreach_package(struct distribution *distribution, struct database *database, const char *component, const char *architecture, const char *packagetype, each_package_action action, each_target_action target_action, void *data) {
 	retvalue result,r;
 	struct target *t;
-	struct cursor *cursor;
+	struct target_cursor iterator IFSTUPIDCC(={});
 	const char *package, *control;
 
 	result = RET_NOTHING;
@@ -484,27 +484,18 @@ retvalue distribution_foreach_package(struct distribution *distribution, struct 
 			if( r == RET_NOTHING )
 				continue;
 		}
-		r = target_initpackagesdb(t, database, READONLY);
+		r = target_openiterator(t, database, READONLY, &iterator);
 		RET_UPDATE(result, r);
 		if( RET_WAS_ERROR(r) )
 			return result;
-		r = table_newglobalcursor(t->packages, &cursor);
-		assert( r != RET_NOTHING );
-		if( RET_WAS_ERROR(r) ) {
-			(void)target_closepackagesdb(t);
-			return r;
-		}
-		while( cursor_nexttemp(t->packages, cursor,
-					&package, &control) ) {
+		while( target_nextpackage(&iterator, &package, &control) ) {
 			r = action(database, distribution, t,
 					package, control, data);
 			RET_UPDATE(result, r);
 			if( RET_WAS_ERROR(r) )
 				break;
 		}
-		r = cursor_close(t->packages, cursor);
-		RET_ENDUPDATE(result, r);
-		r = target_closepackagesdb(t);
+		r = target_closeiterator(&iterator);
 		RET_ENDUPDATE(result, r);
 		if( RET_WAS_ERROR(result) )
 			return result;
@@ -515,8 +506,8 @@ retvalue distribution_foreach_package(struct distribution *distribution, struct 
 retvalue distribution_foreach_package_c(struct distribution *distribution, struct database *database, const struct strlist *components, const char *architecture, const char *packagetype, each_package_action action, void *data) {
 	retvalue result,r;
 	struct target *t;
-	struct cursor *cursor;
 	const char *package, *control;
+	struct target_cursor iterator IFSTUPIDCC(={});
 
 	result = RET_NOTHING;
 	for( t = distribution->targets ; t != NULL ; t = t->next ) {
@@ -526,27 +517,18 @@ retvalue distribution_foreach_package_c(struct distribution *distribution, struc
 			continue;
 		if( packagetype != NULL && strcmp(packagetype,t->packagetype) != 0 )
 			continue;
-		r = target_initpackagesdb(t, database, READONLY);
+		r = target_openiterator(t, database, READONLY, &iterator);
 		RET_UPDATE(result, r);
 		if( RET_WAS_ERROR(r) )
 			return result;
-		r = table_newglobalcursor(t->packages, &cursor);
-		assert( r != RET_NOTHING );
-		if( RET_WAS_ERROR(r) ) {
-			(void)target_closepackagesdb(t);
-			return r;
-		}
-		while( cursor_nexttemp(t->packages, cursor,
-					&package, &control) ) {
+		while( target_nextpackage(&iterator, &package, &control) ) {
 			r = action(database, distribution, t,
 					package, control, data);
 			RET_UPDATE(result, r);
 			if( RET_WAS_ERROR(r) )
 				break;
 		}
-		r = cursor_close(t->packages, cursor);
-		RET_ENDUPDATE(result, r);
-		r = target_closepackagesdb(t);
+		r = target_closeiterator(&iterator);
 		RET_ENDUPDATE(result, r);
 		if( RET_WAS_ERROR(result) )
 			return result;
@@ -583,7 +565,8 @@ struct target *distribution_getpart(const struct distribution *distribution,cons
 /* mark all distributions matching one of the first argc argv */
 retvalue distribution_match(struct distribution *alldistributions, int argc, const char *argv[], bool lookedat) {
 	struct distribution *d;
-	bool *found;
+	bool found[argc], unusable_as_suite[argc];
+	struct distribution *has_suite[argc];
 	int i;
 
 	assert( alldistributions != NULL );
@@ -595,9 +578,9 @@ retvalue distribution_match(struct distribution *alldistributions, int argc, con
 		}
 		return RET_OK;
 	}
-	found = calloc(argc, sizeof(bool));
-	if( found == NULL )
-		return RET_ERROR_OOM;
+	memset(found, 0, sizeof(found));
+	memset(unusable_as_suite, 0, sizeof(unusable_as_suite));
+	memset(has_suite, 0, sizeof(has_suite));
 
 	for( d = alldistributions ; d != NULL ; d = d->next ) {
 		for( i = 0 ; i < argc ; i++ ) {
@@ -607,28 +590,56 @@ retvalue distribution_match(struct distribution *alldistributions, int argc, con
 				d->selected = true;
 				if( lookedat )
 					d->lookedat = lookedat;
+			} else if( d->suite != NULL &&
+					strcmp(argv[i], d->suite) == 0 ) {
+				if( has_suite[i] != NULL )
+					unusable_as_suite[i] = true;
+				has_suite[i] = d;
 			}
 		}
 	}
 	for( i = 0 ; i < argc ; i++ ) {
 		if( !found[i] ) {
+			if( has_suite[i] != NULL && !unusable_as_suite[i] ) {
+				has_suite[i]->selected = true;
+				if( lookedat )
+					has_suite[i]->lookedat = lookedat;
+				continue;
+			}
 			fprintf(stderr, "No distribution definition of '%s' found in distributions'!\n", argv[i]);
-			free(found);
+			if( unusable_as_suite[i] )
+				fprintf(stderr,
+"(It is not the codename of any distribution and there are multiple\n"
+"distributions with this as suite name.)\n");
 			return RET_ERROR_MISSING;
 		}
 	}
-	free(found);
 	return RET_OK;
 }
 
 retvalue distribution_get(struct distribution *alldistributions, const char *name, bool lookedat, struct distribution **distribution) {
-	struct distribution *d;
+	struct distribution *d, *d2;
 
 	d = alldistributions;
 	while( d != NULL && strcmp(name, d->codename) != 0 )
 		d = d->next;
 	if( d == NULL ) {
-		fprintf(stderr,"Cannot find definition of distribution '%s'!\n", name);
+		for( d2 = alldistributions; d2 != NULL ; d2 = d2->next ) {
+			if( d2->suite == NULL )
+				continue;
+			if( strcmp(name, d2->suite) != 0 )
+				continue;
+			if( d != NULL ) {
+				fprintf(stderr,
+"No distribution has '%s' as codename, but multiple as suite name,\n"
+"thus it cannot be used to determine a distribution.\n", name);
+				return RET_ERROR_MISSING;
+			}
+			d = d2;
+		}
+	}
+	if( d == NULL ) {
+		fprintf(stderr, "Cannot find definition of distribution '%s'!\n", name);
 		return RET_ERROR_MISSING;
 	}
 	d->selected = true;
@@ -992,7 +1003,7 @@ retvalue distribution_prepareforwriting(struct distribution *distribution) {
 retvalue distribution_remove_packages(struct distribution *distribution, struct database *database, const char *component, const char *architecture, const char *packagetype, each_package_action decider, struct strlist *dereferenced, struct trackingdata *trackingdata, void *data) {
 	retvalue result,r;
 	struct target *t;
-	struct cursor *cursor;
+	struct target_cursor iterator;
 	const char *package, *control;
 
 	result = RET_NOTHING;
@@ -1003,35 +1014,25 @@ retvalue distribution_remove_packages(struct distribution *distribution, struct 
 			continue;
 		if( packagetype != NULL && strcmp(packagetype,t->packagetype) != 0 )
 			continue;
-		r = target_initpackagesdb(t, database, READWRITE);
+		r = target_openiterator(t, database, READWRITE, &iterator);
 		RET_UPDATE(result, r);
 		if( RET_WAS_ERROR(r) )
 			return result;
-		r = table_newglobalcursor(t->packages, &cursor);
-		assert( r != RET_NOTHING );
-		if( RET_WAS_ERROR(r) ) {
-			(void)target_closepackagesdb(t);
-			return r;
-		}
-		while( cursor_nexttemp(t->packages, cursor,
-					&package, &control) ) {
+		while( target_nextpackage(&iterator, &package, &control) ) {
 			r = decider(database, distribution, t,
 					package, control, data);
 			RET_UPDATE(result, r);
 			if( RET_WAS_ERROR(r) )
 				break;
 			if( RET_IS_OK(r) ) {
-				r = target_removepackage_by_cursor(t,
-					distribution->logger, database, cursor,
-					package, control, NULL, dereferenced,
-					trackingdata);
+				r = target_removepackage_by_cursor(&iterator,
+					distribution->logger, database,
+					dereferenced, trackingdata);
 				RET_UPDATE(result, r);
 				RET_UPDATE(distribution->status, r);
 			}
 		}
-		r = cursor_close(t->packages, cursor);
-		RET_ENDUPDATE(result, r);
-		r = target_closepackagesdb(t);
+		r = target_closeiterator(&iterator);
 		RET_ENDUPDATE(result, r);
 		if( RET_WAS_ERROR(result) )
 			return result;

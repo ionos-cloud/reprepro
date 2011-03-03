@@ -513,7 +513,7 @@ static retvalue parse_changes_files(struct changes *c, struct strlist filelines[
 				return RET_ERROR_OOM;
 		}
 	}
-	const char * const hashname[cs_hashCOUNT] = {"Md5", "Sha1" /*, "Sha256"*/ };
+	const char * const hashname[cs_hashCOUNT] = {"Md5", "Sha1", "Sha256" };
 	for( cs = cs_firstEXTENDED ; cs < cs_hashCOUNT ; cs++ ) {
 		tmp = &filelines[cs];
 
@@ -1045,7 +1045,7 @@ static retvalue write_changes_file(const char *changesfilename,struct changes *c
 
 	if( flagset(CHANGES_WRITE_FILES) ) {
 		cef = NULL;
-		for( cs = cs_hashCOUNT ; (cs--) > cs_md5sum ;  ) {
+		for( cs = cs_md5sum ; cs < cs_hashCOUNT ; cs++  ) {
 			cef = cef_newfield(changes_checksum_names[cs],
 					CEF_ADD, CEF_LATE, filecount, cef);
 			if( cef == NULL )
@@ -2733,7 +2733,7 @@ int main(int argc,char *argv[]) {
 	bool create_file = false;
 	struct strlist validkeys,keys;
 	struct strlist searchpath;
-	struct changes *changesdata;
+	struct changes *changesdata IFSTUPIDCC(=NULL);
 	retvalue r;
 
 	strlist_init(&searchpath);

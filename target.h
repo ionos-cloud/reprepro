@@ -78,20 +78,77 @@ retvalue target_initpackagesdb(struct target *target, struct database *, bool re
 /* this closes databases... */
 retvalue target_closepackagesdb(struct target *target);
 
+struct target_cursor {
+	/*@temp@*/struct target *target;
+	struct cursor *cursor;
+	const char *lastname;
+	const char *lastcontrol;
+};
+/* wrapper around initpackagesdb and table_newglobalcursor */
+static inline retvalue target_openiterator(struct target *t, struct database *db, bool readonly, /*@out@*/struct target_cursor *tc) {
+	retvalue r, r2;
+	struct cursor *c;
+
+	r = target_initpackagesdb(t, db, readonly);
+	assert( r != RET_NOTHING );
+	if( RET_WAS_ERROR(r) )
+		return r;
+	r = table_newglobalcursor(t->packages, &c);
+	assert( r != RET_NOTHING );
+	if( RET_WAS_ERROR(r) ) {
+		r2 = target_closepackagesdb(t);
+		RET_UPDATE(r, r2);
+		return r;
+	}
+	tc->target = t;
+	tc->cursor = c;
+	return RET_OK;
+}
+/* wrapper around cursor_nexttemp */
+static inline bool target_nextpackage(struct target_cursor *tc, /*@out@*/const char **packagename_p, /*@out@*/const char **chunk_p) {
+	bool success;
+	success = cursor_nexttemp(tc->target->packages, tc->cursor,
+			&tc->lastname, &tc->lastcontrol);
+	if( success ) {
+		*packagename_p = tc->lastname;
+		*chunk_p = tc->lastcontrol;
+	} else {
+		tc->lastname = NULL;
+		tc->lastcontrol = NULL;
+	}
+	return success;
+}
+/* wrapper around cursor_nexttemp */
+static inline bool target_nextpackage_len(struct target_cursor *tc, /*@out@*//*@null@*/const char **packagename_p, /*@out@*/const char **chunk_p, /*@out@*/size_t *len_p) {
+	tc->lastname = NULL;
+	tc->lastcontrol = NULL;
+	return cursor_nexttempdata(tc->target->packages, tc->cursor,
+			packagename_p, chunk_p, len_p);
+}
+/* wrapper around cursor_close and target_closepackagesdb */
+static inline retvalue target_closeiterator(struct target_cursor *tc) {
+	retvalue result, r;
+
+	result = cursor_close(tc->target->packages, tc->cursor);
+	r = target_closepackagesdb(tc->target);
+	RET_UPDATE(result, r);
+	return result;
+}
+
 /* The following calls can only be called if target_initpackagesdb was called before: */
 struct logger;
 retvalue target_addpackage(struct target *, /*@null@*/struct logger *, struct database *, const char *name, const char *version, const char *control, const struct strlist *filekeys, /*@null@*/ bool *usedmarker, bool downgrade, /*@null@*/struct strlist *dereferencedfilekeys, /*@null@*/struct trackingdata *, enum filetype);
 retvalue target_checkaddpackage(struct target *target, const char *name, const char *version, bool tracking, bool permitnewerold);
-retvalue target_removepackage(struct target *, /*@null@*/struct logger *, struct database *, const char *name, /*@null@*/const char *oldpversion, /*@null@*/struct strlist *dereferencedfilekeys, struct trackingdata *);
+retvalue target_removepackage(struct target *, /*@null@*/struct logger *, struct database *, const char *name, /*@null@*/struct strlist *dereferencedfilekeys, struct trackingdata *);
 /* like target_removepackage, but do not read control data yourself but use available */
-retvalue target_removereadpackage(struct target *, /*@null@*/struct logger *, struct database *, const char *name, const char *oldcontrol, /*@null@*/const char *oldpversion, struct strlist *, /*@null@*/struct trackingdata *);
+retvalue target_removereadpackage(struct target *, /*@null@*/struct logger *, struct database *, const char *name, const char *oldcontrol, struct strlist *, /*@null@*/struct trackingdata *);
 /* Like target_removepackage, but delete the package record by cursor */
-retvalue target_removepackage_by_cursor(struct target *, /*@null@*/struct logger *, struct database *, struct cursor *, const char *name, const char *control, /*@null@*/const char *oldpversion, struct strlist *, /*@null@*/struct trackingdata *);
+retvalue target_removepackage_by_cursor(struct target_cursor *, /*@null@*/struct logger *, struct database *, struct strlist *, /*@null@*/struct trackingdata *);
 
 retvalue package_check(struct database *, struct distribution *, struct target *, const char *, const char *, void *);
 retvalue target_rereference(struct target *, struct database *);
 retvalue package_referenceforsnapshot(struct database *, struct distribution *, struct target *, const char *, const char *, void *);
-retvalue target_reoverride(void *, struct target *, struct distribution *);
+retvalue target_reoverride(struct target *, struct distribution *, struct database *);
 
 retvalue package_rerunnotifiers(struct database *, struct distribution *, struct target *, const char *, const char *, void *);
 

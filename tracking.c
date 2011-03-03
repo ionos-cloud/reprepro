@@ -489,7 +489,7 @@ retvalue tracking_drop(struct database *db, const char *codename, struct strlist
 static retvalue tracking_recreatereferences(trackingdb t, struct database *database) {
 	struct cursor *cursor;
 	retvalue result, r;
-	struct trackedpackage *pkg;
+	struct trackedpackage *pkg IFSTUPIDCC(=NULL);
 	char *id;
 	int i;
 	const char *key, *value, *data;
@@ -616,7 +616,7 @@ static void print(const char *codename,const struct trackedpackage *pkg){
 retvalue tracking_printall(trackingdb t) {
 	struct cursor *cursor;
 	retvalue result, r;
-	struct trackedpackage *pkg;
+	struct trackedpackage *pkg IFSTUPIDCC(=NULL);
 	const char *key, *value, *data;
 	size_t datalen;
 
@@ -980,7 +980,7 @@ retvalue trackingdata_finish(trackingdb tracks, struct trackingdata *d, struct d
 retvalue tracking_tidyall(trackingdb t, struct database *database, struct strlist *dereferenced) {
 	struct cursor *cursor;
 	retvalue result, r;
-	struct trackedpackage *pkg;
+	struct trackedpackage *pkg IFSTUPIDCC(=NULL);
 	const char *key, *value, *data;
 	size_t datalen;
 
@@ -1011,7 +1011,7 @@ retvalue tracking_tidyall(trackingdb t, struct database *database, struct strlis
 retvalue tracking_reset(trackingdb t) {
 	struct cursor *cursor;
 	retvalue result, r;
-	struct trackedpackage *pkg;
+	struct trackedpackage *pkg IFSTUPIDCC(=NULL);
 	const char *key, *value, *data;
 	char *newdata;
 	size_t datalen, newdatalen;
@@ -1050,7 +1050,7 @@ retvalue tracking_reset(trackingdb t) {
 static retvalue tracking_foreachversion(trackingdb t, struct database *db, struct distribution *distribution,  const char *sourcename, retvalue (action)(trackingdb t,struct trackedpackage *,struct database *,struct distribution *,struct strlist *), struct strlist *dereferenced) {
 	struct cursor *cursor;
 	retvalue result, r;
-	struct trackedpackage *pkg;
+	struct trackedpackage *pkg IFSTUPIDCC(=NULL);
 	const char *value, *data;
 	size_t datalen;
 
@@ -1222,7 +1222,7 @@ static retvalue targetremovesourcepackage(trackingdb t, struct trackedpackage *p
 		/* that is a bit wasteful, as it parses some stuff again, but
 		 * but that is better than reimplementing logger here */
 		r = target_removereadpackage(target, distribution->logger,
-				database, package, control, NULL,
+				database, package, control,
 				dereferenced, NULL);
 		free(control);
 		free(package);

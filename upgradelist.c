@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2004,2005,2006,2007 Bernhard R. Link
+ *  Copyright (C) 2004,2005,2006,2007,2008 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -143,7 +143,7 @@ retvalue upgradelist_initialize(struct upgradelist **ul,struct target *t,struct 
 	struct upgradelist *upgrade;
 	retvalue r,r2;
 	const char *packagename, *controlchunk;
-	struct cursor *cursor;
+	struct target_cursor iterator;
 
 	upgrade = calloc(1,sizeof(struct upgradelist));
 	if( upgrade == NULL )
@@ -151,32 +151,20 @@ retvalue upgradelist_initialize(struct upgradelist **ul,struct target *t,struct 
 
 	upgrade->target = t;
 
-	r = target_initpackagesdb(t, database, READONLY);
-	if( RET_WAS_ERROR(r) ) {
-		upgradelist_free(upgrade);
-		return r;
-	}
-
 	/* Beginn with the packages currently in the archive */
 
-	r = table_newglobalcursor(t->packages, &cursor);
-	assert( r != RET_NOTHING );
+	r = target_openiterator(t, database, READONLY, &iterator);
 	if( RET_WAS_ERROR(r) ) {
-		r2 = target_closepackagesdb(t);
-		RET_UPDATE(r,r2);
 		upgradelist_free(upgrade);
 		return r;
 	}
-	while( cursor_nexttemp(t->packages, cursor,
-				&packagename, &controlchunk) ) {
+	while( target_nextpackage(&iterator, &packagename, &controlchunk) ) {
 		r2 = save_package_version(upgrade, packagename, controlchunk);
 		RET_UPDATE(r,r2);
 		if( RET_WAS_ERROR(r2) )
 			break;
 	}
-	r2 = cursor_close(t->packages, cursor);
-	RET_UPDATE(r,r2);
-	r2 = target_closepackagesdb(t);
+	r2 = target_closeiterator(&iterator);
 	RET_UPDATE(r,r2);
 
 	if( RET_WAS_ERROR(r) ) {
@@ -460,34 +448,24 @@ retvalue upgradelist_update(struct upgradelist *upgrade,struct aptmethod *method
 retvalue upgradelist_pull(struct upgradelist *upgrade,struct target *source,upgrade_decide_function *predecide,void *decide_data,struct database *database) {
 	retvalue result, r;
 	const char *package, *control;
-	struct cursor *cursor;
-
+	struct target_cursor iterator;
 
 	upgrade->last = NULL;
 	upgrade->currentaptmethod = NULL;
 	upgrade->predecide = predecide;
 	upgrade->predecide_data = decide_data;
 
-	r =  target_initpackagesdb(source, database, READONLY);
+	r = target_openiterator(source, database, READONLY, &iterator);
 	if( RET_WAS_ERROR(r) )
 		return r;
-	result = table_newglobalcursor(source->packages, &cursor);
-	assert( result != RET_NOTHING );
-	if( RET_WAS_ERROR(result) ) {
-		r = target_closepackagesdb(source);
-		RET_UPDATE(result,r);
-		return result;
-	}
 	result = RET_NOTHING;
-	while( cursor_nexttemp(source->packages, cursor, &package, &control) ) {
+	while( target_nextpackage(&iterator, &package, &control) ) {
 		r = upgradelist_trypackage(upgrade, control);
 		RET_UPDATE(result, r);
 		if( RET_WAS_ERROR(r) )
 			break;
 	}
-	r = cursor_close(source->packages, cursor);
-	RET_ENDUPDATE(result,r);
-	r = target_closepackagesdb(source);
+	r = target_closeiterator(&iterator);
 	RET_ENDUPDATE(result,r);
 	return result;
 }
@@ -560,7 +538,6 @@ retvalue upgradelist_predelete(struct upgradelist *upgrade,struct logger *logger
 				r = target_removepackage(upgrade->target,
 						logger, database,
 						pkg->name,
-						pkg->version_in_use,
 						dereferencedfilekeys, NULL);
 			RET_UPDATE(result,r);
 			if( RET_WAS_ERROR(r))
@@ -614,7 +591,6 @@ retvalue upgradelist_install(struct upgradelist *upgrade, struct logger *logger,
 				r = target_removepackage(upgrade->target,
 						logger, database,
 						pkg->name,
-						pkg->version_in_use,
 						dereferencedfilekeys, NULL);
 			RET_UPDATE(result,r);
 			if( RET_WAS_ERROR(r) )
