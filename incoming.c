@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2006,2007 Bernhard R. Link
+ *  Copyright (C) 2006,2007,2008 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -563,24 +563,17 @@ static retvalue candidate_read(struct incoming *i, int ofs, struct candidate **r
 
 static retvalue candidate_addfileline(struct incoming *i, struct candidate *c, const char *fileline) {
 	struct candidate_file **p, *n;
-	char *basename, *md5sum;
+	char *basename;
 	retvalue r;
 
 	n = calloc(1,sizeof(struct candidate_file));
 	if( n == NULL )
 		return RET_ERROR_OOM;
 
-	r = changes_parsefileline(fileline, &n->type, &basename, &md5sum,
+	r = changes_parsefileline(fileline, &n->type, &basename, &n->checksums,
 			&n->section, &n->priority, &n->architecture, &n->name);
 	if( RET_WAS_ERROR(r) ) {
 		free(n);
-		return r;
-	}
-	r = checksums_set(&n->checksums, md5sum);
-	free(md5sum);
-	if( RET_WAS_ERROR(r) ) {
-		free(basename);
-		candidate_file_free(n);
 		return r;
 	}
 	n->ofs = strlist_ofs(&i->files, basename);

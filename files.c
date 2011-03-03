@@ -57,7 +57,7 @@ static retvalue files_get_checksums(struct database *database, const char *filek
 		if( RET_WAS_ERROR(r) )
 			return r;
 		if( r == RET_NOTHING )
-			return checksums_set(checksums_p, md5sum);
+			return checksums_parse(checksums_p, md5sum);
 	} else {
 		r = table_gettemprecord(database->checksums, filekey,
 			&checksums, &checksumslen);
@@ -73,14 +73,10 @@ retvalue files_add_checksums(struct database *database, const char *filekey, con
 	size_t combinedlen;
 
 	if( database->oldmd5sums != NULL ) {
-		char *md5sum;
+		const char *md5sum;
 
-		r = checksums_get(checksums, cs_md5sum, &md5sum);
-		assert( r != RET_NOTHING);
-		if( !RET_IS_OK(r) )
-			return r;
+		md5sum = checksums_getmd5sum(checksums);
 		r = table_adduniqrecord(database->oldmd5sums, filekey, md5sum);
-		free(md5sum);
 	}
 	assert( database->checksums != NULL );
 	r = checksums_getcombined(checksums, &combined, &combinedlen);
@@ -96,15 +92,11 @@ static retvalue files_replace_checksums(struct database *database, const char *f
 	size_t combinedlen;
 
 	if( database->oldmd5sums != NULL ) {
-		char *md5sum;
+		const char *md5sum;
 
-		r = checksums_get(checksums, cs_md5sum, &md5sum);
-		assert( r != RET_NOTHING);
-		if( !RET_IS_OK(r) )
-			return r;
+		md5sum = checksums_getmd5sum(checksums);
 		r = table_adduniqsizedrecord(database->oldmd5sums, filekey,
 				md5sum, strlen(md5sum) + 1, true, false);
-		free(md5sum);
 	}
 	assert( database->checksums != NULL );
 	r = checksums_getcombined(checksums, &combined, &combinedlen);
@@ -633,7 +625,7 @@ retvalue files_checkpool(struct database *database, bool fast) {
 				nextcombined();
 			}
 			if( filekey == NULL || c > 0 ) {
-				r = checksums_set(&expected, md5sum);
+				r = checksums_parse(&expected, md5sum);
 				improveable = true;
 			} else {
 				size_t md5sumlen = strlen(md5sum);
@@ -649,7 +641,7 @@ retvalue files_checkpool(struct database *database, bool fast) {
 					(void)cursor_delete(
 							database->checksums,
 							cursor2, filekey2, NULL);
-					r = checksums_set(&expected, md5sum);
+					r = checksums_parse(&expected, md5sum);
 					improveable = true;
 				} else {
 					r = checksums_setall(&expected,
@@ -994,7 +986,6 @@ retvalue files_preinclude(struct database *database, const char *sourcefilename,
 		}
 		if( improves ) {
 			r = checksums_combine(&checksums, realchecksums);
-			checksums_free(realchecksums);
 			if( RET_WAS_ERROR(r) ) {
 				checksums_free(realchecksums);
 				checksums_free(checksums);

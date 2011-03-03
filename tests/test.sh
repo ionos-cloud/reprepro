@@ -793,7 +793,7 @@ testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
 -v0=Data seems not to be signed trying to use directly...
-*=Malformed checksums representation (invalid md5sum): 'md5sum size'!
+*=Malformed md5 hash in 'md5sum size - - debfilename_debfileversion~2_all.deb'!
 -v0*=There have been errors!
 EOF
 echo -e '$d\nw\nq\n' | ed -s i/test.changes

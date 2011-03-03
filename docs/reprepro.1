@@ -307,6 +307,13 @@ matching the given condition.
 .B reprepro \-b . \-T deb listfilter test2 'Source (==blub) | ( !Source , Package (==blub) )'
 will e.g. find all .deb Packages with Source blub. (Except those also specifying a version
 number with its Source, as binary and source version differ).
+
+The values checked are directly the headers in the repspective index file
+compared alphabetically.
+That means that each part \fIFieldname\fP\fB (\fP\fIcmp\fP\fB \fP\fIvalue\fP\fB)\fP
+of the formula will be true for exactly those package that have
+in the \fBPackage\fP or \fBSources\fP file a line starting with \fIfieldname\fP
+and a value is alphabetically \fIcmp\fP to \fIvalue\fP.
 .TP
 .B remove \fIcodename\fP \fIpackage name\fP
 same as list, but remove instead of list.

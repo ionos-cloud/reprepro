@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2006,2007 Bernhard R. Link
+ *  Copyright (C) 2006,2007,2008 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -33,7 +33,7 @@
 #include "strlist.h"
 #include "names.h"
 #include "dirs.h"
-#include "md5sum.h"
+#include "checksums.h"
 #include "chunks.h"
 #include "chunkedit.h"
 #include "signature.h"
@@ -122,10 +122,10 @@ struct dscfile {
 	size_t filecount;
 	struct sourcefile {
 		char *basename;
-		char *expectedmd5sum;
+		struct checksums *expectedchecksums;
 		struct fileentry *file;
 	} *files;
-	bool parsed, modified;
+	bool parsed, modified, checksumsimproved;
 };
 
 static void dscfile_free(struct dscfile *p) {
@@ -145,7 +145,7 @@ static void dscfile_free(struct dscfile *p) {
 	if( p->files != NULL )
 		for( i = 0 ; i < p->filecount ; i++ ) {
 			free(p->files[i].basename);
-			free(p->files[i].expectedmd5sum);
+			checksums_free(p->files[i].expectedchecksums);
 		}
 	free(p->files);
 	free(p);
@@ -155,8 +155,8 @@ struct fileentry {
 	struct fileentry *next;
 	char *basename; size_t namelen;
 	char *fullfilename;
-	char *changesmd5sum, /* NULL means was not listed there yet */
-	     *realmd5sum;
+	struct checksums *checksumsfromchanges, /* NULL means was not listed there yet */
+			 *realchecksums;
 	char *section, *priority;
 	enum filetype type;
 	/* only if type deb or udeb */
@@ -188,7 +188,7 @@ struct changes {
 		bool missedinheader, uncheckable;
 	} *binaries;
 	struct fileentry *files;
-	bool modified;
+	bool modified, checksumsimproved;
 };
 
 static void fileentry_free(struct fileentry *f) {
@@ -196,8 +196,8 @@ static void fileentry_free(struct fileentry *f) {
 		return;
 	free(f->basename);
 	free(f->fullfilename);
-	free(f->changesmd5sum);
-	free(f->realmd5sum);
+	checksums_free(f->checksumsfromchanges);
+	checksums_free(f->realchecksums);
 	free(f->section);
 	free(f->priority);
 	if( f->type == ft_DEB || f->type == ft_UDEB ) {
@@ -409,6 +409,7 @@ static retvalue parse_changes_description(struct changes *c, struct strlist *tmp
 static retvalue parse_changes_files(struct changes *c, struct strlist *tmp) {
 	int i;
 	struct fileentry *f;
+	retvalue r;
 
 	for( i = 0 ; i < tmp->count ; i++ ) {
 		const char *p,*md5start, *md5end, *sizestart, *sizeend, *sectionstart, *sectionend, *priostart, *prioend, *filestart, *fileend;
@@ -452,14 +453,16 @@ static retvalue parse_changes_files(struct changes *c, struct strlist *tmp) {
 			return RET_ERROR;
 		}
 		f = add_fileentry(c, filestart, fileend-filestart, false);
-		if( f->changesmd5sum != NULL ) {
+		if( f->checksumsfromchanges != NULL ) {
 			fprintf(stderr, "WARNING: Multiple occourance of '%s' in .changes file!\nIgnoring all but the first one.\n",
 					f->basename);
 			continue;
 		}
-		f->changesmd5sum = names_concatmd5sumandsize(md5start,md5end,sizestart,sizeend);
-		if( f->changesmd5sum == NULL )
-			return RET_ERROR_OOM;
+		r = checksums_set(&f->checksumsfromchanges,
+				md5start, md5end - md5start,
+				sizestart, sizeend - sizestart);
+		if( RET_WAS_ERROR(r) )
+			return r;
 		if( sectionend - sectionstart == 1 && *sectionstart == '-' ) {
 			f->section = NULL;
 		} else {
@@ -531,7 +534,7 @@ static retvalue read_dscfile(const char *fullfilename, struct dscfile **dsc) {
 			n->files[j].file = NULL;
 			r = calc_parsefileline(tmp.values[i],
 					&n->files[j].basename,
-					&n->files[j].expectedmd5sum);
+					&n->files[j].expectedchecksums);
 			if( RET_WAS_ERROR(r) ) {
 				strlist_done(&tmp);
 				dscfile_free(n);
@@ -586,7 +589,7 @@ static retvalue write_dsc_file(struct fileentry *dscfile, unsigned int flags) {
 	struct chunkeditfield *cef;
 	retvalue r;
 	char *control; size_t controllen;
-	char *md5sum;
+	struct checksums *checksums;
 	char *destfilename;
 
 	if( flagset(DSC_WRITE_FILES) ) {
@@ -595,8 +598,9 @@ static retvalue write_dsc_file(struct fileentry *dscfile, unsigned int flags) {
 			return RET_ERROR_OOM;
 		for( i = 0 ; i < dsc->filecount ; i++ ) {
 			struct sourcefile *f = &dsc->files[i];
+			const char *md5sum = checksums_getmd5sum(f->expectedchecksums);
 			cef_setline(cef, i, 2,
-					f->expectedmd5sum, f->basename, NULL);
+					md5sum, f->basename, NULL);
 		}
 	} else
 		cef = NULL;
@@ -619,7 +623,7 @@ static retvalue write_dsc_file(struct fileentry *dscfile, unsigned int flags) {
 		return RET_ERROR_OOM;
 	}
 
-	r = md5sum_replace(destfilename, control, controllen, &md5sum);
+	r = checksums_replace(destfilename, control, controllen, &checksums);
 	if( RET_WAS_ERROR(r) ) {
 		free(destfilename);
 		free(control);
@@ -629,8 +633,8 @@ static retvalue write_dsc_file(struct fileentry *dscfile, unsigned int flags) {
 
 	free(dscfile->fullfilename);
 	dscfile->fullfilename = destfilename;
-	free(dscfile->realmd5sum);
-	dscfile->realmd5sum = md5sum;
+	checksums_free(dscfile->realchecksums);
+	dscfile->realchecksums = checksums;
 	free(dsc->controlchunk);
 	dsc->controlchunk = control;
 	return RET_OK;
@@ -881,7 +885,7 @@ static retvalue write_changes_file(const char *changesfilename,struct changes *c
 	strlist_init(&binaries);
 
 	for( f = c->files; f != NULL ; f = f->next ) {
-		if( f->changesmd5sum != NULL )
+		if( f->checksumsfromchanges != NULL )
 			filecount++;
 	}
 
@@ -891,10 +895,11 @@ static retvalue write_changes_file(const char *changesfilename,struct changes *c
 			return RET_ERROR_OOM;
 		i = 0;
 		for( f = c->files; f != NULL ; f = f->next ) {
-			if( f->changesmd5sum == NULL )
+			const char *md5sum;
+			if( f->checksumsfromchanges == NULL )
 				continue;
-			cef_setline(cef, i, 4,
-					f->changesmd5sum,
+			md5sum = checksums_getmd5sum(f->checksumsfromchanges);
+			cef_setline(cef, i, 4, md5sum,
 					f->section?f->section:"-",
 					f->priority?f->priority:"-",
 					f->basename, NULL);
@@ -1081,7 +1086,7 @@ static retvalue write_changes_file(const char *changesfilename,struct changes *c
 
 	// TODO: add options to place changed files in different directory...
 
-	r = md5sum_replace(changesfilename, control, controllen, NULL);
+	r = checksums_replace(changesfilename, control, controllen, NULL);
 	if( RET_WAS_ERROR(r) ) {
 		free(control);
 		return r;
@@ -1093,7 +1098,7 @@ static retvalue write_changes_file(const char *changesfilename,struct changes *c
 	return RET_OK;
 }
 
-static retvalue getmd5sums(struct changes *changes) {
+static retvalue getchecksums(struct changes *changes) {
 	struct fileentry *file;
 	retvalue r;
 
@@ -1101,45 +1106,54 @@ static retvalue getmd5sums(struct changes *changes) {
 
 		if( file->fullfilename == NULL )
 			continue;
-		assert( file->realmd5sum == NULL );
+		assert( file->realchecksums == NULL );
 
-		r = md5sum_read(file->fullfilename, &file->realmd5sum);
+		r = checksums_read(file->fullfilename, &file->realchecksums);
 		if( r == RET_ERROR_OOM )
 			return r;
 		else if( !RET_IS_OK(r) ) {
 			// assume everything else is not fatal and means
 			// a file not readable...
-			file->realmd5sum = NULL;
+			file->realchecksums = NULL;
 		}
 	}
 	return RET_OK;
 }
 
-static void verify_sourcefile_md5sums(struct sourcefile *f, const char *dscfile) {
-	if( f->file == NULL ) {
+static void verify_sourcefile_checksums(struct sourcefile *f, const char *dscfile) {
+	assert( f->file != NULL );
+
+	if( f->file->checksumsfromchanges == NULL ) {
 		if( endswith(f->basename, typesuffix[ft_ORIG_TAR_GZ])
 		|| endswith(f->basename, typesuffix[ft_ORIG_TAR_BZ2])) {
 			fprintf(stderr,
-"Could not check md5sum of '%s', as not included.\n",
+"Not checking checksums of '%s', as not included in .changes file.\n",
 				f->basename);
-		} else {
+			return;
+		} else if( f->file->realchecksums == NULL ) {
 			fprintf(stderr,
 "ERROR: File '%s' mentioned in '%s' was not found and is not mentioned in the .changes!\n",
 				f->basename, dscfile);
+			return;
 		}
-		return;
 	}
-	if( strcmp(f->expectedmd5sum, f->file->realmd5sum) != 0 ) {
-		if( f->file->changesmd5sum != NULL &&
-		    strcmp(f->expectedmd5sum, f->file->changesmd5sum) == 0 )
-			fprintf(stderr,
-"ERROR: '%s' lists the same wrong md5sum for '%s' like the .changes file!\n",
-				dscfile, f->basename);
-		else
-			fprintf(stderr,
-"ERROR: '%s' says '%s' has md5sum %s but it has %s!\n",
-				dscfile, f->basename,
-				f->expectedmd5sum, f->file->realmd5sum);
+	if( f->file->realchecksums == NULL )
+		/* there will be an message later about that */
+		return;
+	if( checksums_check(f->expectedchecksums, f->file->realchecksums, NULL))
+		return;
+
+	if( f->file->checksumsfromchanges != NULL &&
+	    checksums_check(f->expectedchecksums, f->file->checksumsfromchanges, NULL) )
+		fprintf(stderr,
+"ERROR: checksums of '%s' differ from the ones listed in both '%s' and the .changes file!\n",
+				f->basename, dscfile);
+	else {
+		fprintf(stderr,
+"ERROR: checksums of '%s' differ from those listed in '%s':\n!\n",
+				f->basename, dscfile);
+		checksums_printdifferences(stderr,
+				f->expectedchecksums, f->file->realchecksums);
 	}
 }
 
@@ -1573,30 +1587,31 @@ static retvalue verify(const char *changesfilename, struct changes *changes) {
 		// todo: check for md5sums file, verify it...
 	}
 
-	printf("Checking md5sums...\n");
-	r = getmd5sums(changes);
+	printf("Checking checksums...\n");
+	r = getchecksums(changes);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	for( file = changes->files; file != NULL ; file = file->next ) {
 
 		if( file->fullfilename == NULL ) {
-			fprintf(stderr, "WARNING: Could not check md5sum of '%s' as file not found!\n", file->basename);
+			fprintf(stderr, "WARNING: Could not check checksums of '%s' as file not found!\n", file->basename);
 			if( file->type == ft_DSC ) {
-				fprintf(stderr, "WARNING: This file most likely contains other md5sums which could also not be checked because it was not found!\n");
+				fprintf(stderr, "WARNING: This file most likely contains additional checksums which could also not be checked because it was not found!\n");
 			}
 			continue;
 		}
-		if( file->changesmd5sum == NULL )
+		if( file->checksumsfromchanges == NULL )
 			/* nothing to check here */
 			continue;
 
-		if( file->realmd5sum == NULL ) {
-			fprintf(stderr, "WARNING: Could not check md5sum of '%s'! File vanished while checking or not readable?\n", file->basename);
-		} else if( strcmp(file->realmd5sum, file->changesmd5sum) != 0 ) {
-			fprintf(stderr, "ERROR: md5sum of '%s' is %s instead of expected %s!\n",
-					file->fullfilename,
-					file->realmd5sum,
-					file->changesmd5sum);
+		if( file->realchecksums == NULL ) {
+			fprintf(stderr, "WARNING: Could not check checksums of '%s'! File vanished while checking or not readable?\n", file->basename);
+		} else if( !checksums_check(file->realchecksums, file->checksumsfromchanges, NULL)) {
+			fprintf(stderr, "ERROR: checksums of '%s' differ from those listed in .changes:\n",
+					file->fullfilename);
+			checksums_printdifferences(stderr,
+					file->checksumsfromchanges,
+					file->realchecksums);
 		}
 
 		if( file->type == ft_DSC ) {
@@ -1612,8 +1627,8 @@ static retvalue verify(const char *changesfilename, struct changes *changes) {
 			for( i = 0 ; i < file->dsc->filecount ; i++ ) {
 				struct sourcefile *f = &file->dsc->files[i];
 
-				assert( f->expectedmd5sum != NULL );
-				verify_sourcefile_md5sums(f,file->fullfilename);
+				assert( f->expectedchecksums != NULL );
+				verify_sourcefile_checksums(f,file->fullfilename);
 			}
 		}
 		// TODO: check .deb files
@@ -1631,14 +1646,14 @@ static bool isarg(int argc, char **argv, const char *name) {
 	return false;
 }
 
-static retvalue updatemd5sums(const char *changesfilename, struct changes *c, int argc, char **argv) {
+static retvalue updatechecksums(const char *changesfilename, struct changes *c, int argc, char **argv) {
 	retvalue r;
 	struct fileentry *file;
 
-	r = getmd5sums(c);
+	r = getchecksums(c);
 	if( RET_WAS_ERROR(r) )
 		return r;
-	/* first update all .dsc files and perhaps recalculate their md5sums */
+	/* first update all .dsc files and perhaps recalculate their checksums */
 	for( file = c->files; file != NULL ; file = file->next ) {
 		unsigned int i;
 
@@ -1647,7 +1662,7 @@ static retvalue updatemd5sums(const char *changesfilename, struct changes *c, in
 
 		if( file->dsc == NULL ) {
 			fprintf(stderr,
-"WARNING: Could not read '%s', hopeing the content and its md5sum are correct!\n",
+"WARNING: Could not read '%s', hopeing the content and its checksums are correct!\n",
 					file->basename);
 			continue;
 		}
@@ -1655,53 +1670,59 @@ static retvalue updatemd5sums(const char *changesfilename, struct changes *c, in
 		for( i = 0 ; i < file->dsc->filecount ; i++ ) {
 			struct sourcefile *f = &file->dsc->files[i];
 			bool doit;
-			char *md5sum = NULL;
-			const char *realmd5;
+			bool improves;
 
-			assert( f->expectedmd5sum != NULL );
+			assert( f->expectedchecksums != NULL );
 			assert( f->basename != NULL );
 
 			doit = isarg(argc,argv,f->basename);
 			if( argc > 0 && !doit )
 				continue;
 
-			if( f->file == NULL || f->file->changesmd5sum == NULL ) {
+			assert( f->file != NULL );
+			if( f->file->checksumsfromchanges == NULL ) {
 				if( !doit ) {
 					fprintf(stderr,
-"Not checking '%s' as not in .changes and not specified on command line.\n",
+"Not checking/updating '%s' as not in .changes and not specified on command line.\n",
 						f->basename);
 					continue;
 				}
-				// ... get md5sum ..;
-				realmd5 = md5sum;
-			} else {
-				if( f->file->realmd5sum == NULL ) {
-					fprintf(stderr, "WARNING: Could not check md5sum of '%s'!\n", f->basename);
+				if( f->file->realchecksums == NULL ) {
+					fprintf(stderr, "WARNING: Could not check checksums of '%s'!\n", f->basename);
 					continue;
 				}
-				realmd5 = f->file->realmd5sum;
+			} else {
+				if( f->file->realchecksums == NULL ) {
+					fprintf(stderr, "WARNING: Could not check checksums of '%s'!\n", f->basename);
+					continue;
+				}
 			}
 
-			if( strcmp(f->expectedmd5sum, realmd5) == 0 ) {
-				/* already correct */
-				free(md5sum);
+			if( checksums_check(f->expectedchecksums, f->file->realchecksums, &improves) ) {
+				if( !improves ) {
+					/* already correct */
+					continue;
+				}
+				/* future versions might be able to store them in the dsc */
+				r = checksums_combine(&f->expectedchecksums, f->file->realchecksums);
+				if( RET_WAS_ERROR(r) )
+					return r;
+				file->dsc->checksumsimproved = true;
 				continue;
 			}
 			fprintf(stderr,
 "Going to update '%s' in '%s'\nfrom '%s'\nto   '%s'.\n",
 					f->basename, file->fullfilename,
-					realmd5, f->expectedmd5sum);
-			free(f->expectedmd5sum);
-			if( md5sum != NULL )
-				f->expectedmd5sum = md5sum;
-			else {
-				free(md5sum);
-				f->expectedmd5sum = strdup(realmd5);
-				if( f->expectedmd5sum == NULL )
-					return RET_ERROR_OOM;
-			}
+					checksums_getmd5sum(f->expectedchecksums),
+					checksums_getmd5sum(f->file->realchecksums));
+			checksums_free(f->expectedchecksums);
+			f->expectedchecksums = checksums_dup(f->file->realchecksums);
+			if( f->expectedchecksums == NULL )
+				return RET_ERROR_OOM;
 			file->dsc->modified = true;
 		}
+		// TODO: once .dsc files can store shas, decide if it needs
+		// an update for those here:
 		if( file->dsc->modified ) {
 			r = write_dsc_file(file, DSC_WRITE_FILES);
 			if( RET_WAS_ERROR(r) )
@@ -1709,30 +1730,42 @@ static retvalue updatemd5sums(const char *changesfilename, struct changes *c, in
 		}
 	}
 	for( file = c->files; file != NULL ; file = file->next ) {
+		bool improves;
 
-		if( file->changesmd5sum == NULL )
+		if( file->checksumsfromchanges == NULL )
 			/* nothing to check here */
 			continue;
-		if( file->realmd5sum == NULL ) {
-			fprintf(stderr, "WARNING: Could not check md5sum of '%s'! Leaving it as it is.\n", file->basename);
+		if( file->realchecksums == NULL ) {
+			fprintf(stderr, "WARNING: Could not check checksums of '%s'! Leaving it as it is.\n", file->basename);
 			continue;
 		}
-		if( strcmp(file->realmd5sum, file->changesmd5sum) == 0 ) {
+		if( checksums_check(file->checksumsfromchanges, file->realchecksums, &improves) ) {
+			if( !improves )
+				continue;
+			/* future versions might store sha sums in .changes: */
+			r = checksums_combine(&file->checksumsfromchanges,
+					file->realchecksums);
+			if( RET_WAS_ERROR(r) )
+				return r;
+			c->checksumsimproved = true;
 			continue;
 		}
 		fprintf(stderr,
 "Going to update '%s' in '%s'\nfrom '%s'\nto   '%s'.\n",
-					file->basename, changesfilename,
-					file->realmd5sum, file->changesmd5sum);
-		free(file->changesmd5sum);
-		file->changesmd5sum = strdup(file->realmd5sum);
-		if( file->changesmd5sum == NULL )
+				file->basename, changesfilename,
+				checksums_getmd5sum(file->checksumsfromchanges),
+				checksums_getmd5sum(file->realchecksums));
+		checksums_free(file->checksumsfromchanges);
+		file->checksumsfromchanges = checksums_dup(file->realchecksums);
+		if( file->checksumsfromchanges == NULL )
 			return RET_ERROR_OOM;
 		c->modified = true;
 	}
 	if( c->modified ) {
 		return write_changes_file(changesfilename, c, CHANGES_WRITE_FILES);
 	} else
+		// TODO: once .changes files can store shas, decide if it needs
+		// an update for those here:
 		return RET_NOTHING;
 }
 
@@ -1755,18 +1788,18 @@ static retvalue includeallsources(const char *changesfilename, struct changes *c
 		for( i = 0 ; i < file->dsc->filecount ; i++ ) {
 			struct sourcefile *f = &file->dsc->files[i];
 
-			assert( f->expectedmd5sum != NULL );
+			assert( f->expectedchecksums != NULL );
 			assert( f->basename != NULL );
 			assert( f->file != NULL );
 
-			if( f->file->changesmd5sum != NULL )
+			if( f->file->checksumsfromchanges != NULL )
 				continue;
 
 			if( argc > 0 && !isarg(argc,argv,f->basename) )
 				continue;
 
-			f->file->changesmd5sum = strdup(f->expectedmd5sum);
-			if( f->file->changesmd5sum == NULL )
+			f->file->checksumsfromchanges = checksums_dup(f->expectedchecksums);
+			if( f->file->checksumsfromchanges == NULL )
 				return RET_ERROR_OOM;
 			/* copy section and priority information from the dsc */
 			if( f->file->section == NULL && file->section != NULL ) {
@@ -1781,8 +1814,8 @@ static retvalue includeallsources(const char *changesfilename, struct changes *c
 			}
 
 			fprintf(stderr,
-"Going to add '%s' with '%s' to '%s'.\n",
-					f->basename, f->expectedmd5sum,
+"Going to add '%s' to '%s'.\n",
+					f->basename,
 					changesfilename);
 			c->modified = true;
 		}
@@ -1893,7 +1926,7 @@ static retvalue adddsc(struct changes *c, const char *dscfilename) {
 	for( i =  0 ; i < dsc->filecount ; i++ ) {
 		struct fileentry *file;
 		const char *basefilename = dsc->files[i].basename;
-		const char *md5sum = dsc->files[i].expectedmd5sum;
+		const struct checksums *checksums = dsc->files[i].expectedchecksums;
 
 		file = add_fileentry(c, basefilename,
 				strlen(basefilename),
@@ -1902,20 +1935,20 @@ static retvalue adddsc(struct changes *c, const char *dscfilename) {
 			return RET_ERROR_OOM;
 		dsc->files[i].file = file;
 		/* make them appear in the .changes file if not there: */
-		if( file->changesmd5sum == NULL ) {
-			file->changesmd5sum = strdup(md5sum);
-			if( file->changesmd5sum == NULL )
+		if( file->checksumsfromchanges == NULL ) {
+			file->checksumsfromchanges = checksums_dup(checksums);
+			if( file->checksumsfromchanges == NULL )
 				return RET_ERROR_OOM;
 		} // TODO: otherwise warn if not the same
 	}
 
 	c->modified = true;
-	r = md5sum_read(f->fullfilename, &f->realmd5sum);
+	r = checksums_read(f->fullfilename, &f->realchecksums);
 	if( RET_WAS_ERROR(r) ) {
 		return r;
 	}
-	f->changesmd5sum = strdup(f->realmd5sum);
-	if( f->changesmd5sum == NULL ) {
+	f->checksumsfromchanges = checksums_dup(f->realchecksums);
+	if( f->checksumsfromchanges == NULL ) {
 		return RET_ERROR_OOM;;
 	}
 	/* for a "extended" dsc with section or priority or
@@ -2097,12 +2130,12 @@ static retvalue adddeb(struct changes *c, const char *debfilename) {
 	deb->binary->files = deb;
 	deb->binary->missedinheader = false;
 	c->modified = true;
-	r = md5sum_read(f->fullfilename, &f->realmd5sum);
+	r = checksums_read(f->fullfilename, &f->realchecksums);
 	if( RET_WAS_ERROR(r) ) {
 		return r;
 	}
-	f->changesmd5sum = strdup(f->realmd5sum);
-	if( f->changesmd5sum == NULL ) {
+	f->checksumsfromchanges = checksums_dup(f->realchecksums);
+	if( f->checksumsfromchanges == NULL ) {
 		return RET_ERROR_OOM;;
 	}
 	if( deb->shortdescription != NULL ) {
@@ -2156,7 +2189,7 @@ static retvalue addrawfile(struct changes *c, const char *filename) {
 	retvalue r;
 	struct fileentry *f;
 	char *fullfilename, *basefilename;
-	char *md5sum;
+	struct checksums *checksums;
 
 	r = findfile(filename, c, NULL, &fullfilename);
 	if( RET_WAS_ERROR(r) )
@@ -2170,7 +2203,7 @@ static retvalue addrawfile(struct changes *c, const char *filename) {
 		free(fullfilename);
 		return RET_ERROR_OOM;
 	}
-	r = md5sum_read(fullfilename, &md5sum);
+	r = checksums_read(fullfilename, &checksums);
 	if( RET_WAS_ERROR(r) ) {
 		free(fullfilename);
 		free(basefilename);
@@ -2180,27 +2213,27 @@ static retvalue addrawfile(struct changes *c, const char *filename) {
 	if( RET_WAS_ERROR(r) ) {
 		free(fullfilename);
 		free(basefilename);
-		free(md5sum);
+		checksums_free(checksums);
 		return r;
 	}
 	if( r == RET_NOTHING ) {
 
 		assert( f != NULL );
 
-		if( f->changesmd5sum != NULL ) {
+		if( f->checksumsfromchanges != NULL ) {
 			/* already listed in .changes */
 
-			if( strcmp(f->changesmd5sum, md5sum) != 0 ) {
-				fprintf(stderr, "ERROR: '%s' already contains a file with name '%s' but different size or md5sum!\n", c->filename, basefilename);
+			if( !checksums_check(f->checksumsfromchanges, checksums, NULL) ) {
+				fprintf(stderr, "ERROR: '%s' already contains a file with name '%s' but different checksums!\n", c->filename, basefilename);
 				free(fullfilename);
 				free(basefilename);
-				free(md5sum);
+				checksums_free(checksums);
 				return RET_ERROR;
 			}
-			printf("'%s' already lists '%s' with same md5sum. Doing nothing.\n", c->filename, basefilename);
+			printf("'%s' already lists '%s' with same checksums. Doing nothing.\n", c->filename, basefilename);
 			free(fullfilename);
 			free(basefilename);
-			free(md5sum);
+			checksums_free(checksums);
 			return RET_NOTHING;
 		} else {
 			/* file already expected by some other part (e.g. a .dsc) */
@@ -2216,14 +2249,13 @@ static retvalue addrawfile(struct changes *c, const char *filename) {
 	}
 
 	c->modified = true;
-	assert( f->changesmd5sum == NULL );
-	f->changesmd5sum = md5sum;
-	md5sum = NULL;
-	if( f->realmd5sum == NULL )
-		f->realmd5sum = strdup(f->changesmd5sum);
-	if( f->realmd5sum == NULL ) {
+	assert( f->checksumsfromchanges == NULL );
+	f->checksumsfromchanges = checksums;
+	checksums = NULL;
+	if( f->realchecksums == NULL )
+		f->realchecksums = checksums_dup(f->checksumsfromchanges);
+	if( f->realchecksums == NULL )
 		return RET_ERROR_OOM;;
-	}
 	return RET_OK;
 }
 
@@ -2317,7 +2349,7 @@ static int execute_command(int argc, char **argv, const char *changesfilename, b
 		}
 	} else if( strcasecmp(command, "updatechecksums") == 0 ) {
 		if( file_exists )
-			r = updatemd5sums(changesfilename, changesdata, argc-1, argv+1);
+			r = updatechecksums(changesfilename, changesdata, argc-1, argv+1);
 		else {
 			fprintf(stderr, "No such file '%s'!\n",
 					changesfilename);

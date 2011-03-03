@@ -29,14 +29,13 @@ void checksums_free(/*@only@*//*@null@*/struct checksums *);
 /*@null@*/struct checksums *checksums_dup(const struct checksums *);
 
 /* create a checksum record from an md5sum: */
-retvalue checksums_set(/*@out@*/struct checksums **, const char *);
+retvalue checksums_set(/*@out@*/struct checksums **result, const char *md5, size_t md5len, const char *size, size_t sizelen);
 retvalue checksums_setall(/*@out@*/struct checksums **checksums_p, const char *combinedchecksum, size_t len, /*@null@*/const char *md5sum);
 
 /* hashes[*] is free'd */
 retvalue checksums_init(/*@out@*/struct checksums **, char *hashes[cs_COUNT]);
 retvalue checksums_parse(/*@out@*/struct checksums **, const char *);
 
-retvalue checksums_get(const struct checksums *, enum checksumtype, /*@out@*/char **);
 off_t checksums_getfilesize(const struct checksums *);
 
 /* get 0-terminated combined textual representation of the checksums,
@@ -45,6 +44,8 @@ retvalue checksums_getcombined(const struct checksums *, /*@out@*/const char **,
 
 /* get a static pointer to a specific part of a checksum (wihtout size) */
 bool checksums_getpart(const struct checksums *, enum checksumtype, /*@out@*/const char **, /*@out@*/size_t *);
+/* get the md5sum (including size) in old style format */
+const char *checksums_getmd5sum(const struct checksums *);
 /* extract a single checksum from the combined data: */
 bool checksums_gethashpart(const struct checksums *, enum checksumtype, /*@out@*/const char **hash_p, /*@out@*/size_t *hashlen_p, /*@out@*/const char **size_p, /*@out@*/size_t *sizelen_p);
 
@@ -59,6 +60,9 @@ retvalue checksums_linkorcopyfile(const char *destination, const char *origin, /
 
 /* calculare checksums of a file: */
 retvalue checksums_read(const char *fullfilename, /*@out@*/struct checksums **);
+
+/* replace the contents of a file with data and calculate the new checksums */
+retvalue checksums_replace(const char *filename, const char *, size_t len, /*@out@*//*@null@*/struct checksums **);
 
 /* check if the file has the given md5sum (only cheap tests like size),
  * RET_NOTHING means file does not exist, RET_ERROR_WRONG_MD5 means wrong size */

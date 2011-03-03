@@ -84,8 +84,7 @@ retvalue donefile_isold(const char *filename, const struct checksums *expected) 
 }
 
 retvalue donefile_create(const char *filename, const struct checksums *checksums) {
-	retvalue r;
-	char *md5sum;
+	const char *md5sum;
 	const char *start;
 	size_t len;
 	ssize_t written;
@@ -97,10 +96,7 @@ retvalue donefile_create(const char *filename, const struct checksums *checksums
 	donefilename = calc_addsuffix(filename,"done");
 	if( donefilename == NULL )
 		return RET_ERROR_OOM;
-	r = checksums_get(checksums, cs_md5sum, &md5sum);
-	assert( r != RET_NOTHING );
-	if( RET_WAS_ERROR(r) )
-		return r;
+	md5sum = checksums_getmd5sum(checksums);
 
 	fd = open(donefilename, O_WRONLY|O_CREAT|O_TRUNC|O_NOCTTY|O_NOFOLLOW,
 			0666);
@@ -109,7 +105,6 @@ retvalue donefile_create(const char *filename, const struct checksums *checksums
 		fprintf(stderr, "Error creating file %s: %d=%s\n",
 				donefilename, e, strerror(e));
 		free(donefilename);
-		free(md5sum);
 		return RET_ERRNO(e);
 	}
 	start = md5sum;
@@ -120,7 +115,6 @@ retvalue donefile_create(const char *filename, const struct checksums *checksums
 		assert( len >= (size_t)written );
 		len -= written;
 	}
-	free(md5sum);
 	if( written < 0 ) {
 		int e = errno;
 		fprintf(stderr, "Error writing into %s: %d=%s\n",
