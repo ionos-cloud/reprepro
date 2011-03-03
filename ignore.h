@@ -15,7 +15,8 @@
 	IGN(spaceonlyline) \
 	IGN(malformedchunk) \
 	IGN(shortkeyid) \
-	IGN(unknownfield)
+	IGN(unknownfield) \
+	IGN(wrongdistribution)
 
 
 enum ignore { 
@@ -47,6 +48,6 @@ extern bool_t ignore[IGN_COUNT];
 
 void init_ignores(void);
 
-retvalue add_ignore(const char *given);
+retvalue set_ignore(const char *given,bool_t newvalue, enum config_option_owner newowner);
 
 #endif

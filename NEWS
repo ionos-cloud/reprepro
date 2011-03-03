@@ -1,3 +1,14 @@
+Updates since 0.5:
+- no longer set execute bit of generated Release.gpg files
+- use REPREPRO_BASE_DIR for default basedir, parse conf/options
+  for further default options. (and add --no options to disable
+  boolean options again, same for ignore)
+- new command createsymlinks (for symlinks like "stable"->"sarge")
+- parse FilterList default action correctly
+- putting .changes in a distribution not listed is now an error
+  without --ignore=wrongdistribution (and without
+  "ignore wrongdistributions" in conf/options)
+
 Updates since 0.4:
 - starts of source package tracking
 - add quick&dirty --ask-passphrase option

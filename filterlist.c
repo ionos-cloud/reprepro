@@ -12,7 +12,7 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1301  USA
  */
 #include <config.h>
 
@@ -65,9 +65,9 @@ retvalue filterlist_load(struct filterlist *list, const char *confdir,const char
 	} else if( strncmp(configline,"hold",4) == 0 && xisspace(configline[4]) ) {
 		defaulttype = flt_hold; filename = configline + 4;
 	} else if( strncmp(configline,"deinstall",9) == 0 && xisspace(configline[9]) ) {
-		defaulttype = flt_hold; filename = configline + 9;
+		defaulttype = flt_deinstall; filename = configline + 9;
 	} else if( strncmp(configline,"purge",5) == 0 && xisspace(configline[5]) ) {
-		defaulttype = flt_hold; filename = configline + 5;
+		defaulttype = flt_purge; filename = configline + 5;
 	} else if( strncmp(configline,"error",5) == 0 && xisspace(configline[5]) ) {
 		defaulttype = flt_error; filename = configline + 5;
 	} else {

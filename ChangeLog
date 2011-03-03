@@ -1,3 +1,30 @@
+2005-09-24  Bernhard R. Link <brlink@debian.org>
+	* putting a .changes in the wrong distribution
+	is an error now without --ignore=wrongdistribution
+	* puttin new address in GPL notices, redownload
+	  COPYING (fixing some typos and addresses)
+
+2005-09-22  Bernhard R. Link <brlink@debian.org>
+	* add --unignore (with alias --noignore)
+	to allow overwriting ignore in config.
+
+2005-09-06  Bernhard R. Link <brlink@debian.org>
+	* fix error in parsing FilterList default action
+	  (thanks to Sergio Talens-Oliag for finding that)
+
+2005-08-28  Bernhard R. Link <brlink@debian.org>
+	* add REPREPRO_CONFIG_DIR
+
+2005-08-26  Bernhard R. Link <brlink@debian.org>
+	* read conf/options for default command line options,
+	use REPREPRO_BASE_DIR for default -b value, add --no
+	options to disable previously enabled options again.
+	* add a createsymlinks command to create suite->codename
+	symlinks
+
+2005-08-05  Bernhard R. Link <brlink@debian.org>
+	* do not set execute bit of signed files
+
 2005-08-02  Bernhard R. Link <brlink@debian.org>
 	* allow ~ in versions listed within .changes
 	* changed spacing in dpkgversions.c to make

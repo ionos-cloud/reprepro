@@ -76,10 +76,10 @@ bin_PROGRAMS = reprepro
 
 AM_CPPFLAGS = -D_GNU_SOURCE=1 -DPKGDATADIR=\"$(pkgdatadir)\" -Wall
 
-reprepro_SOURCES = guesscomponent.c files.c md5.c md5sum.c dirs.c chunks.c reference.c packages.c binaries.c sources.c names.c dpkgversions.c release.c mprintf.c updates.c strlist.c signature.c distribution.c extractcontrol.c checkindeb.c checkindsc.c checkin.c copyfile.c upgradelist.c target.c aptmethod.c downloadcache.c main.c override.c terms.c ignore.c filterlist.c exports.c tracking.c
-noinst_HEADERS = guesscomponent.h md5.h md5sum.h dirs.h files.h chunks.h reference.h packages.h binaries.h sources.h names.h release.h error.h mprintf.h updates.h strlist.h signature.h distribution.h extractcontrol.h checkindeb.h checkindsc.h copyfile.h upgradelist.h target.h aptmethod.h downloadcache.h override.h terms.h ignore.h filterlist.h dpkgversions.h checkin.h exports.h globals.h tracking.h trackingt.h
+reprepro_SOURCES = guesscomponent.c files.c md5.c md5sum.c dirs.c chunks.c reference.c packages.c binaries.c sources.c names.c dpkgversions.c release.c mprintf.c updates.c strlist.c signature.c distribution.c extractcontrol.c checkindeb.c checkindsc.c checkin.c copyfile.c upgradelist.c target.c aptmethod.c downloadcache.c main.c override.c terms.c ignore.c filterlist.c exports.c tracking.c optionsfile.c
+noinst_HEADERS = guesscomponent.h md5.h md5sum.h dirs.h files.h chunks.h reference.h packages.h binaries.h sources.h names.h release.h error.h mprintf.h updates.h strlist.h signature.h distribution.h extractcontrol.h checkindeb.h checkindsc.h copyfile.h upgradelist.h target.h aptmethod.h downloadcache.h override.h terms.h ignore.h filterlist.h dpkgversions.h checkin.h exports.h globals.h tracking.h trackingt.h optionsfile.h
 
-MAINTAINERCLEANFILES = Makefile.in configure install-sh stamp-h.in aclocal.m4 config.h.in mkinstalldirs
+MAINTAINERCLEANFILES = Makefile.in configure install-sh stamp-h.in aclocal.m4 config.h.in mkinstalldirs config.guess config.sub missing
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
 CONFIG_HEADER = config.h
@@ -96,7 +96,8 @@ chunks.o reference.o packages.o binaries.o sources.o names.o \
 dpkgversions.o release.o mprintf.o updates.o strlist.o signature.o \
 distribution.o extractcontrol.o checkindeb.o checkindsc.o checkin.o \
 copyfile.o upgradelist.o target.o aptmethod.o downloadcache.o main.o \
-override.o terms.o ignore.o filterlist.o exports.o tracking.o
+override.o terms.o ignore.o filterlist.o exports.o tracking.o \
+optionsfile.o
 reprepro_LDADD = $(LDADD)
 reprepro_DEPENDENCIES = 
 reprepro_LDFLAGS = 
@@ -360,6 +361,103 @@ distdir: $(DISTFILES)
 	      || exit 1; \
 	  fi; \
 	done
+aptmethod.o: aptmethod.c config.h error.h globals.h mprintf.h strlist.h \
+	names.h dirs.h chunks.h md5sum.h files.h aptmethod.h
+binaries.o: binaries.c config.h error.h globals.h mprintf.h strlist.h \
+	names.h chunks.h binaries.h target.h trackingt.h reference.h \
+	packages.h files.h exports.h dpkgversions.h override.h \
+	tracking.h distribution.h
+checkin.o: checkin.c config.h error.h globals.h ignore.h strlist.h \
+	md5sum.h names.h dirs.h chunks.h reference.h signature.h \
+	sources.h target.h trackingt.h packages.h files.h exports.h \
+	tracking.h distribution.h guesscomponent.h override.h \
+	checkindsc.h checkindeb.h checkin.h
+checkindeb.o: checkindeb.c config.h error.h globals.h strlist.h md5sum.h \
+	names.h chunks.h checkindeb.h distribution.h target.h \
+	trackingt.h reference.h packages.h files.h exports.h override.h \
+	binaries.h extractcontrol.h guesscomponent.h tracking.h
+checkindsc.o: checkindsc.c config.h error.h globals.h strlist.h md5sum.h \
+	names.h dirs.h chunks.h checkindsc.h distribution.h target.h \
+	trackingt.h reference.h packages.h files.h exports.h override.h \
+	signature.h sources.h guesscomponent.h tracking.h
+chunks.o: chunks.c config.h error.h globals.h ignore.h chunks.h \
+	strlist.h names.h
+copyfile.o: copyfile.c config.h error.h globals.h strlist.h names.h \
+	dirs.h md5sum.h copyfile.h
+dirs.o: dirs.c config.h error.h globals.h strlist.h dirs.h names.h
+distribution.o: distribution.c config.h error.h globals.h chunks.h \
+	strlist.h sources.h target.h names.h trackingt.h reference.h \
+	packages.h files.h exports.h md5sum.h dirs.h release.h \
+	distribution.h copyfile.h tracking.h
+downloadcache.o: downloadcache.c config.h error.h globals.h strlist.h \
+	names.h dirs.h files.h downloadcache.h aptmethod.h
+dpkgversions.o: dpkgversions.c config.h error.h globals.h dpkgversions.h
+exports.o: exports.c config.h error.h globals.h mprintf.h strlist.h \
+	chunks.h packages.h names.h files.h reference.h trackingt.h \
+	exports.h md5sum.h copyfile.h
+extractcontrol.o: extractcontrol.c config.h error.h globals.h md5sum.h \
+	chunks.h strlist.h extractcontrol.h
+files.o: files.c config.h error.h globals.h strlist.h names.h md5sum.h \
+	dirs.h files.h copyfile.h
+filterlist.o: filterlist.c config.h error.h globals.h mprintf.h \
+	strlist.h names.h chunks.h filterlist.h
+guesscomponent.o: guesscomponent.c config.h error.h globals.h strlist.h \
+	guesscomponent.h
+ignore.o: ignore.c config.h ignore.h error.h globals.h
+main.o: main.c config.h error.h globals.h ignore.h mprintf.h strlist.h \
+	dirs.h names.h md5sum.h chunks.h files.h target.h trackingt.h \
+	reference.h packages.h exports.h binaries.h sources.h release.h \
+	distribution.h aptmethod.h updates.h upgradelist.h \
+	downloadcache.h signature.h extractcontrol.h checkindeb.h \
+	override.h checkindsc.h checkin.h terms.h tracking.h \
+	optionsfile.h
+md5.o: md5.c config.h md5.h
+md5sum.o: md5sum.c config.h error.h globals.h mprintf.h strlist.h dirs.h \
+	md5.h md5sum.h
+mprintf.o: mprintf.c config.h mprintf.h
+names.o: names.c config.h error.h globals.h ignore.h mprintf.h strlist.h \
+	names.h
+optionsfile.o: optionsfile.c config.h error.h globals.h mprintf.h \
+	optionsfile.h
+override.o: override.c config.h error.h globals.h chunks.h strlist.h \
+	sources.h target.h names.h trackingt.h reference.h packages.h \
+	files.h exports.h override.h
+packages.o: packages.c config.h error.h globals.h strlist.h names.h \
+	md5sum.h dirs.h reference.h files.h target.h trackingt.h \
+	packages.h exports.h tracking.h distribution.h
+reference.o: reference.c config.h error.h globals.h strlist.h names.h \
+	md5sum.h dirs.h reference.h
+release.o: release.c config.h error.h globals.h mprintf.h strlist.h \
+	chunks.h md5sum.h copyfile.h dirs.h names.h signature.h \
+	distribution.h target.h trackingt.h reference.h packages.h \
+	files.h exports.h release.h
+signature.o: signature.c config.h error.h globals.h ignore.h mprintf.h \
+	strlist.h dirs.h names.h md5sum.h chunks.h release.h \
+	distribution.h target.h trackingt.h reference.h packages.h \
+	files.h exports.h signature.h
+sources.o: sources.c config.h error.h globals.h mprintf.h strlist.h \
+	chunks.h sources.h target.h names.h trackingt.h reference.h \
+	packages.h files.h exports.h dpkgversions.h override.h \
+	tracking.h distribution.h
+strlist.o: strlist.c config.h error.h globals.h strlist.h
+target.o: target.c config.h error.h globals.h mprintf.h strlist.h \
+	names.h chunks.h packages.h files.h reference.h trackingt.h \
+	binaries.h target.h exports.h sources.h md5sum.h dirs.h \
+	dpkgversions.h override.h tracking.h distribution.h
+terms.o: terms.c config.h error.h globals.h mprintf.h strlist.h names.h \
+	chunks.h terms.h
+tracking.o: tracking.c config.h error.h globals.h names.h strlist.h \
+	dirs.h tracking.h reference.h trackingt.h distribution.h \
+	target.h packages.h files.h exports.h
+updates.o: updates.c config.h error.h globals.h mprintf.h strlist.h \
+	dirs.h names.h chunks.h signature.h md5sum.h aptmethod.h \
+	files.h updates.h release.h distribution.h target.h trackingt.h \
+	reference.h packages.h exports.h upgradelist.h downloadcache.h \
+	terms.h filterlist.h
+upgradelist.o: upgradelist.c config.h error.h globals.h strlist.h \
+	chunks.h dpkgversions.h target.h names.h trackingt.h \
+	reference.h packages.h files.h exports.h downloadcache.h \
+	aptmethod.h upgradelist.h
 
 info-am:
 info: info-recursive
@@ -421,7 +519,8 @@ distclean: distclean-recursive
 
 maintainer-clean-am:  maintainer-clean-hdr maintainer-clean-binPROGRAMS \
 		maintainer-clean-compile maintainer-clean-tags \
-		maintainer-clean-generic distclean-am
+		maintainer-clean-generic distclean-am \
+		maintainer-clean-local
 	@echo "This command is intended for maintainers to use;"
 	@echo "it deletes files that may require special tools to rebuild."
 
@@ -445,6 +544,9 @@ install uninstall-am uninstall all-redirect all-am all installdirs-am \
 installdirs mostlyclean-generic distclean-generic clean-generic \
 maintainer-clean-generic clean mostlyclean distclean maintainer-clean
 
+
+maintainer-clean-local:
+	-rm -rf autom4te.cache
 
 # Some things for my private laziness
 strictbooleancheck:

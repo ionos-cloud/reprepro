@@ -12,7 +12,7 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1301  USA
  */
 #include <config.h>
 
@@ -28,6 +28,7 @@
 #include <malloc.h>
 #include <ctype.h>
 #include "error.h"
+#include "ignore.h"
 #include "strlist.h"
 #include "md5sum.h"
 #include "names.h"
@@ -835,7 +836,8 @@ retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,f
 	if( (distribution->suite == NULL || 
 		!strlist_in(&changes->distributions,distribution->suite)) &&
 	    !strlist_in(&changes->distributions,distribution->codename) ) {
-		fprintf(stderr,"Warning: .changes put in a distribution not listed within it!\n");
+		if( !IGNORING("Ignoring","To ignore",wrongdistribution,".changes put in a distribution not listed within it!\n") )
+			return RET_ERROR;
 	}
 
 	/* look for component, section and priority to be correct or guess them*/

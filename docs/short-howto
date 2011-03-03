@@ -142,9 +142,8 @@ gpg --with-colons --list-keys <whatever>
 
 ===============================================================================
 [The following is from V. Stanley Jaddoe (debian@terabytemusic.cjb.net).
-I think I'd be too paranoid for "AllowOverride All". Also make sure
-to include all sources when allowing everyone access to software only
-available under GPL to you. (Well, you should always supply sources,
+Make sure to include all sources when allowing everyone access to software 
+only available under GPL to you. (Well, you should always supply sources,
 but in some cases not doing so might cause you trouble.)]
 
 Using reprepro with apache2 (sarge, etch, sid)
@@ -163,7 +162,7 @@ cat > /srv/reprepro/conf/apache.conf << EOF
 Alias /debian /srv/reprepro/
 <Directory /srv/reprepro>
         Options +Indexes
-        AllowOverride All
+        AllowOverride None
         order allow,deny
         allow from all
 </Directory>
