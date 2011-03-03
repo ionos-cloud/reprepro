@@ -211,6 +211,33 @@ marked as already processed are available.
 
 If you changed a script to preprocess downloaded index files or
 changed a Listfilter, you most likely want to call reprepro with \-\-noskipold.
+.TP
+.B \-\-waitforlock \fIcount
+If there is a lockfile indicating another instance of reprepro is currently
+using the database, retry \fIcount\fP times after waiting for 10 seconds
+each time.
+The default is 0 and means to error out instantly.
+.TP
+.B \-\-spacecheck full\fR|\fPnone
+The default is \fBfull\fR:
+.br
+In the update commands, check for every to be downloaded file which filesystem
+it is on and how much space is left.
+.br
+To disable this behaviour, use \fBnone\fP.
+.TP
+.BI \-\-dbsafetymargin " bytes-count"
+If checking for free space, reserve \fIbyte-count\fP bytes on the fileystem
+containing the \fBdb/\fP directory.
+The default is 104857600 (i.e. 100MB), which is quite large.
+But as there is no way to know in advance how large the databases will
+grow and libdb is extremly touchy in that regard, lower only when you know
+what you do.
+.TP
+.BI \-\-safetymargin " bytes-count"
+If checking for free space, reserve \fIbyte-count\fP bytes on fileystems
+not containing the \fBdb/\fP directory.
+The default is 1048576 (i.e. 1MB).
 .SH COMMANDS
 .TP
 .BR export " [ " \fIcodenames\fP " ]"
@@ -374,7 +401,7 @@ As this only takes information from the Indices into account,
 this will loose all information about older packages or
 changes files.
 .TP
-.BR cleartracks " [ " \fIcodenames\fP " ]"
+.BR removealltracks " [ " \fIcodenames\fP " ]"
 Removes all source package tracking information for the
 given distributions.
 .TP
@@ -382,6 +409,10 @@ given distributions.
 Remove the trackingdata of the given version of a given sourcepackage
 from a given distribution. This also removes the references for all
 used files.
+.TP
+.BR tidytracks " [ " \fIcodenames\fP " ]"
+Check all source package tracking information for the given distributions
+for files no longer to keep.
 .TP
 .B copy \fIdestination-codename\fP \fIsource-codename\fP \fIpackages...\fP
 Copy the given packages from one distribution to another. No overrides
@@ -720,9 +751,11 @@ Not yet implemented.
 .br
 .B ambargoalls
 Not yet implemented.
+.br
 .B keepsources
 Even when using minimal mode, do not remove source files
 until no file is needed any more.
+.br
 .B needsources
 Not yet implemented.
 .TP
@@ -738,6 +771,9 @@ form \fB\-\-type=\fP(\fBdsc\fP|\fBdeb\fP|\fBudeb\fP),
 \fB\-\-architecture=\fP\fIname\fP or
 \fB\-\-component=\fP\fIname\fP to only call the script for some
 parts of the distribution.
+An script with argument \fB\-\-changes\fP is called when a \fB.changes\fP
+file was accepted by \fBinclude\fP or \fBprocessincoming\fP (and with other
+arguments).
 
 If the filename for the log files does not start with a slash,
 it is relative to the directory specified with \fB\-\-logdir\fP,
@@ -968,6 +1004,37 @@ accepts it.
 Allow putting an upload in multiple distributions if it lists more
 than one. (Without this field, procession stops after the first
 successfull).
+.TP
+.B Permit \fIoptions
+A list of options to allow things otherwise causing errors:
+.br
+.B unused_files
+.br
+Do not stop with error if there are files listed in the \fB.changes\fP
+file if it lists files not belonging to any package in it.
+.br
+.B older_version
+.br
+Ignore a package not added because there already is a stricly newer
+version available instead of treating this as an error.
+.TP
+.B Cleanup \fIoptions
+A list of options to cause more files in the incoming directory to be
+deleted:
+.br
+.B unused_files
+.br
+If there is \fBunused_files\fP in \fBPermit\fP then also delete those
+files when the package is deleted after successful processing.
+.br
+.B on_deny
+.br
+If a \fB.changes\fP file is denied processing because of missing signatures
+or allowed distributions to be put in, delete it and all the files it references.
+.br
+.B on_error
+.br
+If a \fB.changes\fP file causes errors while processing, delete it.
 .SH "UPLOADERS FILES"
 These files specified by the \fBUploaders\fP header in the distribution
 definition as explained above describe what key a \fB.changes\fP file

@@ -194,7 +194,7 @@ retvalue binaries_getversion(UNUSED(struct target *t),const char *control,char *
 }
 
 retvalue binaries_getinstalldata(struct target *t,const char *packagename,const char *version,const char *chunk,char **control,struct strlist *filekeys,struct strlist *md5sums,struct strlist *origfiles) {
-	char *sourcename,*basename;
+	char *sourcename IFSTUPIDCC(=NULL) ,*basename IFSTUPIDCC(=NULL);
 	struct strlist mymd5sums;
 	retvalue r;
 
@@ -626,6 +626,61 @@ retvalue binaries_adddeb(const struct deb_headers *deb,const char *dbdir,referen
 	}
 	RET_UPDATE(distribution->status, result);
 
+	return result;
+}
+
+static inline retvalue checkadddeb(const char *dbdir,struct distribution *distribution,const char *component,const char *architecture,const char *packagetype,bool_t tracking,const struct deb_headers *deb,bool_t permitnewerold) {
+	retvalue r;
+	struct target *t;
+
+	t = distribution_getpart(distribution,
+			component, architecture, packagetype);
+	assert( t != NULL );
+	r = target_initpackagesdb(t, dbdir);
+	if( !RET_WAS_ERROR(r) ) {
+		retvalue r2;
+		if( interrupted() )
+			r = RET_ERROR_INTERUPTED;
+		else
+			r = target_checkaddpackage(t,
+					deb->name,
+					deb->version, tracking,
+					permitnewerold);
+		r2 = target_closepackagesdb(t);
+		RET_ENDUPDATE(r,r2);
+	}
+	return r;
+}
+
+retvalue binaries_checkadddeb(const struct deb_headers *deb,const char *dbdir,const char *forcearchitecture,const char *packagetype,struct distribution *distribution,bool_t tracking,const char *component,bool_t permitnewerold) {
+	retvalue r,result;
+	int i;
+
+	/* finally put it into one or more architectures of the distribution */
+	result = RET_NOTHING;
+
+	if( strcmp(deb->architecture,"all") != 0 ) {
+		r = checkadddeb(dbdir, distribution,
+				component, deb->architecture, packagetype,
+				tracking, deb,
+				permitnewerold);
+		RET_UPDATE(result,r);
+	} else if( forcearchitecture != NULL && strcmp(forcearchitecture,"all") != 0 ) {
+		r = checkadddeb(dbdir, distribution,
+				component, forcearchitecture, packagetype,
+				tracking, deb,
+				permitnewerold);
+		RET_UPDATE(result,r);
+	} else for( i = 0 ; i < distribution->architectures.count ; i++ ) {
+		const char *a = distribution->architectures.values[i];
+		if( strcmp(a, "source") == 0 )
+			continue;
+		r = checkadddeb(dbdir, distribution,
+				component, a, packagetype,
+				tracking, deb,
+				permitnewerold);
+		RET_UPDATE(result,r);
+	}
 	return result;
 }
 

@@ -317,7 +317,7 @@ retvalue md5sum_replace(const char *filename, const char *data, size_t len, char
 
 	if( result != NULL ) {
 		MD5Init(&context);
-		MD5Update(&context,data,len);
+		MD5Update(&context,(const unsigned char*)data,len);
 		r = md5sum_genstring(&md5sum, &context,len);
 		assert( r != RET_NOTHING );
 		if( RET_WAS_ERROR(r) ) {

@@ -619,7 +619,7 @@ testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
 -v0=Data seems not to be signed trying to use directly...
-*=Could only find spaces within './i/test.changes'!
+*=Could only find spaces within 'test.changes'!
 -v0*=There have been errors!
 EOF
 cat > i/test.changes <<EOF
@@ -1886,30 +1886,30 @@ EOF
 checklog log2 <<EOF
 DATESTR add test2 deb stupid coal bloat+-0a9z.app-addons 99:0.9-A:Z+a:z-0+aA.9zZ
 EOF
-find dists/test2/ \( -name "Packages.gz" -o -name "Sources.gz" \) -print0 | xargs -0 zgrep '^\(Package\|Maintainer\|Section\|Priority\): ' > results
+find dists/test2/ \( -name "Packages.gz" -o -name "Sources.gz" \) -print0 | xargs -0 zgrep '^\(Package\|Maintainer\|Section\|Priority\): ' | sort > results
 cat >results.expected <<END
-dists/test2/stupid/binary-abacus/Packages.gz:Package: bloat+-0a9z.app
 dists/test2/stupid/binary-abacus/Packages.gz:Maintainer: bloat.maintainer
+dists/test2/stupid/binary-abacus/Packages.gz:Package: bloat+-0a9z.app
 dists/test2/stupid/binary-abacus/Packages.gz:Priority: optional
 dists/test2/stupid/binary-abacus/Packages.gz:Section: stupid/base
-dists/test2/stupid/binary-coal/Packages.gz:Package: bloat+-0a9z.app-addons
 dists/test2/stupid/binary-coal/Packages.gz:Maintainer: bloat.add.maintainer
+dists/test2/stupid/binary-coal/Packages.gz:Package: bloat+-0a9z.app-addons
 dists/test2/stupid/binary-coal/Packages.gz:Priority: optional
 dists/test2/stupid/binary-coal/Packages.gz:Section: stupid/addons
-dists/test2/stupid/source/Sources.gz:Package: bloat+-0a9z.app
 dists/test2/stupid/source/Sources.gz:Maintainer: bloat.source.maintainer
+dists/test2/stupid/source/Sources.gz:Package: bloat+-0a9z.app
 dists/test2/stupid/source/Sources.gz:Priority: optional
 dists/test2/stupid/source/Sources.gz:Section: stupid/X11
-dists/test2/ugly/binary-abacus/Packages.gz:Package: simple
 dists/test2/ugly/binary-abacus/Packages.gz:Maintainer: simple.maintainer
+dists/test2/ugly/binary-abacus/Packages.gz:Package: simple
 dists/test2/ugly/binary-abacus/Packages.gz:Priority: optional
 dists/test2/ugly/binary-abacus/Packages.gz:Section: ugly/base
-dists/test2/ugly/binary-coal/Packages.gz:Package: simple-addons
 dists/test2/ugly/binary-coal/Packages.gz:Maintainer: simple.add.maintainer
+dists/test2/ugly/binary-coal/Packages.gz:Package: simple-addons
 dists/test2/ugly/binary-coal/Packages.gz:Priority: optional
 dists/test2/ugly/binary-coal/Packages.gz:Section: ugly/addons
-dists/test2/ugly/source/Sources.gz:Package: simple
 dists/test2/ugly/source/Sources.gz:Maintainer: simple.source.maintainer
+dists/test2/ugly/source/Sources.gz:Package: simple
 dists/test2/ugly/source/Sources.gz:Priority: optional
 dists/test2/ugly/source/Sources.gz:Section: ugly/games
 END
@@ -1987,7 +1987,7 @@ stdout
 -v5*=  reading './lists/test1_Test2toTest1_deb_stupid_abacus_changed'
 -v5*=  reading './lists/test1_Test2toTest1_deb_stupid_coal_changed'
 -v0*=Getting packages...
--v1*=Freeing some memory...
+-v1=Freeing some memory...
 -v1*=Shutting down aptmethods...
 -v0*=Installing (and possibly deleting) packages...
 -v3*=db: 'simple' added to 'test1|ugly|source'.
@@ -2050,15 +2050,15 @@ stdout
 -v5*=  reading './lists/test1_Test2toTest1_deb_stupid_abacus_changed'
 -v5*=  reading './lists/test1_Test2toTest1_deb_stupid_coal_changed'
 -v0*=Getting packages...
--v1*=Freeing some memory...
+-v1=Freeing some memory...
 -v1*=Shutting down aptmethods...
 -v0*=Installing (and possibly deleting) packages...
 EOF
 checklog log1 < /dev/null
 checknolog log2
 
-find dists/test2/ \( -name "Packages.gz" -o -name "Sources.gz" \) -print0 | xargs -0 zgrep '^Package: ' | sed -e 's/test2/test1/' -e 's/coal/abacus/' > test2
-find dists/test1/ \( -name "Packages.gz" -o -name "Sources.gz" \) -print0 | xargs -0 zgrep '^Package: ' > test1
+find dists/test2/ \( -name "Packages.gz" -o -name "Sources.gz" \) -print0 | xargs -0 zgrep '^Package: ' | sed -e 's/test2/test1/' -e 's/coal/abacus/' | sort > test2
+find dists/test1/ \( -name "Packages.gz" -o -name "Sources.gz" \) -print0 | xargs -0 zgrep '^Package: ' | sort > test1
 dodiff test2 test1
 
 testrun - -b . check test1 test2 3<<EOF
@@ -2138,7 +2138,7 @@ Files:
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_abacus.deb b 0
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc s 0
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.tar.gz s 0
- pool/ugly/b/bloat+-0a9z.app/test.changes c 0
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:0.9-A:Z+a:z-0+aA.9zZ_source+abacus+all.changes c 0
 
 Distribution: test1
 Source: simple
@@ -2148,14 +2148,14 @@ Files:
  pool/stupid/s/simple/simple_1_abacus.deb b 0
  pool/stupid/s/simple/simple_1.dsc s 0
  pool/stupid/s/simple/simple_1.tar.gz s 0
- pool/stupid/s/simple/test.changes c 0
+ pool/stupid/s/simple/simple_1_source+abacus+all.changes c 0
 
 END
 dodiff results.expected results
 
 testout "" -b . dumpunreferenced
 dodiff results.empty results
-testrun - -b . cleartracks 3<<EOF
+testrun - -b . removealltracks 3<<EOF
 stdout
 -v0*=Deleting all tracks for test2...
 -v0*=Deleting all tracks for test1...
@@ -2164,14 +2164,14 @@ stdout
 -v1*=deleting and forgetting pool/stupid/s/simple/simple_1.dsc
 -v1*=deleting and forgetting pool/stupid/s/simple/simple_1.tar.gz
 -v1*=deleting and forgetting pool/stupid/s/simple/simple_1_abacus.deb
--v1*=deleting and forgetting pool/stupid/s/simple/test.changes
+-v1*=deleting and forgetting pool/stupid/s/simple/simple_1_source+abacus+all.changes
 -v1*=removed now empty directory ./pool/stupid/s/simple
 -v1*=removed now empty directory ./pool/stupid/s
 -v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb
 -v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc
 -v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.tar.gz
 -v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_abacus.deb
--v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/test.changes
+-v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:0.9-A:Z+a:z-0+aA.9zZ_source+abacus+all.changes
 -v1*=removed now empty directory ./pool/ugly/b/bloat+-0a9z.app
 -v1*=removed now empty directory ./pool/ugly/b
 EOF
@@ -2271,7 +2271,7 @@ Files:
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_abacus.deb b 0
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc s 0
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.tar.gz s 0
- pool/ugly/b/bloat+-0a9z.app/test.changes c 0
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:0.9-A:Z+a:z-0+aA.9zZ_source+abacus+all.changes c 0
 
 Distribution: test1
 Source: bloat+-0a9z.app
@@ -2281,7 +2281,7 @@ Files:
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ_abacus.deb b 1
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.dsc s 1
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.tar.gz s 1
- pool/ugly/b/bloat+-0a9z.app/test2.changes c 0
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:9.0-A:Z+a:z-0+aA.9zZ_source+abacus+all.changes c 0
 
 Distribution: test1
 Source: simple
@@ -2485,7 +2485,7 @@ stdout
 -v2=Created directory "./lists"
 -v0*=Calculating packages to get...
 -v0*=Getting packages...
--v1*=Freeing some memory...
+-v1=Freeing some memory...
 -v1*=Shutting down aptmethods...
 -v0*=Installing (and possibly deleting) packages...
 -v0*=Exporting indices...
@@ -2984,12 +2984,12 @@ checknolog logab
 
 rm -r dists
 if $tracking ; then
-testrun - -b . cleartracks a 3<<EOF
+testrun - -b . removealltracks a 3<<EOF
 stdout
 -v0*=Deleting all tracks for a...
 EOF
 else
-testrun - -b . cleartracks a 3<<EOF
+testrun - -b . removealltracks a 3<<EOF
 stdout
 -v0*=Deleting all tracks for a...
 -v0*=Deleting files no longer referenced...

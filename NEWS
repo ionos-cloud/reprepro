@@ -1,3 +1,19 @@
+Updates since 2.1.0:
+- renamed cleartracks in removealltracks
+- new notifier type for accepted changes files
+- bugs fixed:
+  * not tidy tracking dependencies on package remove
+  * forgot to call some slow notifiers in processincomming
+- new --wait-for-lock option
+- check free space on update (new --spaceheck option to switch this off)
+- extended the changestool helper (add, adddsc, addrawfile, setdistribution)
+- processincoming changes:
+  * reports and error if a package is not included due to an already existing
+    newer version.
+  * allow ignoring of unused files and newer versions (Permit:)
+  * option when to delete rejected or faulty package (Cleanup:)
+- include command names incldued .changes files like processincoming does
+
 Updates since 2.0.0:
 - add --silent option
 - change some status output to stdout instead of stderr.

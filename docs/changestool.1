@@ -1,6 +1,6 @@
-.TH CHANGESTOOL 1 "03 December, 2006" "reprepro" REPREPRO
+.TH CHANGESTOOL 1 "06 May, 2007" "reprepro" REPREPRO
 .SH NAME
-changestool \- verify, dump, modify or fix Debian .changes files
+changestool \- verify, dump, modify, create or fix Debian .changes files
 .SH SYNOPSIS
 .B changestool \-\-help
 
@@ -21,10 +21,13 @@ build Debian packages into Debian repository managers like
 or
 .BR dak .
 
-The version this manpage belongs to is yet mostly a torso,
-more actions will hopefully be added in the future.
-
 .SH EXAMPLES
+.P
+.B changestool \fIbloat.changes\fP setdistribution \fIlocal\fP
+.br
+will modify the \fBDistribution:\fP header inside \fIbloat.changes\fP
+to say \fIlocal\fP instead of what was there before.
+.P
 .B changestool \fIreprepro_1.2.0\-1.local_sparc.changes\fP includeallsources
 .br
 will modify the given file to also list \fB.orig.tar.gz\fP it does not list
@@ -36,6 +39,13 @@ because you forgot to build it with
 will update the md5sums to those of the files referenced by this file.
 (So one can do quick'n'dirty corrections to them before uploading to
 your private package repository)
+.P
+.B changestool \-\-create \fItest.changes\fP add \fIbla_1\-1.dsc bla_1\-1_abacus.deb\fP
+.br
+will add the specified files (format detected by filename,
+use \fBadddeb\fP or \fBadddsc\fP if you know it).
+If the file \fItest.changes\fP does not exist yet, a minimal one will be
+generated. Though that might be too minimal for most direct uses.
 
 .SH "GLOBAL OPTIONS"
 Options can be specified before the command. Each affects a different
@@ -44,12 +54,16 @@ subset of commands and is ignored by other commands.
 .B \-h \-\-help
 Displays a short list of options and commands with description.
 .TP
-.B \-o \-\-outputdir
+.B \-o \-\-outputdir \fIdir\fP
 Not yet implemented.
 .TP
-.B \-s \-\-searchpath
+.B \-s \-\-searchpath \fIpath\fP
 A colon-seperated list of directories to search for files if they
 are not found in the directory of the .changes file.
+.TP
+.B \-\-create
+Flag for the commands starting with \fBadd\fP to create the \fB.changes\fP
+file if it does not yet exists.
 .SH COMMANDS
 .TP
 .BR verify
@@ -62,6 +76,9 @@ Update the checksum (md5sum and size) information within the specified
 Without arguments, all files will be updated.
 To only update specific files, give their filename (without path) as
 arguments.
+.TP
+.BR setdistribution " [ " \fIdistributions\fP " ]"
+Change the \fBDistribution:\fP header to list the remaining arguments.
 .TP
 .BR includeallsources " [ " \fIfilename\fP " ]"
 List all files referenced by \fB.dsc\fP files mentioned in the \fB.changes\fP
@@ -83,6 +100,23 @@ Add the \fB.deb\fP and \fB.udeb\fP files specified by their filenames to
 the \fB.changes\fP file.
 Filenames without a slash will be searched in the directory the changes
 file resides in and in the directories specified by the \fB\-\-searchpath\fP.
+.TP
+.B adddsc \fIfilenames\fP
+Add the \fB.dsc\fP files specified by their filenames to
+the \fB.changes\fP file.
+Filenames without a slash will be searched in the directory the changes
+file resides in and in the directories specified by the \fB\-\-searchpath\fP.
+.TP
+.B addrawfile \fIfilenames\fP
+Add the files specified by their filenames to
+the \fB.changes\fP file.
+Filenames without a slash will be searched in the directory the changes
+file resides in and in the directories specified by the \fB\-\-searchpath\fP.
+.TP
+.B add \fIfilenames\fP
+Behave like \fBadddsc\fP for filenames ending in \fB.dsc\fP,
+like \fBadddeb\fP for filenames ending in \fB.deb\fP or \fB.udeb\fP,
+and like \fBaddrawfile\fP for all other filenames
 .SH "SEE ALSO"
 .BR reprepro (1),
 .BR dpkg\-genchanges (1),

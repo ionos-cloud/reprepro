@@ -45,6 +45,7 @@
 #include "readrelease.h"
 #include "log.h"
 #include "donefile.h"
+#include "freespace.h"
 
 // TODO: what about other signatures? Is hard-coding ".gpg" sensible?
 
@@ -576,7 +577,7 @@ static retvalue getorigins(const char *listdir,const struct update_pattern *patt
 	for( i = 0; i < distribution->updates.count ; i++ ) {
 		const char *name = distribution->updates.values[i];
 		const struct update_pattern *pattern;
-		struct update_origin *update;
+		struct update_origin *update IFSTUPIDCC(=NULL);
 		retvalue r;
 
 		if( strcmp(name,"-") == 0 ) {
@@ -600,6 +601,7 @@ static retvalue getorigins(const char *listdir,const struct update_pattern *patt
 			RET_UPDATE(result,RET_ERROR);
 			break;
 		}
+		IFSTUPIDCC(update = NULL;)
 
 		r = instance_pattern(listdir,pattern,distribution,&update);
 		RET_UPDATE(result,r);
@@ -1495,7 +1497,7 @@ static retvalue updates_downloadlists(const char *methoddir,struct aptmethodrun 
 	return result;
 }
 
-retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,references refs,struct update_distribution *distributions,bool_t nolistsdownload,bool_t skipold,struct strlist *dereferencedfilekeys) {
+retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,references refs,struct update_distribution *distributions,bool_t nolistsdownload,bool_t skipold,struct strlist *dereferencedfilekeys,enum spacecheckmode mode,off_t reserveddb,off_t reservedother) {
 	retvalue result,r;
 	struct update_distribution *d;
 	struct aptmethodrun *run;
@@ -1561,7 +1563,7 @@ retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,
 	/* Then get all packages */
 	if( verbose >= 0 )
 		printf("Calculating packages to get...\n");
-	r = downloadcache_initialize(&cache);
+	r = downloadcache_initialize(dbdir, mode, reserveddb, reservedother, &cache);
 	if( !RET_IS_OK(r) ) {
 		aptmethod_shutdown(run);
 		RET_UPDATE(result,r);
@@ -1578,6 +1580,11 @@ retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,
 		if( RET_WAS_ERROR(r) )
 			break;
 	}
+	if( !RET_WAS_ERROR(result) ) {
+		r = space_check(cache->devices);
+		RET_ENDUPDATE(result,r);
+	}
+
 	if( RET_WAS_ERROR(result) ) {
 		for( d=distributions ; d != NULL ; d=d->next) {
 			struct update_target *u;
@@ -1593,11 +1600,9 @@ retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,
 	}
 	if( verbose >= 0 )
 		printf("Getting packages...\n");
-	r = aptmethod_download(run,methoddir,filesdb);
-	RET_UPDATE(result,r);
-	if( verbose > 0 )
-		printf("Freeing some memory...\n");
 	r = downloadcache_free(cache);
+	RET_ENDUPDATE(result,r);
+	r = aptmethod_download(run,methoddir,filesdb);
 	RET_UPDATE(result,r);
 	if( verbose > 0 )
 		printf("Shutting down aptmethods...\n");
@@ -1809,7 +1814,7 @@ retvalue updates_predelete(const char *dbdir,const char *methoddir,references re
 	return result;
 }
 
-static retvalue singledistributionupdate(const char *dbdir,const char *methoddir,filesdb filesdb,references refs,struct update_distribution *d,bool_t nolistsdownload,bool_t skipold, struct strlist *dereferencedfilekeys) {
+static retvalue singledistributionupdate(const char *dbdir,const char *methoddir,filesdb filesdb,references refs,struct update_distribution *d,bool_t nolistsdownload,bool_t skipold, struct strlist *dereferencedfilekeys,enum spacecheckmode mode,off_t reserveddb,off_t reservedother) {
 	struct aptmethodrun *run;
 	struct downloadcache *cache;
 	struct update_origin *origin;
@@ -1917,7 +1922,7 @@ static retvalue singledistributionupdate(const char *dbdir,const char *methoddir
 		/* Then get all packages */
 		if( verbose >= 0 )
 			printf("Calculating packages to get for %s's %s...\n",d->distribution->codename,target->target->identifier);
-		r = downloadcache_initialize(&cache);
+		r = downloadcache_initialize(dbdir, mode, reserveddb, reservedother, &cache);
 		RET_UPDATE(result,r);
 		if( !RET_IS_OK(r) ) {
 			(void)downloadcache_free(cache);
@@ -1987,7 +1992,7 @@ static retvalue singledistributionupdate(const char *dbdir,const char *methoddir
 	return result;
 }
 
-retvalue updates_iteratedupdate(const char *confdir,const char *dbdir,const char *distdir,const char *methoddir,filesdb filesdb,references refs,struct update_distribution *distributions,bool_t nolistsdownload,bool_t skipold,struct strlist *dereferencedfilekeys, enum exportwhen export) {
+retvalue updates_iteratedupdate(const char *confdir,const char *dbdir,const char *distdir,const char *methoddir,filesdb filesdb,references refs,struct update_distribution *distributions,bool_t nolistsdownload,bool_t skipold,struct strlist *dereferencedfilekeys, enum exportwhen export,enum spacecheckmode mode,off_t reserveddb,off_t reservedother) {
 	retvalue result,r;
 	struct update_distribution *d;
 
@@ -2011,7 +2016,7 @@ retvalue updates_iteratedupdate(const char *confdir,const char *dbdir,const char
 		if( d->distribution->tracking != dt_NONE ) {
 			fprintf(stderr,"WARNING: Updating does not update trackingdata. Trackingdata of %s will be outdated!\n",d->distribution->codename);
 		}
-		r = singledistributionupdate(dbdir,methoddir,filesdb,refs,d,nolistsdownload,skipold,dereferencedfilekeys);
+		r = singledistributionupdate(dbdir,methoddir,filesdb,refs,d,nolistsdownload,skipold,dereferencedfilekeys, mode, reserveddb, reservedother);
 		RET_ENDUPDATE(d->distribution->status,r);
 		RET_UPDATE(result,r);
 		r = distribution_export(export,d->distribution,confdir,dbdir,distdir,filesdb);

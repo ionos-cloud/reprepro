@@ -218,12 +218,14 @@ retvalue signature_check(const char *options, const char *releasegpg, const char
 				return RET_OK;
 			case GPG_ERR_SIG_EXPIRED:
 				if( verbose > 0 ) {
+					time_t timestamp = s->timestamp,
+					       exp_timestamp = s->exp_timestamp;
 					fprintf(stderr,
 "'%s' has a valid but expired signature with '%s'\n"
 " signature created %s, expired %s\n",
 						releasegpg, s->fpr,
-						ctime(&s->timestamp),
-						ctime(&s->exp_timestamp));
+						ctime(&timestamp),
+						ctime(&exp_timestamp));
 				}
 				// not accepted:
 				continue;
@@ -274,8 +276,6 @@ retvalue signature_sign(const char *options, const char *filename, const char *s
 	r = signature_init(FALSE);
 	if( RET_WAS_ERROR(r) )
 		return r;
-
-	//TODO: specify which key to use...
 
 	/* make sure it does not already exists */
 
@@ -474,12 +474,14 @@ static retvalue checksigs(const char *filename, struct strlist *valid, struct st
 			case GPG_ERR_SIG_EXPIRED:
 				had_valid = TRUE;
 				if( verbose > 0 ) {
+					time_t timestamp = s->timestamp,
+					      exp_timestamp = s->exp_timestamp;
 					fprintf(stderr,
 "Ignoring signature with '%s' on '%s', as the signature has expired.\n"
 " signature created %s, expired %s\n",
 						s->fpr, filename,
-						ctime(&s->timestamp),
-						ctime(&s->exp_timestamp));
+						ctime(&timestamp),
+						ctime(&exp_timestamp));
 				}
 				continue;
 			case GPG_ERR_BAD_SIGNATURE:
@@ -521,7 +523,7 @@ static retvalue checksigs(const char *filename, struct strlist *valid, struct st
 }
 
 /* Read a single chunk from a file, that may be signed. */
-retvalue signature_readsignedchunk(const char *filename, char **chunkread, /*@null@*/ /*@out@*/struct strlist *validkeys, /*@null@*/ /*@out@*/ struct strlist *allkeys, bool_t *brokensignature) {
+retvalue signature_readsignedchunk(const char *filename, const char *filenametoshow, char **chunkread, /*@null@*/ /*@out@*/struct strlist *validkeys, /*@null@*/ /*@out@*/ struct strlist *allkeys, bool_t *brokensignature) {
 	const char *startofchanges,*endofchanges,*afterchanges;
 	char *chunk;
 	gpgme_error_t err;
@@ -580,7 +582,7 @@ retvalue signature_readsignedchunk(const char *filename, char **chunkread, /*@nu
 "While it did so in a way indicating running out of memory, experience says\n"
 "this also happens when gpg returns a error code it does not understand.\n"
 "To check this please try running gpg --output '%s' manually.\n",
-					filename, filename);
+					filenametoshow, filenametoshow);
 			return RET_ERROR_GPGME;
 		}
 	}
@@ -596,7 +598,7 @@ retvalue signature_readsignedchunk(const char *filename, char **chunkread, /*@nu
 		if( (size_t)(startofchanges - plain_data) >= plain_len ) {
 			fprintf(stderr,
 "Could only find spaces within '%s'!\n",
-					filename);
+					filenametoshow);
 			r = RET_ERROR;
 		} else
 			r = RET_OK;
@@ -617,11 +619,11 @@ retvalue signature_readsignedchunk(const char *filename, char **chunkread, /*@nu
 			if( *afterchanges == '\0' )
 				fprintf(stderr,
 "Unexpected \\0 character within '%s'!\n",
-					filename);
+					filenametoshow);
 			else
 				fprintf(stderr,
 "Unexpected data after ending empty line in '%s'!\n",
-					filename);
+					filenametoshow);
 			r = RET_ERROR;
 		}
 	}
@@ -651,4 +653,190 @@ retvalue signature_readsignedchunk(const char *filename, char **chunkread, /*@nu
 			strlist_done(&allfingerprints);
 	}
 	return r;
+}
+
+struct signedfile {
+	char *plainfilename, *newplainfilename;
+	char *signfilename, *newsignfilename;
+	int fd; retvalue result;
+};
+
+
+static retvalue newpossiblysignedfile(const char *directory, const char *basename, struct signedfile **out) {
+	struct signedfile *n;
+
+	n = calloc(1, sizeof(struct signedfile));
+	if( n == NULL )
+		return RET_ERROR_OOM;
+	n->fd = -1;
+	n->plainfilename = calc_dirconcat(directory, basename);
+	if( n->plainfilename == NULL ) {
+		free(n);
+		return RET_ERROR_OOM;
+	}
+	n->newplainfilename = calc_addsuffix(n->plainfilename, "new");
+	if( n->newplainfilename == NULL ) {
+		free(n->plainfilename);
+		free(n);
+		return RET_ERROR_OOM;
+	}
+
+	(void)dirs_make_parent(n->newplainfilename);
+	(void)unlink(n->newplainfilename);
+
+	n->fd = open(n->newplainfilename, O_WRONLY|O_CREAT|O_TRUNC|O_NOCTTY, 0666);
+	if( n->fd < 0 ) {
+		int e = errno;
+		fprintf(stderr, "Error creating file '%s': %s\n",
+				n->newplainfilename,
+				strerror(e));
+		free(n->newplainfilename);
+		free(n->plainfilename);
+		free(n);
+		return RET_ERRNO(e);
+	}
+	*out = n;
+	return RET_OK;
+}
+
+retvalue signedfile_free(struct signedfile *f) {
+	if( f == NULL )
+		return RET_NOTHING;
+	assert( f->fd < 0 );
+	if( f->newplainfilename != NULL ) {
+		(void)unlink(f->newplainfilename);
+		free(f->newplainfilename);
+	}
+	free(f->plainfilename);
+	if( f->newsignfilename != NULL ) {
+		(void)unlink(f->newsignfilename);
+		free(f->newsignfilename);
+	}
+	free(f->signfilename);
+	free(f);
+	return RET_OK;
+}
+
+retvalue signature_startsignedfile(const char *directory, const char *basename, UNUSED(const char *options), struct signedfile **out) {
+	retvalue r;
+	struct signedfile *n;
+
+	r = newpossiblysignedfile(directory, basename, &n);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	// create object to place data into...
+	*out = n;
+	return RET_OK;
+}
+
+retvalue signature_startunsignedfile(const char *directory, const char *basename, struct signedfile **out) {
+	retvalue r;
+	struct signedfile *n;
+
+	r = newpossiblysignedfile(directory, basename, &n);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	*out = n;
+	return RET_OK;
+}
+
+void signedfile_write(struct signedfile *f, const void *data, size_t len) {
+	if( f->fd >= 0  ) {
+		ssize_t written;
+
+		while( len > 0 ) {
+			written = write(f->fd, data, len);
+			if( written < 0 ) {
+				int e = errno;
+				fprintf(stderr, "Error writing to file '%s': %s\n",
+						f->newplainfilename,
+						strerror(e));
+				(void)close(f->fd);
+				(void)unlink(f->newplainfilename);
+				f->fd = -1;
+				RET_UPDATE(f->result, RET_ERRNO(e));
+				return;
+			}
+			assert( (size_t)written <= len );
+			data += written;
+			len -= written;
+		}
+	}
+	// push into signing object...
+}
+retvalue signedfile_prepare(struct signedfile *f, const char *options) {
+	if( f->fd >= 0 ) {
+		int ret;
+
+		ret = close(f->fd);
+		f->fd = -1;
+		if( ret < 0 ) {
+			int e = errno;
+			fprintf(stderr, "Error writing to file '%s': %s\n",
+					f->newplainfilename,
+					strerror(e));
+			(void)unlink(f->newplainfilename);
+			free(f->newplainfilename);
+			f->newplainfilename = NULL;
+			RET_UPDATE(f->result, RET_ERRNO(e));
+		}
+	}
+	if( RET_WAS_ERROR(f->result) )
+		return f->result;
+	if( options != NULL ) {
+		retvalue r;
+
+		assert( f->newplainfilename != NULL );
+		f->signfilename = calc_addsuffix(f->plainfilename, "gpg");
+		if( f->signfilename == NULL )
+			return RET_ERROR_OOM;
+		f->newsignfilename = calc_addsuffix(f->signfilename, "new");
+		if( f->newsignfilename == NULL )
+			return RET_ERROR_OOM;
+
+		r = signature_sign(options,
+				f->newplainfilename,
+				f->newsignfilename);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
+	return RET_OK;
+}
+
+retvalue signedfile_finalize(struct signedfile *f, bool_t *toolate) {
+	int result = RET_OK, r;
+	int e;
+
+	if( f->newsignfilename != NULL && f->signfilename != NULL ) {
+		e = rename(f->newsignfilename, f->signfilename);
+		if( e < 0 ) {
+			e = errno;
+			fprintf(stderr, "Error moving %s to %s: %d=%m!\n",
+					f->newsignfilename,
+					f->signfilename, e);
+			result = RET_ERRNO(e);
+			/* after something was done, do not stop
+			 * but try to do as much as possible */
+			if( !*toolate )
+				return result;
+		} else {
+			/* does not need deletion any more */
+			free(f->newsignfilename);
+			f->newsignfilename = NULL;
+			*toolate = TRUE;
+		}
+	}
+	e = rename(f->newplainfilename, f->plainfilename);
+	if( e < 0 ) {
+		e = errno;
+		fprintf(stderr, "Error moving %s to %s: %d=%m!\n",
+				f->newplainfilename,
+				f->plainfilename, e);
+		r = RET_ERRNO(e);
+		RET_UPDATE(result, r);
+	} else {
+		free(f->newplainfilename);
+		f->newplainfilename = NULL;
+	}
+	return result;
 }

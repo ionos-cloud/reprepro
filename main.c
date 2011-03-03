@@ -17,7 +17,9 @@
 
 #include <errno.h>
 #include <assert.h>
+#include <limits.h>
 #include <unistd.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <getopt.h>
@@ -67,6 +69,10 @@
 #define STD_METHOD_DIR "/usr/lib/apt/methods"
 #endif
 
+#ifndef LLONG_MAX
+#define LLONG_MAX __LONG_LONG_MAX__
+#endif
+
 /* global options */
 static char /*@only@*/ /*@notnull@*/ // *g*
 	*mirrordir = NULL ,
@@ -92,14 +98,20 @@ static bool_t	keepunneededlists = FALSE;
 static bool_t	keepdirectories = FALSE;
 static bool_t	askforpassphrase = FALSE;
 static bool_t	skipold = TRUE;
+static size_t   waitforlock = 0;
 static enum exportwhen export = EXPORT_NORMAL;
 int		verbose = 0;
+static enum spacecheckmode spacecheckmode = scm_FULL;
+/* default: 100 MB for database to grow */
+static off_t reserveddbspace = 1024*1024*100
+/* 1MB safety margin for other fileystems */;
+static off_t reservedotherspace = 1024*1024;
 
 /* define for each config value an owner, and only higher owners are allowed
  * to change something owned by lower owners. */
 enum config_option_owner config_state,
 #define O(x) owner_ ## x = CONFIG_OWNER_DEFAULT
-O(mirrordir), O(distdir), O(dbdir), O(listdir), O(confdir), O(logdir), O(overridedir), O(methoddir), O(section), O(priority), O(component), O(architecture), O(packagetype), O(nothingiserror), O(nolistsdownload), O(keepunreferenced), O(keepunneededlists), O(keepdirectories), O(askforpassphrase), O(skipold), O(export);
+O(mirrordir), O(distdir), O(dbdir), O(listdir), O(confdir), O(logdir), O(overridedir), O(methoddir), O(section), O(priority), O(component), O(architecture), O(packagetype), O(nothingiserror), O(nolistsdownload), O(keepunreferenced), O(keepunneededlists), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock), O(spacecheckmode), O(reserveddbspace), O(reservedotherspace);
 #undef O
 
 #define CONFIGSET(variable,value) if(owner_ ## variable <= config_state) { \
@@ -486,7 +498,10 @@ ACTION_D(remove) {
 	RET_ENDUPDATE(result,r);
 
 	if( d.trackingdata != NULL ) {
-		trackingdata_done(d.trackingdata);
+		if( RET_WAS_ERROR(result) )
+			trackingdata_done(d.trackingdata);
+		else
+			trackingdata_finish(tracks, d.trackingdata, references, dereferenced);
 		r = tracking_done(tracks);
 		RET_ENDUPDATE(result,r);
 	}
@@ -789,7 +804,7 @@ ACTION_D(update) {
 		result = updates_clearlists(listdir,u_distributions);
 	}
 	if( !RET_WAS_ERROR(result) )
-		result = updates_update(dbdir,methoddir,filesdb,references,u_distributions,nolistsdownload,skipold,dereferenced);
+		result = updates_update(dbdir,methoddir,filesdb,references,u_distributions,nolistsdownload,skipold,dereferenced,spacecheckmode, reserveddbspace, reservedotherspace);
 	updates_freeupdatedistributions(u_distributions);
 	updates_freepatterns(patterns);
 
@@ -893,7 +908,7 @@ ACTION_D(iteratedupdate) {
 		result = updates_clearlists(listdir,u_distributions);
 	}
 	if( !RET_WAS_ERROR(result) )
-		result = updates_iteratedupdate(confdir,dbdir,distdir,methoddir,filesdb,references,u_distributions,nolistsdownload,skipold,dereferenced,export);
+		result = updates_iteratedupdate(confdir,dbdir,distdir,methoddir,filesdb,references,u_distributions,nolistsdownload,skipold,dereferenced,export, spacecheckmode, reserveddbspace, reservedotherspace);
 	updates_freeupdatedistributions(u_distributions);
 	updates_freepatterns(patterns);
 
@@ -1286,7 +1301,7 @@ ACTION_R(retrack) {
 				break;
 			continue;
 		}
-		r = tracking_clearall(dat.tracks);
+		r = tracking_removeall(dat.tracks);
 		RET_UPDATE(result,r);
 		r = references_remove(references,d->codename, NULL);
 		RET_UPDATE(result,r);
@@ -1335,12 +1350,12 @@ ACTION_D_U(removetrack) {
 	return result;
 }
 
-ACTION_D(cleartracks) {
+ACTION_D(removealltracks) {
 	retvalue result,r;
 	struct distribution *distributions,*d;
 
 	if( argc < 1 ) {
-		fprintf(stderr,"reprepro cleartracks [<distributions>]\n");
+		fprintf(stderr,"reprepro removealltracks [<distributions>]\n");
 		return RET_ERROR;
 	}
 
@@ -1363,7 +1378,7 @@ ACTION_D(cleartracks) {
 				break;
 			continue;
 		}
-		r = tracking_clearall(tracks);
+		r = tracking_removeall(tracks);
 		RET_UPDATE(result,r);
 		r = references_remove(references, d->codename, dereferenced);
 		RET_UPDATE(result,r);
@@ -1377,6 +1392,49 @@ ACTION_D(cleartracks) {
 
 	return result;
 }
+
+ACTION_D(tidytracks) {
+	retvalue result,r;
+	struct distribution *distributions,*d;
+
+	if( argc < 1 ) {
+		fprintf(stderr,"reprepro tidytracks [<distributions>]\n");
+		return RET_ERROR;
+	}
+
+	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, TRUE, &distributions);
+	assert( result != RET_NOTHING );
+	if( RET_WAS_ERROR(result) ) {
+		return result;
+	}
+	result = RET_NOTHING;
+	for( d = distributions ; d != NULL ; d = d->next ) {
+		trackingdb tracks;
+
+		if( verbose >= 0 ) {
+			printf("Looking for old tracks in %s...\n",d->codename);
+		}
+		r = tracking_initialize(&tracks, dbdir, d);
+		if( RET_WAS_ERROR(r) ) {
+			RET_UPDATE(result,r);
+			if( RET_WAS_ERROR(r) )
+				break;
+			continue;
+		}
+		r = tracking_tidyall(tracks, references, dereferenced);
+		RET_UPDATE(result,r);
+		r = tracking_done(tracks);
+		RET_ENDUPDATE(result,r);
+		if( RET_WAS_ERROR(result) )
+			break;
+	}
+	r = distribution_freelist(distributions);
+	RET_ENDUPDATE(result,r);
+
+	return result;
+}
+
+retvalue tracking_tidyall(trackingdb, references, struct strlist *dereferenced);
 ACTION_N(dumptracks) {
 	retvalue result,r;
 	struct distribution *distributions,*d;
@@ -2019,6 +2077,8 @@ ACTION_D(processincoming) {
 
 	result = process_incoming(mirrordir, confdir, overridedir, filesdb, dbdir, references, dereferenced, distributions, argv[1]);
 
+	logger_wait();
+
 	r = distribution_exportandfreelist(export,distributions,
 			confdir,dbdir,distdir, filesdb);
 	RET_ENDUPDATE(result,r);
@@ -2116,6 +2176,7 @@ static retvalue acquirelock(const char *dbdir) {
 	char *lockfile;
 	int fd;
 	retvalue r;
+	size_t tries = 0;
 
 	// TODO: create directory
 	r = dirs_make_recursive(dbdir);
@@ -2126,29 +2187,37 @@ static retvalue acquirelock(const char *dbdir) {
 	if( lockfile == NULL )
 		return RET_ERROR_OOM;
 	fd = open(lockfile,O_WRONLY|O_CREAT|O_EXCL|O_NOFOLLOW|O_NOCTTY,S_IRUSR|S_IWUSR);
-	if( fd < 0 ) {
+	while( fd < 0 ) {
 		int e = errno;
-		fprintf(stderr,"Error creating lockfile '%s': %d=%m!\n",lockfile,e);
-		free(lockfile);
 		if( e == EEXIST ) {
+			if( tries < waitforlock && ! interrupted() ) {
+				if( verbose >= 0 )
+					printf("Could not aquire lock: %s already exists!\nWaiting 10 seconds before trying again.\n", lockfile);
+				sleep(10);
+				tries++;
+				fd = open(lockfile,O_WRONLY|O_CREAT|O_EXCL|O_NOFOLLOW|O_NOCTTY,S_IRUSR|S_IWUSR);
+				continue;
+
+			}
 			fprintf(stderr,
-"The lockfile already exists, there might be another instance with the\n"
+"The lockfile '%s' already exists, there might be another instance with the\n"
 "same database dir running. To avoid locking overhead, only one process\n"
 "can access the database at the same time. Only delete the lockfile if\n"
-"you are sure no other version is still running!\n");
+"you are sure no other version is still running!\n", lockfile);
 
-		}
+		} else
+			fprintf(stderr,"Error creating lockfile '%s': %d=%m!\n",lockfile,e);
+		free(lockfile);
 		return RET_ERRNO(e);
 	}
 	// TODO: do some more locking of this file to avoid problems
 	// with the non-atomity of O_EXCL with nfs-filesystems...
 	if( close(fd) != 0 ) {
 		int e = errno;
-		fprintf(stderr,"Error creating lockfile '%s': %d=%m!\n",lockfile,e);
+		fprintf(stderr,"(Late) Error creating lockfile '%s': %d=%m!\n",lockfile,e);
 		(void)unlink(lockfile);
 		free(lockfile);
 		return RET_ERRNO(e);
-
 	}
 	free(lockfile);
 	return RET_OK;
@@ -2217,7 +2286,8 @@ static const struct action {
 	{"deleteunreferenced", 	A_RF(deleteunreferenced)},
 	{"retrack",	 	A_R(retrack)},
 	{"dumptracks",	 	A_N(dumptracks)},
-	{"cleartracks",	 	A_D(cleartracks)},
+	{"removealltracks",	A_D(removealltracks)},
+	{"tidytracks",		A_D(tidytracks)},
 	{"removetrack",		A_D(removetrack)},
 	{"update",		A_D(update)},
 	{"iteratedupdate",	A_D(iteratedupdate)},
@@ -2293,6 +2363,8 @@ static retvalue callaction(const struct action *action,int argc,const char *argv
 						assert(filesdb!=NULL);
 						assert(references!=NULL);
 
+						logger_wait();
+
 						if( verbose >= 0 )
 					  	    printf(
 "Deleting files no longer referenced...\n");
@@ -2321,6 +2393,10 @@ static retvalue callaction(const struct action *action,int argc,const char *argv
 			RET_ENDUPDATE(result,r);
 		}
 	}
+	if( !interrupted() ) {
+		logger_wait();
+	}
+	logger_warn_waiting();
 	releaselock(dbdir);
 	return result;
 }
@@ -2350,6 +2426,10 @@ LO_OVERRIDEDIR,
 LO_CONFDIR,
 LO_METHODDIR,
 LO_VERSION,
+LO_WAITFORLOCK,
+LO_SPACECHECK,
+LO_SAFETYMARGIN,
+LO_DBSAFETYMARGIN,
 LO_UNIGNORE};
 static int longoption = 0;
 const char *programname;
@@ -2373,6 +2453,22 @@ static void setexport(const char *optarg) {
 	}
 	fprintf(stderr,"Error: --export needs an argument of 'never', 'normal' or 'force', but got '%s'\n", optarg);
 	exit(EXIT_FAILURE);
+}
+
+static unsigned long long parse_number(const char *name, const char *argument, long long max) {
+	long long l;
+	char *p;
+
+	l = strtoll(argument, &p, 10);
+	if( p==NULL || *p != '\0' || l < 0 ) {
+		fprintf(stderr, "Invalid argument to %s: '%s'\n", name, argument);
+		exit(EXIT_FAILURE);
+	}
+	if( l == LLONG_MAX  || l > max ) {
+		fprintf(stderr, "Too large argument for to %s: '%s'\n", name, argument);
+		exit(EXIT_FAILURE);
+	}
+	return l;
 }
 
 static void handle_option(int c,const char *optarg) {
@@ -2514,6 +2610,32 @@ static void handle_option(int c,const char *optarg) {
 				case LO_VERSION:
 					fprintf(stderr,"%s: This is " PACKAGE " version " VERSION "\n",programname);
 					exit(EXIT_SUCCESS);
+				case LO_WAITFORLOCK:
+					CONFIGSET(waitforlock, parse_number(
+							"--waitforlock",
+							optarg, SIZE_MAX));
+					break;
+				case LO_SPACECHECK:
+					if( strcasecmp(optarg, "none") == 0 ) {
+						CONFIGSET(spacecheckmode, scm_NONE);
+					} else if( strcasecmp(optarg, "full") == 0 ) {
+						CONFIGSET(spacecheckmode, scm_FULL);
+					} else {
+						fprintf(stderr,
+"Unknown --spacecheck argument: '%s'!\n", optarg);
+						exit(EXIT_FAILURE);
+					}
+					break;
+				case LO_SAFETYMARGIN:
+					CONFIGSET(reservedotherspace, parse_number(
+							"--safetymargin",
+							optarg, LONG_MAX));
+					break;
+				case LO_DBSAFETYMARGIN:
+					CONFIGSET(reserveddbspace, parse_number(
+							"--dbsafetymargin",
+							optarg, LONG_MAX));
+					break;
 				default:
 					fprintf (stderr,"Error parsing arguments!\n");
 					exit(EXIT_FAILURE);
@@ -2651,6 +2773,10 @@ int main(int argc,char *argv[]) {
 		{"nonoskipold", no_argument, &longoption, LO_SKIPOLD},
 		{"force", no_argument, NULL, 'f'},
 		{"export", required_argument, &longoption, LO_EXPORT},
+		{"waitforlock", required_argument, &longoption, LO_WAITFORLOCK},
+		{"checkspace", required_argument, &longoption, LO_SPACECHECK},
+		{"safetymargin", required_argument, &longoption, LO_SAFETYMARGIN},
+		{"dbsafetymargin", required_argument, &longoption, LO_DBSAFETYMARGIN},
 		{NULL, 0, NULL, 0}
 	};
 	const struct action *a;

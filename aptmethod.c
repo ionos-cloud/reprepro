@@ -16,6 +16,7 @@
 #include <config.h>
 
 #include <errno.h>
+#include <sys/select.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
@@ -51,8 +52,9 @@ struct aptmethod {
 
 	enum { ams_notstarted=0, ams_waitforcapabilities, ams_ok, ams_failed } status;
 
-	struct tobedone *tobedone,*lasttobedone;
-	/*@dependent@*/const struct tobedone *nexttosend;
+	/*@null@*/struct tobedone *tobedone;
+	/*@null@*//*@dependent@*/struct tobedone *lasttobedone;
+	/*@null@*//*@dependent@*/const struct tobedone *nexttosend;
 	struct tobedone *failed;
 	/* what is currently read: */
 	/*@null@*/char *inputbuffer;
@@ -334,7 +336,7 @@ inline static retvalue aptmethod_startup(struct aptmethodrun *run,struct aptmeth
 		if( methodname == NULL )
 			exit(255);
 
-		execl(methodname,methodname,NULL);
+		(void)execl(methodname,methodname,NULL);
 
 		fprintf(stderr,"Error while executing '%s': %d=%m\n",methodname,errno);
 		exit(255);
@@ -618,7 +620,7 @@ static retvalue urierror(struct aptmethod *method,const char *uri,/*@only@*/char
 }
 
 /* look where a received file has to go to: */
-static retvalue uridone(struct aptmethod *method,const char *uri,const char *filename, const char *md5sum,filesdb filesdb) {
+static retvalue uridone(struct aptmethod *method,const char *uri,const char *filename,/*@null@*/const char *md5sum,filesdb filesdb) {
 	struct tobedone *todo,*lasttodo;
 
 	lasttodo = NULL; todo = method->tobedone;
@@ -849,7 +851,7 @@ static inline retvalue parsereceivedblock(struct aptmethod *method,const char *i
 					break;
 				case '1':
 					OVERLINE;
-					logmessage(method,p,"general error");
+					(void)logmessage(method,p,"general error");
 					method->status = ams_failed;
 					r = RET_ERROR;
 					break;
@@ -880,7 +882,7 @@ static retvalue receivedata(struct aptmethod *method,filesdb filesdb) {
 	if( method->alreadyread + 1024 >= method->input_size ) {
 		char *newptr;
 
-		if( method->input_size >= 128000 ) {
+		if( method->input_size >= (size_t)128000 ) {
 			fprintf(stderr,"Ridiculous long answer from method!\n");
 			method->status = ams_failed;
 			return RET_ERROR;
@@ -1042,7 +1044,7 @@ static retvalue checkchilds(struct aptmethodrun *run) {
 }
 
 /* *workleft is always set, even when return indicated error. (workleft < 0 when critical)*/
-static retvalue readwrite(struct aptmethodrun *run,int *workleft,filesdb filesdb) {
+static retvalue readwrite(struct aptmethodrun *run,/*@out@*/int *workleft,filesdb filesdb) {
 	int maxfd,v;
 	fd_set readfds,writefds;
 	struct aptmethod *method;

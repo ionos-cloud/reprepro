@@ -464,7 +464,7 @@ static inline retvalue getvalue_n(const char *chunk,const char *field,char **val
 retvalue sources_readdsc(struct dsc_headers *dsc, const char *filename, bool_t *broken) {
 	retvalue r;
 
-	r = signature_readsignedchunk(filename,&dsc->control,NULL,NULL, broken);
+	r = signature_readsignedchunk(filename, filename, &dsc->control, NULL, NULL, broken);
 	if( RET_WAS_ERROR(r) ) {
 		return r;
 	}

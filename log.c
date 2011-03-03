@@ -16,6 +16,7 @@
 #include <config.h>
 
 #include <errno.h>
+#include <sys/select.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/poll.h>
@@ -36,14 +37,14 @@
 
 extern int verbose;
 
-static struct logfile {
+/*@null@*/ static struct logfile {
 	struct logfile *next;
 	char *filename;
 	size_t refcount;
 	int fd;
 } *logfile_root = NULL;
 
-static retvalue logfile_reference(const char *logdir,const char *filename,struct logfile **logfile) {
+static retvalue logfile_reference(const char *logdir,const char *filename,/*@out@*/struct logfile **logfile) {
 	struct logfile *l;
 
 	assert( logdir != NULL && filename != NULL );
@@ -123,7 +124,7 @@ static retvalue logfile_open(struct logfile *logfile) {
 	return RET_OK;
 }
 
-static retvalue logfile_write(struct logfile *logfile,struct target *target,const char *name,const char *version,const char *oldversion) {
+static retvalue logfile_write(struct logfile *logfile,struct target *target,const char *name,/*@null@*/const char *version,/*@null@*/const char *oldversion) {
 	int ret;
 	time_t currenttime;
 	struct tm t;
@@ -188,11 +189,11 @@ static retvalue logfile_write(struct logfile *logfile,struct target *target,cons
 
 struct notificator {
 	char *scriptname;
-	/* if one of the following is NULL, only call if it matches the package: */
+	/* if one of the following is non-NULL, only call if it matches the package: */
 	/*@null@*/char *packagetype;
 	/*@null@*/char *component;
 	/*@null@*/char *architecture;
-	bool_t withcontrol;
+	bool_t withcontrol, changesacceptrule;
 };
 
 static void notificator_done(struct notificator *n) {
@@ -213,11 +214,11 @@ static retvalue notificator_parse(struct notificator *n, const char *confdir, co
 		while( *q != '\0' && *q != ' ' && *q != '\t' )
 			q++;
 		if( *p == '-' ) {
+			char **value_p = NULL;
 			p++;
 			s = p;
 			while( s < q && *s != '=' )
 				s++;
-			char **value_p = NULL;
 			switch( s-p ) {
 				case 1:
 					if( *p == 'A' )
@@ -241,6 +242,18 @@ static retvalue notificator_parse(struct notificator *n, const char *confdir, co
 					else {
 						fprintf(stderr,
 "Unknown option in notifiers of '%s': '%6s' (in '%s')\n",
+							codename,
+							p-1,
+							line);
+						return RET_ERROR;
+					}
+					break;
+				case 8:
+					if( memcmp(p, "-changes", 8) == 0 )
+						n->changesacceptrule = TRUE;
+					else {
+						fprintf(stderr,
+"Unknown option in notifiers of '%s': '%8s' (in '%s')\n",
 							codename,
 							p-1,
 							line);
@@ -321,6 +334,24 @@ static retvalue notificator_parse(struct notificator *n, const char *confdir, co
 				return RET_ERROR_OOM;
 			p = q;
 		} else {
+			if( n->changesacceptrule && n->architecture != NULL ) {
+				fprintf(stderr,
+"--changes and --architecture cannot be combined! (notifier in '%s')\n",
+						codename);
+				return RET_ERROR;
+			}
+			if( n->changesacceptrule && n->component != NULL ) {
+				fprintf(stderr,
+"--changes and --component cannot be combined! (notifier in '%s')\n",
+						codename);
+				return RET_ERROR;
+			}
+			if( n->changesacceptrule && n->packagetype != NULL ) {
+				fprintf(stderr,
+"--changes and --type cannot be combined! (notifier in '%s')\n",
+						codename);
+				return RET_ERROR;
+			}
 			if( *q != '\0' ) {
 				fprintf(stderr,
 "Unexpected data at end of notifier for '%s': '%s'\n",
@@ -342,7 +373,7 @@ static retvalue notificator_parse(struct notificator *n, const char *confdir, co
 	return RET_ERROR;
 }
 
-static struct notification_process {
+/*@null@*/ static struct notification_process {
 	struct notification_process *next;
 	char **arguments;
 	/* data to send to the process */
@@ -357,7 +388,7 @@ static void notification_process_free(/*@only@*/struct notification_process *p) 
 	char **a;
 
 	if( p->fd >= 0 )
-		close(p->fd);
+		(void)close(p->fd);
 	for( a = p->arguments ; *a != NULL ; a++ )
 		free(*a);
 	free(p->arguments);
@@ -407,7 +438,7 @@ static int catchchildren(void) {
 					(int)(WEXITSTATUS(status)));
 		}
 		if( p->fd >= 0 ) {
-			close(p->fd);
+			(void)close(p->fd);
 			p->fd = -1;
 		}
 		p->child = 0;
@@ -445,7 +476,7 @@ static void feedchildren(bool_t wait) {
 			size_t tosent = p->datalen - p->datasent;
 			ssize_t sent;
 
-			if( tosent > 512 )
+			if( tosent > (size_t)512 )
 				tosent = 512;
 			sent = write(p->fd, p->data+p->datasent, 512);
 			if( sent < 0 ) {
@@ -506,7 +537,7 @@ static retvalue startchild(void) {
 		if( p->datalen > 0 ) {
 			dup2(filedes[0], 0);
 			if( filedes[0] != 0)
-				close(filedes[0]);
+				(void)close(filedes[0]);
 		}
 		/* Try to close all open fd but 0,1,2 */
 		maxopen = sysconf(_SC_OPEN_MAX);
@@ -515,14 +546,14 @@ static retvalue startchild(void) {
 			for( fd = 3 ; fd < maxopen ; fd++ )
 				(void)close(fd);
 		} else {
-			/* closeat least the ones definitly causing problems*/
+			/* close at least the ones definitly causing problems*/
 			const struct notification_process *q;
 			for( q = processes; q != NULL ; q = q->next ) {
 				if( q != p && q->fd >= 0 )
-					close(q->fd);
+					(void)close(q->fd);
 			}
 		}
-		execv(p->arguments[0], p->arguments);
+		(void)execv(p->arguments[0], p->arguments);
 		fprintf(stderr, "Error executing '%s': %s\n", p->arguments[0],
 				strerror(errno));
 		_exit(255);
@@ -533,7 +564,7 @@ static retvalue startchild(void) {
 		int e = errno;
 		fprintf(stderr, "Error forking: %d=%s!\n", e, strerror(e));
 		if( p->fd >= 0 ) {
-			close(p->fd);
+			(void)close(p->fd);
 			p->fd = -1;
 		}
 		return RET_ERRNO(e);
@@ -557,7 +588,7 @@ static retvalue startchild(void) {
 			}
 			if( (polldata.revents & POLLOUT) != 0 ) {
 				size_t towrite =  p->datalen - p->datasent;
-				if( towrite > 512 )
+				if( towrite > (size_t)512 )
 					towrite = 512;
 				written = write(p->fd,
 						p->data + p->datasent,
@@ -573,11 +604,15 @@ static retvalue startchild(void) {
 				}
 				p->datasent += written;
 				if( p->datasent >= p->datalen ) {
+					int ret;
 					free(p->data);
 					p->data = NULL;
-					close(p->fd);
+					ret = close(p->fd);
 					p->fd = -1;
-					return RET_OK;
+					if( ret != 0 )
+						return RET_ERRNO(errno);
+					else
+						return RET_OK;
 				}
 				continue;
 			}
@@ -589,6 +624,68 @@ static retvalue startchild(void) {
 	return RET_OK;
 }
 
+static retvalue notificator_enqueuechanges(struct notificator *n,const char *codename,const char *name,const char *version,const char *changeschunk,const char *safefilename,/*@null@*/const char *filekey) {
+	size_t count,i,j;
+	char **arguments;
+	struct notification_process *p;
+
+	catchchildren();
+	feedchildren(FALSE);
+	if( !n->changesacceptrule )
+		return RET_NOTHING;
+	count = 6; /* script "accepted" codename name version safename */
+	if( filekey != NULL )
+		count++;
+	arguments = calloc(count+1, sizeof(char*));
+	if( arguments == NULL )
+		return RET_ERROR_OOM;
+	i = 0;
+	arguments[i++] = strdup(n->scriptname);
+	arguments[i++] = strdup("accepted");
+	arguments[i++] = strdup(codename);
+	arguments[i++] = strdup(name);
+	arguments[i++] = strdup(version);
+	arguments[i++] = strdup(safefilename);
+	if( filekey != NULL )
+		arguments[i++] = strdup(filekey);
+	assert( i == count );
+	arguments[i] = NULL;
+	for( i = 0 ; i < count ; i++ )
+		if( arguments[i] == NULL ) {
+			for( j = 0 ; j < count ; j++ )
+				free(arguments[j]);
+			free(arguments);
+			return RET_ERROR_OOM;
+		}
+	if( processes == NULL ) {
+		p = malloc(sizeof(struct notification_process));
+		processes = p;
+	} else {
+		p = processes;
+		while( p->next != NULL )
+			p = p->next;
+		p->next = malloc(sizeof(struct notification_process));
+		p = p->next;
+	}
+	if( p == NULL ) {
+		for( j = 0 ; j < count ; j++ )
+			free(arguments[j]);
+		free(arguments);
+		return RET_ERROR_OOM;
+	}
+	p->arguments = arguments;
+	p->next = NULL;
+	p->child = 0;
+	p->fd = -1;
+	p->datalen = 0;
+	p->datasent = 0;
+	p->data = NULL;
+	// TODO: implement --withcontrol
+	if( runningchildren() < 1 )
+		startchild();
+	return RET_OK;
+}
+
 static retvalue notificator_enqueue(struct notificator *n,struct target *target,const char *name,/*@null@*/const char *version,/*@null@*/const char *oldversion,/*@null@*/const char *control,/*@null@*/const char *oldcontrol,/*@null@*/const struct strlist *filekeys,/*@null@*/const struct strlist *oldfilekeys,bool_t renotification) {
 	size_t count,i,j;
 	char **arguments;
@@ -597,6 +694,8 @@ static retvalue notificator_enqueue(struct notificator *n,struct target *target,
 
 	catchchildren();
 	feedchildren(FALSE);
+	if( n->changesacceptrule )
+		return RET_NOTHING;
 	// some day, some atom handling for those would be nice
 	if( n->architecture != NULL &&
 			strcmp(n->architecture,target->architecture) != 0 ) {
@@ -639,6 +738,8 @@ static retvalue notificator_enqueue(struct notificator *n,struct target *target,
 	if( renotification )
 		action = "info";
 	arguments = calloc(count+1, sizeof(char*));
+	if( arguments == NULL )
+		return RET_ERROR_OOM;
 	i = 0;
 	arguments[i++] = strdup(n->scriptname);
 	arguments[i++] = strdup(action);
@@ -704,6 +805,8 @@ static retvalue notificator_enqueue(struct notificator *n,struct target *target,
 void logger_wait(void) {
 	while( processes != NULL ) {
 		catchchildren();
+		if( interrupted() )
+			break;
 		feedchildren(TRUE);
 		// TODO: add option to start multiple at the same time
 		if( runningchildren() < 1 )
@@ -715,8 +818,35 @@ void logger_wait(void) {
 	}
 }
 
+void logger_warn_waiting(void) {
+	struct notification_process *p;
+
+	if( processes != NULL ) {
+		fputs(
+"WARNING: some notificator hooks were not run!\n"
+"(most likely due to receiving an interruption request)\n"
+"You will either have to run them by hand or run rerunnotifiers if\n"
+"you want the information they get to not be out of sync.\n"
+"Missed calls are:\n", stderr);
+		for( p = processes ; p != NULL ; p = p->next ) {
+			char **c = p->arguments;
+			if( c == NULL )
+				continue;
+			while( *c != NULL ) {
+				fputc('"', stderr);
+				fputs(*c, stderr);
+				fputc('"', stderr);
+				c++;
+				if( *c != NULL )
+					fputc(' ', stderr);
+			}
+			fputc('\n', stderr);
+		}
+	}
+}
+
 struct logger {
-	struct logfile *logfile;
+	/*@dependent@*/struct logfile *logfile;
 	size_t notificator_count;
 	struct notificator *notificators;
 };
@@ -833,6 +963,18 @@ void logger_log(struct logger *log,struct target *target,const char *name,const 
 				name, version, oldversion,
 				control, oldcontrol,
 				filekeys, oldfilekeys, FALSE);
+	}
+}
+
+void logger_logchanges(struct logger *log,const char *codename,const char *name,const char *version,const char *data,const char *safefilename,const char *changesfilekey) {
+	size_t i;
+
+	assert( name != NULL );
+	assert( version != NULL );
+
+	for( i = 0 ; i < log->notificator_count ; i++ ) {
+		notificator_enqueuechanges(&log->notificators[i], codename,
+				name, version, data, safefilename, changesfilekey);
 	}
 }
 

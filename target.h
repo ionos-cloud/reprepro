@@ -75,6 +75,7 @@ retvalue target_closepackagesdb(struct target *target);
 /* The following calls can only be called if target_initpackagesdb was called before: */
 struct logger;
 retvalue target_addpackage(struct target *target,/*@null@*/struct logger *logger,references refs,const char *name,const char *version,const char *control,const struct strlist *filekeys,bool_t downgrade,/*@null@*/struct strlist *dereferencedfilekeys,/*@null@*/struct trackingdata *,enum filetype);
+retvalue target_checkaddpackage(struct target *target,const char *name,const char *version,bool_t tracking,bool_t permitnewerold);
 retvalue target_removepackage(struct target *target,struct logger *logger,references refs,const char *name,/*@null@*/const char *oldpversion,/*@null@*/struct strlist *dereferencedfilekeys,struct trackingdata *);
 retvalue target_check(struct target *target,filesdb filesdb,references refsdb);
 retvalue target_rereference(struct target *target,references refs);

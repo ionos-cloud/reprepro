@@ -6,7 +6,7 @@ TODO:
 	action to redownload missing pool/ files from some update-rules (looking for md5sum)
 	check for harmful override entries (Package, Source, ....)
 	also support .bz2 Index file download
-	also support pdiff on upstream-repositories to download from.
+	also support pdiff download when mirroring
 
 half far goals:
 	handle components, architectures and types as numeric atoms for filters

@@ -14,7 +14,19 @@ retvalue signature_check(const char *options, const char *releasegpg, const char
 retvalue signature_sign(const char *options, const char *filename, const char *signeturename);
 
 /* Read a single chunk from a file, that may be signed. */
-retvalue signature_readsignedchunk(const char *filename, char **chunkread, /*@null@*/ /*@out@*/struct strlist *validkeys, /*@null@*/ /*@out@*/ struct strlist *allkeys, bool_t *brokensignature);
+retvalue signature_readsignedchunk(const char *filename, const char *filenametoshow, char **chunkread, /*@null@*/ /*@out@*/struct strlist *validkeys, /*@null@*/ /*@out@*/ struct strlist *allkeys, bool_t *brokensignature);
+
+struct signedfile;
+
+retvalue signature_startsignedfile(const char *directory, const char *basename, /*@out@*/const char *options, struct signedfile **);
+retvalue signature_startunsignedfile(const char *directory, const char *basename, /*@out@*/struct signedfile **);
+void signedfile_write(struct signedfile *, const void *, size_t);
+/* generate signature in temporary file */
+retvalue signedfile_prepare(struct signedfile *, const char *options);
+/* move temporary files to final places */
+retvalue signedfile_finalize(struct signedfile *, bool_t *toolate);
+/* may only be called after signedfile_prepare */
+retvalue signedfile_free(struct signedfile *);
 
 void signatures_done(void);
 

@@ -25,10 +25,10 @@
 #include "names.h"
 #include "changes.h"
 
-retvalue changes_parsefileline(const char *fileline, filetype *result_type,
-		char **result_basename, char **result_md5sum,
-		char **result_section, char **result_priority,
-		char **result_architecture, char **result_name) {
+retvalue changes_parsefileline(const char *fileline, /*@out@*/filetype *result_type,
+		/*@out@*/char **result_basename, /*@out@*/char **result_md5sum,
+		/*@out@*/char **result_section, /*@out@*/char **result_priority,
+		/*@out@*/char **result_architecture, /*@out@*/char **result_name) {
 
 	const char *p,*md5start,*md5end;
 	const char *sizestart,*sizeend;

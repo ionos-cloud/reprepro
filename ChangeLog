@@ -1,3 +1,49 @@
+2007-05-29  Bernhard R. Link <brlink@debian.org>
+	* adapt name include uses for .changes files to
+	  that of processincoming.
+
+2007-05-25  Bernhard R. Link <brlink@debian.org>
+	* some fixed and improvements of the free space calculation
+	( add --spacecheck, --safetymargin, --dbsafetymargin )
+
+2007-05-24  Bernhard R. Link <brlink@debian.org>
+	* error/warn if trying to include a package via
+	  processincoming which is already there newer
+	* do not notify a .changes when no package included
+          (when using Log: --changes)
+	* add Permit: unused_files older_version
+	  and Cleanup: unused_files on_deny on_error for conf/incoming
+	* add --waitforlock option
+
+2007-05-23  Bernhard R. Link <brlink@debian.org>
+	* fix remove action not tidy tracked packages.
+	  (Thanks to Dan Pascu for finding this, too)
+	* rename cleartracks in removealltracks
+	* new tidytracks command
+
+2007-05-22  Bernhard R. Link <brlink@debian.org>
+	* Add per distribution notification scripts for accepted changes files.
+
+2007-05-21  Bernhard R. Link <brlink@debian.org>
+	* fix problem of not waiting for notificators in some commands
+	  (Thanks to Dan Pascu for finding this)
+
+2007-05-07  Bernhard R. Link <brlink@debian.org>
+	* move some code from release.c to signature.c in preperation of
+	  later changes
+
+2007-05-06  Bernhard R. Link <brlink@debian.org>
+	* changestool: add adddsc command
+	* changestool: add --create option
+	* changestool: add add command
+	* changestool: add setdistribution command
+
+2007-05-03  Bernhard R. Link <brlink@debian.org>
+	* changestool: add addrawfile command
+
+2007-04-03  Bernhard R. Link <brlink@debian.org>
+	* first code for checking for enough free space
+
 2007-03-29  Bernhard R. Link <brlink@debian.org>
 	* add rerunnotifiers command
 

@@ -51,5 +51,5 @@ struct overrideinfo;
 retvalue binaries_complete(const struct deb_headers *,const char *filekey,const char *md5sum,const struct overrideinfo *,const char *section,const char *priority,char **newcontrol);
 
 retvalue binaries_adddeb(const struct deb_headers *,const char *dbdir,references,const char *forcearchitecture,const char *packagetype,struct distribution *,struct strlist *dereferencedfilekeys,struct trackingdata *,const char *component,const struct strlist *filekeys,const char *control);
-
+retvalue binaries_checkadddeb(const struct deb_headers *,const char *dbdir,const char *forcearchitecture,const char *packagetype,struct distribution *,bool_t tracking,const char *component,bool_t permitnewerold);
 #endif

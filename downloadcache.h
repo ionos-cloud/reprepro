@@ -15,11 +15,19 @@
 #ifndef REPREPRO_APTMETHOD_H
 #include "aptmethod.h"
 #endif
+#ifndef REPREPRO_FREESPACE_H
+#include "freespace.h"
+#endif
 
-struct downloadcache;
+struct downloaditem;
+
+struct downloadcache {
+	/*@null@*/struct downloaditem *items;
+	/*@null@*/struct devices *devices;
+};
 
 /* Initialize a new download session */
-retvalue downloadcache_initialize(struct downloadcache **download);
+retvalue downloadcache_initialize(const char *dbdir,enum spacecheckmode mode,off_t reserveddb,off_t reservedother,struct downloadcache **download);
 
 /* free all memory */
 retvalue downloadcache_free(/*@null@*//*@only@*/struct downloadcache *download);
