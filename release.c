@@ -1053,6 +1053,7 @@ retvalue release_directorydescription(struct release *release, const struct dist
 	release_writeheader("Origin",distribution->origin);
 	release_writeheader("Label",distribution->label);
 	release_writeheader("Architecture",target->architecture);
+	release_writeheader("NotAutomatic",distribution->notautomatic);
 	release_writeheader("Description",distribution->description);
 	r = release_finishfile(release, f);
 	return r;
@@ -1238,6 +1239,12 @@ retvalue release_write(/*@only@*/struct release *release, struct distribution *d
 		e = fputs("\nDescription: ",f);
 		checkwritten;
 		e = fputs(distribution->description,f);
+		checkwritten;
+	}
+	if( distribution->notautomatic != NULL ) {
+		e = fputs("\nNotAutomatic: ",f);
+		checkwritten;
+		e = fputs(distribution->notautomatic,f);
 		checkwritten;
 	}
 

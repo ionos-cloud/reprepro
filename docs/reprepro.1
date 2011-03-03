@@ -1,4 +1,4 @@
-.TH REPREPRO 1 "25 September, 2005" "reprepro" REPREPRO
+.TH REPREPRO 1 "21 January, 2006" "reprepro" REPREPRO
 .SH NAME
 reprepro \- produce, manage and sync a local repository of debian packages
 .SH SYNOPSIS
@@ -308,7 +308,7 @@ changes files.
 Removes all source package tracking information for the
 given distributions.
 .TP
-.BR removetrack \fIcodename\fP \fIsourcename\fP \fIversion\fP
+.B removetrack " " \fIcodename\fP " " \fIsourcename\fP " " \fIversion\fP
 Remove the trackingdata of the given version of a given sourcepackage
 from a given distribution. This also removes the references for all
 used files.
@@ -422,6 +422,13 @@ Release files.
 This optional field is simply copied into the
 Release files.
 .TP
+.B NotAutomatic
+This optional field is simply copied into the
+Release files. 
+(The value is handled as arbitrary string,
+though anything but \fByes\fP does make much
+sense right now.)
+.TP
 .B Description
 This optional field is simply copied into the
 Release files.
@@ -465,6 +472,8 @@ is used.
 Otherwise the value will be given to libgpgme to determine to key to 
 use.
 (That should be roughly the one \fBgpg \-\-list\-secret\-keys\fP \fIvalue\fP would output).
+This key should either have no passphrase, you need to specify
+\fB--ask-passphrase\fP or use gpg-agent.
 .TP
 .B DebOverride
 When this field is present, it describes the override file used
@@ -549,11 +558,14 @@ same method as the previous URI (e.g. both http://), and
 the fallback-server must have everything at the same place.
 No recalculation is done, but single files are just retried from
 this location.
+.TP
 .B Config
 This can contain any number of lines, each in the format
 .B apt\-get \-\-option
 would expect. (Multiple lines - as always - marked with
 leading spaces).
+.P
+For example: Config: Acquire::Http::Proxy=http://proxy.yours.org:8080
 .TP
 .B Suite
 The suite to update from. If this is not present, the codename

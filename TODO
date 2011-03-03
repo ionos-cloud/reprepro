@@ -1,5 +1,4 @@
 TODO:
-	add source/Sources md5sum entry even if file is not created...
 	write more automated test-cases
 	implement extractcontrol.c properly
 	allow to specify a keyring to use.
@@ -9,6 +8,8 @@ TODO:
 	add override-support while updating (or decide if this should be done)
 	extend FilterFormula, FilterList et al to specify type/architecture/component
 	switch to only include if source is present
+	action to redownload missing pool/ files from some update-rules (looking for md5sum)
+	rewrite error handling, caching error messages and handling Ctrl-C gracefully.
 
 far goals:
 	check for source of package, 

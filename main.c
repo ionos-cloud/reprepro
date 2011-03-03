@@ -1181,6 +1181,13 @@ ACTION_N(reoverride) {
 
 /***********************include******************************************/
 
+static inline bool_t endswith(const char *name, const char *suffix) {
+	size_t ln,ls;
+	ln = strlen(name);
+	ls = strlen(suffix);
+	return ln > ls && strcmp(name+(ln-ls),suffix) == 0;
+}
+
 ACTION_D(includedeb) {
 	retvalue result,r;
 	struct distribution *distribution;
@@ -1213,6 +1220,15 @@ ACTION_D(includedeb) {
 	} else {
 		fprintf(stderr,"Internal error with command parsing!\n");
 		return RET_ERROR;
+	}
+	if( isudeb ) {
+		if( !endswith(argv[2],".udeb") && !IGNORING_(extension,
+			"includeudeb called with a file not ending with '.udeb'\n") )
+			return RET_ERROR;
+	} else {
+		if( !endswith(argv[2],".deb") && !IGNORING_(extension,
+			"includedeb called with a file not ending with '.deb'\n") )
+			return RET_ERROR;
 	}
 
 	result = distribution_get(&distribution,confdir,argv[1]);
@@ -1291,6 +1307,9 @@ ACTION_D(includedsc) {
 		fprintf(stderr,"Cannot put a source-package anywhere else than in type 'dsc'!\n");
 		return RET_ERROR;
 	}
+	if( !endswith(argv[2],".dsc") && !IGNORING_(extension,
+				"includedsc called with a file not ending with '.dsc'\n") )
+		return RET_ERROR;
 
 	result = distribution_get(&distribution,confdir,argv[1]);
 	assert( result != RET_NOTHING );
@@ -1341,6 +1360,10 @@ ACTION_D(include) {
 		fprintf(stderr,"reprepro [--delete] include <distribution> <.changes-file>\n");
 		return RET_ERROR;
 	}
+	if( !endswith(argv[2],".changes") && !IGNORING_(extension,
+				"include called with a file not ending with '.change'\n"
+				"(Did you mean includedeb or includedsc?)\n") )
+		return RET_ERROR;
 
 	result = distribution_get(&distribution,confdir,argv[1]);
 	assert( result != RET_NOTHING );

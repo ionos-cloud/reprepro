@@ -1,3 +1,21 @@
+2005-02-20  Bernhard R. Link <brlink@debian.org>
+	* add optional "NotAutomatic" field for the
+	distribution specification.
+
+2005-02-10  Bernhard R. Link <brlink@debian.org>
+	* add new --ignore=extension, without which
+	it refuses to 'include' files not ending in '.changes',
+	to 'include[u]deb' files not ending in '.[u]deb' or to
+	'includedsc' files not ending '.dsc'.
+
+2005-01-21  Bernhard R. Link <brlink@debian.org>
+	* fix typesetting error in ratpoison.1
+	  and add an example for update's Config option.
+	* fix segfault of FD_ISSET(-1,&...) when
+	  method is not used (i.e. --nolistsdownload
+	  and only need to get from other sources)
+	* fix minor memory leak of --skipold
+
 2005-12-24  Bernhard R. Link <brlink@debian.org>
 	* add cache database to store md5sums
 	of released files in there.

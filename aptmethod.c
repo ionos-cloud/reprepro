@@ -1088,11 +1088,11 @@ static retvalue readwrite(struct aptmethodrun *run,int *workleft,filesdb filesdb
 
 	maxfd = 0;
 	for( method = run->methods ; method != NULL ; method = method->next ) {
-		if( FD_ISSET(method->stdout,&readfds) ) {
+		if( method->stdout != -1 && FD_ISSET(method->stdout,&readfds) ) {
 			r = receivedata(method,filesdb);
 			RET_UPDATE(result,r);
 		}
-		if( FD_ISSET(method->stdin,&writefds) ) {
+		if( method->stdin != -1 && FD_ISSET(method->stdin,&writefds) ) {
 			r = senddata(method);
 			RET_UPDATE(result,r);
 		}

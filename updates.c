@@ -1525,6 +1525,7 @@ retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,
 		}
 		if( !anythingtodo ) {
 			fprintf(stderr,"Nothing to do found. (Use --noskipold to force processing)\n");
+			aptmethod_shutdown(run);
 			return result;
 		}
 	}
@@ -1534,6 +1535,7 @@ retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,
 	r = updates_calllisthooks(distributions,force);
 	RET_UPDATE(result,r);
 	if( RET_WAS_ERROR(result) && force <= 0 ) {
+		aptmethod_shutdown(run);
 		return result;
 	}
 

@@ -46,6 +46,7 @@ retvalue distribution_free(struct distribution *distribution) {
 		free(distribution->suite);
 		free(distribution->version);
 		free(distribution->origin);
+		free(distribution->notautomatic);
 		free(distribution->label);
 		free(distribution->description);
 		free(distribution->signwith);
@@ -164,7 +165,7 @@ static retvalue distribution_parse_and_filter(struct distribution **distribution
 static const char * const allowedfields[] = {
 "Codename", "Suite", "Version", "Origin", "Label", "Description", 
 "Architectures", "Components", "Update", "SignWith", "DebOverride",
-"UDebOverride", "DscOverride", "Tracking",
+"UDebOverride", "DscOverride", "Tracking", "NotAutomatic",
 "UDebComponents", "DebIndices", "DscIndices", "UDebIndices",
 NULL};
 
@@ -217,6 +218,7 @@ NULL};
 	getpossibleemptyfield("Suite",suite);
 	getpossibleemptyfield("Version",version);
 	getpossibleemptyfield("Origin",origin);
+	getpossibleemptyfield("NotAutomatic",notautomatic);
 	getpossibleemptyfield("Label",label);
 	getpossibleemptyfield("Description",description);
 	ret = chunk_getwordlist(chunk,"Architectures",&r->architectures);
