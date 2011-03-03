@@ -1,0 +1,9 @@
+Document: reprepro
+Title: reprepro manual
+Author: Bernhard R. Link <brlink@debian.org>
+Abstract: This manual describes the Debian package repository manager reprepro
+Section: Data Management
+
+Format: html
+Index: /usr/share/doc/reprepro/manual.html
+Files: /usr/share/doc/reprepro/manual.html
