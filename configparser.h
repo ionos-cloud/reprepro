@@ -48,6 +48,7 @@ retvalue config_getwords(struct configiterator *,struct strlist *);
 retvalue config_getall(struct configiterator *iter, /*@out@*/char **result_p);
 retvalue config_getword(struct configiterator *, /*@out@*/char **);
 retvalue config_getwordinline(struct configiterator *, /*@out@*/char **);
+retvalue config_geturl(struct configiterator *, const char *, /*@out@*/char **);
 retvalue config_getonlyword(struct configiterator *, const char *, checkfunc, /*@out@*/char **);
 retvalue config_getuniqwords(struct configiterator *, const char *, checkfunc, struct strlist *);
 retvalue config_getinternatomlist(struct configiterator *, const char *, enum atom_type, checkfunc, struct atomlist *);
@@ -93,6 +94,11 @@ static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), co
 static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), const char *name, void *data, struct configiterator *iter) { \
 	struct sname *item = data; \
 	return config_getonlyword(iter, name, NULL, &item->field); \
+}
+#define CFurlSETPROC(sname, field) \
+static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), const char *name, void *data, struct configiterator *iter) { \
+	struct sname *item = data; \
+	return config_geturl(iter, name, &item->field); \
 }
 #define CFscriptSETPROC(sname, field) \
 static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), const char *name, void *data, struct configiterator *iter) { \
@@ -294,8 +300,7 @@ static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UN
 	return r; \
 }
 
-// TODO: decide which should get better checking, which might allow escapes spaces:
-#define CFurlSETPROC CFvalueSETPROC
+// TODO: decide which should get better checking, which might allow escaping spaces:
 #define CFdirSETPROC CFvalueSETPROC
 #define CFfileSETPROC CFvalueSETPROC
 #define config_getfileinline config_getwordinline

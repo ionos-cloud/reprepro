@@ -60,9 +60,6 @@
 /* Define to 1 if the system has the type `_Bool'. */
 #undef HAVE__BOOL
 
-/* variant of libdb used */
-#undef LIBDB_VERSION
-
 /* Name of package */
 #undef PACKAGE
 

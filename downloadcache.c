@@ -230,7 +230,7 @@ retvalue downloadcache_add(struct downloadcache *cache, struct database *databas
 	retvalue r;
 
 	assert( cache != NULL && method != NULL );
-	r = files_expect(database, filekey, checksums);
+	r = files_expect(database, filekey, checksums, false);
 	if( r != RET_NOTHING )
 		return r;
 

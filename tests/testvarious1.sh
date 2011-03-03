@@ -144,11 +144,6 @@ stdout
 -v6*=  creating './dists/A/cat/binary-calculator/Packages' (uncompressed,gzipped)
 EOF
 dodo test -f db/checksums.db
-if test -n "$TESTNEWFILESDB" ; then
-	dodo test ! -f db/files.db
-else
-	dodo test -f db/files.db
-fi
 find dists -type f | LC_ALL=C sort -f > results
 cat > results.expected <<END
 dists/A/cat/binary-${FAKEARCHITECTURE}/Packages
@@ -185,9 +180,6 @@ stderr
 -v0*=There have been errors!
 stdout
 EOF
-if test -n "$TESTNEWFILESDB" ; then
-	dodo test ! -f db/files.db
-fi
 touch conf/incoming
 testrun - -b . processincoming default 3<<EOF
 returns 249
@@ -347,9 +339,6 @@ EOF
 sed -i -e 's/Distribution: A/Distribution: B/' i/test.changes
 cp -a i i2
 checknolog logfile
-if test -n "$TESTNEWFILESDB" ; then
-	dodo test ! -f db/files.db
-fi
 testrun - -b . processincoming default 3<<EOF
 stderr
 -v0=Data seems not to be signed trying to use directly...
@@ -362,13 +351,9 @@ stdout
 -v2*=Created directory "./pool/dog"
 -v2*=Created directory "./pool/dog/b"
 -v2*=Created directory "./pool/dog/b/bird"
--e1*=db: 'pool/dog/b/bird/bird_1.dsc' added to files.db(md5sums).
 -d1*=db: 'pool/dog/b/bird/bird_1.dsc' added to checksums.db(pool).
--e1*=db: 'pool/dog/b/bird/bird_1.tar.gz' added to files.db(md5sums).
 -d1*=db: 'pool/dog/b/bird/bird_1.tar.gz' added to checksums.db(pool).
--e1*=db: 'pool/dog/b/bird/bird_1_${FAKEARCHITECTURE}.deb' added to files.db(md5sums).
 -d1*=db: 'pool/dog/b/bird/bird_1_${FAKEARCHITECTURE}.deb' added to checksums.db(pool).
--e1*=db: 'pool/dog/b/bird/bird-addons_1_all.deb' added to files.db(md5sums).
 -d1*=db: 'pool/dog/b/bird/bird-addons_1_all.deb' added to checksums.db(pool).
 -v2*=Created directory "./logs"
 -d1*=db: 'bird' added to packages.db(B|dog|source).
@@ -466,13 +451,9 @@ stdout
 -v2*=Created directory "./pool/cat"
 -v2*=Created directory "./pool/cat/b"
 -v2*=Created directory "./pool/cat/b/bird"
--e1*=db: 'pool/cat/b/bird/bird_1.dsc' added to files.db(md5sums).
 -d1*=db: 'pool/cat/b/bird/bird_1.dsc' added to checksums.db(pool).
--e1*=db: 'pool/cat/b/bird/bird_1.tar.gz' added to files.db(md5sums).
 -d1*=db: 'pool/cat/b/bird/bird_1.tar.gz' added to checksums.db(pool).
--e1*=db: 'pool/cat/b/bird/bird_1_${FAKEARCHITECTURE}.deb' added to files.db(md5sums).
 -d1*=db: 'pool/cat/b/bird/bird_1_${FAKEARCHITECTURE}.deb' added to checksums.db(pool).
--e1*=db: 'pool/cat/b/bird/bird-addons_1_all.deb' added to files.db(md5sums).
 -d1*=db: 'pool/cat/b/bird/bird-addons_1_all.deb' added to checksums.db(pool).
 -d1*=db: 'bird' added to packages.db(B|cat|source).
 -d1*=db: 'bird' added to packages.db(B|cat|${FAKEARCHITECTURE}).
@@ -944,7 +925,6 @@ stderr
 stdout
 -v2*=Created directory "./pool/dog/s"
 -v2*=Created directory "./pool/dog/s/sourceindeb"
--e1*=db: 'pool/dog/s/sourceindeb/indebname_versionindeb~1_all.deb' added to files.db(md5sums).
 -d1*=db: 'pool/dog/s/sourceindeb/indebname_versionindeb~1_all.deb' added to checksums.db(pool).
 -d1*=db: 'indebname' added to packages.db(A|dog|${FAKEARCHITECTURE}).
 -d1*=db: 'indebname' added to packages.db(A|dog|calculator).
@@ -1156,7 +1136,6 @@ stderr
 stdout
 -v2*=Created directory "./pool/dog/d"
 -v2*=Created directory "./pool/dog/d/dscfilename"
--e1*=db: 'pool/dog/d/dscfilename/dscfilename_versionindsc.dsc' added to files.db(md5sums).
 -d1*=db: 'pool/dog/d/dscfilename/dscfilename_versionindsc.dsc' added to checksums.db(pool).
 -d1*=db: 'dscfilename' added to packages.db(B|dog|source).
 -v3*=deleting './i/dscfilename_fileversion~.dsc'...
@@ -1383,9 +1362,7 @@ stderr
 -v0=Data seems not to be signed trying to use directly...
 =Unknown file type: '31a1096ff883d52f0c1f39e652d6336f 33 - - strangefile_xyz', assuming source format...
 stdout
--e1*=db: 'pool/dog/d/dscfilename/dscfilename_newversion~.dsc' added to files.db(md5sums).
 -d1*=db: 'pool/dog/d/dscfilename/dscfilename_newversion~.dsc' added to checksums.db(pool).
--e1*=db: 'pool/dog/d/dscfilename/strangefile_xyz' added to files.db(md5sums).
 -d1*=db: 'pool/dog/d/dscfilename/strangefile_xyz' added to checksums.db(pool).
 -d1*=db: 'dscfilename' removed from packages.db(B|dog|source).
 -d1*=db: 'dscfilename' added to packages.db(B|dog|source).
@@ -1400,7 +1377,6 @@ stdout
 -v6*= looking for changes in 'B|cat|source'...
 -v0*=Deleting files no longer referenced...
 -v1*=deleting and forgetting pool/dog/d/dscfilename/dscfilename_versionindsc.dsc
--e1*=db: 'pool/dog/d/dscfilename/dscfilename_versionindsc.dsc' removed from files.db(md5sums).
 -d1*=db: 'pool/dog/d/dscfilename/dscfilename_versionindsc.dsc' removed from checksums.db(pool).
 EOF
 checklog logfile <<EOF

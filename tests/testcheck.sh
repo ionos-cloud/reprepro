@@ -57,7 +57,6 @@ cp fake2.deb pool/c/p/pseudo/fake_0_all.deb
 testrun - -b . _detect pool/c/p/pseudo/fake_0_all.deb 3<<EOF
 stderr
 stdout
--e1*=db: 'pool/c/p/pseudo/fake_0_all.deb' added to files.db(md5sums).
 -d1*=db: 'pool/c/p/pseudo/fake_0_all.deb' added to checksums.db(pool).
 -v0*=1 files were added but not used.
 -v0*=The next deleteunreferenced call will delete them.
@@ -76,7 +75,6 @@ EOF
 testrun - -b . _forget pool/c/p/pseudo/fake_0_all.deb 3<<EOF
 stderr
 stdout
--e1*=db: 'pool/c/p/pseudo/fake_0_all.deb' removed from files.db(md5sums).
 -d1*=db: 'pool/c/p/pseudo/fake_0_all.deb' removed from checksums.db(pool).
 EOF
 
@@ -85,7 +83,6 @@ cp fake1.deb pool/c/p/pseudo/fake_0_all.deb
 testrun - -b . _detect pool/c/p/pseudo/fake_0_all.deb 3<<EOF
 stderr
 stdout
--e1*=db: 'pool/c/p/pseudo/fake_0_all.deb' added to files.db(md5sums).
 -d1*=db: 'pool/c/p/pseudo/fake_0_all.deb' added to checksums.db(pool).
 -v0*=1 files were added but not used.
 -v0*=The next deleteunreferenced call will delete them.
@@ -133,14 +130,12 @@ EOF
 testrun - -b . _forget pool/c/p/pseudo/fake_0_all.deb 3<<EOF
 stderr
 stdout
--e1*=db: 'pool/c/p/pseudo/fake_0_all.deb' removed from files.db(md5sums).
 -d1*=db: 'pool/c/p/pseudo/fake_0_all.deb' removed from checksums.db(pool).
 EOF
 
 testrun - -b . _detect pool/c/p/pseudo/fake_0_all.deb 3<<EOF
 stderr
 stdout
--e1*=db: 'pool/c/p/pseudo/fake_0_all.deb' added to files.db(md5sums).
 -d1*=db: 'pool/c/p/pseudo/fake_0_all.deb' added to checksums.db(pool).
 EOF
 
@@ -163,7 +158,6 @@ EOF
 testrun - -b . _forget pool/c/p/pseudo/fake_0_all.deb 3<<EOF
 stderr
 stdout
--e1*=db: 'pool/c/p/pseudo/fake_0_all.deb' removed from files.db(md5sums).
 -d1*=db: 'pool/c/p/pseudo/fake_0_all.deb' removed from checksums.db(pool).
 EOF
 
@@ -196,9 +190,10 @@ EOF
 cp fake1.deb pool/c/p/pseudo/fake_0_all.deb
 
 testrun - -b . check 3<<EOF
+stderr
+-v0*=Warning: readded existing file 'pool/c/p/pseudo/fake_0_all.deb' mysteriously missing from the checksum database.
 stdout
 -v1*=Checking n...
--e1*=db: 'pool/c/p/pseudo/fake_0_all.deb' added to files.db(md5sums).
 -d1*=db: 'pool/c/p/pseudo/fake_0_all.deb' added to checksums.db(pool).
 stderr
 EOF

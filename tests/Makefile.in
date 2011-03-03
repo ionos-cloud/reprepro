@@ -59,7 +59,6 @@ CFLAGS = @CFLAGS@
 CPP = @CPP@
 CPPFLAGS = @CPPFLAGS@
 CYGPATH_W = @CYGPATH_W@
-DBCPPFLAGS = @DBCPPFLAGS@
 DBLIBS = @DBLIBS@
 DEFS = @DEFS@
 DEPDIR = @DEPDIR@
@@ -146,7 +145,6 @@ test.sh \
 testatoms.sh \
 testbuildneeding.sh \
 testcheck.sh \
-testchecksums.sh \
 testcopy.sh \
 testexporthooks.sh \
 testflat.sh \

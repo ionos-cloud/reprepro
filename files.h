@@ -24,7 +24,7 @@ retvalue files_remove(struct database *, const char *filekey);
 retvalue files_removesilent(struct database *, const char *filekey);
 
 /* check for file in the database and if not found there in the pool */
-retvalue files_expect(struct database *, const char *, const struct checksums *);
+retvalue files_expect(struct database *, const char *, const struct checksums *, bool warnifreadded);
 /* same for multiple files */
 retvalue files_expectfiles(struct database *, const struct strlist *, struct checksums **);
 

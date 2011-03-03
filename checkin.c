@@ -944,7 +944,7 @@ static retvalue changes_deleteleftoverfiles(struct changes *changes,int delete) 
 static retvalue changes_check_sourcefile(struct changes *changes, struct fileentry *dsc, struct database *database, const char *basefilename, const char *filekey, struct checksums **checksums_p) {
 	retvalue r;
 
-	r = files_expect(database, filekey, *checksums_p);
+	r = files_expect(database, filekey, *checksums_p, false);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	// TODO: get additionals checksum out of database, as future

@@ -62,11 +62,6 @@ stdout
 -v6*=  creating './dists/A/cat/binary-calculator/Packages' (uncompressed,gzipped)
 EOF
 dodo test -f db/checksums.db
-if test -n "$TESTNEWFILESDB" ; then
-	dodo test ! -f db/files.db
-else
-	dodo test -f db/files.db
-fi
 
 ed -s conf/distributions <<EOF
 g/^ -A=nonexistant/s/nonexistant/calculator/
@@ -211,7 +206,6 @@ testrun - -b . _detect pool/dog/f/foo/foo_0_${FAKEARCHITECTURE}.deb 3<<EOF
 stderr
 stdout
 -d1*=db: 'pool/dog/f/foo/foo_0_${FAKEARCHITECTURE}.deb' added to checksums.db(pool).
--e1*=db: 'pool/dog/f/foo/foo_0_${FAKEARCHITECTURE}.deb' added to files.db(md5sums).
 -v0*=1 files were added but not used.
 -v0*=The next deleteunreferenced call will delete them.
 EOF
@@ -266,7 +260,6 @@ testrun - -b . _detect pool/dog/f/foo/foo_1.dsc 3<<EOF
 stderr
 stdout
 -d1*=db: 'pool/dog/f/foo/foo_1.dsc' added to checksums.db(pool).
--e1*=db: 'pool/dog/f/foo/foo_1.dsc' added to files.db(md5sums).
 -v0*=1 files were added but not used.
 -v0*=The next deleteunreferenced call will delete them.
 EOF
@@ -283,7 +276,6 @@ testrun - -b . _detect pool/dog/f/foo/foo_1.tar.gz 3<<EOF
 stderr
 stdout
 -d1*=db: 'pool/dog/f/foo/foo_1.tar.gz' added to checksums.db(pool).
--e1*=db: 'pool/dog/f/foo/foo_1.tar.gz' added to files.db(md5sums).
 -v0*=1 files were added but not used.
 -v0*=The next deleteunreferenced call will delete them.
 EOF
@@ -578,17 +570,14 @@ stdout
 -v0*=Deleting files no longer referenced...
 -v1*=deleting and forgetting pool/dog/f/foo/foo_0_${FAKEARCHITECTURE}.deb
 -d1*=db: 'pool/dog/f/foo/foo_0_${FAKEARCHITECTURE}.deb' removed from checksums.db(pool).
--e1*=db: 'pool/dog/f/foo/foo_0_${FAKEARCHITECTURE}.deb' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/dog/f/foo/foo_1.dsc
 -d1*=db: 'pool/dog/f/foo/foo_1.dsc' removed from checksums.db(pool).
--e1*=db: 'pool/dog/f/foo/foo_1.dsc' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/dog/f/foo/foo_1.tar.gz
 -v2*=removed now empty directory ./pool/dog/f/foo
 -v2*=removed now empty directory ./pool/dog/f
 -v2*=removed now empty directory ./pool/dog
 -v2*=removed now empty directory ./pool
 -d1*=db: 'pool/dog/f/foo/foo_1.tar.gz' removed from checksums.db(pool).
--e1*=db: 'pool/dog/f/foo/foo_1.tar.gz' removed from files.db(md5sums).
 EOF
 
 testrun empty -b . dumpunreferenced

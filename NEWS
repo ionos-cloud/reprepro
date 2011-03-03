@@ -1,3 +1,10 @@
+Updates between 4.0.0 and 4.0.1:
+- strip the last '/' from Method and Fallback in conf/updates to work
+  around problems in some apt methods. (to get old behaviour, use "//")
+- 'check' now warns if a file was missing but could be readded
+- much more permissive check for libdb. You are on your own now to check
+  what version to build against.
+
 Updates between 3.12.1 and 4.0.0:
 - disable old files.db handling (remove all support but
   translatelegacyfilelists), remove --oldfilesdb options
