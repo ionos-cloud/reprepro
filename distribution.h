@@ -46,6 +46,8 @@ struct distribution {
 	/*@null@*/char *signwith;
 	/* the override file to use by default */
 	/*@null@*/char *deb_override,*udeb_override,*dsc_override;
+	/* fake component prefix (and codename antisuffix) for Release files: */
+	/*@null@*/char *fakecomponentprefix;
 	/* only loaded when you've done it yourself: */
 	struct {
 		/*@null@*/struct overrideinfo *dsc,*deb,*udeb;

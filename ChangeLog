@@ -1,3 +1,17 @@
+2008-06-26  Bernhard R. Link <brlink@debian.org>
+	* add FakeComponentPrefix, that adds a prefix to components
+	in the Release file and removes them from Codename and Suite
+	in the central Release file. This way it looks more like
+	security /updates and thus apt is not confused.
+
+2008-06-25  Bernhard R. Link <brlink@debian.org>
+	* avoid creating symlinks that cannot work because of
+	a '/' in the link to create.
+
+2008-06-23  Bernhard R. Link <brlink@debian.org>
+	* fix bug in optionsfilename calculating introduced in
+	last revision.
+
 2008-06-22  Bernhard R. Link <brlink@debian.org>
 	* move some directoy variables to global variables,
 	some related cleanup in the code

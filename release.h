@@ -25,7 +25,7 @@ typedef unsigned int compressionset; /* 1 << indexcompression */
 #define IC_FLAG(a) (1<<(a))
 
 /* Initialize Release generation */
-retvalue release_init(struct release **release, struct database *database, const char *codename);
+retvalue release_init(struct release **release, struct database *database, const char *codename, /*@null@*/const char *suite, /*@null@*/const char *fakeprefix);
 /* same but for a snapshot */
 retvalue release_initsnapshot(const char *codename, const char *name, struct release **release);
 

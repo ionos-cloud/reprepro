@@ -686,6 +686,25 @@ stable, testing or unstable. To create symlinks
 from the Suite to the Codename, use the
 \fBcreatesymlinks\fP command of reprepro.
 .TP
+.B FakeComponentPrefix
+If this field is present,
+its argument is added before every Component written to the main
+Release file,
+and removed from the end of the Codename and Suite fields in that file.
+.br
+So \fB
+ Codename: bla/updates
+ Suite: foo/updates
+ FakeComponentPrefix: updates
+ Components: main bad
+\fP will create a Release file with \fB
+ Codename: bla
+ Suite: foo
+ Components: updates/main updates/bad
+\fP in it, but otherwise nothing is changed.
+This makes the distribution look more like Debian's security archive,
+thus work around problems with apt's workarounds for that.
+.TP
 .B AlsoAcceptFor
 A list of distribution names.
 When a \fB.changes\fP file is told to be included
