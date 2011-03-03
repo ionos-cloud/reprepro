@@ -163,7 +163,7 @@ static retvalue gotfilename(const char *relname, size_t l, struct release *relea
 			return RET_ERROR_OOM;
 		return release_adddel(release,filename);
 
-	} if( l > 4 || strcmp(relname+(l-4),".new") == 0 ) {
+	} else if( l > 4 && memcmp(relname+(l-4),".new",4) == 0 ) {
 		char *filename,*tmpfilename;
 
 		filename = strndup(relname,l-4);
@@ -277,21 +277,24 @@ static retvalue callexporthook(const char *confdir,/*@null@*/const char *hook, c
 		for( j = 0 ; j < already ; j++ ) {
 			if( buffer[j] == '\n' || buffer[j] == '\0' ) {
 				int next = j+1;
+				int e = (j>0)?(j-1):j;
+				retvalue ret;
 
-				while( last<j && xisspace(buffer[last]) )
+				while( last < j && xisspace(buffer[last]) )
 						last++;
-				while( j>last && xisspace(buffer[j]) )
-					j--;
-				// This makes on character long files impossible,
-				// but who needs them?
-				if( last < j ) {
-					retvalue ret;
+				if( last >= j ) {
+					last = next;
+					continue;
+				}
+				while( xisspace(buffer[e]) ) {
+					e--;
+					assert( e >= last );
+				}
 
-					ret = gotfilename(buffer+last,j-last+1,release);
-					if( RET_WAS_ERROR(ret) ) {
-						(void)close(io[0]);
-						return ret;
-					}
+				ret = gotfilename(buffer+last,e-last+1,release);
+				if( RET_WAS_ERROR(ret) ) {
+					(void)close(io[0]);
+					return ret;
 				}
 				last = next;
 			}

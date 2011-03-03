@@ -1,3 +1,8 @@
+Updates since 0.9.0:
+- fix bug in post-export script handling.
+- fixed documentation in tiffany.example how to generate
+  .diff directories the new apt can read.
+
 Updates since 0.8.2:
 - added --export= option and harmonized exporting of
   distributions. (Now every distribution processed

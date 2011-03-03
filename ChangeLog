@@ -1,3 +1,12 @@
+2006-06-01  Bernhard R. Link <brlink@debian.org>
+	* better usage description in tiffany.example
+	* fix the fix for the export preprocessor
+
+2006-05-30  Bernhard R. Link <brlink@debian.org>
+	* fix bug in communication with Index file preprocessor
+	(so the .diff directories tiffany.example creates are
+	 properly advertised so that apt-get can use them)
+
 2006-05-15  Bernhard R. Link <brlink@debian.org>
 	* warn against dobuled fields in 
 	config files. (ignorable with --ignore=doublefield)
