@@ -1,3 +1,7 @@
+2009-04-03
+	* fix bug (catched by assertion) that inverts the logic of downloading
+	.diff files when there is no DownLoadListsAs line.
+
 2009-03-18
 	* support new suffix ".new." for export hooks.
 	(Which moves filename + ".new" to filename on success,

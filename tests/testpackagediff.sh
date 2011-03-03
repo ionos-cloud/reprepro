@@ -260,5 +260,29 @@ EOF
 
 dodiff dists/sourcedistribution/main/binary-coal/Packages lists/fromsource_sourcedistribution_main_coal_Packages
 
+# Check without DownLoadListsAs and not index file
+cat > conf/updates <<EOF
+Name: fromsource
+Suite: sourcedistribution
+VerifyRelease: blindtrust
+Method: file:$WORKDIR
+EOF
+rm -r lists
+mkdir lists
+testrun - --noskipold -b . update test 3<<EOF
+stderr
+-v1*=aptmethod got 'file:$WORKDIR/dists/sourcedistribution/Release'
+-v2*=Copy file '$WORKDIR/dists/sourcedistribution/Release' to './lists/fromsource_sourcedistribution_Release'...
+-v1*=aptmethod got 'file:$WORKDIR/dists/sourcedistribution/main/binary-coal/Packages'
+-v2*=Copy file '$WORKDIR/dists/sourcedistribution/main/binary-coal/Packages' to './lists/fromsource_sourcedistribution_main_coal_Packages'...
+stdout
+-v0*=Calculating packages to get...
+-v3*=  processing updates for 'test|main|coal'
+-v5*=  reading './lists/fromsource_sourcedistribution_main_coal_Packages'
+-v0*=Getting packages...
+-v1*=Shutting down aptmethods...
+-v0*=Installing (and possibly deleting) packages...
+EOF
+
 rm -r conf dists pool db fakes addchecksums.rules old lists
 testsuccess
