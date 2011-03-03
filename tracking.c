@@ -549,7 +549,7 @@ static retvalue tracking_saveonly(trackingdb t, struct trackedpackage *pkg) {
 				t->db->err(t->db, dbret, "tracking_save(delete) dberror:");
 				return RET_DBERR(dbret);
 			} else {
-				fprintf(stderr,"Removed %s_%s from %s.\n",
+				printf("[tracking: removed %s_%s from %s.]\n",
 						pkg->sourcename,
 						pkg->sourceversion,
 						t->codename);

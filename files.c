@@ -641,9 +641,12 @@ retvalue files_include(filesdb db,const char *sourcefilename,const char *filekey
 	}
 	if( sourcefilename == NULL ) {
 		fprintf(stderr,"Unable to find %s/%s!\n",db->mirrordir,filekey);
+		if( delete == D_INPLACE ) {
+			fprintf(stderr,"Perhaps you forgot to give dpkg-buildpackage the -sa option,\n or you cound try --ignore=missingfile\n");
+		}
 		return RET_ERROR_MISSING;
 	} if( delete == D_INPLACE ) {
-		if( IGNORING("Make sure your .changes file is correct (perhaps you need to spcify -sa or to ignore it","looking around if it is elsewhere as",missingfile,"Unable to find %s/%s!\n",db->mirrordir,filekey))
+		if( IGNORING("Looking around if it is elsewhere", "To look around harder, ",missingfile,"Unable to find %s/%s!\n",db->mirrordir,filekey))
 			r = copyfile_copy(db->mirrordir,filekey,sourcefilename,md5sum,&md5sumfound);
 		else
 			r = RET_ERROR_MISSING;
@@ -727,8 +730,7 @@ static retvalue files_addfilelist(filesdb db,const char *filekey,const char *fil
 	const char *e;
 
 	SETDBT(key,filekey);
-	SETDBT(data,filelist);
-        memset(&data,0,sizeof(data));
+	memset(&data,0,sizeof(data));
 	e = filelist;
 	while( *e != '\0' ) {
 		while( *e != '\0' )
@@ -784,6 +786,7 @@ retvalue files_getfilelist(filesdb db,const char *filekey,const struct filelist_
 retvalue files_genfilelist(filesdb db,const char *filekey,const struct filelist_package *package, struct filelist_list *filelist) {
 	char *debfilename = calc_dirconcat(db->mirrordir, filekey);
 	char *contents;
+	const char *p;
 	retvalue result,r;
 
 	if( debfilename == NULL ) {
@@ -794,9 +797,11 @@ retvalue files_genfilelist(filesdb db,const char *filekey,const struct filelist_
 	if( !RET_IS_OK(r) )
 		return r;
 	result = files_addfilelist(db, filekey, contents);
-	r = filelist_add(filelist, package, contents);
+	for( p = contents; *p != '\0'; p += strlen(p)+1 ) {
+		r = filelist_add(filelist, package, p);
+		RET_UPDATE(result,r);
+	}
 	free(contents);
-	RET_UPDATE(result,r);
 	return result;
 }
 

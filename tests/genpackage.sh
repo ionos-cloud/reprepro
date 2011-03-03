@@ -16,6 +16,7 @@ Source: $PACKAGE
 Section: $SECTION
 Priority: superfluous
 Maintainer: me <guess@who>
+Standards-Version: 0.0
 
 Package: $PACKAGE
 Architecture: abacus
