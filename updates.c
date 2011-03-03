@@ -892,7 +892,7 @@ static retvalue listclean_distribution(const char *listdir,DIR *dir, const char 
 		if( fullfilename == NULL )
 			return RET_ERROR_OOM;
 		if( verbose >= 0 )
-			fprintf(stderr,"Removing apperent leftover file '%s'.\n"
+			fprintf(stderr,"Removing apparent leftover file '%s'.\n"
 					"(Use --keepunneededlists to avoid this in the future.)\n",fullfilename);
 		e = unlink(fullfilename);
 		if( e != 0 ) {
