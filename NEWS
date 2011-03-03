@@ -1,3 +1,13 @@
+Updates since 3.10.0:
+- new --list-max and --list-skip options
+- new glob-matching in formulas
+  (e.g. "reprepro listfilter codename 'Package (% linux-image-*)'")
+- new listmatched, removematched, copymatched and restorematched
+- new build-needing command to list source packages likely to need
+  a build for a given architecture.
+- pull, predelete and update call retrack on
+  distributions with tracking enabled.
+
 Updates between 3.9.2 and 3.10.0:
 - fix bug of ListHook not used if in the From: rule of a rule.
 - add ListShelllHook

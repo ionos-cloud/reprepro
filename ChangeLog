@@ -1,3 +1,34 @@
+2009-07-11
+	* make predelete also call retrack when needed,
+	  silence false warning of stale tracking by removesrc
+
+2009-07-10
+	* warn if a distribution with tracking is modified in a form tracking
+	data might get out of data. update and pull automatically cause a
+	retrack on distributions with tracking enabled.
+
+2009-07-09
+	* some more improvements to the build-needing command
+
+2009-07-07
+	* fix bug in processincoming not accepting Suite or AlsoAcceptFor
+	because of counting it two times and erroring out.
+	(Thanks to Wookey for finding this bug).
+
+2009-06-16
+	* add listmatched, removematched, copymatched and restorematched.
+	(For those who think listfilter 'Package (% glob)' is too hard
+	 to write, to remember or too slow).
+	* add build-needing command
+
+2009-06-05
+	* add glob-matching in formulas via '(% pattern)'
+	* uploaders list conditions that supported stars
+	  now use the generic globmatch (thus more stars and ? and []).
+
+2009-06-03
+	* new --list-max and --list-skip
+
 2009-06-02
 	* new 'architectures' condition for uploader lists and other
 	conditions support 'contains' now.

@@ -98,6 +98,8 @@ struct distribution {
 	bool selected;
 	/* forbid all writing operations and exports if true */
 	bool readonly;
+	/* tracking information might be obsolete */
+	bool needretrack;
 };
 
 retvalue distribution_get(struct distribution *all, const char *name, bool lookedat, /*@out@*/struct distribution **);

@@ -29,6 +29,7 @@
 #include "pull.h"
 #include "upgradelist.h"
 #include "distribution.h"
+#include "tracking.h"
 #include "terms.h"
 #include "filterlist.h"
 #include "log.h"
@@ -737,11 +738,6 @@ static retvalue pull_search(/*@null@*/FILE *out,struct database *database,struct
 "Warning: Override files of '%s' ignored as not yet supported while updating!\n",
 					d->distribution->codename);
 	}
-	if( d->distribution->tracking != dt_NONE ) {
-		fprintf(stderr,
-"WARNING: Pull does not yet update tracking data. Tracking data of %s will be outdated!\n",
-					d->distribution->codename);
-	}
 
 	result = RET_NOTHING;
 	for( u=d->targets ; u != NULL ; u=u->next ) {
@@ -763,21 +759,25 @@ static void pull_from_callback(void *privdata, const char **rule_p, const char *
 static retvalue pull_install(struct database *database, struct pull_distribution *distribution) {
 	retvalue result,r;
 	struct pull_target *u;
+	struct distribution *d = distribution->distribution;
 
-	assert( logger_isprepared(distribution->distribution->logger) );
+	assert( logger_isprepared(d->logger) );
 
 	result = RET_NOTHING;
 	for( u=distribution->targets ; u != NULL ; u=u->next ) {
-		r = upgradelist_install(u->upgradelist,
-				distribution->distribution->logger,
+		r = upgradelist_install(u->upgradelist, d->logger,
 				database, u->ignoredelete,
 				pull_from_callback);
-		RET_UPDATE(distribution->distribution->status, r);
+		RET_UPDATE(d->status, r);
 		RET_UPDATE(result,r);
 		upgradelist_free(u->upgradelist);
 		u->upgradelist = NULL;
 		if( RET_WAS_ERROR(r) )
 			break;
+	}
+	if( RET_IS_OK(result) && d->tracking != dt_NONE ) {
+		r = tracking_retrack(database, d, false);
+		RET_ENDUPDATE(result, r);
 	}
 	return result;
 }

@@ -1049,7 +1049,7 @@ static retvalue changes_checkpkgs(struct database *database, struct distribution
 			e = e->next;
 			continue;
 		}
-		fullfilename = files_calcfullfilename(database, e->filekey);
+		fullfilename = files_calcfullfilename(e->filekey);
 		if( fullfilename == NULL )
 			return RET_ERROR_OOM;
 		if( e->type == fe_DEB ) {

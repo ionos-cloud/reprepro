@@ -3,7 +3,7 @@
 
 enum term_comparison { tc_none=0, tc_equal, tc_strictless, tc_strictmore,
 				  tc_lessorequal, tc_moreorequal,
-				  tc_notequal};
+				  tc_notequal, tc_globmatch, tc_notglobmatch};
 
 typedef struct term_atom {
 	/* global list to allow freeing them all */
@@ -36,6 +36,8 @@ typedef struct term_atom {
 #define T_ARCHITECTURES 0x20
 /* (!= value) is allowed */
 #define T_NOTEQUAL	0x40
+/* (% <globpattern>) and (!% globpattern) are allowed */
+#define T_GLOBMATCH	0x80
 
 retvalue term_compile(/*@out@*/term **term, const char *formula, int options);
 void term_free(/*@null@*//*@only@*/term *term);

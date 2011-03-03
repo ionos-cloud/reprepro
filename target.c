@@ -235,6 +235,8 @@ retvalue target_removereadpackage(struct target *target, struct logger *logger, 
 					oldsource, oldsversion, &files);
 			RET_UPDATE(result,r);
 		}
+		if( trackingdata == NULL )
+			target->staletracking = true;
 		if( logger != NULL )
 			logger_log(logger, target, name,
 					NULL, oldpversion,
@@ -318,6 +320,8 @@ retvalue target_removepackage_by_cursor(struct target_cursor *tc, struct logger 
 					oldsource, oldsversion, &files);
 			RET_UPDATE(result,r);
 		}
+		if( trackingdata == NULL )
+			target->staletracking = true;
 		if( logger != NULL )
 			logger_log(logger, target, name,
 					NULL, oldpversion,
@@ -494,6 +498,8 @@ retvalue target_addpackage(struct target *target, struct logger *logger, struct 
 			causingrule, suitefrom);
 	if( RET_IS_OK(r) ) {
 		target->wasmodified = true;
+		if( trackingdata == NULL )
+			target->staletracking = true;
 	}
 	free(oldpversion);
 	free(oldcontrol);

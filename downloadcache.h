@@ -30,7 +30,7 @@ struct downloadcache {
 };
 
 /* Initialize a new download session */
-retvalue downloadcache_initialize(struct database *,enum spacecheckmode mode,off_t reserveddb,off_t reservedother,struct downloadcache **download);
+retvalue downloadcache_initialize(enum spacecheckmode, off_t reserveddb, off_t reservedother, /*@out@*/struct downloadcache **download);
 
 /* free all memory */
 retvalue downloadcache_free(/*@null@*//*@only@*/struct downloadcache *download);
