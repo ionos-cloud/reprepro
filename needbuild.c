@@ -152,7 +152,7 @@ static retvalue check_source_needs_build(UNUSED(struct database *database), stru
 	r = target->getversion(control, &sourceversion);
 	if( !RET_IS_OK(r) )
 		return r;
-	r = chunk_getwordlist(control, "Architectures", &architectures);
+	r = chunk_getwordlist(control, "Architecture", &architectures);
 	if( RET_IS_OK(r) ) {
 		bool skip = true;
 

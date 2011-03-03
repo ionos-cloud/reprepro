@@ -23,9 +23,6 @@ retvalue files_remove(struct database *, const char *filekey);
 /* same but do not call pool_markremoved */
 retvalue files_removesilent(struct database *, const char *filekey);
 
-/* delete the filekey (not doing anything else, not even forgetting it) */
-retvalue files_deletefile(const char *);
-
 /* check for file in the database and if not found there in the pool */
 retvalue files_expect(struct database *, const char *, const struct checksums *);
 /* same for multiple files */

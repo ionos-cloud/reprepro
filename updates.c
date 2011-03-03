@@ -74,7 +74,7 @@
 #include "upgradelist.h"
 #include "distribution.h"
 #include "tracking.h"
-#include "terms.h"
+#include "termdecide.h"
 #include "filterlist.h"
 #include "readrelease.h"
 #include "log.h"
@@ -1569,7 +1569,7 @@ static retvalue updates_calllisthooks(struct update_distribution *distributions)
  *         (all the logic in upgradelist.c, this is only clue code)         *
  ****************************************************************************/
 
-static upgrade_decision ud_decide_by_pattern(void *privdata, const char *package, /*@null@*/const char *old_version, UNUSED(const char *new_version), const char *newcontrolchunk) {
+static upgrade_decision ud_decide_by_pattern(void *privdata, const struct target *target, const char *package, /*@null@*/const char *old_version, UNUSED(const char *new_version), const char *newcontrolchunk) {
 	const struct update_pattern *pattern = privdata, *p;
 	retvalue r;
 	upgrade_decision decision = UD_UPGRADE;
@@ -1609,7 +1609,8 @@ static upgrade_decision ud_decide_by_pattern(void *privdata, const char *package
 	while( p != NULL && !p->includecondition_set )
 		p = p->pattern_from;
 	if( p != NULL ) {
-		r = term_decidechunk(p->includecondition, newcontrolchunk);
+		r = term_decidechunktarget(p->includecondition,
+				newcontrolchunk, target);
 		if( RET_WAS_ERROR(r) )
 			return UD_ERROR;
 		if( r == RET_NOTHING ) {

@@ -22,6 +22,7 @@ runtest various2
 runtest various3
 runtest copy
 runtest buildneeding
+runtest morgue
 
 set +v +x
 echo

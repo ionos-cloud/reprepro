@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005,2006,2007,2008 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2006,2007,2008,2009 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -160,6 +160,18 @@ packagetype_t packagetype_find(const char *value) {
 	else
 		return atom_unknown;
 }
+
+packagetype_t packagetype_find_l(const char *value, size_t len) {
+	if( len == 3 ) {
+		if( strncmp(value, "dsc", 3) == 0 )
+			return pt_dsc;
+		else if( strncmp(value, "deb",3) == 0 )
+			return pt_deb;
+	} else if( len == 4 && strncmp(value, "udeb",4) == 0 )
+		return pt_udeb;
+	return atom_unknown;
+}
+
 static inline command_t command_find(const char *value) {
 	command_t c;
 

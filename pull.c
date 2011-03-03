@@ -30,7 +30,7 @@
 #include "upgradelist.h"
 #include "distribution.h"
 #include "tracking.h"
-#include "terms.h"
+#include "termdecide.h"
 #include "filterlist.h"
 #include "log.h"
 #include "configparser.h"
@@ -646,7 +646,7 @@ retvalue pull_prepare(struct distribution *alldistributions, struct pull_rule *r
  * decide what gets pulled                                                 *
  **************************************************************************/
 
-static upgrade_decision ud_decide_by_rule(void *privdata, const char *package, /*@null@*/const char *old_version, UNUSED(const char *new_version), const char *newcontrolchunk) {
+static upgrade_decision ud_decide_by_rule(void *privdata, const struct target *target, const char *package, /*@null@*/const char *old_version, UNUSED(const char *new_version), const char *newcontrolchunk) {
 	struct pull_rule *rule = privdata;
 	upgrade_decision decision = UD_UPGRADE;
 	retvalue r;
@@ -674,7 +674,8 @@ static upgrade_decision ud_decide_by_rule(void *privdata, const char *package, /
 	}
 
 	if( rule->includecondition != NULL ) {
-		r = term_decidechunk(rule->includecondition,newcontrolchunk);
+		r = term_decidechunktarget(rule->includecondition,
+				newcontrolchunk, target);
 		if( RET_WAS_ERROR(r) )
 			return UD_ERROR;
 		if( r == RET_NOTHING ) {

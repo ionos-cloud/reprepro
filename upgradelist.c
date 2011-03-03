@@ -191,7 +191,7 @@ void upgradelist_free(struct upgradelist *upgrade) {
 	return;
 }
 
-static retvalue upgradelist_trypackage(struct upgradelist *upgrade, void *privdata, upgrade_decide_function *predecide, void *predecide_data, const char *packagename_const, /*@null@*//*@only@*/char *packagename, /*@only@*/char *version, architecture_t architecture, const char *chunk){
+static retvalue upgradelist_trypackage(struct upgradelist *upgrade, void *privdata, upgrade_decide_function *predecide, void *predecide_data, const char *packagename_const, /*@null@*//*@only@*/char *packagename, /*@only@*/char *version, architecture_t architecture, const char *chunk) {
 	retvalue r;
 	upgrade_decision decision;
 	struct package_data *current,*insertafter;
@@ -266,7 +266,8 @@ static retvalue upgradelist_trypackage(struct upgradelist *upgrade, void *privda
 		/* adding a package not yet known */
 		struct package_data *new;
 
-		decision = predecide(predecide_data, packagename_const, NULL, version, chunk);
+		decision = predecide(predecide_data, upgrade->target,
+				packagename_const, NULL, version, chunk);
 		if( decision != UD_UPGRADE ) {
 			upgrade->last = insertafter;
 			if( decision == UD_LOUDNO )
@@ -357,8 +358,9 @@ static retvalue upgradelist_trypackage(struct upgradelist *upgrade, void *privda
 		if( versioncmp > 0 && verbose > 30 )
 			fprintf(stderr,"'%s' from '%s' is newer than '%s' currently\n",
 				version, packagename_const, current->version);
-		decision = predecide(predecide_data,current->name,
-				current->version,version,chunk);
+		decision = predecide(predecide_data, upgrade->target,
+				current->name, current->version,
+				version, chunk);
 		if( decision != UD_UPGRADE ) {
 			if( decision == UD_LOUDNO )
 				fprintf(stderr, "Loudly rejecting '%s' '%s' to enter '%s'!\n", packagename, version, upgrade->target->identifier);
@@ -672,6 +674,6 @@ void upgradelist_dump(struct upgradelist *upgrade, dumpaction action){
 }
 
 /* standard answer function */
-upgrade_decision ud_always(UNUSED(void *privdata),UNUSED(const char *package),UNUSED(const char *old_version),UNUSED(const char *new_version),UNUSED(const char *new_controlchunk)) {
+upgrade_decision ud_always(UNUSED(void *privdata), UNUSED(const struct target *target), UNUSED(const char *package), UNUSED(const char *old_version), UNUSED(const char *new_version), UNUSED(const char *new_controlchunk)) {
 	return UD_UPGRADE;
 }

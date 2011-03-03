@@ -6,6 +6,7 @@ genpackage.sh \
 test.inc \
 test.sh \
 testatoms.sh \
+testbuildneeding.sh \
 testcheck.sh \
 testchecksums.sh \
 testcopy.sh \
@@ -14,6 +15,7 @@ testflat.sh \
 testincludeextra.sh \
 testlayeredupdate.sh \
 testlayeredupdate2.sh \
+testmorgue.sh \
 testpackagediff.sh \
 testsignatures.sh \
 testsnapshotcopyrestore.sh \

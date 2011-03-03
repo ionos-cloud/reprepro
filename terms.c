@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2004,2005,2007 Bernhard R. Link
+ *  Copyright (C) 2004,2005,2007,2009 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -34,15 +34,23 @@
 void term_free(term *t) {
 	while( t != NULL ) {
 		struct term_atom *next = t->next;
-		free(t->key);
-		free(t->comparewith);
+		if( t->isspecial ) {
+			if( t->special.type != NULL &&
+					t->special.type->done != NULL )
+				t->special.type->done(t->comparison,
+						&t->special.comparewith);
+
+		} else {
+			free(t->generic.key);
+			free(t->generic.comparewith);
+		}
 		strlist_done(&t->architectures);
 		free(t);
 		t = next;
 	}
 }
 
-static retvalue parseatom(const char **formula,/*@out@*/struct term_atom **atom,int options) {
+static retvalue parseatom(const char **formula, /*@out@*/struct term_atom **atom, int options, const struct term_special *specials) {
 	struct term_atom *a;
 	const char *f = *formula;
 #define overspace() while( *f != '\0' && xisspace(*f) ) f++
@@ -50,6 +58,7 @@ static retvalue parseatom(const char **formula,/*@out@*/struct term_atom **atom,
 	const char *valuestart,*valueend;
 	enum term_comparison comparison = tc_none;
 	bool negated = false;
+	const struct term_special *s;
 
 
 	overspace();
@@ -160,33 +169,50 @@ static retvalue parseatom(const char **formula,/*@out@*/struct term_atom **atom,
 		//TODO: implement this one...
 		assert( "Not yet implemented!" == NULL);
 	}
-
+	for( s = specials ; s->name != NULL ; s++ ) {
+		if( strncasecmp(s->name, keystart, keyend-keystart) == 0 &&
+				s->name[keyend-keystart] == '\0' )
+			break;
+	}
 	a = calloc(1,sizeof(struct term_atom));
 	if( a == NULL )
 		return RET_ERROR_OOM;
 	a->negated = negated;
-	a->key = strndup(keystart,keyend-keystart);
-	if( a->key == NULL ) {
-		term_free(a);
-		return RET_ERROR_OOM;
-	}
 	a->comparison = comparison;
-	if( comparison != tc_none ) {
-		if( valueend - valuestart > 2048 &&
-				(comparison == tc_globmatch ||
-				 comparison == tc_notglobmatch) ) {
-			fprintf(stderr, "Ridicilous long globmatch '%.10s...'!\n",
-					valuestart);
+	if( s->name != NULL ) {
+		retvalue r;
+
+		a->isspecial = true;
+		a->special.type = s;
+		r = s->parse(comparison, valuestart, valueend-valuestart,
+				&a->special.comparewith);
+		if( RET_WAS_ERROR(r) ) {
 			term_free(a);
-			return RET_ERROR;
+			return r;
 		}
-		a->comparewith =  strndup(valuestart,valueend-valuestart);
-		if( a->comparewith == NULL ) {
+	} else {
+		a->isspecial = false;
+		a->generic.key = strndup(keystart,keyend-keystart);
+		if( FAILEDTOALLOC(a->generic.key) ) {
 			term_free(a);
 			return RET_ERROR_OOM;
 		}
+		if( comparison != tc_none ) {
+			if( valueend - valuestart > 2048 &&
+					(comparison == tc_globmatch ||
+					 comparison == tc_notglobmatch) ) {
+				fprintf(stderr, "Ridicilous long globmatch '%.10s...'!\n",
+						valuestart);
+				term_free(a);
+				return RET_ERROR;
+			}
+			a->generic.comparewith =  strndup(valuestart,valueend-valuestart);
+			if( a->generic.comparewith == NULL ) {
+				term_free(a);
+				return RET_ERROR_OOM;
+			}
+		}
 	}
-
 	//TODO: here architectures, too
 
 	*atom = a;
@@ -220,7 +246,7 @@ static void andterm(term *termtochange, /*@dependent@*/term *termtoand) {
 	}
 }
 
-retvalue term_compile(term **term_p, const char *origformula, int options) {
+retvalue term_compile(term **term_p, const char *origformula, int options, const struct term_special *specials) {
 	const char *formula = origformula;
 	/* for the global list */
 	struct term_atom *first,*last;
@@ -257,7 +283,7 @@ retvalue term_compile(term **term_p, const char *origformula, int options) {
 			fprintf(stderr,"Nested too deep: '%s'!\n",origformula);
 			return RET_ERROR;
 		}
-		r = parseatom(&formula,&atom,options);
+		r = parseatom(&formula, &atom, options, specials);
 		if( r == RET_NOTHING ) {
 			if( *formula == '\0' )
 				fprintf(stderr,"Unexpected end of string parsing formula '%s'!\n",origformula);
@@ -334,57 +360,3 @@ retvalue term_compile(term **term_p, const char *origformula, int options) {
 	return RET_OK;
 }
 
-retvalue term_decidechunk(term *condition,const char *controlchunk) {
-	struct term_atom *atom = condition;
-	while( atom != NULL ) {
-		bool correct;char *value;
-		enum term_comparison c = atom->comparison;
-		retvalue r;
-
-		r = chunk_getvalue(controlchunk,atom->key,&value);
-		if( RET_WAS_ERROR(r) )
-			return r;
-		if( r == RET_NOTHING ) {
-			correct = ( c == tc_notequal || c == tc_notglobmatch);
-		} else if( c == tc_none) {
-			correct = true;
-			free(value);
-		} else if( c == tc_globmatch ) {
-			correct = globmatch(value, atom->comparewith);
-			free(value);
-		} else if(c == tc_notglobmatch ) {
-			correct = !globmatch(value, atom->comparewith);
-			free(value);
-		} else {
-			int i;
-			i = strcmp(value,atom->comparewith);
-			free(value);
-			if( i < 0 )
-				correct = c == tc_strictless
-					|| c == tc_lessorequal
-					|| c == tc_notequal;
-			else if( i > 0 )
-				correct = c == tc_strictmore
-					|| c == tc_moreorequal
-					|| c == tc_notequal;
-			else
-				correct = c == tc_lessorequal
-					|| c == tc_moreorequal
-					|| c == tc_equal;
-		}
-		if( atom->negated )
-			correct = !correct;
-		if( correct ) {
-			atom = atom->nextiftrue;
-		} else {
-			atom = atom->nextiffalse;
-			if( atom == NULL) {
-				/* do not include */
-				return RET_NOTHING;
-			}
-		}
-
-	}
-	/* do include */
-	return RET_OK;
-}
