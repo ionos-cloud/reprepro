@@ -773,10 +773,10 @@ static retvalue changes_includefiles(struct database *database,struct changes *c
 		r = files_checkincludefile(database,
 				changes->incomingdirectory, e->basename,
 				e->filekey, &e->checksums, &e->included);
-		assert( e->included || e->wasalreadythere );
-		assert( !(e->included && e->wasalreadythere) );
 		if( RET_WAS_ERROR(r) )
 			return r;
+		assert( e->included || e->wasalreadythere );
+		assert( !(e->included && e->wasalreadythere) );
 	}
 
 	return r;

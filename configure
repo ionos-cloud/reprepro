@@ -2071,7 +2071,7 @@ fi
 
 # Define the identity of the package.
  PACKAGE=reprepro
- VERSION=3.4.0
+ VERSION=3.4.1
 
 
 cat >>confdefs.h <<_ACEOF

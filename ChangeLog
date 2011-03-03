@@ -1,3 +1,11 @@
+2008-04-12  Bernhard R. Link <brlink@debian.org>
+	* move assertion to not abort() on wrong md5sums in include
+	command, but cleanly error out.
+	* do not close random fd when starting client without
+	control data.
+	* fix free of uninitialized pointer when calling log notifiers
+	while removing
+
 2008-04-05  Bernhard R. Link <brlink@debian.org>
 	* add restore restoresrc restorefilter and _addpackage
 

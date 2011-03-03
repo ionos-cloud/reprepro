@@ -559,9 +559,9 @@ static retvalue startchild(void) {
 			dup2(filedes[0], 0);
 			if( filedes[0] != 0)
 				(void)close(filedes[0]);
+			(void)close(filedes[1]);
 		}
 		/* Try to close all open fd but 0,1,2 */
-		(void)close(filedes[1]);
 		closefrom(3);
 		if( p->causingfile != NULL )
 			setenv("REPREPRO_CAUSING_FILE", p->causingfile, true);
@@ -697,7 +697,8 @@ static retvalue notificator_enqueuechanges(struct notificator *n,const char *cod
 			free(p);
 			return RET_ERROR_OOM;
 		}
-	}
+	} else
+		p->causingfile = NULL;
 	p->arguments = arguments;
 	p->next = NULL;
 	p->child = 0;
