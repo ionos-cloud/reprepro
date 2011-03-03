@@ -41,7 +41,7 @@ struct fieldtoadd {
 // TODO make this return retvalue..
 /* Add this the <fields to add> to <chunk> before <beforethis> field,
  * replacing older fields of this name, if they are already there. */
-/*@null@*/ char *chunk_replacefields(const char *chunk,const struct fieldtoadd *toadd,const char *beforethis);
+/*@null@*/ char *chunk_replacefields(const char *chunk, const struct fieldtoadd *toadd, const char *beforethis, bool maybemissing);
 /*@null@*/struct fieldtoadd *deletefield_new(/*@dependent@*/const char *field,/*@only@*//*@null@*/struct fieldtoadd *next);
 /*@null@*/struct fieldtoadd *aodfield_new(/*@dependent@*/const char *field, /*@dependent@*//*@null@*/const char *data, /*@only@*/struct fieldtoadd *next);
 /*@null@*/struct fieldtoadd *addfield_new(/*@dependent@*/const char *field,/*@dependent@*//*@null@*/const char *data,/*@only@*/struct fieldtoadd *next);
@@ -49,7 +49,7 @@ struct fieldtoadd {
 void addfield_free(/*@only@*//*@null@*/struct fieldtoadd *f);
 
 /* that is chunk_replacefields(chunk,{fieldname,strlen,data,strlen},fieldname); */
-/*@null@*/char *chunk_replacefield(const char *chunk,const char *fieldname,const char *data);
+/*@null@*/char *chunk_replacefield(const char *chunk, const char *fieldname, const char *data, bool maybemissing);
 
 /* check if all field names  are in allowedfieldnames */
 retvalue chunk_checkfields(const char *chunk, const char * const *allowedfieldnames, bool commentsallowed);

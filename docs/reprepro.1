@@ -273,6 +273,19 @@ even when it is not set, stdin is terminal and
 .B /proc/self/fd/0
 is a readable symbolic link.
 .TP
+.B \-\-gnupghome
+Set the
+.B GNUPGHOME
+evnironment variable to the given directory as argument to this option.
+And your gpg will most likely use the content of this variable
+instead of "~/.gnupg".
+Take a look at
+.BR gpg (1)
+to be sure.
+This option in the command line is usually not very useful, as it is possible
+to set the environment variable directly.
+Its main reason for existance is that it can be used in \fIconf\fP\fB/options\fP.
+.TP
 .B \-\-oldfilesdb
 Do not only create checksums.db but also older files.db file.
 This will make it possible for reprepro versions before 3.3.0 to
@@ -1707,6 +1720,7 @@ instead of "~/.gnupg".
 Take a look at
 .BR gpg (1)
 to be sure.
+You can also tell reprepro to set this with the \fB--gnupghome\fP option.
 .TP
 .B GPG_TTY
 When there is a gpg-agent running that does not have the passphrase

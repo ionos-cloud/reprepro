@@ -401,5 +401,99 @@ stdout
 -v6*= looking for changes in '1234|bb|source'...
 EOF
 
-rm -r -f db conf dists pool lists flatsource
+touch fake.dsc
+
+cat > flatsource/Sources <<EOF
+Package: test
+Version: 0
+Files:
+ $EMPTYMD5 fake.dsc
+EOF
+srcmd="$(mdandsize flatsource/Sources)"
+gzip -f flatsource/Sources
+cat > flatsource/Release <<EOF
+MD5Sum:
+ $srcmd Sources
+ $(mdandsize flatsource/Sources.gz) Sources.gz
+ $pkgmd Packages
+ $(mdandsize flatsource/Packages.gz) Packages.gz
+EOF
+
+testrun - -b . update 1234 3<<EOF
+stderr
+-v1*=aptmethod got 'file:$WORKDIR/flatsource/Release'
+-v2*=Copy file '$WORKDIR/flatsource/Release' to './lists/flattest_flatsource_flat_Release'...
+-v1*=aptmethod got 'file:$WORKDIR/flatsource/Sources.gz'
+-v2*=Uncompress '$WORKDIR/flatsource/Sources.gz' into './lists/flattest_flatsource_Sources' using '/bin/gunzip'...
+-v1*=aptmethod got 'file:$WORKDIR/./fake.dsc'
+-v2*=Linking file '$WORKDIR/./fake.dsc' to './pool/a/t/test/fake.dsc'...
+stdout
+-v0*=Calculating packages to get...
+-v4*=  nothing to do for '1234|bb|source'
+-v4*=  nothing to do for '1234|bb|yyyyyyyyyy'
+-v4*=  nothing to do for '1234|bb|x'
+-v3*=  processing updates for '1234|a|source'
+-v0*=  nothing new for '1234|a|yyyyyyyyyy' (use --noskipold to process anyway)
+-v4*=  nothing to do for 'u|1234|a|yyyyyyyyyy'
+-v5*=  reading './lists/flattest_flatsource_Sources'
+-v4*=  nothing to do for 'u|1234|a|x'
+-v3*=  nothing new for '1234|a|x' (use --noskipold to process anyway)
+-v0*=Getting packages...
+-e1*=db: 'pool/a/t/test/fake.dsc' added to files.db(md5sums).
+-d1*=db: 'pool/a/t/test/fake.dsc' added to checksums.db(pool).
+-v1*=Shutting down aptmethods...
+-v0*=Installing (and possibly deleting) packages...
+-d1*=db: 'test' added to packages.db(1234|a|source).
+-v0*=Exporting indices...
+-v6*= looking for changes in '1234|a|x'...
+-v6*= looking for changes in 'u|1234|a|x'...
+-v6*= looking for changes in '1234|a|yyyyyyyyyy'...
+-v6*= looking for changes in 'u|1234|a|yyyyyyyyyy'...
+-v6*= looking for changes in '1234|a|source'...
+-v6*=  replacing './dists/1234/a/source/Sources' (gzipped)
+-v6*= looking for changes in '1234|bb|x'...
+-v6*= looking for changes in '1234|bb|yyyyyyyyyy'...
+-v6*= looking for changes in '1234|bb|source'...
+EOF
+
+cat > flatsource/Sources <<EOF
+Package: test
+Version: 1
+Files:
+ $EMPTYMD5 ../fake.dsc
+EOF
+srcmd="$(mdandsize flatsource/Sources)"
+gzip -f flatsource/Sources
+cat > flatsource/Release <<EOF
+MD5Sum:
+ $srcmd Sources
+ $(mdandsize flatsource/Sources.gz) Sources.gz
+ $pkgmd Packages
+ $(mdandsize flatsource/Packages.gz) Packages.gz
+EOF
+
+testrun - -b . update 1234 3<<EOF
+stderr
+-v1*=aptmethod got 'file:$WORKDIR/flatsource/Release'
+-v2*=Copy file '$WORKDIR/flatsource/Release' to './lists/flattest_flatsource_flat_Release'...
+-v1*=aptmethod got 'file:$WORKDIR/flatsource/Sources.gz'
+-v2*=Uncompress '$WORKDIR/flatsource/Sources.gz' into './lists/flattest_flatsource_Sources' using '/bin/gunzip'...
+stdout
+-v0*=Calculating packages to get...
+-v4*=  nothing to do for '1234|bb|source'
+-v4*=  nothing to do for '1234|bb|yyyyyyyyyy'
+-v4*=  nothing to do for '1234|bb|x'
+-v3*=  processing updates for '1234|a|source'
+-v5*=  reading './lists/flattest_flatsource_Sources'
+stderr
+*=Character '/' not allowed within filename '../fake.dsc'!
+*=Forbidden characters in source package 'test'!
+*=Stop reading further chunks from './lists/flattest_flatsource_Sources' due to previous errors.
+stdout
+stderr
+-v0*=There have been errors!
+return 255
+EOF
+
+rm -r -f db conf dists pool lists flatsource fake.dsc
 testsuccess
