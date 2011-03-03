@@ -1,3 +1,6 @@
+Updates between 3.3.0 and 3.3.1:
+- multiple bugfixes
+
 Updates between 3.1.0 and 3.3.0:
 - add support for different checksums.
   The new checksums.db which stores all the checksums, while

@@ -51,13 +51,19 @@ cancel each other out.
 This option is ignored, as it no longer exists.
 .TP
 .B \-b, \-\-basedir \fIbasedir\fP
-Sets the base\-dir of the repository to manage, i.e. where the
-.B pool/
-subdirectory resides.
+Sets the base\-dir all other default directories are relative to.
 If none is supplied and the
 .B REPREPRO_BASE_DIR
 environment variable is not set either, the current directory
 will be used.
+.TP
+.B \-\-outdir \fIoutdir\fP
+Sets the base\-dir of the repository to manage, i.e. where the
+.B pool/
+subdirectory resides. And in which the
+.B dists/
+directory is placed by default.
+The default for this is \fIbasedir\fP.
 .TP
 .B \-\-confdir \fIconfdir\fP
 Sets the directory where the configuration is searched in.
@@ -68,7 +74,7 @@ If none is given, \fIbasedir\fP\fB/conf\fP will be used.
 Sets the directory to generate index files relatively to. (i.e. things like
 Packages.gz, Sources.gz and Release.gpg)
 
-If none is given, \fIbasedir\fP\fB/dists\fP is used.
+If none is given, \fIoutdir\fP\fB/dists\fP is used.
 
 .B Note:
 apt has

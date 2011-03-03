@@ -1256,6 +1256,8 @@ static retvalue add_dsc(struct database *database,
 		struct trackingdata *trackingdata, struct candidate_package *p) {
 	retvalue r;
 	struct target *t = distribution_getpart(into, p->component, "source", "dsc");
+	// TODO: use this information:
+	bool usedmarker = false;
 
 	assert( logger_isprepared(into->logger) );
 
@@ -1270,7 +1272,7 @@ static retvalue add_dsc(struct database *database,
 					p->master->dsc.name,
 					p->master->dsc.version,
 					p->control,
-					&p->filekeys,
+					&p->filekeys, &usedmarker,
 					false, dereferenced,
 					trackingdata, ft_SOURCE);
 		r2 = target_closepackagesdb(t);
@@ -1355,12 +1357,15 @@ static retvalue candidate_add_into(struct database *database,struct strlist *der
 					(tracks==NULL)?NULL:&trackingdata,
 					p);
 		} else if( FE_BINARY(p->master->type) ) {
+			// TODO: use this information?
+			bool usedmarker = false;
 			r = binaries_adddeb(&p->master->deb, database,
 					p->master->architecture,
 					(p->master->type == fe_DEB)?"deb":"udeb",
 					into, dereferenced,
 					(tracks==NULL)?NULL:&trackingdata,
-					p->component, &p->filekeys, p->control);
+					p->component, &p->filekeys,
+					&usedmarker, p->control);
 		} else if( p->master->type == fe_UNKNOWN ) {
 			/* finally add the .changes to tracking, if requested */
 			assert( p->master->name == NULL );

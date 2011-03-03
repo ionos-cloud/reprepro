@@ -27,6 +27,6 @@ retvalue dsc_add(struct database *,/*@null@*/const char *forcecomponent,/*@null@
  * delete should be D_INPLACE then
  */
 
-retvalue dsc_addprepared(struct database *, const struct dsc_headers *, const char *component, const struct strlist *filekeys, struct distribution *distribution, /*@null@*/struct strlist *dereferencedfilekeys, /*@null@*/struct trackingdata *trackingdata);
+retvalue dsc_addprepared(struct database *, const struct dsc_headers *, const char *component, const struct strlist *filekeys, bool *usedmarker, struct distribution *distribution, /*@null@*/struct strlist *dereferencedfilekeys, /*@null@*/struct trackingdata *trackingdata);
 
 #endif

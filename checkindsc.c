@@ -89,10 +89,24 @@ struct dscpackage {
 	char *component; //This might be const, too and save some strdups, but...
 	/* Things that may be calculated by dsc_calclocations: */
 	struct strlist filekeys;
+	/* if set, everything set to true should be deleted when not used */
+	/*@null@*/bool *deleteonfailure;
 };
 
-static void dsc_free(/*@only@*/struct dscpackage *pkg) {
+static void dsc_free(/*@only@*/struct dscpackage *pkg, struct database *database) {
 	if( pkg != NULL ) {
+		if( pkg->deleteonfailure != NULL ) {
+			int i;
+
+			for( i = 0 ; i < pkg->filekeys.count ; i++ ) {
+				if( pkg->deleteonfailure[i] )
+					files_deleteandremove(
+						database,
+						pkg->filekeys.values[i],
+						true, false);
+			}
+			free(pkg->deleteonfailure);
+		}
 		sources_done(&pkg->dsc);
 		free(pkg->component);
 		strlist_done(&pkg->filekeys);
@@ -121,7 +135,7 @@ static retvalue dsc_read(/*@out@*/struct dscpackage **pkg, const char *filename)
 	if( RET_IS_OK(r) )
 		r = properfilenames(&dsc->dsc.files.names);
 	if( RET_WAS_ERROR(r) ) {
-		dsc_free(dsc);
+		dsc_free(dsc, NULL);
 		return r;
 	}
 	*pkg = dsc;
@@ -129,7 +143,7 @@ static retvalue dsc_read(/*@out@*/struct dscpackage **pkg, const char *filename)
 	return RET_OK;
 }
 
-retvalue dsc_addprepared(struct database *database, const struct dsc_headers *dsc, const char *component, const struct strlist *filekeys, struct distribution *distribution, struct strlist *dereferencedfilekeys, struct trackingdata *trackingdata){
+retvalue dsc_addprepared(struct database *database, const struct dsc_headers *dsc, const char *component, const struct strlist *filekeys, bool *usedmarker, struct distribution *distribution, struct strlist *dereferencedfilekeys, struct trackingdata *trackingdata){
 	retvalue r;
 	struct target *t = distribution_getpart(distribution,component,"source","dsc");
 
@@ -145,6 +159,7 @@ retvalue dsc_addprepared(struct database *database, const struct dsc_headers *ds
 			r = target_addpackage(t, distribution->logger, database,
 					dsc->name, dsc->version,
 					dsc->control, filekeys,
+					usedmarker,
 					false, dereferencedfilekeys,
 					trackingdata, ft_SOURCE);
 		r2 = target_closepackagesdb(t);
@@ -166,6 +181,7 @@ retvalue dsc_add(struct database *database,const char *forcecomponent,const char
 	char *destdirectory, *origdirectory;
 	const struct overrideinfo *oinfo;
 	char *control;
+	bool usedmarker = false;
 	int i;
 
 	/* First make sure this distribution has a source section at all,
@@ -194,7 +210,7 @@ retvalue dsc_add(struct database *database,const char *forcecomponent,const char
 		free(pkg->dsc.section);
 		pkg->dsc.section = strdup(forcesection);
 		if( pkg->dsc.section == NULL ) {
-			dsc_free(pkg);
+			dsc_free(pkg, database);
 			return RET_ERROR_OOM;
 		}
 	}
@@ -202,19 +218,19 @@ retvalue dsc_add(struct database *database,const char *forcecomponent,const char
 		free(pkg->dsc.priority);
 		pkg->dsc.priority = strdup(forcepriority);
 		if( pkg->dsc.priority == NULL ) {
-			dsc_free(pkg);
+			dsc_free(pkg, database);
 			return RET_ERROR_OOM;
 		}
 	}
 
 	if( pkg->dsc.section == NULL ) {
 		fprintf(stderr, "No section was given for '%s', skipping.\n",pkg->dsc.name);
-		dsc_free(pkg);
+		dsc_free(pkg, database);
 		return RET_ERROR;
 	}
 	if( pkg->dsc.priority == NULL ) {
 		fprintf(stderr, "No priority was given for '%s', skipping.\n",pkg->dsc.name);
-		dsc_free(pkg);
+		dsc_free(pkg, database);
 		return RET_ERROR;
 	}
 
@@ -224,7 +240,7 @@ retvalue dsc_add(struct database *database,const char *forcecomponent,const char
 			pkg->dsc.name, pkg->dsc.section, forcecomponent,
 			&pkg->component);
 	if( RET_WAS_ERROR(r) ) {
-		dsc_free(pkg);
+		dsc_free(pkg, database);
 		return r;
 	}
 	if( verbose > 0 && forcecomponent == NULL ) {
@@ -233,8 +249,14 @@ retvalue dsc_add(struct database *database,const char *forcecomponent,const char
 
 	r = dirs_getdirectory(dscfilename, &origdirectory);
 	if( RET_WAS_ERROR(r) ) {
-		dsc_free(pkg);
+		dsc_free(pkg, database);
 		return r;
+	}
+
+	pkg->deleteonfailure = calloc(pkg->dsc.files.names.count+1, sizeof(bool));
+	if( pkg->deleteonfailure == NULL ) {
+		dsc_free(pkg, database);
+		return RET_ERROR_OOM;
 	}
 
 	{	char *dscbasename, *dscfilekey;
@@ -250,7 +272,7 @@ retvalue dsc_add(struct database *database,const char *forcecomponent,const char
 		if( dscbasename == NULL || destdirectory == NULL || RET_WAS_ERROR(r) ) {
 			free(dscbasename);
 			free(destdirectory); free(origdirectory);
-			dsc_free(pkg);
+			dsc_free(pkg, database);
 			return r;
 		}
 		dscfilekey = calc_dirconcat(destdirectory, dscbasename);
@@ -261,7 +283,7 @@ retvalue dsc_add(struct database *database,const char *forcecomponent,const char
 			/* then look if we already have this, or copy it in */
 			r = files_preinclude(database,
 					dscfilename, dscfilekey,
-					&dscchecksums);
+					&dscchecksums, &pkg->deleteonfailure[0]);
 
 		if( !RET_WAS_ERROR(r) ) {
 			/* Add the dsc-file to basenames,filekeys and md5sums,
@@ -286,7 +308,8 @@ retvalue dsc_add(struct database *database,const char *forcecomponent,const char
 			r = files_checkincludefile(database, origdirectory,
 					pkg->dsc.files.names.values[i],
 					pkg->filekeys.values[i],
-					&pkg->dsc.files.checksums[i]);
+					&pkg->dsc.files.checksums[i],
+					&pkg->deleteonfailure[i]);
 		}
 	}
 	free(origdirectory);
@@ -301,26 +324,31 @@ retvalue dsc_add(struct database *database,const char *forcecomponent,const char
 		free(pkg->dsc.control);
 		pkg->dsc.control = control;
 	} else {
-		dsc_free(pkg);
+		dsc_free(pkg, database);
 		return r;
 	}
 
 	if( interrupted() ) {
-		dsc_free(pkg);
+		dsc_free(pkg, database);
 		return RET_ERROR_INTERRUPTED;
 	}
 
 	if( tracks != NULL ) {
 		r = trackingdata_summon(tracks,pkg->dsc.name,pkg->dsc.version,&trackingdata);
 		if( RET_WAS_ERROR(r) ) {
-			dsc_free(pkg);
+			dsc_free(pkg, database);
 			return r;
 		}
 	}
 
 	r = dsc_addprepared(database, &pkg->dsc, pkg->component,
-			&pkg->filekeys, distribution, dereferencedfilekeys,
+			&pkg->filekeys, &usedmarker,
+			distribution, dereferencedfilekeys,
 			(tracks!=NULL)?&trackingdata:NULL);
+	if( usedmarker ) {
+		for( i = 0 ; i < pkg->dsc.files.names.count ; i++ )
+			pkg->deleteonfailure[i] = false;
+	}
 
 	/* delete source files, if they are to be */
 	if( ( RET_IS_OK(r) && delete >= D_MOVE ) ||
@@ -345,9 +373,7 @@ retvalue dsc_add(struct database *database,const char *forcecomponent,const char
 		}
 		RET_ENDUPDATE(r, r2);
 	}
-	// TODO: delete files included into the pool, if inclusion failed
-	// TODO: how to decide inclusion failed and nothing after that?
-	dsc_free(pkg);
+	dsc_free(pkg, database);
 
 	if( tracks != NULL ) {
 		retvalue r2;

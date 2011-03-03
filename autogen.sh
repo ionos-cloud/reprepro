@@ -14,11 +14,11 @@ fi
 if [ "x$1" = "x--configure" ] ; then
 	shift
 	repreprodir="`pwd`"
-	if [ $# > 0 ] ; then
+	if [ $# -gt 0 ] ; then
 		mkdir -p -- "$1"
 		cd "$1" || exit 1
+		shift
 	fi
-	shift
 	"$repreprodir"/configure --enable-maintainer-mode CFLAGS="-Wall -O2 -g -Wmissing-prototypes -Wstrict-prototypes -DSTUPIDCC=1" "$@"
 else
 	echo "unsupported option $1" >&2

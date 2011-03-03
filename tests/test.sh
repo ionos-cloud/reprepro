@@ -2623,7 +2623,7 @@ dodiff results.empty results
 
 echo "now testing .orig.tar.gz handling"
 tar -czf test_1.orig.tar.gz test.changes
-PACKAGE=test EPOCH="" VERSION=1 REVISION="-2" SECTION="stupid/base" genpackage.sh -si
+PACKAGE=test EPOCH="" VERSION=1 REVISION="-2" SECTION="stupid/base" genpackage.sh -sd
 testrun - -b . include test1 test.changes 3<<EOF
 returns 249
 stderr
@@ -3459,8 +3459,6 @@ testrun - -b . --ignore=missingfield include test2 broken.changes 3<<EOF
 =Warning: Package version 'old' does not start with a digit, violating 'should'-directive in policy 5.6.11
 *=In 'broken.changes': Missing 'Urgency' field!
 *=In 'broken.changes': Missing 'Maintainer' field!
-*=In 'broken.changes': Missing 'Description' field!
-*=In 'broken.changes': Missing 'Changes' field!
 =Ignoring as --ignore=missingfield given.
 *=In 'broken.changes': Missing 'Files' field!
 -v0*=There have been errors!
@@ -3472,8 +3470,6 @@ testrun - -b . --ignore=missingfield include test2 broken.changes 3<<EOF
 =Warning: Package version 'old' does not start with a digit, violating 'should'-directive in policy 5.6.11
 *=In 'broken.changes': Missing 'Urgency' field!
 *=In 'broken.changes': Missing 'Maintainer' field!
-*=In 'broken.changes': Missing 'Description' field!
-*=In 'broken.changes': Missing 'Changes' field!
 *=broken.changes: Not enough files in .changes!
 =Ignoring as --ignore=missingfield given.
 -v0*=There have been errors!
@@ -3488,8 +3484,6 @@ testrun - -b . --ignore=missingfield include test2 broken.changes 3<<EOF
 =In 'broken.changes': Missing 'Urgency' field!
 =Ignoring as --ignore=missingfield given.
 =In 'broken.changes': Missing 'Maintainer' field!
-=In 'broken.changes': Missing 'Description' field!
-=In 'broken.changes': Missing 'Changes' field!
 *=Warning: Strange file 'filename_version.tar.gz'!
 =Looks like source but does not start with 'nowhere_' as I would have guessed!
 =I hope you know what you do.
@@ -3506,8 +3500,6 @@ testrun - -b . --ignore=unusedarch --ignore=surprisingarch --ignore=wrongdistrib
 =In 'broken.changes': Missing 'Urgency' field!
 =Ignoring as --ignore=missingfield given.
 =In 'broken.changes': Missing 'Maintainer' field!
-=In 'broken.changes': Missing 'Description' field!
-=In 'broken.changes': Missing 'Changes' field!
 =Warning: Strange file 'filename_version.tar.gz'!
 =Looks like source but does not start with 'nowhere_' as I would have guessed!
 =I hope you know what you do.
@@ -3528,8 +3520,6 @@ testrun - -b . --ignore=unusedarch --ignore=surprisingarch --ignore=wrongdistrib
 =In 'broken.changes': Missing 'Urgency' field!
 =Ignoring as --ignore=missingfield given.
 =In 'broken.changes': Missing 'Maintainer' field!
-=In 'broken.changes': Missing 'Description' field!
-=In 'broken.changes': Missing 'Changes' field!
 =Warning: Strange file 'filename_version.tar.gz'!
 *=Looks like source but does not start with 'nowhere_' as I would have guessed!
 =I hope you know what you do.
@@ -3539,9 +3529,25 @@ testrun - -b . --ignore=unusedarch --ignore=surprisingarch --ignore=wrongdistrib
 *=Ignoring as --ignore=unusedarch given.
 *='filename_version.tar.gz' looks like architecture 'source', but this is not listed in the Architecture-Header!
 *=Ignoring as --ignore=surprisingarch given.
+*=Warning: File 'pool/stupid/n/nowhere/filename_version.tar.gz' was listed in the .changes
+*= but looks like not used. Checking for references...
+= indeed unused, deleting it...
 stdout
 -v2*=Created directory "./pool/stupid/n"
 -v2*=Created directory "./pool/stupid/n/nowhere"
+-e1*=db: 'pool/stupid/n/nowhere/filename_version.tar.gz' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/n/nowhere/filename_version.tar.gz' added to checksums.db(pool).
+-v1*=deleting and forgetting pool/stupid/n/nowhere/filename_version.tar.gz
+-e1*=db: 'pool/stupid/n/nowhere/filename_version.tar.gz' removed from files.db(md5sums).
+-d1*=db: 'pool/stupid/n/nowhere/filename_version.tar.gz' removed from checksums.db(pool).
+-v2*=removed now empty directory ./pool/stupid/n/nowhere
+-v2*=removed now empty directory ./pool/stupid/n
+EOF
+mkdir -p pool/stupid/n/nowhere
+dodo test ! -f pool/stupid/n/nowhere/filename_version.tar.gz
+cp filename_version.tar.gz pool/stupid/n/nowhere/filename_version.tar.gz
+testrun - -b . _detect pool/stupid/n/nowhere/filename_version.tar.gz 3<<EOF
+stdout
 -e1*=db: 'pool/stupid/n/nowhere/filename_version.tar.gz' added to files.db(md5sums).
 -d1*=db: 'pool/stupid/n/nowhere/filename_version.tar.gz' added to checksums.db(pool).
 EOF
@@ -4526,6 +4532,9 @@ testrun - -b . -T dsc --delete --delete --ignore=missingfile include a broken.ch
 *=Unable to find pool/all/a/ab/ab_3-1.tar.gz!
 *=Perhaps you forgot to give dpkg-buildpackage the -sa option.
 *=Searching for it because --ignore=missingfile was given...
+*=Warning: File 'pool/all/a/ab/ab_3-1.diff.gz' was listed in the .changes
+*= but looks like not used. Checking for references...
+*= indeed unused, deleting it...
 stdout
 -e1*=db: 'pool/all/a/ab/ab_3-1.tar.gz' added to files.db(md5sums).
 -d1*=db: 'pool/all/a/ab/ab_3-1.tar.gz' added to checksums.db(pool).
@@ -4536,6 +4545,9 @@ stdout
 -d1*=db: 'ab' removed from packages.db(a|all|source).
 -d1*=db: 'ab' added to packages.db(a|all|source).
 -t1*=db: 'ab' '2-1' removed from tracking.db(a).
+-v2*=deleting and forgetting pool/all/a/ab/ab_3-1.diff.gz
+-d1*=db: 'pool/all/a/ab/ab_3-1.diff.gz' removed from checksums.db(pool).
+-e1*=db: 'pool/all/a/ab/ab_3-1.diff.gz' removed from files.db(md5sums).
 -v5*=Deleting 'broken.changes'.
 -v0*=Exporting indices...
 -v6*= looking for changes in 'a|all|${FAKEARCHITECTURE}'...
@@ -4557,7 +4569,7 @@ test ! -f ab_3-1.diff.gz
 test ! -f ab-addons_3-1_all.deb
 test ! -f ab_3-1_${FAKEARCHITECTURE}.deb
 test ! -f ab_3-1.dsc
-# test ! -f pool/all/a/ab/ab_3-1.diff.gz # decide later (TODO: let reprepro check for those)
+test ! -f pool/all/a/ab/ab_3-1.diff.gz
 test -f pool/all/a/ab/ab-addons_3-1_all.deb
 test -f pool/all/a/ab/ab_3-1_${FAKEARCHITECTURE}.deb
 test -f pool/all/a/ab/ab_3-1.dsc

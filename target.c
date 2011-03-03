@@ -368,7 +368,7 @@ static retvalue addpackages(struct target *target, struct database *database,
 	return result;
 }
 
-retvalue target_addpackage(struct target *target, struct logger *logger, struct database *database, const char *name, const char *version, const char *control, const struct strlist *filekeys, bool downgrade, struct strlist *dereferencedfilekeys, struct trackingdata *trackingdata, enum filetype filetype) {
+retvalue target_addpackage(struct target *target, struct logger *logger, struct database *database, const char *name, const char *version, const char *control, const struct strlist *filekeys, bool *usedmarker, bool downgrade, struct strlist *dereferencedfilekeys, struct trackingdata *trackingdata, enum filetype filetype) {
 	struct strlist oldfilekeys,*ofk;
 	char *oldcontrol,*oldsource,*oldsversion;
 	char *oldpversion;
@@ -447,6 +447,8 @@ retvalue target_addpackage(struct target *target, struct logger *logger, struct 
 		}
 
 	}
+	if( usedmarker != NULL )
+		*usedmarker = true;
 	r = addpackages(target, database, name, control, oldcontrol,
 			version, oldpversion,
 			filekeys, ofk,

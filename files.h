@@ -47,8 +47,8 @@ retvalue files_printmissing(struct database *, const struct strlist *filekeys, c
  * return RET_ERROR_WRONG_MD5 if wrong md5sum.
  *  (the original file is not deleted in that case, even if delete is positive)
  */
-retvalue files_preinclude(struct database *, const char *sourcefilename, const char *filekey, /*@null@*//*@out@*/struct checksums **);
-retvalue files_checkincludefile(struct database *, const char *directory, const char *sourcefilename, const char *filekey, struct checksums **);
+retvalue files_preinclude(struct database *, const char *sourcefilename, const char *filekey, /*@null@*//*@out@*/struct checksums **, /*@out@*/bool *);
+retvalue files_checkincludefile(struct database *, const char *directory, const char *sourcefilename, const char *filekey, struct checksums **, /*@out@*/bool *);
 
 typedef retvalue per_file_action(void *data, const char *filekey);
 

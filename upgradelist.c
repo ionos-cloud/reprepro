@@ -593,7 +593,7 @@ retvalue upgradelist_install(struct upgradelist *upgrade, struct logger *logger,
 						pkg->name,
 						pkg->new_version,
 						pkg->new_control,
-						&pkg->new_filekeys, true,
+						&pkg->new_filekeys, NULL, true,
 						dereferencedfilekeys, NULL, 0);
 			}
 			RET_UPDATE(result,r);

@@ -1,3 +1,24 @@
+2008-02-21  Bernhard R. Link <brlink@debian.org>
+	* make --without-libarchive compile again, thanks to
+	Jesus Roncero for noticing.
+
+2008-02-19  Bernhard R. Link <brlink@debian.org>
+	* Try harder not to leave any newly added files
+	to the pool in the case of an error.
+
+2008-02-15  Bernhard R. Link <brlink@debian.org>
+	* Also ignore missing Changes and Description lines
+	in .changes files with "include".
+
+2008-02-12  Bernhard R. Link <brlink@debian.org>
+	* Add --outdir directive to set the directory the pool
+	hierarchy is put under (and the dists hierarchy unless
+	--distdir puts it somewhere else).
+
+2008-02-11  Bernhard R. Link <brlink@debian.org>
+	* fix --waitforlock parsing on 64 bit size_t architectures.
+	  (Thanks to Arno Renevier for reporting the bug)
+
 2008-02-01  Bernhard R. Link <brlink@debian.org>
 	* new --nooldfilesdb switch to only use new-style checksum database
 	* improve db/version generation, set minimum required reprepro version

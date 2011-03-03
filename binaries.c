@@ -558,7 +558,7 @@ retvalue binaries_complete(const struct deb_headers *pkg, const char *filekey, c
 	return RET_OK;
 }
 
-retvalue binaries_adddeb(const struct deb_headers *deb,struct database *database,const char *forcearchitecture,const char *packagetype,struct distribution *distribution,struct strlist *dereferencedfilekeys,struct trackingdata *trackingdata,const char *component,const struct strlist *filekeys, const char *control) {
+retvalue binaries_adddeb(const struct deb_headers *deb, struct database *database, const char *forcearchitecture, const char *packagetype, struct distribution *distribution, struct strlist *dereferencedfilekeys, struct trackingdata *trackingdata, const char *component, const struct strlist *filekeys, bool *usedmarker, const char *control) {
 	retvalue r,result;
 	int i;
 
@@ -582,7 +582,8 @@ retvalue binaries_adddeb(const struct deb_headers *deb,struct database *database
 						database,
 						deb->name, deb->version,
 						control,
-						filekeys, false,
+						filekeys, usedmarker,
+						false,
 						dereferencedfilekeys,
 						trackingdata, ft_ARCH_BINARY);
 			r2 = target_closepackagesdb(t);
@@ -603,7 +604,8 @@ retvalue binaries_adddeb(const struct deb_headers *deb,struct database *database
 						database,
 						deb->name, deb->version,
 						control,
-						filekeys, false,
+						filekeys, usedmarker,
+						false,
 						dereferencedfilekeys,
 						trackingdata, ft_ALL_BINARY);
 			r2 = target_closepackagesdb(t);
@@ -625,7 +627,8 @@ retvalue binaries_adddeb(const struct deb_headers *deb,struct database *database
 						database,
 						deb->name, deb->version,
 						control,
-						filekeys, false,
+						filekeys, usedmarker,
+						false,
 						dereferencedfilekeys,
 						trackingdata, ft_ALL_BINARY);
 			r2 = target_closepackagesdb(t);

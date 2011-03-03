@@ -11,7 +11,7 @@ struct filesdb;
 struct database {
 	char *directory;
 	/* for the files database: */
-	char *mirrordir;
+	char *filesdir;
 	/*@null@*/ struct table *checksums, *oldmd5sums, *contents;
 	/* for the references database: */
 	/*@null@*/ struct table *references;

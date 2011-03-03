@@ -57,7 +57,7 @@ static void database_free(/*@only@*/ struct database *db) {
 	if( db == NULL )
 		return;
 	free(db->directory);
-	free(db->mirrordir);
+	free(db->filesdir);
 	free(db->version);
 	free(db->lastsupportedversion);
 	free(db->dbversion);
@@ -240,7 +240,9 @@ static retvalue database_opentable(struct database *database, const char *filena
 		}
 	}
 
-#if LIBDB_VERSION == 44
+#if LIBDB_VERSION == 46
+#define DB_OPEN(database,filename,name,type,flags) database->open(database,NULL,filename,name,type,flags,0664)
+#elif LIBDB_VERSION == 44
 #define DB_OPEN(database,filename,name,type,flags) database->open(database,NULL,filename,name,type,flags,0664)
 #elif LIBDB_VERSION == 43
 #define DB_OPEN(database,filename,name,type,flags) database->open(database,NULL,filename,name,type,flags,0664)
@@ -1746,14 +1748,14 @@ retvalue database_droppackages(struct database *database, const char *identifier
 	return database_dropsubtable(database, "packages.db", identifier);
 }
 
-retvalue database_openfiles(struct database *db, const char *mirrordir) {
+retvalue database_openfiles(struct database *db, const char *filesdir) {
 	retvalue r;
 	struct strlist identifiers;
 	bool checksumsexisted;
 
 	assert( db->checksums == NULL && db->oldmd5sums == NULL );
 	assert( db->contents == NULL );
-	assert( db->mirrordir == NULL );
+	assert( db->filesdir == NULL );
 
 	r = database_listsubtables(db, "contents.cache.db", &identifiers);
 	if( RET_IS_OK(r) ) {
@@ -1769,8 +1771,8 @@ retvalue database_openfiles(struct database *db, const char *mirrordir) {
 		strlist_done(&identifiers);
 	}
 
-	db->mirrordir = strdup(mirrordir);
-	if( db->mirrordir == NULL )
+	db->filesdir = strdup(filesdir);
+	if( db->filesdir == NULL )
 		return RET_ERROR_OOM;
 
 	r = database_hasdatabasefile(db, "checksums.db", &checksumsexisted);
@@ -1779,8 +1781,8 @@ retvalue database_openfiles(struct database *db, const char *mirrordir) {
 			&db->checksums);
 	assert( r != RET_NOTHING );
 	if( RET_WAS_ERROR(r) ) {
-		free(db->mirrordir);
-		db->mirrordir = NULL;
+		free(db->filesdir);
+		db->filesdir = NULL;
 		db->checksums = NULL;
 		db->oldmd5sums = NULL;
 		return r;
@@ -1794,8 +1796,8 @@ retvalue database_openfiles(struct database *db, const char *mirrordir) {
 		db->capabilities.nomd5legacy = true;
 	else if( RET_WAS_ERROR(r) ) {
 		(void)table_close(db->checksums);
-		free(db->mirrordir);
-		db->mirrordir = NULL;
+		free(db->filesdir);
+		db->filesdir = NULL;
 		db->checksums = NULL;
 		db->oldmd5sums = NULL;
 		return r;
@@ -1807,7 +1809,7 @@ retvalue database_openfiles(struct database *db, const char *mirrordir) {
 	if( RET_WAS_ERROR(r) ) {
 		(void)table_close(db->checksums);
 		(void)table_close(db->oldmd5sums);
-		db->mirrordir = NULL;
+		db->filesdir = NULL;
 		db->checksums = NULL;
 		db->oldmd5sums = NULL;
 		db->contents = NULL;
@@ -1872,9 +1874,9 @@ retvalue database_openreleasecache(struct database *database, const char *codena
 	return r;
 }
 
-/* concat mirrordir. return NULL if OutOfMemory */
+/* concat filesdir. return NULL if OutOfMemory */
 char *files_calcfullfilename(const struct database *database,const char *filekey) {
-	return calc_dirconcat(database->mirrordir, filekey);
+	return calc_dirconcat(database->filesdir, filekey);
 }
 
 static retvalue table_copy(struct table *oldtable, struct table *newtable) {
