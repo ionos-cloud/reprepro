@@ -76,7 +76,8 @@ _reprepro()
 	--noask-passphrase --skipold --noskipold'
 	options='-b -i --basedir --ignore --unignore --methoddir --distdir --dbdir\
 	--listdir --overridedir --confdir --section -S --priority -P --component -C\
-	--architecture -A --type -T --export'
+	--architecture -A --type -T --export --waitforlock \
+	--spacecheck --safetymargin --dbsafetymargin'
 
 	i=1
 	prev=""
@@ -106,7 +107,7 @@ _reprepro()
 				confdir="${COMP_WORDS[i+1]}"
 				i=$((i+2))
 				;;
-			-i|--ignore|--unignore|--methoddir|--distdir|--dbdir|--listdir|--overridedir|--section|-S|--priority|-P|--component|-C|--architecture|-A|--type|-T|--export)
+			-i|--ignore|--unignore|--methoddir|--distdir|--dbdir|--listdir|--overridedir|--section|-S|--priority|-P|--component|-C|--architecture|-A|--type|-T|--export|--waitforlock|--spacecheck|--checkspace|--safetymargin|--dbsafetymargin)
 
 				prev="$cur"
 				i=$((i+2))
@@ -157,6 +158,22 @@ _reprepro()
 				;;
 			--export)
         			COMPREPLY=( $( compgen -W "never changed normal force" -- $cur ) )
+				return 0
+				;;
+			--waitforlock)
+        			COMPREPLY=( $( compgen -W "0 60 3600 86400" -- $cur ) )
+				return 0
+				;;
+			--spacecheck)
+        			COMPREPLY=( $( compgen -W "none full" -- $cur ) )
+				return 0
+				;;
+			--safetymargin)
+        			COMPREPLY=( $( compgen -W "0 1048576" -- $cur ) )
+				return 0
+				;;
+			--dbsafetymargin)
+        			COMPREPLY=( $( compgen -W "0 104857600" -- $cur ) )
 				return 0
 				;;
 		esac

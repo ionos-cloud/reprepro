@@ -300,7 +300,7 @@ static retvalue notificator_parse(struct notificator *n, const char *confdir, co
 					fprintf(stderr,
 "Unknown option in notifiers of '%s': '%.*s' (in '%s')\n",
 							codename,
-							(1+s-p), p-1,
+							(int)(1+s-p), p-1,
 							line);
 					return RET_ERROR;
 			}
@@ -309,7 +309,7 @@ static retvalue notificator_parse(struct notificator *n, const char *confdir, co
 					fprintf(stderr,
 "Unexpected '=' in notifiers of '%s' after '%.*s' (in '%s')\n",
 							codename,
-							(1+s-p), p-1,
+							(int)(1+s-p), p-1,
 							line);
 					return RET_ERROR;
 				}
@@ -320,13 +320,13 @@ static retvalue notificator_parse(struct notificator *n, const char *confdir, co
 			if( *s != '=' ) {
 				fprintf(stderr,
 "Missing '=' in notifiers of '%s' after '%.*s' (in '%s')\n",
-						codename, (1+s-p), p-1, line);
+						codename, (int)(1+s-p), p-1, line);
 				return RET_ERROR;
 			}
 			if( *value_p != NULL ) {
 				fprintf(stderr,
 "Double notifier option '%.*s' (in '%s' from '%s')\n",
-						(1+s-p), p-1, line, codename);
+						(int)(1+s-p), p-1, line, codename);
 				return RET_ERROR;
 			}
 			*value_p = strndup(s+1, q-s-1);
@@ -971,6 +971,9 @@ void logger_logchanges(struct logger *log,const char *codename,const char *name,
 
 	assert( name != NULL );
 	assert( version != NULL );
+
+	if( log == NULL )
+		return;
 
 	for( i = 0 ; i < log->notificator_count ; i++ ) {
 		notificator_enqueuechanges(&log->notificators[i], codename,

@@ -2775,6 +2775,7 @@ int main(int argc,char *argv[]) {
 		{"export", required_argument, &longoption, LO_EXPORT},
 		{"waitforlock", required_argument, &longoption, LO_WAITFORLOCK},
 		{"checkspace", required_argument, &longoption, LO_SPACECHECK},
+		{"spacecheck", required_argument, &longoption, LO_SPACECHECK},
 		{"safetymargin", required_argument, &longoption, LO_SAFETYMARGIN},
 		{"dbsafetymargin", required_argument, &longoption, LO_DBSAFETYMARGIN},
 		{NULL, 0, NULL, 0}

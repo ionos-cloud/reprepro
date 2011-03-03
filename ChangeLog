@@ -1,3 +1,12 @@
+2007-06-03  Bernhard R. Link <brlink@debian.org>
+	* fix segfault when running processincoming without notificators
+	(Thanks to Julien Valroff for finding this)
+
+2007-06-02  Bernhard R. Link <brlink@debian.org>
+	* rename --checkspace to --spacecheck, as
+	manpage and error messages hint to that.
+	* fix 64bit problem in errormessages  for Log:
+
 2007-05-29  Bernhard R. Link <brlink@debian.org>
 	* adapt name include uses for .changes files to
 	  that of processincoming.

@@ -116,7 +116,7 @@ export changed
 CONFEND
 cat > conf/distributions <<CONFEND
 Codename: A
-Architectures: abacus calculator
+Architectures: arm calculator
 Components: dog cat
 Log: logfile
  --bla
@@ -132,7 +132,7 @@ stderr
 EOF
 cat > conf/distributions <<CONFEND
 Codename: A
-Architectures: abacus calculator
+Architectures: arm calculator
 Components: dog cat
 Log: logfile
  -A
@@ -145,39 +145,39 @@ return 255
 EOF
 cat > conf/distributions <<CONFEND
 Codename: A
-Architectures: abacus calculator
+Architectures: arm calculator
 Components: dog cat
 Log: logfile
- -A=abacus
+ -A=arm
 CONFEND
 testrun - -b . export 3<<EOF
 return 255
-*=Missing notification script to call in '-A=abacus' of 'A'
+*=Missing notification script to call in '-A=arm' of 'A'
 -v0=Stop reading further chunks from './conf/distributions' due to previous errors.
 -v0*=There have been errors!
 EOF
 cat > conf/distributions <<CONFEND
 Codename: A
-Architectures: abacus calculator
+Architectures: arm calculator
 Components: dog cat
 Log: logfile
- -A=abacus --architecture=coal
+ -A=arm --architecture=coal
 CONFEND
 testrun - -b . export 3<<EOF
 return 255
-*=Double notifier option '--architecture' (in '-A=abacus --architecture=coal' from 'A')
+*=Double notifier option '--architecture' (in '-A=arm --architecture=coal' from 'A')
 -v0=Stop reading further chunks from './conf/distributions' due to previous errors.
 -v0*=There have been errors!
 EOF
 cat > conf/distributions <<CONFEND
 Codename: A
-Architectures: abacus calculator
+Architectures: arm calculator
 Components: dog cat
 Log: logfile
  -A=nonexistant -C=nocomponent --type=none --withcontrol noscript.sh
 
 Codename: B
-Architectures: abacus source
+Architectures: arm source
 Components: dog cat
 Contents: 1
 Log: logfile
@@ -188,61 +188,61 @@ stdout
 -v2*=Created directory "./dists"
 -v2*=Created directory "./dists/B"
 -v2*=Created directory "./dists/B/dog"
--v2*=Created directory "./dists/B/dog/binary-abacus"
--v6*= exporting 'B|dog|abacus'...
--v6*=  creating './dists/B/dog/binary-abacus/Packages' (uncompressed,gzipped)
+-v2*=Created directory "./dists/B/dog/binary-arm"
+-v6*= exporting 'B|dog|arm'...
+-v6*=  creating './dists/B/dog/binary-arm/Packages' (uncompressed,gzipped)
 -v2*=Created directory "./dists/B/dog/source"
 -v6*= exporting 'B|dog|source'...
 -v6*=  creating './dists/B/dog/source/Sources' (gzipped)
 -v2*=Created directory "./dists/B/cat"
--v2*=Created directory "./dists/B/cat/binary-abacus"
--v6*= exporting 'B|cat|abacus'...
+-v2*=Created directory "./dists/B/cat/binary-arm"
+-v6*= exporting 'B|cat|arm'...
 -v2*=Created directory "./dists/B/cat/source"
--v6*=  creating './dists/B/cat/binary-abacus/Packages' (uncompressed,gzipped)
+-v6*=  creating './dists/B/cat/binary-arm/Packages' (uncompressed,gzipped)
 -v6*= exporting 'B|cat|source'...
 -v6*=  creating './dists/B/cat/source/Sources' (gzipped)
--v1*= generating Contents-abacus...
+-v1*= generating Contents-arm...
 -v1*=Exporting A...
 -v2*=Created directory "./dists/A"
 -v2*=Created directory "./dists/A/dog"
--v2*=Created directory "./dists/A/dog/binary-abacus"
--v6*= exporting 'A|dog|abacus'...
--v6*=  creating './dists/A/dog/binary-abacus/Packages' (uncompressed,gzipped)
+-v2*=Created directory "./dists/A/dog/binary-arm"
+-v6*= exporting 'A|dog|arm'...
+-v6*=  creating './dists/A/dog/binary-arm/Packages' (uncompressed,gzipped)
 -v2*=Created directory "./dists/A/dog/binary-calculator"
 -v6*= exporting 'A|dog|calculator'...
 -v6*=  creating './dists/A/dog/binary-calculator/Packages' (uncompressed,gzipped)
 -v2*=Created directory "./dists/A/cat"
--v2*=Created directory "./dists/A/cat/binary-abacus"
--v6*= exporting 'A|cat|abacus'...
--v6*=  creating './dists/A/cat/binary-abacus/Packages' (uncompressed,gzipped)
+-v2*=Created directory "./dists/A/cat/binary-arm"
+-v6*= exporting 'A|cat|arm'...
+-v6*=  creating './dists/A/cat/binary-arm/Packages' (uncompressed,gzipped)
 -v2*=Created directory "./dists/A/cat/binary-calculator"
 -v6*= exporting 'A|cat|calculator'...
 -v6*=  creating './dists/A/cat/binary-calculator/Packages' (uncompressed,gzipped)
 EOF
 find dists -type f | LC_ALL=C sort -f > results
 cat > results.expected <<END
-dists/A/cat/binary-abacus/Packages
-dists/A/cat/binary-abacus/Packages.gz
-dists/A/cat/binary-abacus/Release
+dists/A/cat/binary-arm/Packages
+dists/A/cat/binary-arm/Packages.gz
+dists/A/cat/binary-arm/Release
 dists/A/cat/binary-calculator/Packages
 dists/A/cat/binary-calculator/Packages.gz
 dists/A/cat/binary-calculator/Release
-dists/A/dog/binary-abacus/Packages
-dists/A/dog/binary-abacus/Packages.gz
-dists/A/dog/binary-abacus/Release
+dists/A/dog/binary-arm/Packages
+dists/A/dog/binary-arm/Packages.gz
+dists/A/dog/binary-arm/Release
 dists/A/dog/binary-calculator/Packages
 dists/A/dog/binary-calculator/Packages.gz
 dists/A/dog/binary-calculator/Release
 dists/A/Release
-dists/B/cat/binary-abacus/Packages
-dists/B/cat/binary-abacus/Packages.gz
-dists/B/cat/binary-abacus/Release
+dists/B/cat/binary-arm/Packages
+dists/B/cat/binary-arm/Packages.gz
+dists/B/cat/binary-arm/Release
 dists/B/cat/source/Release
 dists/B/cat/source/Sources.gz
-dists/B/Contents-abacus.gz
-dists/B/dog/binary-abacus/Packages
-dists/B/dog/binary-abacus/Packages.gz
-dists/B/dog/binary-abacus/Release
+dists/B/Contents-arm.gz
+dists/B/dog/binary-arm/Packages
+dists/B/dog/binary-arm/Packages.gz
+dists/B/dog/binary-arm/Release
 dists/B/dog/source/Release
 dists/B/dog/source/Sources.gz
 dists/B/Release
@@ -343,8 +343,8 @@ testrun "" -b . processincoming default
 echo returned: $?
 DSCMD5S="$(md5sum i/bird_1.dsc | cut -d' ' -f1) $(stat -c '%s' i/bird_1.dsc)"
 TARMD5S="$(md5sum i/bird_1.tar.gz | cut -d' ' -f1) $(stat -c '%s' i/bird_1.tar.gz)"
-DEBMD5="$(md5sum i/bird_1_abacus.deb | cut -d' ' -f1)"
-DEBSIZE="$(stat -c '%s' i/bird_1_abacus.deb)"
+DEBMD5="$(md5sum i/bird_1_arm.deb | cut -d' ' -f1)"
+DEBSIZE="$(stat -c '%s' i/bird_1_arm.deb)"
 DEBAMD5="$(md5sum i/bird-addons_1_all.deb | cut -d' ' -f1)"
 DEBASIZE="$(stat -c '%s' i/bird-addons_1_all.deb)"
 testrun - -b . processincoming default 3<<EOF
@@ -376,30 +376,30 @@ stderr
 stdout
 -v9*=Adding reference to 'pool/dog/b/bird/bird_1.dsc' by 'B|dog|source'
 -v9*=Adding reference to 'pool/dog/b/bird/bird_1.tar.gz' by 'B|dog|source'
--v9*=Adding reference to 'pool/dog/b/bird/bird_1_abacus.deb' by 'B|dog|abacus'
--v9*=Adding reference to 'pool/dog/b/bird/bird-addons_1_all.deb' by 'B|dog|abacus'
+-v9*=Adding reference to 'pool/dog/b/bird/bird_1_arm.deb' by 'B|dog|arm'
+-v9*=Adding reference to 'pool/dog/b/bird/bird-addons_1_all.deb' by 'B|dog|arm'
 -v2*=Created directory "./pool"
 -v2*=Created directory "./pool/dog"
 -v2*=Created directory "./pool/dog/b"
 -v2*=Created directory "./pool/dog/b/bird"
 -v2*=Created directory "./logs"
 -v3*=db: 'bird' added to 'B|dog|source'.
--v3*=db: 'bird' added to 'B|dog|abacus'.
--v3*=db: 'bird-addons' added to 'B|dog|abacus'.
+-v3*=db: 'bird' added to 'B|dog|arm'.
+-v3*=db: 'bird-addons' added to 'B|dog|arm'.
 -v3*=deleting './i/bird_1.dsc'...
 -v3*=deleting './i/bird_1.tar.gz'...
--v3*=deleting './i/bird_1_abacus.deb'...
+-v3*=deleting './i/bird_1_arm.deb'...
 -v3*=deleting './i/bird-addons_1_all.deb'...
 -v3*=deleting './i/test.changes'...
 -v0*=Exporting indices...
--v6*= looking for changes in 'B|dog|abacus'...
--v6*=  replacing './dists/B/dog/binary-abacus/Packages' (uncompressed,gzipped)
+-v6*= looking for changes in 'B|dog|arm'...
+-v6*=  replacing './dists/B/dog/binary-arm/Packages' (uncompressed,gzipped)
 -v6*= looking for changes in 'B|dog|source'...
 -v6*=  replacing './dists/B/dog/source/Sources' (gzipped)
--v6*= looking for changes in 'B|cat|abacus'...
+-v6*= looking for changes in 'B|cat|arm'...
 -v6*= looking for changes in 'B|cat|source'...
--v1*= generating Contents-abacus...
--v4*=Reading filelist for pool/dog/b/bird/bird_1_abacus.deb
+-v1*= generating Contents-arm...
+-v4*=Reading filelist for pool/dog/b/bird/bird_1_arm.deb
 -v4*=Reading filelist for pool/dog/b/bird/bird-addons_1_all.deb
 EOF
 LOGDATE="$(date +'%Y-%m-%d %H:')"
@@ -407,8 +407,8 @@ echo normalizing logfile: DATESTR is "$LOGDATE??:??"
 sed -i -e 's/^'"$LOGDATE"'[0-9][0-9]:[0-9][0-9] /DATESTR /g' logs/logfile
 cat > results.log.expected <<EOF
 DATESTR add B dsc dog source bird 1
-DATESTR add B deb dog abacus bird 1
-DATESTR add B deb dog abacus bird-addons 1
+DATESTR add B deb dog arm bird 1
+DATESTR add B deb dog arm bird-addons 1
 EOF
 dodiff results.log.expected logs/logfile
 find temp -type f > results
@@ -423,28 +423,28 @@ dir/another	    tasty/bird,tasty/bird-addons
 dir/file	    tasty/bird,tasty/bird-addons
 dir/subdir/file	    tasty/bird,tasty/bird-addons
 EOF
-gunzip -c dists/B/Contents-abacus.gz > results
+gunzip -c dists/B/Contents-arm.gz > results
 dodiff results.expected results
 cat > results.expected <<EOF
 Package: bird
 Version: 1
-Architecture: abacus
-Installed-Size: 20
+Architecture: arm
 Maintainer: me <guess@who>
+Installed-Size: 20
 Priority: superfluous
 Section: tasty
-Filename: pool/dog/b/bird/bird_1_abacus.deb
+Filename: pool/dog/b/bird/bird_1_arm.deb
 Size: $DEBSIZE
 MD5sum: $DEBMD5
 Description: bla
  blub
 
 Package: bird-addons
+Source: bird
 Version: 1
 Architecture: all
-Installed-Size: 24
 Maintainer: me <guess@who>
-Source: bird
+Installed-Size: 24
 Priority: superfluous
 Section: tasty
 Filename: pool/dog/b/bird/bird-addons_1_all.deb
@@ -454,14 +454,14 @@ Description: bla
  blub
 
 EOF
-dodiff results.expected dists/B/dog/binary-abacus/Packages
+dodiff results.expected dists/B/dog/binary-arm/Packages
 cat > results.expected <<EOF
 Package: bird
 Format: 1.0
-Version: 1
 Binary: bird, bird-addons
-Maintainer: me <guess@who>
 Architecture: any
+Version: 1
+Maintainer: me <guess@who>
 Standards-Version: 0.0
 Priority: superfluous
 Section: tasty
@@ -495,26 +495,26 @@ stdout
 -v2*=Created directory "./pool/cat/b"
 -v2*=Created directory "./pool/cat/b/bird"
 -v3*=db: 'bird' added to 'B|cat|source'.
--v3*=db: 'bird' added to 'B|cat|abacus'.
--v3*=db: 'bird-addons' added to 'B|cat|abacus'.
+-v3*=db: 'bird' added to 'B|cat|arm'.
+-v3*=db: 'bird-addons' added to 'B|cat|arm'.
 -v7*=db: pool/cat/b/bird/bird_1.dsc: file added.
 -v7*=db: pool/cat/b/bird/bird_1.tar.gz: file added.
--v7*=db: pool/cat/b/bird/bird_1_abacus.deb: file added.
+-v7*=db: pool/cat/b/bird/bird_1_arm.deb: file added.
 -v7*=db: pool/cat/b/bird/bird-addons_1_all.deb: file added.
 -v3*=deleting './i/bird_1.dsc'...
 -v3*=deleting './i/bird_1.tar.gz'...
--v3*=deleting './i/bird_1_abacus.deb'...
+-v3*=deleting './i/bird_1_arm.deb'...
 -v3*=deleting './i/bird-addons_1_all.deb'...
 -v3*=deleting './i/test.changes'...
 -v0*=Exporting indices...
--v6*= looking for changes in 'B|cat|abacus'...
+-v6*= looking for changes in 'B|cat|arm'...
 -v6*= looking for changes in 'B|cat|source'...
--v6*= looking for changes in 'B|dog|abacus'...
--v6*=  replacing './dists/B/cat/binary-abacus/Packages' (uncompressed,gzipped)
+-v6*= looking for changes in 'B|dog|arm'...
+-v6*=  replacing './dists/B/cat/binary-arm/Packages' (uncompressed,gzipped)
 -v6*= looking for changes in 'B|dog|source'...
 -v6*=  replacing './dists/B/cat/source/Sources' (gzipped)
--v1*= generating Contents-abacus...
--v4*=Reading filelist for pool/cat/b/bird/bird_1_abacus.deb
+-v1*= generating Contents-arm...
+-v4*=Reading filelist for pool/cat/b/bird/bird_1_arm.deb
 -v4*=Reading filelist for pool/cat/b/bird/bird-addons_1_all.deb
 EOF
 function checklog() {
@@ -528,11 +528,11 @@ function checklog() {
 }
 checklog logfile <<EOF
 DATESTR add B dsc dog source bird 1
-DATESTR add B deb dog abacus bird 1
-DATESTR add B deb dog abacus bird-addons 1
+DATESTR add B deb dog arm bird 1
+DATESTR add B deb dog arm bird-addons 1
 DATESTR add B dsc cat source bird 1
-DATESTR add B deb cat abacus bird 1
-DATESTR add B deb cat abacus bird-addons 1
+DATESTR add B deb cat arm bird 1
+DATESTR add B deb cat arm bird-addons 1
 EOF
 find temp -type f > results
 dodiff results.empty results
@@ -546,29 +546,29 @@ dir/another	    tasty/bird,tasty/bird-addons,cat/tasty/bird,cat/ugly/bird-addons
 dir/file	    tasty/bird,tasty/bird-addons,cat/tasty/bird,cat/ugly/bird-addons
 dir/subdir/file	    tasty/bird,tasty/bird-addons,cat/tasty/bird,cat/ugly/bird-addons
 EOF
-gunzip -c dists/B/Contents-abacus.gz > results
+gunzip -c dists/B/Contents-arm.gz > results
 dodiff results.expected results
 cat > results.expected <<EOF
 Package: bird
 Version: 1
-Architecture: abacus
-Installed-Size: 20
+Architecture: arm
 Maintainer: me <guess@who>
+Installed-Size: 20
 Task: lunch
 Priority: hungry
 Section: cat/tasty
-Filename: pool/cat/b/bird/bird_1_abacus.deb
+Filename: pool/cat/b/bird/bird_1_arm.deb
 Size: $DEBSIZE
 MD5sum: $DEBMD5
 Description: bla
  blub
 
 Package: bird-addons
+Source: bird
 Version: 1
 Architecture: all
-Installed-Size: 24
 Maintainer: me <guess@who>
-Source: bird
+Installed-Size: 24
 Priority: superfluous
 Section: cat/ugly
 Filename: pool/cat/b/bird/bird-addons_1_all.deb
@@ -578,14 +578,14 @@ Description: bla
  blub
 
 EOF
-dodiff results.expected dists/B/cat/binary-abacus/Packages
+dodiff results.expected dists/B/cat/binary-arm/Packages
 cat > results.expected <<EOF
 Package: bird
 Format: 1.0
-Version: 1
 Binary: bird, bird-addons
-Maintainer: me <guess@who>
 Architecture: any
+Version: 1
+Maintainer: me <guess@who>
 Standards-Version: 0.0
 Homepage: gopher://tree
 Priority: hurry
@@ -882,20 +882,20 @@ stderr
 stdout
 -v2*=Created directory "./pool/dog/s"
 -v2*=Created directory "./pool/dog/s/sourceindeb"
--v3*=db: 'indebname' added to 'A|dog|abacus'.
+-v3*=db: 'indebname' added to 'A|dog|arm'.
 -v3*=db: 'indebname' added to 'A|dog|calculator'.
 -v3*=deleting './i/indebname_debfileversion~2_all.deb'...
 -v3*=deleting './i/test.changes'...
 -v0*=Exporting indices...
--v6*= looking for changes in 'A|cat|abacus'...
--v6*=  replacing './dists/A/dog/binary-abacus/Packages' (uncompressed,gzipped)
+-v6*= looking for changes in 'A|cat|arm'...
+-v6*=  replacing './dists/A/dog/binary-arm/Packages' (uncompressed,gzipped)
 -v6*= looking for changes in 'A|cat|calculator'...
 -v6*=  replacing './dists/A/dog/binary-calculator/Packages' (uncompressed,gzipped)
--v6*= looking for changes in 'A|dog|abacus'...
+-v6*= looking for changes in 'A|dog|arm'...
 -v6*= looking for changes in 'A|dog|calculator'...
 EOF
 checklog logfile <<EOF
-DATESTR add A deb dog abacus indebname 1:versionindeb~1
+DATESTR add A deb dog arm indebname 1:versionindeb~1
 DATESTR add A deb dog calculator indebname 1:versionindeb~1
 EOF
 find pool/dog/s -type f > results
@@ -1092,10 +1092,10 @@ stdout
 -v3*=deleting './i/dscfilename_fileversion~.dsc'...
 -v3*=deleting './i/test.changes'...
 -v0=Exporting indices...
--v6*= looking for changes in 'B|dog|abacus'...
+-v6*= looking for changes in 'B|dog|arm'...
 -v6*= looking for changes in 'B|dog|source'...
 -v6*=  replacing './dists/B/dog/source/Sources' (gzipped)
--v6*= looking for changes in 'B|cat|abacus'...
+-v6*= looking for changes in 'B|cat|arm'...
 -v6*= looking for changes in 'B|cat|source'...
 EOF
 checklog logfile <<EOF
@@ -1201,39 +1201,39 @@ cat > results.expected <<EOF
 pool/cat/b/bird/bird-addons_1_all.deb
 pool/cat/b/bird/bird_1.dsc
 pool/cat/b/bird/bird_1.tar.gz
-pool/cat/b/bird/bird_1_abacus.deb
+pool/cat/b/bird/bird_1_arm.deb
 pool/dog/b/bird/bird-addons_1_all.deb
 pool/dog/b/bird/bird_1.dsc
 pool/dog/b/bird/bird_1.tar.gz
-pool/dog/b/bird/bird_1_abacus.deb
+pool/dog/b/bird/bird_1_arm.deb
 pool/dog/d/dscfilename/dscfilename_versionindsc.dsc
 pool/dog/s/sourceindeb/indebname_versionindeb~1_all.deb
 EOF
 dodiff results.expected results
 find dists -type f | LC_ALL=C sort -f > results
 cat > results.expected <<EOF
-dists/A/cat/binary-abacus/Packages
-dists/A/cat/binary-abacus/Packages.gz
-dists/A/cat/binary-abacus/Release
+dists/A/cat/binary-arm/Packages
+dists/A/cat/binary-arm/Packages.gz
+dists/A/cat/binary-arm/Release
 dists/A/cat/binary-calculator/Packages
 dists/A/cat/binary-calculator/Packages.gz
 dists/A/cat/binary-calculator/Release
-dists/A/dog/binary-abacus/Packages
-dists/A/dog/binary-abacus/Packages.gz
-dists/A/dog/binary-abacus/Release
+dists/A/dog/binary-arm/Packages
+dists/A/dog/binary-arm/Packages.gz
+dists/A/dog/binary-arm/Release
 dists/A/dog/binary-calculator/Packages
 dists/A/dog/binary-calculator/Packages.gz
 dists/A/dog/binary-calculator/Release
 dists/A/Release
-dists/B/cat/binary-abacus/Packages
-dists/B/cat/binary-abacus/Packages.gz
-dists/B/cat/binary-abacus/Release
+dists/B/cat/binary-arm/Packages
+dists/B/cat/binary-arm/Packages.gz
+dists/B/cat/binary-arm/Release
 dists/B/cat/source/Release
 dists/B/cat/source/Sources.gz
-dists/B/Contents-abacus.gz
-dists/B/dog/binary-abacus/Packages
-dists/B/dog/binary-abacus/Packages.gz
-dists/B/dog/binary-abacus/Release
+dists/B/Contents-arm.gz
+dists/B/dog/binary-arm/Packages
+dists/B/dog/binary-arm/Packages.gz
+dists/B/dog/binary-arm/Release
 dists/B/dog/source/Release
 dists/B/dog/source/Sources.gz
 dists/B/Release
@@ -1243,10 +1243,10 @@ gunzip -c dists/B/dog/source/Sources.gz > results
 cat > results.expected <<EOF
 Package: bird
 Format: 1.0
-Version: 1
 Binary: bird, bird-addons
-Maintainer: me <guess@who>
 Architecture: any
+Version: 1
+Maintainer: me <guess@who>
 Standards-Version: 0.0
 Priority: superfluous
 Section: tasty
@@ -1285,10 +1285,10 @@ stdout
 -v3*=deleting './i/test.changes'...
 -v3*=deleting './i/strangefile_xyz'...
 -v0*=Exporting indices...
--v6*= looking for changes in 'B|dog|abacus'...
+-v6*= looking for changes in 'B|dog|arm'...
 -v6*= looking for changes in 'B|dog|source'...
 -v6*=  replacing './dists/B/dog/source/Sources' (gzipped)
--v6*= looking for changes in 'B|cat|abacus'...
+-v6*= looking for changes in 'B|cat|arm'...
 -v6*= looking for changes in 'B|cat|source'...
 -v0*=Deleting files no longer referenced...
 -v1*=deleting and forgetting pool/dog/d/dscfilename/dscfilename_versionindsc.dsc
@@ -1302,11 +1302,11 @@ cat > results.expected <<EOF
 pool/cat/b/bird/bird-addons_1_all.deb
 pool/cat/b/bird/bird_1.dsc
 pool/cat/b/bird/bird_1.tar.gz
-pool/cat/b/bird/bird_1_abacus.deb
+pool/cat/b/bird/bird_1_arm.deb
 pool/dog/b/bird/bird-addons_1_all.deb
 pool/dog/b/bird/bird_1.dsc
 pool/dog/b/bird/bird_1.tar.gz
-pool/dog/b/bird/bird_1_abacus.deb
+pool/dog/b/bird/bird_1_arm.deb
 pool/dog/d/dscfilename/dscfilename_newversion~.dsc
 pool/dog/d/dscfilename/strangefile_xyz
 pool/dog/s/sourceindeb/indebname_versionindeb~1_all.deb
@@ -1314,28 +1314,28 @@ EOF
 dodiff results.expected results
 find dists -type f | LC_ALL=C sort -f > results
 cat > results.expected <<EOF
-dists/A/cat/binary-abacus/Packages
-dists/A/cat/binary-abacus/Packages.gz
-dists/A/cat/binary-abacus/Release
+dists/A/cat/binary-arm/Packages
+dists/A/cat/binary-arm/Packages.gz
+dists/A/cat/binary-arm/Release
 dists/A/cat/binary-calculator/Packages
 dists/A/cat/binary-calculator/Packages.gz
 dists/A/cat/binary-calculator/Release
-dists/A/dog/binary-abacus/Packages
-dists/A/dog/binary-abacus/Packages.gz
-dists/A/dog/binary-abacus/Release
+dists/A/dog/binary-arm/Packages
+dists/A/dog/binary-arm/Packages.gz
+dists/A/dog/binary-arm/Release
 dists/A/dog/binary-calculator/Packages
 dists/A/dog/binary-calculator/Packages.gz
 dists/A/dog/binary-calculator/Release
 dists/A/Release
-dists/B/cat/binary-abacus/Packages
-dists/B/cat/binary-abacus/Packages.gz
-dists/B/cat/binary-abacus/Release
+dists/B/cat/binary-arm/Packages
+dists/B/cat/binary-arm/Packages.gz
+dists/B/cat/binary-arm/Release
 dists/B/cat/source/Release
 dists/B/cat/source/Sources.gz
-dists/B/Contents-abacus.gz
-dists/B/dog/binary-abacus/Packages
-dists/B/dog/binary-abacus/Packages.gz
-dists/B/dog/binary-abacus/Release
+dists/B/Contents-arm.gz
+dists/B/dog/binary-arm/Packages
+dists/B/dog/binary-arm/Packages.gz
+dists/B/dog/binary-arm/Release
 dists/B/dog/source/Release
 dists/B/dog/source/Sources.gz
 dists/B/Release
@@ -1345,10 +1345,10 @@ gunzip -c dists/B/dog/source/Sources.gz > results
 cat > results.expected <<EOF
 Package: bird
 Format: 1.0
-Version: 1
 Binary: bird, bird-addons
-Maintainer: me <guess@who>
 Architecture: any
+Version: 1
+Maintainer: me <guess@who>
 Standards-Version: 0.0
 Priority: superfluous
 Section: tasty
@@ -1388,7 +1388,7 @@ export changed
 CONFEND
 cat > conf/distributions <<CONFEND
 Codename: test1
-Architectures: abacus source
+Architectures: arm source
 Components: stupid ugly
 Update: Test2toTest1
 DebIndices: Packages Release . .gz .bz2
@@ -1398,7 +1398,7 @@ Tracking: keep includechanges includebyhand
 Log: log1
 
 Codename: test2
-Architectures: abacus coal source
+Architectures: arm coal source
 Components: stupid ugly
 Origin: Brain
 Label: Only a test
@@ -1422,10 +1422,10 @@ stdout
 -v2*=Created directory "./dists"
 -v2*=Created directory "./dists/test2"
 -v2*=Created directory "./dists/test2/stupid"
--v2*=Created directory "./dists/test2/stupid/binary-abacus"
--v6*= exporting 'test2|stupid|abacus'...
--v6*=  creating './dists/test2/stupid/binary-abacus/Packages' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-abacus/Packages.new' 'stupid/binary-abacus/Packages' 'new'
+-v2*=Created directory "./dists/test2/stupid/binary-arm"
+-v6*= exporting 'test2|stupid|arm'...
+-v6*=  creating './dists/test2/stupid/binary-arm/Packages' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
+-v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-arm/Packages.new' 'stupid/binary-arm/Packages' 'new'
 -v11*=Exporthook successfully returned!
 -v2*=Created directory "./dists/test2/stupid/binary-coal"
 -v6*= exporting 'test2|stupid|coal'...
@@ -1436,10 +1436,10 @@ stdout
 -v6*=  creating './dists/test2/stupid/source/Sources' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
 -v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/source/Sources.new' 'stupid/source/Sources' 'new'
 -v2*=Created directory "./dists/test2/ugly"
--v2*=Created directory "./dists/test2/ugly/binary-abacus"
--v6*= exporting 'test2|ugly|abacus'...
--v6*=  creating './dists/test2/ugly/binary-abacus/Packages' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/binary-abacus/Packages.new' 'ugly/binary-abacus/Packages' 'new'
+-v2*=Created directory "./dists/test2/ugly/binary-arm"
+-v6*= exporting 'test2|ugly|arm'...
+-v6*=  creating './dists/test2/ugly/binary-arm/Packages' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
+-v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/binary-arm/Packages.new' 'ugly/binary-arm/Packages' 'new'
 -v2*=Created directory "./dists/test2/ugly/binary-coal"
 -v6*= exporting 'test2|ugly|coal'...
 -v6*=  creating './dists/test2/ugly/binary-coal/Packages' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
@@ -1451,16 +1451,16 @@ stdout
 -v1*=Exporting test1...
 -v2*=Created directory "./dists/test1"
 -v2*=Created directory "./dists/test1/stupid"
--v2*=Created directory "./dists/test1/stupid/binary-abacus"
--v6*= exporting 'test1|stupid|abacus'...
--v6*=  creating './dists/test1/stupid/binary-abacus/Packages' (uncompressed,gzipped,bzip2ed)
+-v2*=Created directory "./dists/test1/stupid/binary-arm"
+-v6*= exporting 'test1|stupid|arm'...
+-v6*=  creating './dists/test1/stupid/binary-arm/Packages' (uncompressed,gzipped,bzip2ed)
 -v2*=Created directory "./dists/test1/stupid/source"
 -v6*= exporting 'test1|stupid|source'...
 -v6*=  creating './dists/test1/stupid/source/Sources' (gzipped,bzip2ed)
 -v2*=Created directory "./dists/test1/ugly"
--v2*=Created directory "./dists/test1/ugly/binary-abacus"
--v6*= exporting 'test1|ugly|abacus'...
--v6*=  creating './dists/test1/ugly/binary-abacus/Packages' (uncompressed,gzipped,bzip2ed)
+-v2*=Created directory "./dists/test1/ugly/binary-arm"
+-v6*= exporting 'test1|ugly|arm'...
+-v6*=  creating './dists/test1/ugly/binary-arm/Packages' (uncompressed,gzipped,bzip2ed)
 -v2*=Created directory "./dists/test1/ugly/source"
 -v6*= exporting 'test1|ugly|source'...
 -v6*=  creating './dists/test1/ugly/source/Sources' (gzipped,bzip2ed)
@@ -1473,21 +1473,21 @@ EMPTYBZ2MD5SUM=4059d198768f9f8dc9372dc1c54bc3c3
 cat > dists/test1/Release.expected <<END
 Codename: test1
 Date: normalized
-Architectures: abacus
+Architectures: arm
 Components: stupid ugly
 MD5Sum:
- d41d8cd98f00b204e9800998ecf8427e 0 stupid/binary-abacus/Packages
- $EMPTYGZMD5SUM 20 stupid/binary-abacus/Packages.gz
- $EMPTYBZ2MD5SUM 14 stupid/binary-abacus/Packages.bz2
- d9f0fad5d54ad09dd4ecee86c73b64d4 39 stupid/binary-abacus/Release
+ d41d8cd98f00b204e9800998ecf8427e 0 stupid/binary-arm/Packages
+ $EMPTYGZMD5SUM 20 stupid/binary-arm/Packages.gz
+ $EMPTYBZ2MD5SUM 14 stupid/binary-arm/Packages.bz2
+ 2965af0215402ea626a4445f53adfb49 36 stupid/binary-arm/Release
  d41d8cd98f00b204e9800998ecf8427e 0 stupid/source/Sources
  $EMPTYGZMD5SUM 20 stupid/source/Sources.gz
  $EMPTYBZ2MD5SUM 14 stupid/source/Sources.bz2
  e38c7da133734e1fd68a7e344b94fe96 39 stupid/source/Release
- d41d8cd98f00b204e9800998ecf8427e 0 ugly/binary-abacus/Packages
- $EMPTYGZMD5SUM 20 ugly/binary-abacus/Packages.gz
- $EMPTYBZ2MD5SUM 14 ugly/binary-abacus/Packages.bz2
- 236fcd9339b1813393819d464e37c7c6 37 ugly/binary-abacus/Release
+ d41d8cd98f00b204e9800998ecf8427e 0 ugly/binary-arm/Packages
+ $EMPTYGZMD5SUM 20 ugly/binary-arm/Packages.gz
+ $EMPTYBZ2MD5SUM 14 ugly/binary-arm/Packages.bz2
+ 964b82456282b751bdf012195575692a 34 ugly/binary-arm/Release
  d41d8cd98f00b204e9800998ecf8427e 0 ugly/source/Sources
  $EMPTYGZMD5SUM 20 ugly/source/Sources.gz
  $EMPTYBZ2MD5SUM 14 ugly/source/Sources.bz2
@@ -1500,14 +1500,14 @@ Suite: broken
 Codename: test2
 Version: 9999999.02
 Date: normalized
-Architectures: abacus coal
+Architectures: arm coal
 Components: stupid ugly
 Description: test with all fields set
 MD5Sum:
- d41d8cd98f00b204e9800998ecf8427e 0 stupid/binary-abacus/Packages
- $EMPTYGZMD5SUM 20 stupid/binary-abacus/Packages.gz
- 4059d198768f9f8dc9372dc1c54bc3c3 14 stupid/binary-abacus/Packages.bz2
- e142c47c1be0c32cd120138066b73c73 146 stupid/binary-abacus/Release
+ d41d8cd98f00b204e9800998ecf8427e 0 stupid/binary-arm/Packages
+ $EMPTYGZMD5SUM 20 stupid/binary-arm/Packages.gz
+ 4059d198768f9f8dc9372dc1c54bc3c3 14 stupid/binary-arm/Packages.bz2
+ 7adc26045e49a81756a970107e99fad6 143 stupid/binary-arm/Release
  d41d8cd98f00b204e9800998ecf8427e 0 stupid/binary-coal/Packages
  $EMPTYGZMD5SUM 20 stupid/binary-coal/Packages.gz
  4059d198768f9f8dc9372dc1c54bc3c3 14 stupid/binary-coal/Packages.bz2
@@ -1516,10 +1516,10 @@ MD5Sum:
  $EMPTYGZMD5SUM 20 stupid/source/Sources.gz
  4059d198768f9f8dc9372dc1c54bc3c3 14 stupid/source/Sources.bz2
  b923b3eb1141e41f0b8bb74297ac8a36 146 stupid/source/Release
- d41d8cd98f00b204e9800998ecf8427e 0 ugly/binary-abacus/Packages
- $EMPTYGZMD5SUM 20 ugly/binary-abacus/Packages.gz
- 4059d198768f9f8dc9372dc1c54bc3c3 14 ugly/binary-abacus/Packages.bz2
- 22eb57e60d3c621b8bd8461eae218b16 144 ugly/binary-abacus/Release
+ d41d8cd98f00b204e9800998ecf8427e 0 ugly/binary-arm/Packages
+ $EMPTYGZMD5SUM 20 ugly/binary-arm/Packages.gz
+ 4059d198768f9f8dc9372dc1c54bc3c3 14 ugly/binary-arm/Packages.bz2
+ bab5e1d9814478556b2c51f4417b68ed 141 ugly/binary-arm/Release
  d41d8cd98f00b204e9800998ecf8427e 0 ugly/binary-coal/Packages
  $EMPTYGZMD5SUM 20 ugly/binary-coal/Packages.gz
  4059d198768f9f8dc9372dc1c54bc3c3 14 ugly/binary-coal/Packages.bz2
@@ -1546,22 +1546,22 @@ stdout
 -v2*=Created directory "./pool/stupid/s/simple"
 =[tracking_get test1 simple 1]
 =[tracking_new test1 simple 1]
--v3*=db: 'simple-addons' added to 'test1|stupid|abacus'.
--v3*=db: 'simple' added to 'test1|stupid|abacus'.
+-v3*=db: 'simple-addons' added to 'test1|stupid|arm'.
+-v3*=db: 'simple' added to 'test1|stupid|arm'.
 -v3*=db: 'simple' added to 'test1|stupid|source'.
 =[tracking_save test1 simple 1]
 -v0*=Exporting indices...
--v6*= looking for changes in 'test1|stupid|abacus'...
--v6*=  replacing './dists/test1/stupid/binary-abacus/Packages' (uncompressed,gzipped,bzip2ed)
+-v6*= looking for changes in 'test1|stupid|arm'...
+-v6*=  replacing './dists/test1/stupid/binary-arm/Packages' (uncompressed,gzipped,bzip2ed)
 -v6*= looking for changes in 'test1|stupid|source'...
 -v6*=  replacing './dists/test1/stupid/source/Sources' (gzipped,bzip2ed)
--v6*= looking for changes in 'test1|ugly|abacus'...
+-v6*= looking for changes in 'test1|ugly|arm'...
 -v6*= looking for changes in 'test1|ugly|source'...
 EOF
 echo returned: $?
 checklog log1 << EOF
-DATESTR add test1 deb stupid abacus simple-addons 1
-DATESTR add test1 deb stupid abacus simple 1
+DATESTR add test1 deb stupid arm simple-addons 1
+DATESTR add test1 deb stupid arm simple 1
 DATESTR add test1 dsc stupid source simple 1
 EOF
 
@@ -1575,22 +1575,22 @@ stdout
 -v2*=Created directory "./pool/ugly/b/bloat+-0a9z.app"
 =[tracking_get test1 bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ]
 =[tracking_new test1 bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ]
--v3*=db: 'bloat+-0a9z.app-addons' added to 'test1|ugly|abacus'.
--v3*=db: 'bloat+-0a9z.app' added to 'test1|ugly|abacus'.
+-v3*=db: 'bloat+-0a9z.app-addons' added to 'test1|ugly|arm'.
+-v3*=db: 'bloat+-0a9z.app' added to 'test1|ugly|arm'.
 -v3*=db: 'bloat+-0a9z.app' added to 'test1|ugly|source'.
 =[tracking_save test1 bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ]
 -v0*=Exporting indices...
--v6*= looking for changes in 'test1|stupid|abacus'...
+-v6*= looking for changes in 'test1|stupid|arm'...
 -v6*= looking for changes in 'test1|stupid|source'...
--v6*= looking for changes in 'test1|ugly|abacus'...
--v6*=  replacing './dists/test1/ugly/binary-abacus/Packages' (uncompressed,gzipped,bzip2ed)
+-v6*= looking for changes in 'test1|ugly|arm'...
+-v6*=  replacing './dists/test1/ugly/binary-arm/Packages' (uncompressed,gzipped,bzip2ed)
 -v6*= looking for changes in 'test1|ugly|source'...
 -v6*=  replacing './dists/test1/ugly/source/Sources' (gzipped,bzip2ed)
 EOF
 echo returned: $?
 checklog log1 <<EOF
-DATESTR add test1 deb ugly abacus bloat+-0a9z.app-addons 99:0.9-A:Z+a:z-0+aA.9zZ
-DATESTR add test1 deb ugly abacus bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
+DATESTR add test1 deb ugly arm bloat+-0a9z.app-addons 99:0.9-A:Z+a:z-0+aA.9zZ
+DATESTR add test1 deb ugly arm bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
 DATESTR add test1 dsc ugly source bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
 EOF
 
@@ -1602,10 +1602,10 @@ stdout
 =[tracking_get found test1 simple 1]
 =[tracking_save test1 simple 1]
 -v0*=Exporting indices...
--v6*= looking for changes in 'test1|stupid|abacus'...
+-v6*= looking for changes in 'test1|stupid|arm'...
 -v6*= looking for changes in 'test1|stupid|source'...
 -v6*=  replacing './dists/test1/stupid/source/Sources' (gzipped,bzip2ed)
--v6*= looking for changes in 'test1|ugly|abacus'...
+-v6*= looking for changes in 'test1|ugly|arm'...
 -v6*= looking for changes in 'test1|ugly|source'...
 -v0*=Deleting files no longer referenced...
 EOF
@@ -1614,21 +1614,21 @@ DATESTR remove test1 dsc stupid source simple 1
 EOF
 testrun - -b . -Tdeb remove test1 bloat+-0a9z.app 3<<EOF
 stdout
--v1*=removing 'bloat+-0a9z.app' from 'test1|ugly|abacus'...
--v3*=db: 'bloat+-0a9z.app' removed from 'test1|ugly|abacus'.
+-v1*=removing 'bloat+-0a9z.app' from 'test1|ugly|arm'...
+-v3*=db: 'bloat+-0a9z.app' removed from 'test1|ugly|arm'.
 =[tracking_get test1 bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ]
 =[tracking_get found test1 bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ]
 =[tracking_save test1 bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ]
 -v0*=Exporting indices...
--v6*= looking for changes in 'test1|stupid|abacus'...
+-v6*= looking for changes in 'test1|stupid|arm'...
 -v6*= looking for changes in 'test1|stupid|source'...
--v6*= looking for changes in 'test1|ugly|abacus'...
--v6*=  replacing './dists/test1/ugly/binary-abacus/Packages' (uncompressed,gzipped,bzip2ed)
+-v6*= looking for changes in 'test1|ugly|arm'...
+-v6*=  replacing './dists/test1/ugly/binary-arm/Packages' (uncompressed,gzipped,bzip2ed)
 -v6*= looking for changes in 'test1|ugly|source'...
 -v0*=Deleting files no longer referenced...
 EOF
 checklog log1 <<EOF
-DATESTR remove test1 deb ugly abacus bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
+DATESTR remove test1 deb ugly arm bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
 EOF
 testrun - -b . -A source remove test1 bloat+-0a9z.app 3<<EOF
 stdout
@@ -1638,9 +1638,9 @@ stdout
 =[tracking_get found test1 bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ]
 =[tracking_save test1 bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ]
 -v0*=Exporting indices...
--v6*= looking for changes in 'test1|stupid|abacus'...
+-v6*= looking for changes in 'test1|stupid|arm'...
 -v6*= looking for changes in 'test1|stupid|source'...
--v6*= looking for changes in 'test1|ugly|abacus'...
+-v6*= looking for changes in 'test1|ugly|arm'...
 -v6*= looking for changes in 'test1|ugly|source'...
 -v6*=  replacing './dists/test1/ugly/source/Sources' (gzipped,bzip2ed)
 -v0*=Deleting files no longer referenced...
@@ -1648,59 +1648,59 @@ EOF
 checklog log1 <<EOF
 DATESTR remove test1 dsc ugly source bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
 EOF
-testrun - -b . -A abacus remove test1 simple 3<<EOF
+testrun - -b . -A arm remove test1 simple 3<<EOF
 stdout
--v1*=removing 'simple' from 'test1|stupid|abacus'...
--v3*=db: 'simple' removed from 'test1|stupid|abacus'.
+-v1*=removing 'simple' from 'test1|stupid|arm'...
+-v3*=db: 'simple' removed from 'test1|stupid|arm'.
 =[tracking_get test1 simple 1]
 =[tracking_get found test1 simple 1]
 =[tracking_save test1 simple 1]
 -v0*=Exporting indices...
--v6*= looking for changes in 'test1|stupid|abacus'...
--v6*=  replacing './dists/test1/stupid/binary-abacus/Packages' (uncompressed,gzipped,bzip2ed)
+-v6*= looking for changes in 'test1|stupid|arm'...
+-v6*=  replacing './dists/test1/stupid/binary-arm/Packages' (uncompressed,gzipped,bzip2ed)
 -v6*= looking for changes in 'test1|stupid|source'...
--v6*= looking for changes in 'test1|ugly|abacus'...
+-v6*= looking for changes in 'test1|ugly|arm'...
 -v6*= looking for changes in 'test1|ugly|source'...
 -v0*=Deleting files no longer referenced...
 EOF
 checklog log1 <<EOF
-DATESTR remove test1 deb stupid abacus simple 1
+DATESTR remove test1 deb stupid arm simple 1
 EOF
 testrun - -b . -C ugly remove test1 bloat+-0a9z.app-addons 3<<EOF
 stdout
--v1*=removing 'bloat+-0a9z.app-addons' from 'test1|ugly|abacus'...
--v3*=db: 'bloat+-0a9z.app-addons' removed from 'test1|ugly|abacus'.
+-v1*=removing 'bloat+-0a9z.app-addons' from 'test1|ugly|arm'...
+-v3*=db: 'bloat+-0a9z.app-addons' removed from 'test1|ugly|arm'.
 =[tracking_get test1 bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ]
 =[tracking_get found test1 bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ]
 =[tracking_save test1 bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ]
 -v0*=Exporting indices...
--v6*= looking for changes in 'test1|stupid|abacus'...
+-v6*= looking for changes in 'test1|stupid|arm'...
 -v6*= looking for changes in 'test1|stupid|source'...
--v6*= looking for changes in 'test1|ugly|abacus'...
--v6*=  replacing './dists/test1/ugly/binary-abacus/Packages' (uncompressed,gzipped,bzip2ed)
+-v6*= looking for changes in 'test1|ugly|arm'...
+-v6*=  replacing './dists/test1/ugly/binary-arm/Packages' (uncompressed,gzipped,bzip2ed)
 -v6*= looking for changes in 'test1|ugly|source'...
 -v0*=Deleting files no longer referenced...
 EOF
 checklog log1 <<EOF
-DATESTR remove test1 deb ugly abacus bloat+-0a9z.app-addons 99:0.9-A:Z+a:z-0+aA.9zZ
+DATESTR remove test1 deb ugly arm bloat+-0a9z.app-addons 99:0.9-A:Z+a:z-0+aA.9zZ
 EOF
 testrun - -b . -C stupid remove test1 simple-addons 3<<EOF
 stdout
--v1*=removing 'simple-addons' from 'test1|stupid|abacus'...
--v3*=db: 'simple-addons' removed from 'test1|stupid|abacus'.
+-v1*=removing 'simple-addons' from 'test1|stupid|arm'...
+-v3*=db: 'simple-addons' removed from 'test1|stupid|arm'.
 =[tracking_get test1 simple 1]
 =[tracking_get found test1 simple 1]
 =[tracking_save test1 simple 1]
 -v0*=Exporting indices...
--v6*= looking for changes in 'test1|stupid|abacus'...
--v6*=  replacing './dists/test1/stupid/binary-abacus/Packages' (uncompressed,gzipped,bzip2ed)
+-v6*= looking for changes in 'test1|stupid|arm'...
+-v6*=  replacing './dists/test1/stupid/binary-arm/Packages' (uncompressed,gzipped,bzip2ed)
 -v6*= looking for changes in 'test1|stupid|source'...
--v6*= looking for changes in 'test1|ugly|abacus'...
+-v6*= looking for changes in 'test1|ugly|arm'...
 -v6*= looking for changes in 'test1|ugly|source'...
 -v0*=Deleting files no longer referenced...
 EOF
 checklog log1 <<EOF
-DATESTR remove test1 deb stupid abacus simple-addons 1
+DATESTR remove test1 deb stupid arm simple-addons 1
 EOF
 CURDATE="`TZ=GMT LC_ALL=C date +'%a, %d %b %Y %H:%M:%S +0000'`"
 echo -e '%g/^Date:/s/Date: .*/Date: normalized/\n%g/gz$/s/^ 163be0a88c70ca629fd516dbaadad96a / 7029066c27ac6f5ef18d660d5741979a /\nw\nq' | ed -s dists/test1/Release
@@ -1741,15 +1741,15 @@ stdout
 -v2*=Created directory "./pool/ugly/s/simple"
 -v3*=db: 'simple' added to 'test2|ugly|source'.
 -v0*=Exporting indices...
--v6*= looking for changes in 'test2|stupid|abacus'...
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-abacus/Packages.new' 'stupid/binary-abacus/Packages' 'old'
+-v6*= looking for changes in 'test2|stupid|arm'...
+-v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-arm/Packages.new' 'stupid/binary-arm/Packages' 'old'
 -v11*=Exporthook successfully returned!
 -v6*= looking for changes in 'test2|stupid|coal'...
 -v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-coal/Packages.new' 'stupid/binary-coal/Packages' 'old'
 -v6*= looking for changes in 'test2|stupid|source'...
 -v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/source/Sources.new' 'stupid/source/Sources' 'old'
--v6*= looking for changes in 'test2|ugly|abacus'...
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/binary-abacus/Packages.new' 'ugly/binary-abacus/Packages' 'old'
+-v6*= looking for changes in 'test2|ugly|arm'...
+-v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/binary-arm/Packages.new' 'ugly/binary-arm/Packages' 'old'
 -v6*= looking for changes in 'test2|ugly|coal'...
 -v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/binary-coal/Packages.new' 'ugly/binary-coal/Packages' 'old'
 -v6*= looking for changes in 'test2|ugly|source'...
@@ -1768,16 +1768,16 @@ stdout
 -v2*=Created directory "./pool/stupid/b/bloat+-0a9z.app"
 -v3*=db: 'bloat+-0a9z.app' added to 'test2|stupid|source'.
 -v0*=Exporting indices...
--v6*= looking for changes in 'test2|stupid|abacus'...
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-abacus/Packages.new' 'stupid/binary-abacus/Packages' 'old'
+-v6*= looking for changes in 'test2|stupid|arm'...
+-v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-arm/Packages.new' 'stupid/binary-arm/Packages' 'old'
 -v11*=Exporthook successfully returned!
 -v6*= looking for changes in 'test2|stupid|coal'...
 -v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-coal/Packages.new' 'stupid/binary-coal/Packages' 'old'
 -v6*= looking for changes in 'test2|stupid|source'...
 -v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/source/Sources.new' 'stupid/source/Sources' 'change'
 -v6*=  replacing './dists/test2/stupid/source/Sources' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
--v6*= looking for changes in 'test2|ugly|abacus'...
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/binary-abacus/Packages.new' 'ugly/binary-abacus/Packages' 'old'
+-v6*= looking for changes in 'test2|ugly|arm'...
+-v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/binary-arm/Packages.new' 'ugly/binary-arm/Packages' 'old'
 -v6*= looking for changes in 'test2|ugly|coal'...
 -v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/binary-coal/Packages.new' 'ugly/binary-coal/Packages' 'old'
 -v6*= looking for changes in 'test2|ugly|source'...
@@ -1786,30 +1786,30 @@ EOF
 checklog log2 <<EOF
 DATESTR add test2 dsc stupid source bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
 EOF
-testrun - -b . -Tdeb -A abacus includedeb test2 simple_1_abacus.deb 3<<EOF
+testrun - -b . -Tdeb -A arm includedeb test2 simple_1_arm.deb 3<<EOF
 stderr
 -v0=Data seems not to be signed trying to use directly...
--v1=simple_1_abacus.deb: component guessed as 'ugly'
+-v1=simple_1_arm.deb: component guessed as 'ugly'
 stdout
--v3*=db: 'simple' added to 'test2|ugly|abacus'.
+-v3*=db: 'simple' added to 'test2|ugly|arm'.
 -v0*=Exporting indices...
--v6*= looking for changes in 'test2|stupid|abacus'...
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-abacus/Packages.new' 'stupid/binary-abacus/Packages' 'old'
+-v6*= looking for changes in 'test2|stupid|arm'...
+-v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-arm/Packages.new' 'stupid/binary-arm/Packages' 'old'
 -v11*=Exporthook successfully returned!
 -v6*= looking for changes in 'test2|stupid|coal'...
 -v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-coal/Packages.new' 'stupid/binary-coal/Packages' 'old'
 -v6*= looking for changes in 'test2|stupid|source'...
 -v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/source/Sources.new' 'stupid/source/Sources' 'old'
--v6*= looking for changes in 'test2|ugly|abacus'...
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/binary-abacus/Packages.new' 'ugly/binary-abacus/Packages' 'change'
--v6*=  replacing './dists/test2/ugly/binary-abacus/Packages' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
+-v6*= looking for changes in 'test2|ugly|arm'...
+-v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/binary-arm/Packages.new' 'ugly/binary-arm/Packages' 'change'
+-v6*=  replacing './dists/test2/ugly/binary-arm/Packages' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
 -v6*= looking for changes in 'test2|ugly|coal'...
 -v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/binary-coal/Packages.new' 'ugly/binary-coal/Packages' 'old'
 -v6*= looking for changes in 'test2|ugly|source'...
 -v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/source/Sources.new' 'ugly/source/Sources' 'old'
 EOF
 checklog log2  <<EOF
-DATESTR add test2 deb ugly abacus simple 1
+DATESTR add test2 deb ugly arm simple 1
 EOF
 testrun - -b . -Tdeb -A coal includedeb test2 simple-addons_1_all.deb 3<<EOF
 stderr
@@ -1818,15 +1818,15 @@ stderr
 stdout
 -v3*=db: 'simple-addons' added to 'test2|ugly|coal'.
 -v0=Exporting indices...
--v6*= looking for changes in 'test2|stupid|abacus'...
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-abacus/Packages.new' 'stupid/binary-abacus/Packages' 'old'
+-v6*= looking for changes in 'test2|stupid|arm'...
+-v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-arm/Packages.new' 'stupid/binary-arm/Packages' 'old'
 -v11*=Exporthook successfully returned!
 -v6*= looking for changes in 'test2|stupid|coal'...
 -v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-coal/Packages.new' 'stupid/binary-coal/Packages' 'old'
 -v6*= looking for changes in 'test2|stupid|source'...
 -v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/source/Sources.new' 'stupid/source/Sources' 'old'
--v6*= looking for changes in 'test2|ugly|abacus'...
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/binary-abacus/Packages.new' 'ugly/binary-abacus/Packages' 'old'
+-v6*= looking for changes in 'test2|ugly|arm'...
+-v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/binary-arm/Packages.new' 'ugly/binary-arm/Packages' 'old'
 -v6*= looking for changes in 'test2|ugly|coal'...
 -v6*=  replacing './dists/test2/ugly/binary-coal/Packages' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
 -v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/binary-coal/Packages.new' 'ugly/binary-coal/Packages' 'change'
@@ -1836,30 +1836,30 @@ EOF
 checklog log2  <<EOF
 DATESTR add test2 deb ugly coal simple-addons 1
 EOF
-testrun - -b . -Tdeb -A abacus includedeb test2 bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_abacus.deb 3<<EOF
+testrun - -b . -Tdeb -A arm includedeb test2 bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_arm.deb 3<<EOF
 stderr
 -v0=Data seems not to be signed trying to use directly...
--v1=bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_abacus.deb: component guessed as 'stupid'
+-v1=bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_arm.deb: component guessed as 'stupid'
 stdout
--v3*=db: 'bloat+-0a9z.app' added to 'test2|stupid|abacus'.
+-v3*=db: 'bloat+-0a9z.app' added to 'test2|stupid|arm'.
 -v0=Exporting indices...
--v6*= looking for changes in 'test2|stupid|abacus'...
--v6*=  replacing './dists/test2/stupid/binary-abacus/Packages' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-abacus/Packages.new' 'stupid/binary-abacus/Packages' 'change'
+-v6*= looking for changes in 'test2|stupid|arm'...
+-v6*=  replacing './dists/test2/stupid/binary-arm/Packages' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
+-v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-arm/Packages.new' 'stupid/binary-arm/Packages' 'change'
 -v11*=Exporthook successfully returned!
 -v6*= looking for changes in 'test2|stupid|coal'...
 -v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-coal/Packages.new' 'stupid/binary-coal/Packages' 'old'
 -v6*= looking for changes in 'test2|stupid|source'...
 -v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/source/Sources.new' 'stupid/source/Sources' 'old'
--v6*= looking for changes in 'test2|ugly|abacus'...
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/binary-abacus/Packages.new' 'ugly/binary-abacus/Packages' 'old'
+-v6*= looking for changes in 'test2|ugly|arm'...
+-v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/binary-arm/Packages.new' 'ugly/binary-arm/Packages' 'old'
 -v6*= looking for changes in 'test2|ugly|coal'...
 -v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/binary-coal/Packages.new' 'ugly/binary-coal/Packages' 'old'
 -v6*= looking for changes in 'test2|ugly|source'...
 -v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/source/Sources.new' 'ugly/source/Sources' 'old'
 EOF
 checklog log2 <<EOF
-DATESTR add test2 deb stupid abacus bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
+DATESTR add test2 deb stupid arm bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
 EOF
 testrun - -b . -Tdeb -A coal includedeb test2 bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb 3<<EOF
 stderr
@@ -1868,16 +1868,16 @@ stderr
 stdout
 -v3*=db: 'bloat+-0a9z.app-addons' added to 'test2|stupid|coal'.
 -v0=Exporting indices...
--v6*= looking for changes in 'test2|stupid|abacus'...
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-abacus/Packages.new' 'stupid/binary-abacus/Packages' 'old'
+-v6*= looking for changes in 'test2|stupid|arm'...
+-v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-arm/Packages.new' 'stupid/binary-arm/Packages' 'old'
 -v11*=Exporthook successfully returned!
 -v6*= looking for changes in 'test2|stupid|coal'...
 -v6*=  replacing './dists/test2/stupid/binary-coal/Packages' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
 -v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-coal/Packages.new' 'stupid/binary-coal/Packages' 'change'
 -v6*= looking for changes in 'test2|stupid|source'...
 -v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/source/Sources.new' 'stupid/source/Sources' 'old'
--v6*= looking for changes in 'test2|ugly|abacus'...
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/binary-abacus/Packages.new' 'ugly/binary-abacus/Packages' 'old'
+-v6*= looking for changes in 'test2|ugly|arm'...
+-v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/binary-arm/Packages.new' 'ugly/binary-arm/Packages' 'old'
 -v6*= looking for changes in 'test2|ugly|coal'...
 -v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/binary-coal/Packages.new' 'ugly/binary-coal/Packages' 'old'
 -v6*= looking for changes in 'test2|ugly|source'...
@@ -1888,10 +1888,10 @@ DATESTR add test2 deb stupid coal bloat+-0a9z.app-addons 99:0.9-A:Z+a:z-0+aA.9zZ
 EOF
 find dists/test2/ \( -name "Packages.gz" -o -name "Sources.gz" \) -print0 | xargs -0 zgrep '^\(Package\|Maintainer\|Section\|Priority\): ' | sort > results
 cat >results.expected <<END
-dists/test2/stupid/binary-abacus/Packages.gz:Maintainer: bloat.maintainer
-dists/test2/stupid/binary-abacus/Packages.gz:Package: bloat+-0a9z.app
-dists/test2/stupid/binary-abacus/Packages.gz:Priority: optional
-dists/test2/stupid/binary-abacus/Packages.gz:Section: stupid/base
+dists/test2/stupid/binary-arm/Packages.gz:Maintainer: bloat.maintainer
+dists/test2/stupid/binary-arm/Packages.gz:Package: bloat+-0a9z.app
+dists/test2/stupid/binary-arm/Packages.gz:Priority: optional
+dists/test2/stupid/binary-arm/Packages.gz:Section: stupid/base
 dists/test2/stupid/binary-coal/Packages.gz:Maintainer: bloat.add.maintainer
 dists/test2/stupid/binary-coal/Packages.gz:Package: bloat+-0a9z.app-addons
 dists/test2/stupid/binary-coal/Packages.gz:Priority: optional
@@ -1900,10 +1900,10 @@ dists/test2/stupid/source/Sources.gz:Maintainer: bloat.source.maintainer
 dists/test2/stupid/source/Sources.gz:Package: bloat+-0a9z.app
 dists/test2/stupid/source/Sources.gz:Priority: optional
 dists/test2/stupid/source/Sources.gz:Section: stupid/X11
-dists/test2/ugly/binary-abacus/Packages.gz:Maintainer: simple.maintainer
-dists/test2/ugly/binary-abacus/Packages.gz:Package: simple
-dists/test2/ugly/binary-abacus/Packages.gz:Priority: optional
-dists/test2/ugly/binary-abacus/Packages.gz:Section: ugly/base
+dists/test2/ugly/binary-arm/Packages.gz:Maintainer: simple.maintainer
+dists/test2/ugly/binary-arm/Packages.gz:Package: simple
+dists/test2/ugly/binary-arm/Packages.gz:Priority: optional
+dists/test2/ugly/binary-arm/Packages.gz:Section: ugly/base
 dists/test2/ugly/binary-coal/Packages.gz:Maintainer: simple.add.maintainer
 dists/test2/ugly/binary-coal/Packages.gz:Package: simple-addons
 dists/test2/ugly/binary-coal/Packages.gz:Priority: optional
@@ -1918,14 +1918,14 @@ rm results
 testout "" -b . listfilter test2 'Source(==simple)|(!Source,Package(==simple))'
 ls -la results
 cat > results.expected << END
-test2|ugly|abacus: simple 1
+test2|ugly|arm: simple 1
 test2|ugly|coal: simple-addons 1
 test2|ugly|source: simple 1
 END
 dodiff results.expected results
 testout "" -b . listfilter test2 'Source(==bloat+-0a9z.app)|(!Source,Package(==bloat+-0a9z.app))'
 cat > results.expected << END
-test2|stupid|abacus: bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
+test2|stupid|arm: bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
 test2|stupid|coal: bloat+-0a9z.app-addons 99:0.9-A:Z+a:z-0+aA.9zZ
 test2|stupid|source: bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
 END
@@ -1935,7 +1935,7 @@ cat >conf/updates <<END
 Name: Test2toTest1
 Method: copy:$WORKDIR
 Suite: test2
-Architectures: coal>abacus abacus source
+Architectures: coal>arm arm source
 FilterFormula: Priority(==optional),Package(>=alpha),Package(<=zeta)
 FilterList: error list
 ListHook: /bin/cp
@@ -1956,63 +1956,63 @@ stderr
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/Release'
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/ugly/source/Sources.gz'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/ugly/source/Sources.gz'
--v6*=aptmethod start 'copy:$WORKDIR/dists/test2/ugly/binary-abacus/Packages.gz'
--v1*=aptmethod got 'copy:$WORKDIR/dists/test2/ugly/binary-abacus/Packages.gz'
+-v6*=aptmethod start 'copy:$WORKDIR/dists/test2/ugly/binary-arm/Packages.gz'
+-v1*=aptmethod got 'copy:$WORKDIR/dists/test2/ugly/binary-arm/Packages.gz'
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/ugly/binary-coal/Packages.gz'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/ugly/binary-coal/Packages.gz'
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/stupid/source/Sources.gz'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/stupid/source/Sources.gz'
--v6*=aptmethod start 'copy:$WORKDIR/dists/test2/stupid/binary-abacus/Packages.gz'
--v1*=aptmethod got 'copy:$WORKDIR/dists/test2/stupid/binary-abacus/Packages.gz'
+-v6*=aptmethod start 'copy:$WORKDIR/dists/test2/stupid/binary-arm/Packages.gz'
+-v1*=aptmethod got 'copy:$WORKDIR/dists/test2/stupid/binary-arm/Packages.gz'
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/stupid/binary-coal/Packages.gz'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/stupid/binary-coal/Packages.gz'
 -v6*=Called /bin/cp './lists/test1_Test2toTest1_dsc_ugly_source' './lists/test1_Test2toTest1_dsc_ugly_source_changed'
 -v6*=Listhook successfully returned!
--v6*=Called /bin/cp './lists/test1_Test2toTest1_deb_ugly_abacus' './lists/test1_Test2toTest1_deb_ugly_abacus_changed'
+-v6*=Called /bin/cp './lists/test1_Test2toTest1_deb_ugly_arm' './lists/test1_Test2toTest1_deb_ugly_arm_changed'
 -v6*=Called /bin/cp './lists/test1_Test2toTest1_deb_ugly_coal' './lists/test1_Test2toTest1_deb_ugly_coal_changed'
 -v6*=Called /bin/cp './lists/test1_Test2toTest1_dsc_stupid_source' './lists/test1_Test2toTest1_dsc_stupid_source_changed'
--v6*=Called /bin/cp './lists/test1_Test2toTest1_deb_stupid_abacus' './lists/test1_Test2toTest1_deb_stupid_abacus_changed'
+-v6*=Called /bin/cp './lists/test1_Test2toTest1_deb_stupid_arm' './lists/test1_Test2toTest1_deb_stupid_arm_changed'
 -v6*=Called /bin/cp './lists/test1_Test2toTest1_deb_stupid_coal' './lists/test1_Test2toTest1_deb_stupid_coal_changed'
 stdout
 -v2*=Created directory "./lists"
 -v0*=Calculating packages to get...
 -v3*=  processing updates for 'test1|ugly|source'
 -v5*=  reading './lists/test1_Test2toTest1_dsc_ugly_source_changed'
--v3*=  processing updates for 'test1|ugly|abacus'
--v5*=  reading './lists/test1_Test2toTest1_deb_ugly_abacus_changed'
+-v3*=  processing updates for 'test1|ugly|arm'
+-v5*=  reading './lists/test1_Test2toTest1_deb_ugly_arm_changed'
 -v5*=  reading './lists/test1_Test2toTest1_deb_ugly_coal_changed'
 -v3*=  processing updates for 'test1|stupid|source'
 -v5*=  reading './lists/test1_Test2toTest1_dsc_stupid_source_changed'
--v3*=  processing updates for 'test1|stupid|abacus'
--v5*=  reading './lists/test1_Test2toTest1_deb_stupid_abacus_changed'
+-v3*=  processing updates for 'test1|stupid|arm'
+-v5*=  reading './lists/test1_Test2toTest1_deb_stupid_arm_changed'
 -v5*=  reading './lists/test1_Test2toTest1_deb_stupid_coal_changed'
 -v0*=Getting packages...
 -v1=Freeing some memory...
 -v1*=Shutting down aptmethods...
 -v0*=Installing (and possibly deleting) packages...
 -v3*=db: 'simple' added to 'test1|ugly|source'.
--v3*=db: 'simple' added to 'test1|ugly|abacus'.
--v3*=db: 'simple-addons' added to 'test1|ugly|abacus'.
+-v3*=db: 'simple' added to 'test1|ugly|arm'.
+-v3*=db: 'simple-addons' added to 'test1|ugly|arm'.
 -v3*=db: 'bloat+-0a9z.app' added to 'test1|stupid|source'.
--v3*=db: 'bloat+-0a9z.app' added to 'test1|stupid|abacus'.
--v3*=db: 'bloat+-0a9z.app-addons' added to 'test1|stupid|abacus'.
+-v3*=db: 'bloat+-0a9z.app' added to 'test1|stupid|arm'.
+-v3*=db: 'bloat+-0a9z.app-addons' added to 'test1|stupid|arm'.
 -v0*=Exporting indices...
--v6*= looking for changes in 'test1|stupid|abacus'...
--v6*=  replacing './dists/test1/stupid/binary-abacus/Packages' (uncompressed,gzipped,bzip2ed)
+-v6*= looking for changes in 'test1|stupid|arm'...
+-v6*=  replacing './dists/test1/stupid/binary-arm/Packages' (uncompressed,gzipped,bzip2ed)
 -v6*= looking for changes in 'test1|stupid|source'...
 -v6*=  replacing './dists/test1/stupid/source/Sources' (gzipped,bzip2ed)
--v6*= looking for changes in 'test1|ugly|abacus'...
--v6*=  replacing './dists/test1/ugly/binary-abacus/Packages' (uncompressed,gzipped,bzip2ed)
+-v6*= looking for changes in 'test1|ugly|arm'...
+-v6*=  replacing './dists/test1/ugly/binary-arm/Packages' (uncompressed,gzipped,bzip2ed)
 -v6*= looking for changes in 'test1|ugly|source'...
 -v6*=  replacing './dists/test1/ugly/source/Sources' (gzipped,bzip2ed)
 EOF
 checklog log1 <<EOF
 DATESTR add test1 dsc ugly source simple 1
-DATESTR add test1 deb ugly abacus simple 1
-DATESTR add test1 deb ugly abacus simple-addons 1
+DATESTR add test1 deb ugly arm simple 1
+DATESTR add test1 deb ugly arm simple-addons 1
 DATESTR add test1 dsc stupid source bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
-DATESTR add test1 deb stupid abacus bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
-DATESTR add test1 deb stupid abacus bloat+-0a9z.app-addons 99:0.9-A:Z+a:z-0+aA.9zZ
+DATESTR add test1 deb stupid arm bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
+DATESTR add test1 deb stupid arm bloat+-0a9z.app-addons 99:0.9-A:Z+a:z-0+aA.9zZ
 EOF
 checknolog log1
 checknolog log2
@@ -2032,22 +2032,22 @@ testrun - --nolistsdownload -b . $UPDATETYPE test1 3<<EOF
 -v0*=Warning: As --nolistsdownload is given, index files are NOT checked.
 -v6*=Called /bin/cp './lists/test1_Test2toTest1_dsc_ugly_source' './lists/test1_Test2toTest1_dsc_ugly_source_changed'
 -v6*=Listhook successfully returned!
--v6*=Called /bin/cp './lists/test1_Test2toTest1_deb_ugly_abacus' './lists/test1_Test2toTest1_deb_ugly_abacus_changed'
+-v6*=Called /bin/cp './lists/test1_Test2toTest1_deb_ugly_arm' './lists/test1_Test2toTest1_deb_ugly_arm_changed'
 -v6*=Called /bin/cp './lists/test1_Test2toTest1_deb_ugly_coal' './lists/test1_Test2toTest1_deb_ugly_coal_changed'
 -v6*=Called /bin/cp './lists/test1_Test2toTest1_dsc_stupid_source' './lists/test1_Test2toTest1_dsc_stupid_source_changed'
--v6*=Called /bin/cp './lists/test1_Test2toTest1_deb_stupid_abacus' './lists/test1_Test2toTest1_deb_stupid_abacus_changed'
+-v6*=Called /bin/cp './lists/test1_Test2toTest1_deb_stupid_arm' './lists/test1_Test2toTest1_deb_stupid_arm_changed'
 -v6*=Called /bin/cp './lists/test1_Test2toTest1_deb_stupid_coal' './lists/test1_Test2toTest1_deb_stupid_coal_changed'
 stdout
 -v0*=Calculating packages to get...
 -v3*=  processing updates for 'test1|ugly|source'
 -v5*=  reading './lists/test1_Test2toTest1_dsc_ugly_source_changed'
--v3*=  processing updates for 'test1|ugly|abacus'
--v5*=  reading './lists/test1_Test2toTest1_deb_ugly_abacus_changed'
+-v3*=  processing updates for 'test1|ugly|arm'
+-v5*=  reading './lists/test1_Test2toTest1_deb_ugly_arm_changed'
 -v5*=  reading './lists/test1_Test2toTest1_deb_ugly_coal_changed'
 -v3*=  processing updates for 'test1|stupid|source'
 -v5*=  reading './lists/test1_Test2toTest1_dsc_stupid_source_changed'
--v3*=  processing updates for 'test1|stupid|abacus'
--v5*=  reading './lists/test1_Test2toTest1_deb_stupid_abacus_changed'
+-v3*=  processing updates for 'test1|stupid|arm'
+-v5*=  reading './lists/test1_Test2toTest1_deb_stupid_arm_changed'
 -v5*=  reading './lists/test1_Test2toTest1_deb_stupid_coal_changed'
 -v0*=Getting packages...
 -v1=Freeing some memory...
@@ -2057,74 +2057,74 @@ EOF
 checklog log1 < /dev/null
 checknolog log2
 
-find dists/test2/ \( -name "Packages.gz" -o -name "Sources.gz" \) -print0 | xargs -0 zgrep '^Package: ' | sed -e 's/test2/test1/' -e 's/coal/abacus/' | sort > test2
+find dists/test2/ \( -name "Packages.gz" -o -name "Sources.gz" \) -print0 | xargs -0 zgrep '^Package: ' | sed -e 's/test2/test1/' -e 's/coal/arm/' | sort > test2
 find dists/test1/ \( -name "Packages.gz" -o -name "Sources.gz" \) -print0 | xargs -0 zgrep '^Package: ' | sort > test1
 dodiff test2 test1
 
 testrun - -b . check test1 test2 3<<EOF
 stdout
 -v1*=Checking test2...
--v2*=Checking packages in 'test2|stupid|abacus'...
+-v2*=Checking packages in 'test2|stupid|arm'...
 -v2*=Checking packages in 'test2|stupid|coal'...
 -v2*=Checking packages in 'test2|stupid|source'...
--v2*=Checking packages in 'test2|ugly|abacus'...
+-v2*=Checking packages in 'test2|ugly|arm'...
 -v2*=Checking packages in 'test2|ugly|coal'...
 -v2*=Checking packages in 'test2|ugly|source'...
 -v1*=Checking test1...
--v2*=Checking packages in 'test1|stupid|abacus'...
+-v2*=Checking packages in 'test1|stupid|arm'...
 -v2*=Checking packages in 'test1|stupid|source'...
--v2*=Checking packages in 'test1|ugly|abacus'...
+-v2*=Checking packages in 'test1|ugly|arm'...
 -v2*=Checking packages in 'test1|ugly|source'...
 EOF
 testrun "" -b . checkpool
 testrun - -b . rereference test1 test2 3<<EOF
 stdout
 -v1*=Referencing test2...
--v2=Rereferencing test2|stupid|abacus...
+-v2=Rereferencing test2|stupid|arm...
 -v2=Rereferencing test2|stupid|coal...
 -v2=Rereferencing test2|stupid|source...
--v2=Rereferencing test2|ugly|abacus...
+-v2=Rereferencing test2|ugly|arm...
 -v2=Rereferencing test2|ugly|coal...
 -v2=Rereferencing test2|ugly|source...
--v3*=Unlocking depencies of test2|stupid|abacus...
--v3*=Referencing test2|stupid|abacus...
+-v3*=Unlocking depencies of test2|stupid|arm...
+-v3*=Referencing test2|stupid|arm...
 -v3*=Unlocking depencies of test2|stupid|coal...
 -v3*=Referencing test2|stupid|coal...
 -v3*=Unlocking depencies of test2|stupid|source...
 -v3*=Referencing test2|stupid|source...
--v3*=Unlocking depencies of test2|ugly|abacus...
--v3*=Referencing test2|ugly|abacus...
+-v3*=Unlocking depencies of test2|ugly|arm...
+-v3*=Referencing test2|ugly|arm...
 -v3*=Unlocking depencies of test2|ugly|coal...
 -v3*=Referencing test2|ugly|coal...
 -v3*=Unlocking depencies of test2|ugly|source...
 -v3*=Referencing test2|ugly|source...
 -v1*=Referencing test1...
--v2=Rereferencing test1|stupid|abacus...
+-v2=Rereferencing test1|stupid|arm...
 -v2=Rereferencing test1|stupid|source...
--v2=Rereferencing test1|ugly|abacus...
+-v2=Rereferencing test1|ugly|arm...
 -v2=Rereferencing test1|ugly|source...
--v3*=Unlocking depencies of test1|stupid|abacus...
--v3*=Referencing test1|stupid|abacus...
+-v3*=Unlocking depencies of test1|stupid|arm...
+-v3*=Referencing test1|stupid|arm...
 -v3*=Unlocking depencies of test1|stupid|source...
 -v3*=Referencing test1|stupid|source...
--v3*=Unlocking depencies of test1|ugly|abacus...
--v3*=Referencing test1|ugly|abacus...
+-v3*=Unlocking depencies of test1|ugly|arm...
+-v3*=Referencing test1|ugly|arm...
 -v3*=Unlocking depencies of test1|ugly|source...
 -v3*=Referencing test1|ugly|source...
 EOF
 testrun - -b . check test1 test2 3<<EOF
 stdout
 -v1*=Checking test1...
--v2*=Checking packages in 'test2|stupid|abacus'...
+-v2*=Checking packages in 'test2|stupid|arm'...
 -v2*=Checking packages in 'test2|stupid|coal'...
 -v2*=Checking packages in 'test2|stupid|source'...
--v2*=Checking packages in 'test2|ugly|abacus'...
+-v2*=Checking packages in 'test2|ugly|arm'...
 -v2*=Checking packages in 'test2|ugly|coal'...
 -v2*=Checking packages in 'test2|ugly|source'...
 -v1*=Checking test2...
--v2*=Checking packages in 'test1|stupid|abacus'...
+-v2*=Checking packages in 'test1|stupid|arm'...
 -v2*=Checking packages in 'test1|stupid|source'...
--v2*=Checking packages in 'test1|ugly|abacus'...
+-v2*=Checking packages in 'test1|ugly|arm'...
 -v2*=Checking packages in 'test1|ugly|source'...
 EOF
 
@@ -2135,20 +2135,20 @@ Source: bloat+-0a9z.app
 Version: 99:0.9-A:Z+a:z-0+aA.9zZ
 Files:
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb a 0
- pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_abacus.deb b 0
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_arm.deb b 0
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc s 0
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.tar.gz s 0
- pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:0.9-A:Z+a:z-0+aA.9zZ_source+abacus+all.changes c 0
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:0.9-A:Z+a:z-0+aA.9zZ_source+arm+all.changes c 0
 
 Distribution: test1
 Source: simple
 Version: 1
 Files:
  pool/stupid/s/simple/simple-addons_1_all.deb a 0
- pool/stupid/s/simple/simple_1_abacus.deb b 0
+ pool/stupid/s/simple/simple_1_arm.deb b 0
  pool/stupid/s/simple/simple_1.dsc s 0
  pool/stupid/s/simple/simple_1.tar.gz s 0
- pool/stupid/s/simple/simple_1_source+abacus+all.changes c 0
+ pool/stupid/s/simple/simple_1_source+arm+all.changes c 0
 
 END
 dodiff results.expected results
@@ -2163,15 +2163,15 @@ stdout
 -v1*=deleting and forgetting pool/stupid/s/simple/simple-addons_1_all.deb
 -v1*=deleting and forgetting pool/stupid/s/simple/simple_1.dsc
 -v1*=deleting and forgetting pool/stupid/s/simple/simple_1.tar.gz
--v1*=deleting and forgetting pool/stupid/s/simple/simple_1_abacus.deb
--v1*=deleting and forgetting pool/stupid/s/simple/simple_1_source+abacus+all.changes
+-v1*=deleting and forgetting pool/stupid/s/simple/simple_1_arm.deb
+-v1*=deleting and forgetting pool/stupid/s/simple/simple_1_source+arm+all.changes
 -v1*=removed now empty directory ./pool/stupid/s/simple
 -v1*=removed now empty directory ./pool/stupid/s
 -v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb
 -v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc
 -v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.tar.gz
--v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_abacus.deb
--v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:0.9-A:Z+a:z-0+aA.9zZ_source+abacus+all.changes
+-v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_arm.deb
+-v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:0.9-A:Z+a:z-0+aA.9zZ_source+arm+all.changes
 -v1*=removed now empty directory ./pool/ugly/b/bloat+-0a9z.app
 -v1*=removed now empty directory ./pool/ugly/b
 EOF
@@ -2182,20 +2182,20 @@ stderr
 stdout
 -v2*=Created directory "./pool/ugly/b"
 -v2*=Created directory "./pool/ugly/b/bloat+-0a9z.app"
--v3*=db: 'bloat+-0a9z.app-addons' added to 'test1|ugly|abacus'.
--v3*=db: 'bloat+-0a9z.app' added to 'test1|ugly|abacus'.
+-v3*=db: 'bloat+-0a9z.app-addons' added to 'test1|ugly|arm'.
+-v3*=db: 'bloat+-0a9z.app' added to 'test1|ugly|arm'.
 -v3*=db: 'bloat+-0a9z.app' added to 'test1|ugly|source'.
 -v0*=Exporting indices...
--v6*= looking for changes in 'test1|stupid|abacus'...
+-v6*= looking for changes in 'test1|stupid|arm'...
 -v6*= looking for changes in 'test1|stupid|source'...
--v6*= looking for changes in 'test1|ugly|abacus'...
--v6*=  replacing './dists/test1/ugly/binary-abacus/Packages' (uncompressed,gzipped,bzip2ed)
+-v6*= looking for changes in 'test1|ugly|arm'...
+-v6*=  replacing './dists/test1/ugly/binary-arm/Packages' (uncompressed,gzipped,bzip2ed)
 -v6*= looking for changes in 'test1|ugly|source'...
 -v6*=  replacing './dists/test1/ugly/source/Sources' (gzipped,bzip2ed)
 EOF
 checklog log1 <<EOF
-DATESTR add test1 deb ugly abacus bloat+-0a9z.app-addons 99:0.9-A:Z+a:z-0+aA.9zZ
-DATESTR add test1 deb ugly abacus bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
+DATESTR add test1 deb ugly arm bloat+-0a9z.app-addons 99:0.9-A:Z+a:z-0+aA.9zZ
+DATESTR add test1 deb ugly arm bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
 DATESTR add test1 dsc ugly source bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
 EOF
 echo returned: $?
@@ -2204,44 +2204,44 @@ testrun - -b . include test1 test2.changes 3<<EOF
 stderr
 -v0=Data seems not to be signed trying to use directly...
 stdout
--v3*=db: removed old 'bloat+-0a9z.app-addons' from 'test1|ugly|abacus'.
--v3*=db: 'bloat+-0a9z.app-addons' added to 'test1|ugly|abacus'.
--v3*=db: removed old 'bloat+-0a9z.app' from 'test1|ugly|abacus'.
--v3*=db: 'bloat+-0a9z.app' added to 'test1|ugly|abacus'.
+-v3*=db: removed old 'bloat+-0a9z.app-addons' from 'test1|ugly|arm'.
+-v3*=db: 'bloat+-0a9z.app-addons' added to 'test1|ugly|arm'.
+-v3*=db: removed old 'bloat+-0a9z.app' from 'test1|ugly|arm'.
+-v3*=db: 'bloat+-0a9z.app' added to 'test1|ugly|arm'.
 -v3*=db: removed old 'bloat+-0a9z.app' from 'test1|ugly|source'.
 -v3*=db: 'bloat+-0a9z.app' added to 'test1|ugly|source'.
 -v0*=Exporting indices...
--v6*= looking for changes in 'test1|stupid|abacus'...
+-v6*= looking for changes in 'test1|stupid|arm'...
 -v6*= looking for changes in 'test1|stupid|source'...
--v6*= looking for changes in 'test1|ugly|abacus'...
--v6*=  replacing './dists/test1/ugly/binary-abacus/Packages' (uncompressed,gzipped,bzip2ed)
+-v6*= looking for changes in 'test1|ugly|arm'...
+-v6*=  replacing './dists/test1/ugly/binary-arm/Packages' (uncompressed,gzipped,bzip2ed)
 -v6*= looking for changes in 'test1|ugly|source'...
 -v6*=  replacing './dists/test1/ugly/source/Sources' (gzipped,bzip2ed)
 -v0*=Deleting files no longer referenced...
 EOF
 echo returned: $?
 checklog log1 <<EOF
-DATESTR replace test1 deb ugly abacus bloat+-0a9z.app-addons 99:9.0-A:Z+a:z-0+aA.9zZ 99:0.9-A:Z+a:z-0+aA.9zZ
-DATESTR replace test1 deb ugly abacus bloat+-0a9z.app 99:9.0-A:Z+a:z-0+aA.9zZ 99:0.9-A:Z+a:z-0+aA.9zZ
+DATESTR replace test1 deb ugly arm bloat+-0a9z.app-addons 99:9.0-A:Z+a:z-0+aA.9zZ 99:0.9-A:Z+a:z-0+aA.9zZ
+DATESTR replace test1 deb ugly arm bloat+-0a9z.app 99:9.0-A:Z+a:z-0+aA.9zZ 99:0.9-A:Z+a:z-0+aA.9zZ
 DATESTR replace test1 dsc ugly source bloat+-0a9z.app 99:9.0-A:Z+a:z-0+aA.9zZ 99:0.9-A:Z+a:z-0+aA.9zZ
 EOF
-testrun - -b . -S test -P test includedeb test1 simple_1_abacus.deb 3<<EOF
+testrun - -b . -S test -P test includedeb test1 simple_1_arm.deb 3<<EOF
 stderr
--v1*=simple_1_abacus.deb: component guessed as 'stupid'
+-v1*=simple_1_arm.deb: component guessed as 'stupid'
 stdout
 -v2*=Created directory "./pool/stupid/s"
 -v2*=Created directory "./pool/stupid/s/simple"
--v3*=db: 'simple' added to 'test1|stupid|abacus'.
+-v3*=db: 'simple' added to 'test1|stupid|arm'.
 -v0*=Exporting indices...
--v6*= looking for changes in 'test1|stupid|abacus'...
--v6*=  replacing './dists/test1/stupid/binary-abacus/Packages' (uncompressed,gzipped,bzip2ed)
+-v6*= looking for changes in 'test1|stupid|arm'...
+-v6*=  replacing './dists/test1/stupid/binary-arm/Packages' (uncompressed,gzipped,bzip2ed)
 -v6*= looking for changes in 'test1|stupid|source'...
--v6*= looking for changes in 'test1|ugly|abacus'...
+-v6*= looking for changes in 'test1|ugly|arm'...
 -v6*= looking for changes in 'test1|ugly|source'...
 EOF
 echo returned: $?
 checklog log1 <<EOF
-DATESTR add test1 deb stupid abacus simple 1
+DATESTR add test1 deb stupid arm simple 1
 EOF
 testrun - -b . -S test -P test includedsc test1 simple_1.dsc 3<<EOF
 stderr
@@ -2250,10 +2250,10 @@ stderr
 stdout
 -v3*=db: 'simple' added to 'test1|stupid|source'.
 -v0*=Exporting indices...
--v6*= looking for changes in 'test1|stupid|abacus'...
+-v6*= looking for changes in 'test1|stupid|arm'...
 -v6*= looking for changes in 'test1|stupid|source'...
 -v6*=  replacing './dists/test1/stupid/source/Sources' (gzipped,bzip2ed)
--v6*= looking for changes in 'test1|ugly|abacus'...
+-v6*= looking for changes in 'test1|ugly|arm'...
 -v6*= looking for changes in 'test1|ugly|source'...
 EOF
 echo returned: $?
@@ -2268,26 +2268,26 @@ Source: bloat+-0a9z.app
 Version: 99:0.9-A:Z+a:z-0+aA.9zZ
 Files:
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb a 0
- pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_abacus.deb b 0
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_arm.deb b 0
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc s 0
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.tar.gz s 0
- pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:0.9-A:Z+a:z-0+aA.9zZ_source+abacus+all.changes c 0
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:0.9-A:Z+a:z-0+aA.9zZ_source+arm+all.changes c 0
 
 Distribution: test1
 Source: bloat+-0a9z.app
 Version: 99:9.0-A:Z+a:z-0+aA.9zZ
 Files:
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_9.0-A:Z+a:z-0+aA.9zZ_all.deb a 1
- pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ_abacus.deb b 1
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ_arm.deb b 1
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.dsc s 1
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.tar.gz s 1
- pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:9.0-A:Z+a:z-0+aA.9zZ_source+abacus+all.changes c 0
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:9.0-A:Z+a:z-0+aA.9zZ_source+arm+all.changes c 0
 
 Distribution: test1
 Source: simple
 Version: 1
 Files:
- pool/stupid/s/simple/simple_1_abacus.deb b 1
+ pool/stupid/s/simple/simple_1_arm.deb b 1
  pool/stupid/s/simple/simple_1.dsc s 1
  pool/stupid/s/simple/simple_1.tar.gz s 1
 
@@ -2311,7 +2311,7 @@ stdout
 -v2*=Created directory "./pool/stupid/t"
 -v2*=Created directory "./pool/stupid/t/test"
 -v1*=deleting and forgetting pool/stupid/t/test/test-addons_1-2_all.deb
--v1*=deleting and forgetting pool/stupid/t/test/test_1-2_abacus.deb
+-v1*=deleting and forgetting pool/stupid/t/test/test_1-2_arm.deb
 -v1*=deleting and forgetting pool/stupid/t/test/test_1-2.diff.gz
 -v1*=deleting and forgetting pool/stupid/t/test/test_1-2.dsc
 -v1*=removed now empty directory ./pool/stupid/t/test
@@ -2327,20 +2327,20 @@ stderr
 stdout
 -v2*=Created directory "./pool/stupid/t"
 -v2*=Created directory "./pool/stupid/t/test"
--v3*=db: 'test-addons' added to 'test1|stupid|abacus'.
--v3*=db: 'test' added to 'test1|stupid|abacus'.
+-v3*=db: 'test-addons' added to 'test1|stupid|arm'.
+-v3*=db: 'test' added to 'test1|stupid|arm'.
 -v3*=db: 'test' added to 'test1|stupid|source'.
 -v0*=Exporting indices...
--v6*= looking for changes in 'test1|stupid|abacus'...
--v6*=  replacing './dists/test1/stupid/binary-abacus/Packages' (uncompressed,gzipped,bzip2ed)
+-v6*= looking for changes in 'test1|stupid|arm'...
+-v6*=  replacing './dists/test1/stupid/binary-arm/Packages' (uncompressed,gzipped,bzip2ed)
 -v6*= looking for changes in 'test1|stupid|source'...
 -v6*=  replacing './dists/test1/stupid/source/Sources' (gzipped,bzip2ed)
--v6*= looking for changes in 'test1|ugly|abacus'...
+-v6*= looking for changes in 'test1|ugly|arm'...
 -v6*= looking for changes in 'test1|ugly|source'...
 EOF
 checklog log1 <<EOF
-DATESTR add test1 deb stupid abacus test-addons 1-2
-DATESTR add test1 deb stupid abacus test 1-2
+DATESTR add test1 deb stupid arm test-addons 1-2
+DATESTR add test1 deb stupid arm test 1-2
 DATESTR add test1 dsc stupid source test 1-2
 EOF
 dodo zgrep test_1-2.dsc dists/test1/stupid/source/Sources.gz
@@ -2352,20 +2352,20 @@ stderr
 -v0=Data seems not to be signed trying to use directly...
 stdout
 -v2*=Created directory "./pool/stupid/t/testb"
--v3*=db: 'testb-addons' added to 'test1|stupid|abacus'.
--v3*=db: 'testb' added to 'test1|stupid|abacus'.
+-v3*=db: 'testb-addons' added to 'test1|stupid|arm'.
+-v3*=db: 'testb' added to 'test1|stupid|arm'.
 -v3*=db: 'testb' added to 'test1|stupid|source'.
 -v0*=Exporting indices...
--v6*= looking for changes in 'test1|stupid|abacus'...
--v6*=  replacing './dists/test1/stupid/binary-abacus/Packages' (uncompressed,gzipped,bzip2ed)
+-v6*= looking for changes in 'test1|stupid|arm'...
+-v6*=  replacing './dists/test1/stupid/binary-arm/Packages' (uncompressed,gzipped,bzip2ed)
 -v6*= looking for changes in 'test1|stupid|source'...
 -v6*=  replacing './dists/test1/stupid/source/Sources' (gzipped,bzip2ed)
--v6*= looking for changes in 'test1|ugly|abacus'...
+-v6*= looking for changes in 'test1|ugly|arm'...
 -v6*= looking for changes in 'test1|ugly|source'...
 EOF
 checklog log1 <<EOF
-DATESTR add test1 deb stupid abacus testb-addons 1:2-2
-DATESTR add test1 deb stupid abacus testb 1:2-2
+DATESTR add test1 deb stupid arm testb-addons 1:2-2
+DATESTR add test1 deb stupid arm testb 1:2-2
 DATESTR add test1 dsc stupid source testb 1:2-2
 EOF
 dodo zgrep testb_2-2.dsc dists/test1/stupid/source/Sources.gz
@@ -2375,24 +2375,24 @@ testrun - -b . include test1 test2.changes 3<<EOF
 stderr
 -v0=Data seems not to be signed trying to use directly...
 stdout
--v3*=db: removed old 'testb-addons' from 'test1|stupid|abacus'.
--v3*=db: 'testb-addons' added to 'test1|stupid|abacus'.
--v3*=db: removed old 'testb' from 'test1|stupid|abacus'.
--v3*=db: 'testb' added to 'test1|stupid|abacus'.
+-v3*=db: removed old 'testb-addons' from 'test1|stupid|arm'.
+-v3*=db: 'testb-addons' added to 'test1|stupid|arm'.
+-v3*=db: removed old 'testb' from 'test1|stupid|arm'.
+-v3*=db: 'testb' added to 'test1|stupid|arm'.
 -v3*=db: removed old 'testb' from 'test1|stupid|source'.
 -v3*=db: 'testb' added to 'test1|stupid|source'.
 -v0*=Exporting indices...
--v6*= looking for changes in 'test1|stupid|abacus'...
--v6*=  replacing './dists/test1/stupid/binary-abacus/Packages' (uncompressed,gzipped,bzip2ed)
+-v6*= looking for changes in 'test1|stupid|arm'...
+-v6*=  replacing './dists/test1/stupid/binary-arm/Packages' (uncompressed,gzipped,bzip2ed)
 -v6*= looking for changes in 'test1|stupid|source'...
 -v6*=  replacing './dists/test1/stupid/source/Sources' (gzipped,bzip2ed)
--v6*= looking for changes in 'test1|ugly|abacus'...
+-v6*= looking for changes in 'test1|ugly|arm'...
 -v6*= looking for changes in 'test1|ugly|source'...
 -v0*=Deleting files no longer referenced...
 EOF
 checklog log1 <<EOF
-DATESTR replace test1 deb stupid abacus testb-addons 1:2-3 1:2-2
-DATESTR replace test1 deb stupid abacus testb 1:2-3 1:2-2
+DATESTR replace test1 deb stupid arm testb-addons 1:2-3 1:2-2
+DATESTR replace test1 deb stupid arm testb 1:2-3 1:2-2
 DATESTR replace test1 dsc stupid source testb 1:2-3 1:2-2
 EOF
 dodo zgrep testb_2-3.dsc dists/test1/stupid/source/Sources.gz
@@ -2408,20 +2408,20 @@ stderr
 stdout
 -v2*=Created directory "./pool/stupid/4"
 -v2*=Created directory "./pool/stupid/4/4test"
--v3*=db: '4test-addons' added to 'test1|stupid|abacus'.
--v3*=db: '4test' added to 'test1|stupid|abacus'.
+-v3*=db: '4test-addons' added to 'test1|stupid|arm'.
+-v3*=db: '4test' added to 'test1|stupid|arm'.
 -v3*=db: '4test' added to 'test1|stupid|source'.
 -v0*=Exporting indices...
--v6*= looking for changes in 'test1|stupid|abacus'...
--v6*=  replacing './dists/test1/stupid/binary-abacus/Packages' (uncompressed,gzipped,bzip2ed)
+-v6*= looking for changes in 'test1|stupid|arm'...
+-v6*=  replacing './dists/test1/stupid/binary-arm/Packages' (uncompressed,gzipped,bzip2ed)
 -v6*= looking for changes in 'test1|stupid|source'...
 -v6*=  replacing './dists/test1/stupid/source/Sources' (gzipped,bzip2ed)
--v6*= looking for changes in 'test1|ugly|abacus'...
+-v6*= looking for changes in 'test1|ugly|arm'...
 -v6*= looking for changes in 'test1|ugly|source'...
 EOF
 checklog log1 <<EOF
-DATESTR add test1 deb stupid abacus 4test-addons 1:b.1-1
-DATESTR add test1 deb stupid abacus 4test 1:b.1-1
+DATESTR add test1 deb stupid arm 4test-addons 1:b.1-1
+DATESTR add test1 deb stupid arm 4test 1:b.1-1
 DATESTR add test1 dsc stupid source 4test 1:b.1-1
 EOF
 
@@ -2465,7 +2465,7 @@ stderr
 -v0*=There have been errors!
 returns 249
 EOF
-echo -e 'Architectures: abacus fingers' >> conf2/distributions
+echo -e 'Architectures: arm fingers' >> conf2/distributions
 testrun - -b . --confdir conf2 update 3<<EOF
 *=While parsing distribution definition, required field Components not found!
 -v1*=Stop reading further chunks from 'conf2/distributions' due to previous errors.
@@ -2491,23 +2491,23 @@ stdout
 -v0*=Exporting indices...
 -v2*=Created directory "./dists/foo"
 -v2*=Created directory "./dists/foo/unneeded"
--v2*=Created directory "./dists/foo/unneeded/binary-abacus"
--v6*= looking for changes in 'foo|unneeded|abacus'...
--v6*=  creating './dists/foo/unneeded/binary-abacus/Packages' (uncompressed,gzipped)
+-v2*=Created directory "./dists/foo/unneeded/binary-arm"
+-v6*= looking for changes in 'foo|unneeded|arm'...
+-v6*=  creating './dists/foo/unneeded/binary-arm/Packages' (uncompressed,gzipped)
 -v2*=Created directory "./dists/foo/unneeded/binary-fingers"
 -v6*= looking for changes in 'foo|unneeded|fingers'...
 -v6*=  creating './dists/foo/unneeded/binary-fingers/Packages' (uncompressed,gzipped)
 -v2*=Created directory "./dists/foo/bloated"
--v2*=Created directory "./dists/foo/bloated/binary-abacus"
--v6*= looking for changes in 'foo|bloated|abacus'...
--v6*=  creating './dists/foo/bloated/binary-abacus/Packages' (uncompressed,gzipped)
+-v2*=Created directory "./dists/foo/bloated/binary-arm"
+-v6*= looking for changes in 'foo|bloated|arm'...
+-v6*=  creating './dists/foo/bloated/binary-arm/Packages' (uncompressed,gzipped)
 -v2*=Created directory "./dists/foo/bloated/binary-fingers"
 -v6*= looking for changes in 'foo|bloated|fingers'...
 -v6*=  creating './dists/foo/bloated/binary-fingers/Packages' (uncompressed,gzipped)
 -v2*=Created directory "./dists/foo/i386"
--v2*=Created directory "./dists/foo/i386/binary-abacus"
--v6*= looking for changes in 'foo|i386|abacus'...
--v6*=  creating './dists/foo/i386/binary-abacus/Packages' (uncompressed,gzipped)
+-v2*=Created directory "./dists/foo/i386/binary-arm"
+-v6*= looking for changes in 'foo|i386|arm'...
+-v6*=  creating './dists/foo/i386/binary-arm/Packages' (uncompressed,gzipped)
 -v2*=Created directory "./dists/foo/i386/binary-fingers"
 -v6*= looking for changes in 'foo|i386|fingers'...
 -v6*=  creating './dists/foo/i386/binary-fingers/Packages' (uncompressed,gzipped)
@@ -2671,61 +2671,61 @@ EOF
 testout "" -b . dumpunreferenced
 dodiff results.empty results
 # first remove file, then try to remove the package
-testrun "" -b . _forget pool/ugly/s/simple/simple_1_abacus.deb
+testrun "" -b . _forget pool/ugly/s/simple/simple_1_arm.deb
 testrun - -b . remove test1 simple 3<<EOF
 # ???
 =Warning: tracking database of test1 missed files for simple_1.
 stdout
--v1*=removing 'simple' from 'test1|stupid|abacus'...
+-v1*=removing 'simple' from 'test1|stupid|arm'...
 -v1*=removing 'simple' from 'test1|stupid|source'...
--v1*=removing 'simple' from 'test1|ugly|abacus'...
+-v1*=removing 'simple' from 'test1|ugly|arm'...
 -v1*=removing 'simple' from 'test1|ugly|source'...
--v3*=db: 'simple' removed from 'test1|stupid|abacus'.
+-v3*=db: 'simple' removed from 'test1|stupid|arm'.
 -v3*=db: 'simple' removed from 'test1|stupid|source'.
--v3*=db: 'simple' removed from 'test1|ugly|abacus'.
+-v3*=db: 'simple' removed from 'test1|ugly|arm'.
 -v3*=db: 'simple' removed from 'test1|ugly|source'.
 -v0*=Exporting indices...
--v6*= looking for changes in 'test1|stupid|abacus'...
--v6*=  replacing './dists/test1/stupid/binary-abacus/Packages' (uncompressed,gzipped,bzip2ed)
+-v6*= looking for changes in 'test1|stupid|arm'...
+-v6*=  replacing './dists/test1/stupid/binary-arm/Packages' (uncompressed,gzipped,bzip2ed)
 -v6*= looking for changes in 'test1|stupid|source'...
 -v6*=  replacing './dists/test1/stupid/source/Sources' (gzipped,bzip2ed)
--v6*= looking for changes in 'test1|ugly|abacus'...
--v6*=  replacing './dists/test1/ugly/binary-abacus/Packages' (uncompressed,gzipped,bzip2ed)
+-v6*= looking for changes in 'test1|ugly|arm'...
+-v6*=  replacing './dists/test1/ugly/binary-arm/Packages' (uncompressed,gzipped,bzip2ed)
 -v6*= looking for changes in 'test1|ugly|source'...
 -v6*=  replacing './dists/test1/ugly/source/Sources' (gzipped,bzip2ed)
 -v0*=Deleting files no longer referenced...
 EOF
 checklog log1 <<EOF
-DATESTR remove test1 deb stupid abacus simple 1
+DATESTR remove test1 deb stupid arm simple 1
 DATESTR remove test1 dsc stupid source simple 1
-DATESTR remove test1 deb ugly abacus simple 1
+DATESTR remove test1 deb ugly arm simple 1
 DATESTR remove test1 dsc ugly source simple 1
 EOF
 testrun - -b . remove test2 simple 3<<EOF
-*=To be forgotten filekey 'pool/ugly/s/simple/simple_1_abacus.deb' was not known.
+*=To be forgotten filekey 'pool/ugly/s/simple/simple_1_arm.deb' was not known.
 -v0*=There have been errors!
 stdout
--v1=removing 'simple' from 'test2|ugly|abacus'...
--v3*=db: 'simple' removed from 'test2|ugly|abacus'.
+-v1=removing 'simple' from 'test2|ugly|arm'...
+-v3*=db: 'simple' removed from 'test2|ugly|arm'.
 -v1=removing 'simple' from 'test2|ugly|source'...
 -v3*=db: 'simple' removed from 'test2|ugly|source'.
 -v0=Exporting indices...
--v6*= looking for changes in 'test2|stupid|abacus'...
+-v6*= looking for changes in 'test2|stupid|arm'...
 -v6*= looking for changes in 'test2|stupid|coal'...
 -v6*= looking for changes in 'test2|stupid|source'...
--v6*= looking for changes in 'test2|ugly|abacus'...
--v6*=  replacing './dists/test2/ugly/binary-abacus/Packages' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
+-v6*= looking for changes in 'test2|ugly|arm'...
+-v6*=  replacing './dists/test2/ugly/binary-arm/Packages' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
 -v6*= looking for changes in 'test2|ugly|coal'...
 -v6*= looking for changes in 'test2|ugly|source'...
 -v6*=  replacing './dists/test2/ugly/source/Sources' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
 -v0=Deleting files no longer referenced...
--v1=deleting and forgetting pool/ugly/s/simple/simple_1_abacus.deb
+-v1=deleting and forgetting pool/ugly/s/simple/simple_1_arm.deb
 -v1=deleting and forgetting pool/ugly/s/simple/simple_1.dsc
 -v1=deleting and forgetting pool/ugly/s/simple/simple_1.tar.gz
 returns 249
 EOF
 checklog log2 <<EOF
-DATESTR remove test2 deb ugly abacus simple 1
+DATESTR remove test2 deb ugly arm simple 1
 DATESTR remove test2 dsc ugly source simple 1
 EOF
 testout "" -b . dumpunreferenced
@@ -2736,7 +2736,7 @@ Format: -1.0
 Date: yesterday
 Source: differently
 Version: 0another
-Architecture: source abacus
+Architecture: source arm
 Urgency: super-hyper-duper-important
 Maintainer: still me <guess@who>
 Description: missing
@@ -2745,7 +2745,7 @@ Binary: none and nothing
 Distribution: test2
 Files: 
  `md5sum 4test_b.1-1.dsc| cut -d" " -f 1` `stat -c%s 4test_b.1-1.dsc` a b differently_0another.dsc
- `md5sum 4test_b.1-1_abacus.deb| cut -d" " -f 1` `stat -c%s 4test_b.1-1_abacus.deb` a b 4test_b.1-1_abacus.deb
+ `md5sum 4test_b.1-1_arm.deb| cut -d" " -f 1` `stat -c%s 4test_b.1-1_arm.deb` a b 4test_b.1-1_arm.deb
 EOF
 #todo: make it work without this..
 cp 4test_b.1-1.dsc differently_0another.dsc
@@ -2754,7 +2754,7 @@ testrun - -b . include test2 broken.changes 3<<EOF
 =Warning: Package version 'b.1-1.dsc' does not start with a digit, violating 'should'-directive in policy 5.6.11
 =Looks like source but does not start with 'differently_' as I would have guessed!
 =I hope you know what you do.
-=Warning: Package version 'b.1-1_abacus.deb' does not start with a digit, violating 'should'-directive in policy 5.6.11
+=Warning: Package version 'b.1-1_arm.deb' does not start with a digit, violating 'should'-directive in policy 5.6.11
 *=I don't know what to do having a .dsc without a .diff.gz or .tar.gz in 'broken.changes'!
 -v0*=There have been errors!
 returns 255
@@ -2767,14 +2767,14 @@ testrun - -b . include test2 broken.changes 3<<EOF
 *=Warning: Strange file '4test_b.1-1.tar.gz'!
 *=Looks like source but does not start with 'differently_' as I would have guessed!
 =I hope you know what you do.
-*='./pool/stupid/d/differently/4test_b.1-1_abacus.deb' has packagename '4test' not listed in the .changes file!
+*='./pool/stupid/d/differently/4test_b.1-1_arm.deb' has packagename '4test' not listed in the .changes file!
 *=To ignore use --ignore=surprisingbinary.
 -v0*=There have been errors!
 stdout
 -v2*=Created directory "./pool/stupid/d"
 -v2*=Created directory "./pool/stupid/d/differently"
 -v1*=deleting and forgetting pool/stupid/d/differently/4test_b.1-1.tar.gz
--v1*=deleting and forgetting pool/stupid/d/differently/4test_b.1-1_abacus.deb
+-v1*=deleting and forgetting pool/stupid/d/differently/4test_b.1-1_arm.deb
 -v1*=deleting and forgetting pool/stupid/d/differently/differently_0another.dsc
 -v1*=removed now empty directory ./pool/stupid/d/differently
 -v1*=removed now empty directory ./pool/stupid/d
@@ -2785,15 +2785,15 @@ testrun - -b . --ignore=surprisingbinary include test2 broken.changes 3<<EOF
 *=Warning: Strange file '4test_b.1-1.tar.gz'!
 *=Looks like source but does not start with 'differently_' as I would have guessed!
 =I hope you know what you do.
-*='./pool/stupid/d/differently/4test_b.1-1_abacus.deb' has packagename '4test' not listed in the .changes file!
+*='./pool/stupid/d/differently/4test_b.1-1_arm.deb' has packagename '4test' not listed in the .changes file!
 *=Ignoring as --ignore=surprisingbinary given.
-*='./pool/stupid/d/differently/4test_b.1-1_abacus.deb' lists source package '4test', but .changes says it is 'differently'!
+*='./pool/stupid/d/differently/4test_b.1-1_arm.deb' lists source package '4test', but .changes says it is 'differently'!
 -v0*=There have been errors!
 stdout
 -v2*=Created directory "./pool/stupid/d"
 -v2*=Created directory "./pool/stupid/d/differently"
 -v1*=deleting and forgetting pool/stupid/d/differently/4test_b.1-1.tar.gz
--v1*=deleting and forgetting pool/stupid/d/differently/4test_b.1-1_abacus.deb
+-v1*=deleting and forgetting pool/stupid/d/differently/4test_b.1-1_arm.deb
 -v1*=deleting and forgetting pool/stupid/d/differently/differently_0another.dsc
 -v1*=removed now empty directory ./pool/stupid/d/differently
 -v1*=removed now empty directory ./pool/stupid/d
@@ -2804,7 +2804,7 @@ Format: -1.0
 Date: yesterday
 Source: 4test
 Version: 0orso
-Architecture: source abacus
+Architecture: source arm
 Urgency: super-hyper-duper-important
 Maintainer: still me <guess@who>
 Description: missing
@@ -2813,14 +2813,14 @@ Binary: 4test
 Distribution: test2
 Files: 
  `md5sum 4test_b.1-1.dsc| cut -d" " -f 1` `stat -c%s 4test_b.1-1.dsc` a b 4test_0orso.dsc
- `md5sum 4test_b.1-1_abacus.deb| cut -d" " -f 1` `stat -c%s 4test_b.1-1_abacus.deb` a b 4test_b.1-1_abacus.deb
+ `md5sum 4test_b.1-1_arm.deb| cut -d" " -f 1` `stat -c%s 4test_b.1-1_arm.deb` a b 4test_b.1-1_arm.deb
  `md5sum 4test_b.1-1.tar.gz| cut -d" " -f 1` `stat -c%s 4test_b.1-1.tar.gz` a b 4test_b.1-1.tar.gz
 EOF
 cp 4test_b.1-1.dsc 4test_0orso.dsc
 testrun - -b . include test2 broken.changes 3<<EOF
 -v0=Data seems not to be signed trying to use directly...
-=Warning: Package version 'b.1-1_abacus.deb' does not start with a digit, violating 'should'-directive in policy 5.6.11
-*='./pool/stupid/4/4test/4test_b.1-1_abacus.deb' lists source version '1:b.1-1', but .changes says it is '0orso'!
+=Warning: Package version 'b.1-1_arm.deb' does not start with a digit, violating 'should'-directive in policy 5.6.11
+*='./pool/stupid/4/4test/4test_b.1-1_arm.deb' lists source version '1:b.1-1', but .changes says it is '0orso'!
 *=To ignore use --ignore=wrongsourceversion.
 -v0*=There have been errors!
 stdout
@@ -2829,7 +2829,7 @@ returns 255
 EOF
 testrun - -b . --ignore=wrongsourceversion include test2 broken.changes 3<<EOF
 -v0=Data seems not to be signed trying to use directly...
-*='./pool/stupid/4/4test/4test_b.1-1_abacus.deb' lists source version '1:b.1-1', but .changes says it is '0orso'!
+*='./pool/stupid/4/4test/4test_b.1-1_arm.deb' lists source version '1:b.1-1', but .changes says it is '0orso'!
 *=Ignoring as --ignore=wrongsourceversion given.
 *='4test_0orso.dsc' says it is version '1:b.1-1', while .changes file said it is '0orso'
 *=To ignore use --ignore=wrongversion.
@@ -2842,47 +2842,47 @@ checknolog log1
 checknolog log2
 testrun - -b . --ignore=wrongsourceversion --ignore=wrongversion include test2 broken.changes 3<<EOF
 -v0=Data seems not to be signed trying to use directly...
-*='./pool/stupid/4/4test/4test_b.1-1_abacus.deb' lists source version '1:b.1-1', but .changes says it is '0orso'!
+*='./pool/stupid/4/4test/4test_b.1-1_arm.deb' lists source version '1:b.1-1', but .changes says it is '0orso'!
 *=Ignoring as --ignore=wrongsourceversion given.
 *='4test_0orso.dsc' says it is version '1:b.1-1', while .changes file said it is '0orso'
 *=Ignoring as --ignore=wrongversion given.
 stdout
--v3*=db: '4test' added to 'test2|stupid|abacus'.
+-v3*=db: '4test' added to 'test2|stupid|arm'.
 -v3*=db: '4test' added to 'test2|stupid|source'.
 -v0*=Exporting indices...
--v6*= looking for changes in 'test2|stupid|abacus'...
--v6*=  replacing './dists/test2/stupid/binary-abacus/Packages' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
+-v6*= looking for changes in 'test2|stupid|arm'...
+-v6*=  replacing './dists/test2/stupid/binary-arm/Packages' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
 -v6*= looking for changes in 'test2|stupid|coal'...
 -v6*= looking for changes in 'test2|stupid|source'...
 -v6*=  replacing './dists/test2/stupid/source/Sources' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
--v6*= looking for changes in 'test2|ugly|abacus'...
+-v6*= looking for changes in 'test2|ugly|arm'...
 -v6*= looking for changes in 'test2|ugly|coal'...
 -v6*= looking for changes in 'test2|ugly|source'...
 EOF
 checklog log2 <<EOF
-DATESTR add test2 deb stupid abacus 4test 1:b.1-1
+DATESTR add test2 deb stupid arm 4test 1:b.1-1
 DATESTR add test2 dsc stupid source 4test 1:b.1-1
 EOF
 testrun - -b . remove test2 4test 3<<EOF
 stdout
--v1*=removing '4test' from 'test2|stupid|abacus'...
--v3*=db: '4test' removed from 'test2|stupid|abacus'.
+-v1*=removing '4test' from 'test2|stupid|arm'...
+-v3*=db: '4test' removed from 'test2|stupid|arm'.
 -v1*=removing '4test' from 'test2|stupid|source'...
 -v3*=db: '4test' removed from 'test2|stupid|source'.
 -v0*=Exporting indices...
--v6*= looking for changes in 'test2|stupid|abacus'...
--v6*=  replacing './dists/test2/stupid/binary-abacus/Packages' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
+-v6*= looking for changes in 'test2|stupid|arm'...
+-v6*=  replacing './dists/test2/stupid/binary-arm/Packages' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
 -v6*= looking for changes in 'test2|stupid|coal'...
 -v6*= looking for changes in 'test2|stupid|source'...
 -v6*=  replacing './dists/test2/stupid/source/Sources' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
--v6*= looking for changes in 'test2|ugly|abacus'...
+-v6*= looking for changes in 'test2|ugly|arm'...
 -v6*= looking for changes in 'test2|ugly|coal'...
 -v6*= looking for changes in 'test2|ugly|source'...
 -v0*=Deleting files no longer referenced...
 -v1*=deleting and forgetting pool/stupid/4/4test/4test_0orso.dsc
 EOF
 checklog log2 <<EOF
-DATESTR remove test2 deb stupid abacus 4test 1:b.1-1
+DATESTR remove test2 deb stupid arm 4test 1:b.1-1
 DATESTR remove test2 dsc stupid source 4test 1:b.1-1
 EOF
 testout "" -b . dumpunreferenced
@@ -2901,25 +2901,25 @@ testrun - -b . --delete clearvanished 3<<EOF
 stderr
 -v4*=Strange, 'X|test|none' does not appear in packages.db yet.
 stdout
-*=Deleting vanished identifier 'foo|bloated|abacus'.
+*=Deleting vanished identifier 'foo|bloated|arm'.
 *=Deleting vanished identifier 'foo|bloated|fingers'.
-*=Deleting vanished identifier 'foo|i386|abacus'.
+*=Deleting vanished identifier 'foo|i386|arm'.
 *=Deleting vanished identifier 'foo|i386|fingers'.
-*=Deleting vanished identifier 'foo|unneeded|abacus'.
+*=Deleting vanished identifier 'foo|unneeded|arm'.
 *=Deleting vanished identifier 'foo|unneeded|fingers'.
-*=Deleting vanished identifier 'test1|stupid|abacus'.
+*=Deleting vanished identifier 'test1|stupid|arm'.
 *=Deleting vanished identifier 'test1|stupid|source'.
-*=Deleting vanished identifier 'test1|ugly|abacus'.
+*=Deleting vanished identifier 'test1|ugly|arm'.
 *=Deleting vanished identifier 'test1|ugly|source'.
-*=Deleting vanished identifier 'test2|stupid|abacus'.
+*=Deleting vanished identifier 'test2|stupid|arm'.
 *=Deleting vanished identifier 'test2|stupid|coal'.
 *=Deleting vanished identifier 'test2|stupid|source'.
-*=Deleting vanished identifier 'test2|ugly|abacus'.
+*=Deleting vanished identifier 'test2|ugly|arm'.
 *=Deleting vanished identifier 'test2|ugly|coal'.
 *=Deleting vanished identifier 'test2|ugly|source'.
 -v0*=Deleting files no longer referenced...
 -v1*=deleting and forgetting pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb
--v1*=deleting and forgetting pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_abacus.deb
+-v1*=deleting and forgetting pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_arm.deb
 -v1*=deleting and forgetting pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc
 -v1*=deleting and forgetting pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.tar.gz
 -v1*=removed now empty directory ./pool/stupid/b/bloat+-0a9z.app
@@ -2932,9 +2932,9 @@ else
 testrun - -b . --delete clearvanished 3<<EOF
 -v4*=Strange, 'X|test|none' does not appear in packages.db yet.
 stdout
-*=Deleting vanished identifier 'a|all|abacus'.
+*=Deleting vanished identifier 'a|all|arm'.
 *=Deleting vanished identifier 'a|all|source'.
-*=Deleting vanished identifier 'b|all|abacus'.
+*=Deleting vanished identifier 'b|all|arm'.
 -v0*=Deleting files no longer referenced...
 EOF
 fi
@@ -2949,13 +2949,13 @@ if $tracking ; then
 cat >> conf/distributions <<EOF
 
 Codename: a
-Architectures: abacus source
+Architectures: arm source
 Components: all
 Tracking: minimal
 Log: logab
 
 Codename: b
-Architectures: abacus
+Architectures: arm
 Components: all
 Pull: froma
 Log: logab
@@ -2964,12 +2964,12 @@ else
 cat >> conf/distributions <<EOF
 
 Codename: a
-Architectures: abacus source
+Architectures: arm source
 Components: all
 Log: logab
 
 Codename: b
-Architectures: abacus
+Architectures: arm
 Components: all
 Pull: froma
 Log: logab
@@ -2996,12 +2996,12 @@ stdout
 -v1*=deleting and forgetting pool/all/a/aa/aa-addons_1-3_all.deb
 -v1*=deleting and forgetting pool/all/a/aa/aa_1-3.dsc
 -v1*=deleting and forgetting pool/all/a/aa/aa_1-3.tar.gz
--v1*=deleting and forgetting pool/all/a/aa/aa_1-3_abacus.deb
+-v1*=deleting and forgetting pool/all/a/aa/aa_1-3_arm.deb
 -v1*=removed now empty directory ./pool/all/a/aa
 -v1*=deleting and forgetting pool/all/a/ab/ab-addons_3-1_all.deb
 -v1*=deleting and forgetting pool/all/a/ab/ab_3-1.dsc
 -v1*=deleting and forgetting pool/all/a/ab/ab_3-1.tar.gz
--v1*=deleting and forgetting pool/all/a/ab/ab_3-1_abacus.deb
+-v1*=deleting and forgetting pool/all/a/ab/ab_3-1_arm.deb
 -v1*=removed now empty directory ./pool/all/a/ab
 -v1*=removed now empty directory ./pool/all/a
 -v1*=removed now empty directory ./pool/all
@@ -3016,8 +3016,8 @@ checknolog logab
 testrun - -b . --export=changed pull a b 3<<EOF
 stdout
 -v0*=Calculating packages to pull...
--v3*=  pulling into 'b|all|abacus'
--v5*=  looking what to get from 'a|all|abacus'
+-v3*=  pulling into 'b|all|arm'
+-v5*=  looking what to get from 'a|all|arm'
 -v0*=Installing (and possibly deleting) packages...
 EOF
 checklog logab < /dev/null
@@ -3026,16 +3026,16 @@ test ! -d dists/b
 testrun - -b . --export=normal pull b 3<<EOF
 stdout
 -v0*=Calculating packages to pull...
--v3*=  pulling into 'b|all|abacus'
--v5*=  looking what to get from 'a|all|abacus'
+-v3*=  pulling into 'b|all|arm'
+-v5*=  looking what to get from 'a|all|arm'
 -v0*=Installing (and possibly deleting) packages...
 -v0*=Exporting indices...
 -v2*=Created directory "./dists"
 -v2*=Created directory "./dists/b"
 -v2*=Created directory "./dists/b/all"
--v2*=Created directory "./dists/b/all/binary-abacus"
--v6*= looking for changes in 'b|all|abacus'...
--v6*=  creating './dists/b/all/binary-abacus/Packages' (uncompressed,gzipped)
+-v2*=Created directory "./dists/b/all/binary-arm"
+-v6*= looking for changes in 'b|all|arm'...
+-v6*=  creating './dists/b/all/binary-arm/Packages' (uncompressed,gzipped)
 EOF
 checklog logab < /dev/null
 test ! -d dists/a
@@ -3043,16 +3043,16 @@ test -d dists/b
 testrun - -b . --export=normal pull a b 3<<EOF
 stdout
 -v0*=Calculating packages to pull...
--v3*=  pulling into 'b|all|abacus'
--v5*=  looking what to get from 'a|all|abacus'
+-v3*=  pulling into 'b|all|arm'
+-v5*=  looking what to get from 'a|all|arm'
 -v0*=Installing (and possibly deleting) packages...
 -v0*=Exporting indices...
--v6*= looking for changes in 'b|all|abacus'...
+-v6*= looking for changes in 'b|all|arm'...
 -v2*=Created directory "./dists/a"
 -v2*=Created directory "./dists/a/all"
--v2*=Created directory "./dists/a/all/binary-abacus"
--v6*= looking for changes in 'a|all|abacus'...
--v6*=  creating './dists/a/all/binary-abacus/Packages' (uncompressed,gzipped)
+-v2*=Created directory "./dists/a/all/binary-arm"
+-v6*= looking for changes in 'a|all|arm'...
+-v6*=  creating './dists/a/all/binary-arm/Packages' (uncompressed,gzipped)
 -v2*=Created directory "./dists/a/all/source"
 -v6*= looking for changes in 'a|all|source'...
 -v6*=  creating './dists/a/all/source/Sources' (gzipped)
@@ -3064,32 +3064,32 @@ rm -r dists/a dists/b
 DISTRI=a PACKAGE=aa EPOCH="" VERSION=1 REVISION="-1" SECTION="stupid/base" genpackage.sh
 testrun - -b . --export=never --delete --delete include a test.changes 3<<EOF
 -v0=Data seems not to be signed trying to use directly...
-*=Warning: database 'a|all|abacus' was modified but no index file was exported.
+*=Warning: database 'a|all|arm' was modified but no index file was exported.
 *=Warning: database 'a|all|source' was modified but no index file was exported.
 *=Changes will only be visible after the next 'export'!
 stdout
 -v2*=Created directory "./pool/all"
 -v2*=Created directory "./pool/all/a"
 -v2*=Created directory "./pool/all/a/aa"
--v3*=db: 'aa-addons' added to 'a|all|abacus'.
--v3*=db: 'aa' added to 'a|all|abacus'.
+-v3*=db: 'aa-addons' added to 'a|all|arm'.
+-v3*=db: 'aa' added to 'a|all|arm'.
 -v3*=db: 'aa' added to 'a|all|source'.
 -v5*=Deleting 'test.changes'.
 EOF
 checklog logab << EOF
-DATESTR add a deb all abacus aa-addons 1-1
-DATESTR add a deb all abacus aa 1-1
+DATESTR add a deb all arm aa-addons 1-1
+DATESTR add a deb all arm aa 1-1
 DATESTR add a dsc all source aa 1-1
 EOF
 test ! -d dists/a
 test ! -d dists/b
 test ! -f test.changes
-test ! -f aa_1-1_abacus.deb
+test ! -f aa_1-1_arm.deb
 test ! -f aa_1-1.dsc
 test ! -f aa_1-1.tar.gz
 test ! -f aa-addons_1-1_all.deb
 test -f pool/all/a/aa/aa-addons_1-1_all.deb
-test -f pool/all/a/aa/aa_1-1_abacus.deb
+test -f pool/all/a/aa/aa_1-1_arm.deb
 test -f pool/all/a/aa/aa_1-1.dsc
 test -f pool/all/a/aa/aa_1-1.tar.gz
 testout "" -b . dumptracks a
@@ -3099,7 +3099,7 @@ Source: aa
 Version: 1-1
 Files:
  pool/all/a/aa/aa-addons_1-1_all.deb a 1
- pool/all/a/aa/aa_1-1_abacus.deb b 1
+ pool/all/a/aa/aa_1-1_arm.deb b 1
  pool/all/a/aa/aa_1-1.dsc s 1
  pool/all/a/aa/aa_1-1.tar.gz s 1
 
@@ -3110,55 +3110,55 @@ stdout
 -v1*=Exporting a...
 -v2*=Created directory "./dists/a"
 -v2*=Created directory "./dists/a/all"
--v2*=Created directory "./dists/a/all/binary-abacus"
--v6*= exporting 'a|all|abacus'...
--v6*=  creating './dists/a/all/binary-abacus/Packages' (uncompressed,gzipped)
+-v2*=Created directory "./dists/a/all/binary-arm"
+-v6*= exporting 'a|all|arm'...
+-v6*=  creating './dists/a/all/binary-arm/Packages' (uncompressed,gzipped)
 -v2*=Created directory "./dists/a/all/source"
 -v6*= exporting 'a|all|source'...
 -v6*=  creating './dists/a/all/source/Sources' (gzipped)
 EOF
 checknolog logab
-dogrep "Version: 1-1" dists/a/all/binary-abacus/Packages
+dogrep "Version: 1-1" dists/a/all/binary-arm/Packages
 rm -r dists/a
 testrun - -b . --export=changed pull a b 3<<EOF
 stdout
 -v0*=Calculating packages to pull...
--v3*=  pulling into 'b|all|abacus'
--v5*=  looking what to get from 'a|all|abacus'
+-v3*=  pulling into 'b|all|arm'
+-v5*=  looking what to get from 'a|all|arm'
 -v0*=Installing (and possibly deleting) packages...
--v3*=db: 'aa' added to 'b|all|abacus'.
--v3*=db: 'aa-addons' added to 'b|all|abacus'.
+-v3*=db: 'aa' added to 'b|all|arm'.
+-v3*=db: 'aa-addons' added to 'b|all|arm'.
 -v0*=Exporting indices...
 -v2*=Created directory "./dists/b"
 -v2*=Created directory "./dists/b/all"
--v2*=Created directory "./dists/b/all/binary-abacus"
--v6*= looking for changes in 'b|all|abacus'...
--v6*=  creating './dists/b/all/binary-abacus/Packages' (uncompressed,gzipped)
+-v2*=Created directory "./dists/b/all/binary-arm"
+-v6*= looking for changes in 'b|all|arm'...
+-v6*=  creating './dists/b/all/binary-arm/Packages' (uncompressed,gzipped)
 EOF
 checklog logab << EOF
-DATESTR add b deb all abacus aa 1-1
-DATESTR add b deb all abacus aa-addons 1-1
+DATESTR add b deb all arm aa 1-1
+DATESTR add b deb all arm aa-addons 1-1
 EOF
 test ! -d dists/a
 test -d dists/b
-dogrep "Version: 1-1" dists/b/all/binary-abacus/Packages
+dogrep "Version: 1-1" dists/b/all/binary-arm/Packages
 DISTRI=a PACKAGE=aa EPOCH="" VERSION=1 REVISION="-2" SECTION="stupid/base" genpackage.sh
 testrun - -b . --export=changed --delete include a test.changes 3<<EOF
 stderr
 -v0=Data seems not to be signed trying to use directly...
 stdout
--v3*=db: removed old 'aa-addons' from 'a|all|abacus'.
--v3*=db: 'aa-addons' added to 'a|all|abacus'.
--v3*=db: removed old 'aa' from 'a|all|abacus'.
--v3*=db: 'aa' added to 'a|all|abacus'.
+-v3*=db: removed old 'aa-addons' from 'a|all|arm'.
+-v3*=db: 'aa-addons' added to 'a|all|arm'.
+-v3*=db: removed old 'aa' from 'a|all|arm'.
+-v3*=db: 'aa' added to 'a|all|arm'.
 -v3*=db: removed old 'aa' from 'a|all|source'.
 -v3*=db: 'aa' added to 'a|all|source'.
 -v0*=Exporting indices...
 -v2*=Created directory "./dists/a"
 -v2*=Created directory "./dists/a/all"
--v2*=Created directory "./dists/a/all/binary-abacus"
--v6*= looking for changes in 'a|all|abacus'...
--v6*=  creating './dists/a/all/binary-abacus/Packages' (uncompressed,gzipped)
+-v2*=Created directory "./dists/a/all/binary-arm"
+-v6*= looking for changes in 'a|all|arm'...
+-v6*=  creating './dists/a/all/binary-arm/Packages' (uncompressed,gzipped)
 -v2*=Created directory "./dists/a/all/source"
 -v6*= looking for changes in 'a|all|source'...
 -v6*=  creating './dists/a/all/source/Sources' (gzipped)
@@ -3167,18 +3167,18 @@ stdout
 -v1*=deleting and forgetting pool/all/a/aa/aa_1-1.tar.gz
 EOF
 checklog logab << EOF
-DATESTR replace a deb all abacus aa-addons 1-2 1-1
-DATESTR replace a deb all abacus aa 1-2 1-1
+DATESTR replace a deb all arm aa-addons 1-2 1-1
+DATESTR replace a deb all arm aa 1-2 1-1
 DATESTR replace a dsc all source aa 1-2 1-1
 EOF
 test -f test.changes
-test ! -f aa_1-2_abacus.deb
+test ! -f aa_1-2_arm.deb
 test ! -f aa_1-2.dsc
 test ! -f aa_1-2.tar.gz
 test ! -f aa-addons_1-2_all.deb
 test -d dists/a
-dogrep "Version: 1-2" dists/a/all/binary-abacus/Packages
-dogrep "Version: 1-1" dists/b/all/binary-abacus/Packages
+dogrep "Version: 1-2" dists/a/all/binary-arm/Packages
+dogrep "Version: 1-1" dists/b/all/binary-arm/Packages
 testout "" -b . dumptracks a
 cat >results.expected <<END
 Distribution: a
@@ -3186,7 +3186,7 @@ Source: aa
 Version: 1-2
 Files:
  pool/all/a/aa/aa-addons_1-2_all.deb a 1
- pool/all/a/aa/aa_1-2_abacus.deb b 1
+ pool/all/a/aa/aa_1-2_arm.deb b 1
  pool/all/a/aa/aa_1-2.dsc s 1
  pool/all/a/aa/aa_1-2.tar.gz s 1
 
@@ -3197,41 +3197,41 @@ testrun - -b . --export=changed pull a b 3<<EOF
 stderr
 stdout
 -v0*=Calculating packages to pull...
--v3*=  pulling into 'b|all|abacus'
--v5*=  looking what to get from 'a|all|abacus'
+-v3*=  pulling into 'b|all|arm'
+-v5*=  looking what to get from 'a|all|arm'
 -v0*=Installing (and possibly deleting) packages...
--v3*=db: removed old 'aa' from 'b|all|abacus'.
--v3*=db: 'aa' added to 'b|all|abacus'.
--v3*=db: removed old 'aa-addons' from 'b|all|abacus'.
--v3*=db: 'aa-addons' added to 'b|all|abacus'.
+-v3*=db: removed old 'aa' from 'b|all|arm'.
+-v3*=db: 'aa' added to 'b|all|arm'.
+-v3*=db: removed old 'aa-addons' from 'b|all|arm'.
+-v3*=db: 'aa-addons' added to 'b|all|arm'.
 -v0=Exporting indices...
 -v2*=Created directory "./dists/b"
 -v2*=Created directory "./dists/b/all"
--v2*=Created directory "./dists/b/all/binary-abacus"
--v6*= looking for changes in 'b|all|abacus'...
--v6*=  creating './dists/b/all/binary-abacus/Packages' (uncompressed,gzipped)
+-v2*=Created directory "./dists/b/all/binary-arm"
+-v6*= looking for changes in 'b|all|arm'...
+-v6*=  creating './dists/b/all/binary-arm/Packages' (uncompressed,gzipped)
 -v0*=Deleting files no longer referenced...
--v1*=deleting and forgetting pool/all/a/aa/aa_1-1_abacus.deb
+-v1*=deleting and forgetting pool/all/a/aa/aa_1-1_arm.deb
 -v1*=deleting and forgetting pool/all/a/aa/aa-addons_1-1_all.deb
 EOF
 checklog logab << EOF
-DATESTR replace b deb all abacus aa 1-2 1-1
-DATESTR replace b deb all abacus aa-addons 1-2 1-1
+DATESTR replace b deb all arm aa 1-2 1-1
+DATESTR replace b deb all arm aa-addons 1-2 1-1
 EOF
 test ! -d dists/a
 test -d dists/b
-dogrep "Version: 1-2" dists/b/all/binary-abacus/Packages
+dogrep "Version: 1-2" dists/b/all/binary-arm/Packages
 DISTRI=a PACKAGE=aa EPOCH="" VERSION=1 REVISION="-3" SECTION="stupid/base" genpackage.sh
 testrun - -b . --export=never include a test.changes 3<<EOF
 -v0=Data seems not to be signed trying to use directly...
-*=Warning: database 'a|all|abacus' was modified but no index file was exported.
+*=Warning: database 'a|all|arm' was modified but no index file was exported.
 *=Warning: database 'a|all|source' was modified but no index file was exported.
 *=Changes will only be visible after the next 'export'!
 stdout
--v3*=db: removed old 'aa-addons' from 'a|all|abacus'.
--v3*=db: 'aa-addons' added to 'a|all|abacus'.
--v3*=db: removed old 'aa' from 'a|all|abacus'.
--v3*=db: 'aa' added to 'a|all|abacus'.
+-v3*=db: removed old 'aa-addons' from 'a|all|arm'.
+-v3*=db: 'aa-addons' added to 'a|all|arm'.
+-v3*=db: removed old 'aa' from 'a|all|arm'.
+-v3*=db: 'aa' added to 'a|all|arm'.
 -v3*=db: removed old 'aa' from 'a|all|source'.
 -v3*=db: 'aa' added to 'a|all|source'.
 -v0*=Deleting files no longer referenced...
@@ -3239,17 +3239,17 @@ stdout
 -v1*=deleting and forgetting pool/all/a/aa/aa_1-2.tar.gz
 EOF
 checklog logab << EOF
-DATESTR replace a deb all abacus aa-addons 1-3 1-2
-DATESTR replace a deb all abacus aa 1-3 1-2
+DATESTR replace a deb all arm aa-addons 1-3 1-2
+DATESTR replace a deb all arm aa 1-3 1-2
 DATESTR replace a dsc all source aa 1-3 1-2
 EOF
 test -f test.changes
-test -f aa_1-3_abacus.deb
+test -f aa_1-3_arm.deb
 test -f aa_1-3.dsc
 test -f aa_1-3.tar.gz
 test -f aa-addons_1-3_all.deb
 test ! -f pool/all/a/aa/aa_1-2.dsc
-test -f pool/all/a/aa/aa_1-2_abacus.deb # still in b
+test -f pool/all/a/aa/aa_1-2_arm.deb # still in b
 testout "" -b . dumptracks a
 cat >results.expected <<END
 Distribution: a
@@ -3257,7 +3257,7 @@ Source: aa
 Version: 1-3
 Files:
  pool/all/a/aa/aa-addons_1-3_all.deb a 1
- pool/all/a/aa/aa_1-3_abacus.deb b 1
+ pool/all/a/aa/aa_1-3_arm.deb b 1
  pool/all/a/aa/aa_1-3.dsc s 1
  pool/all/a/aa/aa_1-3.tar.gz s 1
 
@@ -3269,51 +3269,51 @@ DISTRI=a PACKAGE=ab EPOCH="" VERSION=2 REVISION="-1" SECTION="stupid/base" genpa
 testrun - -b . --delete --delete --export=never include a test.changes 3<<EOF
 stderr
 -v0=Data seems not to be signed trying to use directly...
-*=Warning: database 'a|all|abacus' was modified but no index file was exported.
+*=Warning: database 'a|all|arm' was modified but no index file was exported.
 *=Warning: database 'a|all|source' was modified but no index file was exported.
 =Changes will only be visible after the next 'export'!
 stdout
 -v2*=Created directory "./pool/all/a/ab"
--v3*=db: 'ab-addons' added to 'a|all|abacus'.
--v3*=db: 'ab' added to 'a|all|abacus'.
+-v3*=db: 'ab-addons' added to 'a|all|arm'.
+-v3*=db: 'ab' added to 'a|all|arm'.
 -v3*=db: 'ab' added to 'a|all|source'.
 -v5*=Deleting 'test.changes'.
 EOF
 checklog logab << EOF
-DATESTR add a deb all abacus ab-addons 2-1
-DATESTR add a deb all abacus ab 2-1
+DATESTR add a deb all arm ab-addons 2-1
+DATESTR add a deb all arm ab 2-1
 DATESTR add a dsc all source ab 2-1
 EOF
 testrun - -b . --export=changed pull b 3<<EOF
 stderr
 stdout
 -v0*=Calculating packages to pull...
--v3*=  pulling into 'b|all|abacus'
--v5*=  looking what to get from 'a|all|abacus'
+-v3*=  pulling into 'b|all|arm'
+-v5*=  looking what to get from 'a|all|arm'
 -v0*=Installing (and possibly deleting) packages...
--v3*=db: removed old 'aa' from 'b|all|abacus'.
--v3*=db: 'aa' added to 'b|all|abacus'.
--v3*=db: removed old 'aa-addons' from 'b|all|abacus'.
--v3*=db: 'aa-addons' added to 'b|all|abacus'.
--v3*=db: 'ab' added to 'b|all|abacus'.
--v3*=db: 'ab-addons' added to 'b|all|abacus'.
+-v3*=db: removed old 'aa' from 'b|all|arm'.
+-v3*=db: 'aa' added to 'b|all|arm'.
+-v3*=db: removed old 'aa-addons' from 'b|all|arm'.
+-v3*=db: 'aa-addons' added to 'b|all|arm'.
+-v3*=db: 'ab' added to 'b|all|arm'.
+-v3*=db: 'ab-addons' added to 'b|all|arm'.
 -v0=Exporting indices...
--v6*= looking for changes in 'b|all|abacus'...
--v6*=  replacing './dists/b/all/binary-abacus/Packages' (uncompressed,gzipped)
+-v6*= looking for changes in 'b|all|arm'...
+-v6*=  replacing './dists/b/all/binary-arm/Packages' (uncompressed,gzipped)
 -v0*=Deleting files no longer referenced...
--v1*=deleting and forgetting pool/all/a/aa/aa_1-2_abacus.deb
+-v1*=deleting and forgetting pool/all/a/aa/aa_1-2_arm.deb
 -v1*=deleting and forgetting pool/all/a/aa/aa-addons_1-2_all.deb
 EOF
 checklog logab << EOF
-DATESTR replace b deb all abacus aa 1-3 1-2
-DATESTR replace b deb all abacus aa-addons 1-3 1-2
-DATESTR add b deb all abacus ab 2-1
-DATESTR add b deb all abacus ab-addons 2-1
+DATESTR replace b deb all arm aa 1-3 1-2
+DATESTR replace b deb all arm aa-addons 1-3 1-2
+DATESTR add b deb all arm ab 2-1
+DATESTR add b deb all arm ab-addons 2-1
 EOF
-dogrep "Version: 1-3" dists/b/all/binary-abacus/Packages
-dogrep "Version: 2-1" dists/b/all/binary-abacus/Packages
-test ! -f pool/all/a/aa/aa_1-2_abacus.deb
-test -f pool/all/a/aa/aa_1-3_abacus.deb
+dogrep "Version: 1-3" dists/b/all/binary-arm/Packages
+dogrep "Version: 2-1" dists/b/all/binary-arm/Packages
+test ! -f pool/all/a/aa/aa_1-2_arm.deb
+test -f pool/all/a/aa/aa_1-3_arm.deb
 DISTRI=a PACKAGE=ab EPOCH="" VERSION=3 REVISION="-1" SECTION="stupid/base" genpackage.sh
 grep -v '\.tar\.gz' test.changes > broken.changes
 testrun - -b . --delete --delete include a broken.changes 3<<EOF
@@ -3334,46 +3334,46 @@ checknolog logab
 test -f broken.changes
 test ! -f ab_3-1.diff.gz
 test -f ab-addons_3-1_all.deb
-test -f ab_3-1_abacus.deb
+test -f ab_3-1_arm.deb
 test -f ab_3-1.dsc
 test ! -f pool/all/a/ab/ab_3-1.diff.gz
 test ! -f pool/all/a/ab/ab-addons_3-1_all.deb
-test ! -f pool/all/a/ab/ab_3-1_abacus.deb
+test ! -f pool/all/a/ab/ab_3-1_arm.deb
 test ! -f pool/all/a/ab/ab_3-1.dsc
 touch ab_3-1.diff.gz
 testrun - -b . --delete -T deb include a broken.changes 3<<EOF
 stderr
 -v0=Data seems not to be signed trying to use directly...
 stdout
--v3*=db: removed old 'ab-addons' from 'a|all|abacus'.
--v3*=db: 'ab-addons' added to 'a|all|abacus'.
--v3*=db: removed old 'ab' from 'a|all|abacus'.
--v3*=db: 'ab' added to 'a|all|abacus'.
+-v3*=db: removed old 'ab-addons' from 'a|all|arm'.
+-v3*=db: 'ab-addons' added to 'a|all|arm'.
+-v3*=db: removed old 'ab' from 'a|all|arm'.
+-v3*=db: 'ab' added to 'a|all|arm'.
 -v0*=Exporting indices...
 -v2*=Created directory "./dists/a"
 -v2*=Created directory "./dists/a/all"
--v2*=Created directory "./dists/a/all/binary-abacus"
--v6*= looking for changes in 'a|all|abacus'...
--v6*=  creating './dists/a/all/binary-abacus/Packages' (uncompressed,gzipped)
+-v2*=Created directory "./dists/a/all/binary-arm"
+-v6*= looking for changes in 'a|all|arm'...
+-v6*=  creating './dists/a/all/binary-arm/Packages' (uncompressed,gzipped)
 -v2*=Created directory "./dists/a/all/source"
 -v6*= looking for changes in 'a|all|source'...
 -v6*=  creating './dists/a/all/source/Sources' (gzipped)
 -v0*=Deleting files no longer referenced...
 EOF
 checklog logab <<EOF
-DATESTR replace a deb all abacus ab-addons 3-1 2-1
-DATESTR replace a deb all abacus ab 3-1 2-1
+DATESTR replace a deb all arm ab-addons 3-1 2-1
+DATESTR replace a deb all arm ab 3-1 2-1
 EOF
 testout "" -b . dumpunreferenced
 dodiff results.empty results
 test -f broken.changes
 test -f ab_3-1.diff.gz
 test ! -f ab-addons_3-1_all.deb
-test ! -f ab_3-1_abacus.deb
+test ! -f ab_3-1_arm.deb
 test -f ab_3-1.dsc
 test ! -f pool/all/a/ab/ab_3-1.diff.gz
 test -f pool/all/a/ab/ab-addons_3-1_all.deb
-test -f pool/all/a/ab/ab_3-1_abacus.deb
+test -f pool/all/a/ab/ab_3-1_arm.deb
 test ! -f pool/all/a/ab/ab_3-1.dsc
 testout "" -b . dumptracks a
 cat >results.expected <<END
@@ -3382,7 +3382,7 @@ Source: aa
 Version: 1-3
 Files:
  pool/all/a/aa/aa-addons_1-3_all.deb a 1
- pool/all/a/aa/aa_1-3_abacus.deb b 1
+ pool/all/a/aa/aa_1-3_arm.deb b 1
  pool/all/a/aa/aa_1-3.dsc s 1
  pool/all/a/aa/aa_1-3.tar.gz s 1
 
@@ -3398,7 +3398,7 @@ Source: ab
 Version: 3-1
 Files:
  pool/all/a/ab/ab-addons_3-1_all.deb a 1
- pool/all/a/ab/ab_3-1_abacus.deb b 1
+ pool/all/a/ab/ab_3-1_arm.deb b 1
 
 END
 if $tracking; then dodiff results.expected results ; else dodiff results.empty results ; fi
@@ -3418,11 +3418,11 @@ EOF
 test -f broken.changes
 test -f ab_3-1.diff.gz
 test ! -f ab-addons_3-1_all.deb
-test ! -f ab_3-1_abacus.deb
+test ! -f ab_3-1_arm.deb
 test -f ab_3-1.dsc
 test ! -f pool/all/a/ab/ab_3-1.diff.gz
 test -f pool/all/a/ab/ab-addons_3-1_all.deb
-test -f pool/all/a/ab/ab_3-1_abacus.deb
+test -f pool/all/a/ab/ab_3-1_arm.deb
 test ! -f pool/all/a/ab/ab_3-1.dsc
 cat broken.changes
 testrun - -b . -T dsc --delete --delete --ignore=missingfile include a broken.changes 3<<EOF
@@ -3434,7 +3434,7 @@ stdout
 -v3*=db: 'ab' added to 'a|all|source'.
 -v5*=Deleting 'broken.changes'.
 -v0*=Exporting indices...
--v6*= looking for changes in 'a|all|abacus'...
+-v6*= looking for changes in 'a|all|arm'...
 -v6*= looking for changes in 'a|all|source'...
 -v6*=  replacing './dists/a/all/source/Sources' (gzipped)
 -v0*=Deleting files no longer referenced...
@@ -3447,11 +3447,11 @@ EOF
 test ! -f broken.changes
 test ! -f ab_3-1.diff.gz
 test ! -f ab-addons_3-1_all.deb
-test ! -f ab_3-1_abacus.deb
+test ! -f ab_3-1_arm.deb
 test ! -f ab_3-1.dsc
 # test ! -f pool/all/a/ab/ab_3-1.diff.gz # decide later (TODO: let reprepro check for those)
 test -f pool/all/a/ab/ab-addons_3-1_all.deb
-test -f pool/all/a/ab/ab_3-1_abacus.deb
+test -f pool/all/a/ab/ab_3-1_arm.deb
 test -f pool/all/a/ab/ab_3-1.dsc
 testout "" -b . dumpunreferenced
 cat > results.expected << EOF
@@ -3464,31 +3464,31 @@ stdout
 EOF
 
 DISTRI=b PACKAGE=ac EPOCH="" VERSION=1 REVISION="-1" SECTION="stupid/base" genpackage.sh
-testrun - -b . -A abacus --delete --delete --ignore=missingfile include b test.changes 3<<EOF
+testrun - -b . -A arm --delete --delete --ignore=missingfile include b test.changes 3<<EOF
 stderr
 -v0=Data seems not to be signed trying to use directly...
--v2*=Skipping 'ac_1-1.dsc' as not for architecture 'abacus'.
--v2*=Skipping 'ac_1-1.tar.gz' as not for architecture 'abacus'.
--v3*=Placing 'ac-addons_1-1_all.deb' only in architecture 'abacus' as requested.
+-v2*=Skipping 'ac_1-1.dsc' as not for architecture 'arm'.
+-v2*=Skipping 'ac_1-1.tar.gz' as not for architecture 'arm'.
+-v3*=Placing 'ac-addons_1-1_all.deb' only in architecture 'arm' as requested.
 stdout
 -v2*=Created directory "./pool/all/a/ac"
--v3*=db: 'ac-addons' added to 'b|all|abacus'.
--v3*=db: 'ac' added to 'b|all|abacus'.
+-v3*=db: 'ac-addons' added to 'b|all|arm'.
+-v3*=db: 'ac' added to 'b|all|arm'.
 -v5*=Deleting 'test.changes'.
 -v0*=Exporting indices...
--v6*= looking for changes in 'b|all|abacus'...
--v6*=  replacing './dists/b/all/binary-abacus/Packages' (uncompressed,gzipped)
+-v6*= looking for changes in 'b|all|arm'...
+-v6*=  replacing './dists/b/all/binary-arm/Packages' (uncompressed,gzipped)
 EOF
 checklog logab <<EOF
-DATESTR add b deb all abacus ac-addons 1-1
-DATESTR add b deb all abacus ac 1-1
+DATESTR add b deb all arm ac-addons 1-1
+DATESTR add b deb all arm ac 1-1
 EOF
-dogrep '^Package: aa$' dists/b/all/binary-abacus/Packages
-dogrep '^Package: aa-addons$' dists/b/all/binary-abacus/Packages
-dogrep '^Package: ab$' dists/b/all/binary-abacus/Packages
-dogrep '^Package: ab-addons$' dists/b/all/binary-abacus/Packages
-dogrep '^Package: ac$' dists/b/all/binary-abacus/Packages
-dogrep '^Package: ac-addons$' dists/b/all/binary-abacus/Packages
+dogrep '^Package: aa$' dists/b/all/binary-arm/Packages
+dogrep '^Package: aa-addons$' dists/b/all/binary-arm/Packages
+dogrep '^Package: ab$' dists/b/all/binary-arm/Packages
+dogrep '^Package: ab-addons$' dists/b/all/binary-arm/Packages
+dogrep '^Package: ac$' dists/b/all/binary-arm/Packages
+dogrep '^Package: ac-addons$' dists/b/all/binary-arm/Packages
 echo "Update: - froma" >> conf/distributions
 cat >conf/updates <<END
 Name: froma
@@ -3500,66 +3500,66 @@ testrun - -b . predelete b 3<<EOF
 =WARNING: Single-Instance not yet supported!
 -v6*=aptmethod start 'copy:$WORKDIR/dists/a/Release'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/a/Release'
--v6*=aptmethod start 'copy:$WORKDIR/dists/a/all/binary-abacus/Packages.gz'
--v1*=aptmethod got 'copy:$WORKDIR/dists/a/all/binary-abacus/Packages.gz'
--v6*=Called /bin/cp './lists/b_froma_deb_all_abacus' './lists/b_froma_deb_all_abacus_changed'
+-v6*=aptmethod start 'copy:$WORKDIR/dists/a/all/binary-arm/Packages.gz'
+-v1*=aptmethod got 'copy:$WORKDIR/dists/a/all/binary-arm/Packages.gz'
+-v6*=Called /bin/cp './lists/b_froma_deb_all_arm' './lists/b_froma_deb_all_arm_changed'
 -v6*=Listhook successfully returned!
 stdout
 -v0*=Removing obsolete or to be replaced packages...
--v3*=  processing updates for 'b|all|abacus'
+-v3*=  processing updates for 'b|all|arm'
 -v5*=  marking everything to be deleted
--v5*=  reading './lists/b_froma_deb_all_abacus_changed'
--v3*=db: 'ac-addons' removed from 'b|all|abacus'.
--v1*=removing 'ab' from 'b|all|abacus'...
--v3*=db: 'ab' removed from 'b|all|abacus'.
--v1*=removing 'ab-addons' from 'b|all|abacus'...
--v3*=db: 'ab-addons' removed from 'b|all|abacus'.
--v1*=removing 'ac' from 'b|all|abacus'...
--v3*=db: 'ac' removed from 'b|all|abacus'.
--v1*=removing 'ac-addons' from 'b|all|abacus'...
+-v5*=  reading './lists/b_froma_deb_all_arm_changed'
+-v3*=db: 'ac-addons' removed from 'b|all|arm'.
+-v1*=removing 'ab' from 'b|all|arm'...
+-v3*=db: 'ab' removed from 'b|all|arm'.
+-v1*=removing 'ab-addons' from 'b|all|arm'...
+-v3*=db: 'ab-addons' removed from 'b|all|arm'.
+-v1*=removing 'ac' from 'b|all|arm'...
+-v3*=db: 'ac' removed from 'b|all|arm'.
+-v1*=removing 'ac-addons' from 'b|all|arm'...
 -v0*=Exporting indices...
--v6*= looking for changes in 'b|all|abacus'...
--v6*=  replacing './dists/b/all/binary-abacus/Packages' (uncompressed,gzipped)
+-v6*= looking for changes in 'b|all|arm'...
+-v6*=  replacing './dists/b/all/binary-arm/Packages' (uncompressed,gzipped)
 -v1*=Shutting down aptmethods...
 -v0*=Deleting files no longer referenced...
--v1*=deleting and forgetting pool/all/a/ab/ab_2-1_abacus.deb
+-v1*=deleting and forgetting pool/all/a/ab/ab_2-1_arm.deb
 -v1*=deleting and forgetting pool/all/a/ab/ab-addons_2-1_all.deb
--v1*=deleting and forgetting pool/all/a/ac/ac_1-1_abacus.deb
+-v1*=deleting and forgetting pool/all/a/ac/ac_1-1_arm.deb
 -v1*=deleting and forgetting pool/all/a/ac/ac-addons_1-1_all.deb
 -v1*=removed now empty directory ./pool/all/a/ac
 EOF
 checklog logab <<EOF
-DATESTR remove b deb all abacus ab 2-1
-DATESTR remove b deb all abacus ab-addons 2-1
-DATESTR remove b deb all abacus ac 1-1
-DATESTR remove b deb all abacus ac-addons 1-1
+DATESTR remove b deb all arm ab 2-1
+DATESTR remove b deb all arm ab-addons 2-1
+DATESTR remove b deb all arm ac 1-1
+DATESTR remove b deb all arm ac-addons 1-1
 EOF
-dogrep '^Package: aa$' dists/b/all/binary-abacus/Packages
-dogrep '^Package: aa-addons$' dists/b/all/binary-abacus/Packages
-dongrep '^Package: ab$' dists/b/all/binary-abacus/Packages
-dongrep '^Package: ab-addons$' dists/b/all/binary-abacus/Packages
-dongrep '^Package: ac$' dists/b/all/binary-abacus/Packages
-dongrep '^Package: ac-addons$' dists/b/all/binary-abacus/Packages
+dogrep '^Package: aa$' dists/b/all/binary-arm/Packages
+dogrep '^Package: aa-addons$' dists/b/all/binary-arm/Packages
+dongrep '^Package: ab$' dists/b/all/binary-arm/Packages
+dongrep '^Package: ab-addons$' dists/b/all/binary-arm/Packages
+dongrep '^Package: ac$' dists/b/all/binary-arm/Packages
+dongrep '^Package: ac-addons$' dists/b/all/binary-arm/Packages
 test ! -f pool/all/a/ac/ac-addons_1-1_all.deb
-test ! -f pool/all/a/ab/ab_2-1_abacus.deb
-test -f pool/all/a/aa/aa_1-3_abacus.deb
+test ! -f pool/all/a/ab/ab_2-1_arm.deb
+test -f pool/all/a/aa/aa_1-3_arm.deb
 testrun - -b . copy b a ab ac 3<<EOF
 stdout
--v9*=Adding reference to 'pool/all/a/ab/ab_3-1_abacus.deb' by 'b|all|abacus'
--v1*=Moving 'ab' from 'a|all|abacus' to 'b|all|abacus'.
+-v9*=Adding reference to 'pool/all/a/ab/ab_3-1_arm.deb' by 'b|all|arm'
+-v1*=Moving 'ab' from 'a|all|arm' to 'b|all|arm'.
 -v3*=Not looking into 'a|all|source' as no matching target in 'b'!
 -v3*=No instance of 'ab' found in 'a|all|source'!
--v3*=No instance of 'ac' found in 'a|all|abacus'!
+-v3*=No instance of 'ac' found in 'a|all|arm'!
 -v3*=No instance of 'ac' found in 'a|all|source'!
 -v1*=Looking for 'ab' in 'a' to be copied to 'b'...
--v3*=db: 'ab' added to 'b|all|abacus'.
+-v3*=db: 'ab' added to 'b|all|arm'.
 -v1*=Looking for 'ac' in 'a' to be copied to 'b'...
 -v0*=Exporting indices...
--v6*= looking for changes in 'b|all|abacus'...
--v6*=  replacing './dists/b/all/binary-abacus/Packages' (uncompressed,gzipped)
+-v6*= looking for changes in 'b|all|arm'...
+-v6*=  replacing './dists/b/all/binary-arm/Packages' (uncompressed,gzipped)
 EOF
 checklog logab <<EOF
-DATESTR add b deb all abacus ab 3-1
+DATESTR add b deb all arm ab 3-1
 EOF
 done
 set +v +x

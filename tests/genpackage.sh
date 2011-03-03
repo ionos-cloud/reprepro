@@ -19,7 +19,7 @@ Maintainer: me <guess@who>
 Standards-Version: 0.0
 
 Package: $PACKAGE
-Architecture: abacus
+Architecture: arm
 Description: bla
  blub
 
