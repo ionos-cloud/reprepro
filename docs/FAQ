@@ -9,6 +9,7 @@ This is a list of "frequently" asked questions.
 2.2) Does reprepro support tildes ('~') in versions?
 2.3) Does reprepro support generation of Contents-<arch>.gz files?
 3.1) Can I have two versions of a package in the same distribution?
+3.2) Can reprepro pass through a server-supplied Release.gpg?
 9) Feature ... is missing, can you add it?
 
 
@@ -183,6 +184,28 @@ You can have different versions in different architectures and/or components
 within the same suite. (Even different versions of a architecture all package
 in different architectures of the same suite). But within the same
 architecture and the same component of a distribution it is not possible.
+
+3.2) Can reprepro pass through a server-supplied Release.gpg?
+-------------------------------------------------------------------
+No.
+The reason for this is that the Release file will be different,
+so a Release.gpg would not match.
+The reason that the Release file looks differently is that reprepro
+mirrors packages. While it can create a distribution with the same
+packages as a distribution it mirrors. It will decide on its own where
+to put the files, so their Filename: or Directory: might differ. It may
+create a different set of compressions for the generated index files.
+It does not mirror Packages.diff directories (but only comes with helpers
+to create diffs between different states of the mirror). It does not mirror
+Contents files but creates them; and so on. So to be able to mirror
+distribution signatures almost all the functionality of reprepro would need
+to be duplicated (once supporting literal mirroring, once support local
+packages, partial mirroring, merging mirroring, pool condensing), thus I
+decided that this is better a task for another program. (Note that if
+you already have a local literal mirror, you can also use that as upstream
+for partial/merged/extended mirrored distributions of that. If you use
+the file:/// in Method: (as opposed to copy:///), reprepro will make
+hardlinks for files in pool/ if possible).
 
 9) Feature ... is missing, can you add it?
 ------------------------------------------

@@ -47,11 +47,12 @@ void signatures_free(/*@null@*//*@only@*/struct signatures *);
 retvalue signature_readsignedchunk(const char *filename, const char *filenametoshow, char **chunkread, /*@null@*/ /*@out@*/struct signatures **signatures, bool *brokensignature);
 
 struct signedfile;
+struct strlist;
 
 retvalue signature_startsignedfile(const char */*directory*/, const char */*basename*/, const char */*inlinebasename*/, /*@out@*/struct signedfile **);
 void signedfile_write(struct signedfile *, const void *, size_t);
 /* generate signature in temporary file */
-retvalue signedfile_prepare(struct signedfile *, const char *options, bool willcleanup);
+retvalue signedfile_prepare(struct signedfile *, const struct strlist *, bool /*willcleanup*/);
 /* move temporary files to final places */
 retvalue signedfile_finalize(struct signedfile *, bool *toolate);
 /* may only be called after signedfile_prepare */

@@ -43,8 +43,8 @@ struct distribution {
 	struct strlist updates;
 	/* which rules to use to pull packages from other distributions */
 	struct strlist pulls;
-	/* the key to sign with, may be NULL: */
-	/*@null@*/char *signwith;
+	/* the key to sign with, may have no entries to mean unsigned: */
+	struct strlist signwith;
 	/* the override file to use by default */
 	/*@null@*/char *deb_override,*udeb_override,*dsc_override;
 	/* fake component prefix (and codename antisuffix) for Release files: */

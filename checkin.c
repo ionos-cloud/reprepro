@@ -1289,12 +1289,16 @@ static void verifybyhands(const struct changes *changes, struct upload_condition
 	}
 }
 
-static bool permissionssuffice(struct changes *changes, struct upload_conditions *conditions) {
+static bool permissionssuffice(struct changes *changes, const struct distribution *into, struct upload_conditions *conditions) {
 	do switch( uploaders_nextcondition(conditions) ) {
 		case uc_ACCEPTED:
 			return true;
 		case uc_REJECTED:
 			return false;
+		case uc_CODENAME:
+			(void)uploaders_verifystring(conditions,
+					into->codename);
+			break;
 		case uc_SOURCENAME:
 			assert( changes->source != NULL);
 			(void)uploaders_verifystring(conditions,
@@ -1356,7 +1360,7 @@ retvalue changes_add(struct database *database, trackingdb const tracks, const s
 			changes_free(changes);
 			return r;
 		}
-		if( !permissionssuffice(changes, conditions) &&
+		if( !permissionssuffice(changes, distribution, conditions) &&
 		    !IGNORING_(uploaders,"No rule allowing this package in found in %s!\n",
 			    distribution->uploaders) ) {
 			free(conditions);

@@ -1,3 +1,24 @@
+2010-01-30
+	* add 'sizes' command.
+	* add "distribution 'codename'" support to uploaders files.
+	* some fixes for __checkuploaders
+
+2010-01-27
+	* SignWith can take multiple arguments to denote multiple keys to
+          sign a repository with.
+
+2010-01-22
+	* add removesrcs command (like removesrc but can get multiple
+	  source package names)
+
+2010-01-03
+	* add groups to Uploaders:-lists.
+	* add __checkuploaders command so uploaders lists can be tested
+	  from the test-suite
+
+2010-12-23
+	* fix some minor memory/resource leaks found by cppcheck
+
 2010-10-16
        * support "ButAutomaticUpgrades" field to be copied to
          the generated Release files (Thanks to Modestas Vainius)

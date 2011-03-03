@@ -4,6 +4,7 @@ set -e
 
 source $(dirname $0)/test.inc
 
+runtest uploaders
 runtest wrongarch
 runtest flood
 runtest exporthooks

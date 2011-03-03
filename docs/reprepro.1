@@ -597,6 +597,11 @@ package \fIsource-name\fP.
 If package tracking is activated, it will use that information to find the
 packages, otherwise it traverses all package indices for the distribution.
 .TP
+.B removesrcs \fIcodename\fP \fIsource-name\fP\fR[\fP=\fIversion\fP\fR]\fP \fI...\fP
+Like \fBremovesrc\fP, but can be given multiple source names
+and source versions must be specified by appending '\fB=\fP' and the version
+to the name (without spaces).
+.TP
 .BR update " [ " \fIcodenames\fP " ]"
 Sync the specified distributions (all if none given) as
 specified in the config with their upstreams. See the
@@ -894,6 +899,25 @@ List all binary packages for which no source package is found
 but source packages only kept by package tracking is enough).
 
 Currently only works with distributions having tracking enabled.
+.TP
+.BR sizes " [ " \fIcodenames\fP " ]"
+List the size of all packages in the distributions specified or
+in all distributions.
+
+Each row contains 4 numbers, each being a number of bytes in a set
+of packages, which are:
+The packages in this distribution
+(including anything only kept because of tracking),
+the packages only in this distribution
+(anything in this distribution and a snapshot of this distribution
+counts as only in this distribution),
+the packages in this distribution and its snapshots,
+the packages only in this distribution or its snapshots.
+
+If more than one distribution is selected, also list a sum of those
+(in which 'Only' means only in selected ones, and not only only in
+one of the selected ones).
+
 .SS internal commands
 These are hopefully never needed, but allow manual intervention.
 .B WARNING:
@@ -1824,7 +1848,7 @@ definition as explained above describe what key a \fB.changes\fP file
 as to be signed with to be included in that distribution.
 .P
 Empty lines and lines starting with a hash are ignored, every other line
-has to be of one of this three forms:
+must be of one of the following nine forms:
 .TP
 .B allow \fIcondition\fP by anybody
 which allows everyone to upload packages matching \fIcondition\fP,
@@ -1840,6 +1864,25 @@ which allows everything matching signed by this \fIkey-id\fP
 (to be specified without any spaces).
 If the \fIkey-id\fP ends with a \fB+\fP (plus), a signature with a subkey of
 this primary key also suffices.
+.TP
+.B allow \fIcondition\fP by group \fIgroupname\fP
+which allows every member of group \fIgroupname\fP.
+Groups can be manipulated by
+.TP
+.B group \fIgroupname\fP add \fIkey-id\fP
+to add a \fIkey-id\fP (see above for details) to this group, or
+.TP
+.B group \fIgroupname\fP contains \fIgroupname\fP
+to add a whole group to a group.
+
+To avoid warnings in incomplete config files there is also
+.TP
+.B group \fIgroupname\fP empty
+to declare a group has no members (avoids warnings that it is used without those)
+and
+.TP
+.B group \fIgroupname\fP unused
+to declare that a group is not yet used (avoid warnings that it is not used).
 .PP
 The only conditions currently supported are:
 .TP
@@ -1887,6 +1930,11 @@ matches an upload with at least one byhand file
 matches an upload with at least one byhand file and
 all byhand files having a section listed in the list of given section.
 (i.e. \fBbyhand 'byhand'|'raw-*'\fP is currently is the same as \fBbyhand\fP).
+.TP
+.BI "distribution '" codename '
+which means any package when it is to be included in \fIcodename\fP.
+As the uploaders file is given by distribution, this is only useful
+to reuse a complex uploaders file for multiple distributions.
 .PP
 Putting \fBnot\fP in front of a condition, inverses it's meaning.
 For example

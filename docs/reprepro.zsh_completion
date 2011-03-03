@@ -228,6 +228,7 @@ commands=(
 	removefilter:"remove packages matching a formula"
 	removematched:"remove packages matching a glob"
 	removesrc:"remove packages belonging to a source package"
+	removesrcs:"remove packages belonging to names source packages"
 	removetrack:"remove a single tracking data"
 	reoverride:"apply override information to already existing packages"
 	rereference:"recreate references"
@@ -389,7 +390,8 @@ case "$state" in
 			_reprepro_package_names "$words[2]"
 		fi
 		;;
-	 (removesrc)
+	 # removesrcs might be improveable...
+	 (removesrc|removesrcs)
 		if [[ "$state" = "first argument" ]] ; then
 			_reprepro_codenames
 		else

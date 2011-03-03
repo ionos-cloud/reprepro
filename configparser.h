@@ -63,6 +63,8 @@ retvalue config_getconstant(struct configiterator *, const struct constant *, in
 #define config_getenum(iter,type,constants,result) ({int _val;retvalue _r = config_getconstant(iter, type ## _ ## constants, &_val);*(result) = (enum type)_val;_r;})
 retvalue config_completeword(struct configiterator *, char, /*@out@*/char **);
 retvalue config_gettimespan(struct configiterator *, const char *, /*@out@*/time_t *);
+retvalue config_getscript(struct configiterator *, const char *, /*@out@*/char **);
+retvalue config_getsignwith(struct configiterator *, const char *, struct strlist *);
 void config_overline(struct configiterator *);
 bool config_nextline(struct configiterator *);
 retvalue configfile_parse(const char *filename, bool ignoreunknown, configinitfunction, configfinishfunction, const struct configfield *, size_t, void *privdata);
@@ -103,20 +105,7 @@ static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), co
 #define CFscriptSETPROC(sname, field) \
 static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), const char *name, void *data, struct configiterator *iter) { \
 	struct sname *item = data; \
-	char *value, *fullvalue; retvalue r; \
-	r = config_getonlyword(iter, name, NULL, &value); \
-	if( RET_IS_OK(r) ) { \
-		assert( value != NULL && value[0] != '\0' ); \
-		if( value[0] != '/' ) { \
-			fullvalue = calc_dirconcat(global.confdir, value); \
-			free(value); \
-		} else \
-			fullvalue = value; \
-		if( fullvalue == NULL ) \
-			return RET_ERROR_OOM; \
-		item->field = fullvalue; \
-	} \
-	return r; \
+	return config_getscript(iter, name, &item->field); \
 }
 #define CFlinelistSETPROC(sname, field) \
 static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UNUSED(const char *name), void *data, struct configiterator *iter) { \
@@ -128,6 +117,11 @@ static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UN
 static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UNUSED(const char *name), void *data, struct configiterator *iter) { \
 	struct sname *item = data; \
 	return config_getwords(iter, &item->field); \
+}
+#define CFsignwithSETPROC(sname, field) \
+static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), const char *name, void *data, struct configiterator *iter) { \
+	struct sname *item = data; \
+	return config_getsignwith(iter, name, &item->field); \
 }
 #define CFcheckuniqstrlistSETPROC(sname, field, checker) \
 static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), const char *name, void *data, struct configiterator *iter) { \
@@ -304,6 +298,5 @@ static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UN
 #define CFdirSETPROC CFvalueSETPROC
 #define CFfileSETPROC CFvalueSETPROC
 #define config_getfileinline config_getwordinline
-#define CFkeySETPROC CFvalueSETPROC
 
 #endif /* REPREPRO_CONFIGPARSER_H */

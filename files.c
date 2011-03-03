@@ -40,7 +40,6 @@
 #include "database_p.h"
 
 static retvalue files_get_checksums(struct database *database, const char *filekey, /*@out@*/struct checksums **checksums_p) {
-	const char *md5sum = NULL;
 	const char *checksums;
 	size_t checksumslen;
 	retvalue r;
@@ -49,7 +48,7 @@ static retvalue files_get_checksums(struct database *database, const char *filek
 		&checksums, &checksumslen);
 	if( !RET_IS_OK(r) )
 		return r;
-	return checksums_setall(checksums_p, checksums, checksumslen, md5sum);
+	return checksums_setall(checksums_p, checksums, checksumslen);
 }
 
 retvalue files_add_checksums(struct database *database, const char *filekey, const struct checksums *checksums) {
@@ -368,8 +367,7 @@ retvalue files_checkpool(struct database *database, bool fast) {
 		return r;
 	while( cursor_nexttempdata(database->checksums, cursor,
 				&filekey, &combined, &combinedlen) ) {
-		r = checksums_setall(&expected,
-				combined, combinedlen, NULL);
+		r = checksums_setall(&expected, combined, combinedlen);
 		if( RET_WAS_ERROR(r) ) {
 			RET_UPDATE(result, r);
 			continue;
@@ -415,7 +413,7 @@ retvalue files_collectnewchecksums(struct database *database) {
 		return r;
 	while( cursor_nexttempdata(database->checksums, cursor,
 				&filekey, &all, &alllen) ) {
-		r = checksums_setall(&expected, all, alllen, NULL);
+		r = checksums_setall(&expected, all, alllen);
 		if( !RET_IS_OK(r) ) {
 			RET_UPDATE(result, r);
 			continue;
@@ -793,4 +791,17 @@ retvalue files_checkincludefile(struct database *database, const char *sourcedir
 		checksums_free(checksums);
 
 	return files_add_checksums(database, filekey, *checksums_p);
+}
+
+off_t files_getsize(struct database *database, const char *filekey) {
+	retvalue r;
+	off_t s;
+	struct checksums *checksums;
+
+	r = files_get_checksums(database, filekey, &checksums);
+	if (!RET_IS_OK(r))
+		return -1;
+	s = checksums_getfilesize(checksums);
+	checksums_free(checksums);
+	return s;
 }

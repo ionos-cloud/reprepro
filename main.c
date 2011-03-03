@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005,2006,2007,2008,2009 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2006,2007,2008,2009,2011 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -71,6 +71,8 @@
 #include "needbuild.h"
 #include "archallflood.h"
 #include "sourcecheck.h"
+#include "uploaderslist.h"
+#include "sizes.h"
 
 #ifndef STD_BASE_DIR
 #define STD_BASE_DIR "."
@@ -504,7 +506,7 @@ ACTION_F(n, n, n, n, addmd5sums) {
 			fprintf(stderr,"Malformed line\n");
 			return RET_ERROR;
 		}
-		r = checksums_setall(&checksums, m, strlen(m), NULL);
+		r = checksums_setall(&checksums, m, strlen(m));
 		if( RET_WAS_ERROR(r) )
 			return r;
 		r = files_add_checksums(database, buffer, checksums);
@@ -725,7 +727,8 @@ ACTION_D(y, n, y, remove) {
 
 struct removesrcdata {
 	const char *sourcename;
-	const char /*@null@*/*sourceversion;
+	const char /*@null@*/ *sourceversion;
+	bool found;
 };
 
 static retvalue package_source_fits(UNUSED(struct database *da), UNUSED(struct distribution *di), struct target *target, const char *packagename, const char *control, void *data) {
@@ -737,42 +740,27 @@ static retvalue package_source_fits(UNUSED(struct database *da), UNUSED(struct d
 			&sourcename, &sourceversion);
 	if( !RET_IS_OK(r) )
 		return r;
-	if( strcmp(sourcename, d->sourcename) != 0 ) {
-		free(sourcename);
-		free(sourceversion);
-		return RET_NOTHING;
-	}
-	if( d->sourceversion == NULL ) {
-		free(sourcename);
-		free(sourceversion);
-		return RET_OK;
-	}
-	if( strcmp(sourceversion, d->sourceversion) != 0 ) {
-		free(sourcename);
-		free(sourceversion);
-		return RET_NOTHING;
+	for( ; d->sourcename != NULL ; d++ ) {
+		if( strcmp(sourcename, d->sourcename) != 0 )
+			continue;
+		if( d->sourceversion == NULL )
+			break;
+		if( strcmp(sourceversion, d->sourceversion) == 0 )
+			break;
 	}
 	free(sourcename);
 	free(sourceversion);
-	return RET_OK;
+	if( d->sourcename == NULL )
+		return RET_NOTHING;
+	else {
+		d->found = true;
+		return RET_OK;
+	}
 }
 
-ACTION_D(n, n, y, removesrc) {
-	retvalue result, r;
-	struct distribution *distribution;
+static retvalue remove_packages(struct database *database, struct distribution *distribution, struct removesrcdata *toremove) {
 	trackingdb tracks;
-	struct removesrcdata data;
-
-	r = distribution_get(alldistributions, argv[1], true, &distribution);
-	assert( r != RET_NOTHING );
-	if( RET_WAS_ERROR(r) )
-		return r;
-
-	if( distribution->readonly ) {
-		fprintf(stderr, "Error: Cannot remove packages from read-only distribution '%s'\n",
-				distribution->codename);
-		return RET_ERROR;
-	}
+	retvalue result, r;
 
 	r = distribution_prepareforwriting(distribution);
 	if( RET_WAS_ERROR(r) )
@@ -789,52 +777,153 @@ ACTION_D(n, n, y, removesrc) {
 		tracks = NULL;
 	result = RET_NOTHING;
 	if( tracks != NULL ) {
-		result = tracking_removepackages(tracks, database,
-				distribution,
-				argv[2], (argc <= 3)?NULL:argv[3]);
-		if( RET_WAS_ERROR(r) ) {
-			r = tracking_done(tracks);
-			RET_ENDUPDATE(result,r);
-			return result;
-		}
-		if( result == RET_NOTHING ) {
-			if( verbose >= -2 ) {
-				if( argc == 3 )
-					fprintf(stderr,
+		result = RET_NOTHING;
+		for( ; toremove->sourcename != NULL ; toremove++ ) {
+			r = tracking_removepackages(tracks, database,
+					distribution,
+					toremove->sourcename,
+					toremove->sourceversion);
+			RET_UPDATE(result, r);
+			if( r == RET_NOTHING ) {
+				if( verbose >= -2 ) {
+					if( toremove->sourceversion == NULL )
+						fprintf(stderr,
 "Nothing about source package '%s' found in the tracking data of '%s'!\n"
 "This either means nothing from this source in this version is there,\n"
 "or the tracking information might be out of date.\n",
-						argv[2],
-						distribution->codename);
-				else
-					fprintf(stderr,
+							toremove->sourcename,
+							distribution->codename);
+					else
+						fprintf(stderr,
 "Nothing about '%s' version '%s' found in the tracking data of '%s'!\n"
 "This either means nothing from this source in this version is there,\n"
 "or the tracking information might be out of date.\n",
-						argv[2], argv[3],
-						distribution->codename);
+							toremove->sourcename,
+							toremove->sourceversion,
+							distribution->codename);
+				}
 			}
-		} else {
+		}
+		if( RET_IS_OK(result) ) {
 			r = distribution_export(export, distribution, database);
-			RET_ENDUPDATE(result,r);
+			RET_ENDUPDATE(result, r);
 		}
 		r = tracking_done(tracks);
-		RET_ENDUPDATE(result,r);
+		RET_ENDUPDATE(result, r);
 		return result;
 	}
-	data.sourcename = argv[2];
-	if( argc <= 3 )
-		data.sourceversion = NULL;
-	else
-		data.sourceversion = argv[3];
 	result = distribution_remove_packages(distribution, database,
 			// TODO: why not arch comp pt here?
 			atom_unknown, atom_unknown, atom_unknown,
 			package_source_fits, NULL,
-			&data);
+			toremove);
 	r = distribution_export(export, distribution, database);
 	RET_ENDUPDATE(result, r);
 	return result;
+}
+
+ACTION_D(n, n, y, removesrc) {
+	retvalue r;
+	struct distribution *distribution;
+	struct removesrcdata data[2];
+
+	r = distribution_get(alldistributions, argv[1], true, &distribution);
+	assert( r != RET_NOTHING );
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	if( distribution->readonly ) {
+		fprintf(stderr, "Error: Cannot remove packages from read-only distribution '%s'\n",
+				distribution->codename);
+		return RET_ERROR;
+	}
+
+	data[0].found = false;
+	data[0].sourcename = argv[2];
+	if( argc <= 3 )
+		data[0].sourceversion = NULL;
+	else
+		data[0].sourceversion = argv[3];
+	if( index(data[0].sourcename, '=') != NULL && verbose >= 0 ) {
+		fputs("Warning: removesrc treats '=' as normal character. Did you want to use removesrcs?\n", stderr);
+	}
+	data[1].sourcename = NULL;
+	data[1].sourceversion = NULL;
+	return remove_packages(database, distribution, data);
+}
+
+ACTION_D(n, n, y, removesrcs) {
+	retvalue r;
+	struct distribution *distribution;
+	struct removesrcdata data[argc-1];
+	int i;
+
+	r = distribution_get(alldistributions, argv[1], true, &distribution);
+	assert( r != RET_NOTHING );
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	if( distribution->readonly ) {
+		fprintf(stderr, "Error: Cannot remove packages from read-only distribution '%s'\n",
+				distribution->codename);
+		return RET_ERROR;
+	}
+	for( i = 0 ; i < argc-2 ; i++ ) {
+		data[i].found = false;
+		data[i].sourcename = argv[2 + i];
+		data[i].sourceversion = index(data[i].sourcename, '=');
+		if( data[i].sourceversion != NULL ) {
+			if( index(data[i].sourceversion+1, '=') != NULL ) {
+				fprintf(stderr, "Cannot parse '%s': more than one '='\n",
+						data[i].sourcename);
+				data[i].sourcename = NULL;
+				r = RET_ERROR;
+			} else if( data[i].sourceversion[1] == '\0' ) {
+				fprintf(stderr, "Cannot parse '%s': no version after '='\n",
+						data[i].sourcename);
+				data[i].sourcename = NULL;
+				r = RET_ERROR;
+			} else if( data[i].sourceversion == data[i].sourcename ) {
+				fprintf(stderr, "Cannot parse '%s': no source name found before the '='\n",
+						data[i].sourcename);
+				data[i].sourcename = NULL;
+				r = RET_ERROR;
+			} else {
+				data[i].sourcename = strndup(data[i].sourcename,
+						data[i].sourceversion
+						- data[i].sourcename);
+				if( data[i].sourcename == NULL )
+					r = RET_ERROR_OOM;
+				else
+					r = RET_OK;
+			}
+			if( RET_WAS_ERROR(r) ) {
+				for( i-- ; i >= 0 ; i-- ) {
+					if( data[i].sourceversion != NULL )
+						free((char*)data[i].sourcename);
+				}
+				return r;
+			}
+			data[i].sourceversion++;
+		}
+	}
+	data[i].sourcename = NULL;
+	data[i].sourceversion= NULL;
+	r = remove_packages(database, distribution, data);
+	for( i = 0 ; i < argc-2 ; i++ ) {
+		if( verbose >= 0 && !data[i].found ) {
+			if( data[i].sourceversion != NULL )
+				fprintf(stderr, "No package from source '%s', version '%s' found.\n",
+						data[i].sourcename,
+						data[i].sourceversion);
+			else
+				fprintf(stderr, "No package from source '%s' (any version) found.\n",
+						data[i].sourcename);
+		}
+		if( data[i].sourceversion != NULL )
+			free((char*)data[i].sourcename);
+	}
+	return r;
 }
 
 static retvalue package_matches_condition(UNUSED(struct database *da), UNUSED(struct distribution *di), struct target *target, UNUSED(const char *pa), const char *control, void *data) {
@@ -2232,6 +2321,7 @@ ACTION_B(n, n, y, dumptracks) {
 	}
 	return result;
 }
+
 /***********************checking*************************/
 
 ACTION_RF(y, n, y, check) {
@@ -2330,6 +2420,20 @@ ACTION_F(y, n, y, y, reoverride) {
 	RET_ENDUPDATE(result,r);
 
 	return result;
+}
+
+/*******************sizes of distributions***************/
+
+ACTION_RF(n, n, y, sizes) {
+	retvalue result;
+
+	result = distribution_match(alldistributions, argc-1, argv+1,
+			false, READONLY);
+	assert( result != RET_NOTHING );
+	if( RET_WAS_ERROR(result) ) {
+		return result;
+	}
+	return sizes_distributions(database, alldistributions, argc > 1);
 }
 
 /***********************include******************************************/
@@ -2796,6 +2900,275 @@ ACTION_C(n, n, createsymlinks) {
 	return result;
 }
 
+/***********************checkuploaders***********************************/
+
+/* Read a fake package description from stdin */
+static inline retvalue read_package_description(char **sourcename, struct strlist *sections, struct strlist *binaries, struct strlist *byhands, struct atomlist *architectures, struct signatures **signatures, char **buffer_p, size_t *bufferlen_p) {
+	retvalue r;
+	ssize_t got;
+	char *buffer, *v, *p;
+	struct strlist *l;
+	struct signatures *s;
+	struct signature *sig;
+	architecture_t architecture;
+
+	if( isatty(0) ) {
+		puts("Please input the simulated package data to test.\n"
+		     "Format: (source|section|binary|byhand|architecture|signature) <value>\n"
+		     "some keys may be given multiple times");
+	}
+	while( (got = getline(buffer_p, bufferlen_p, stdin)) >= 0 ) {
+		buffer = *buffer_p;
+		if( got == 0 || buffer[got - 1] != '\n' ) {
+			fputs("stdin is not text\n", stderr);
+			return RET_ERROR;
+		}
+		buffer[--got] = '\0';
+		if( strncmp(buffer, "source ", 7) == 0 ) {
+			if( *sourcename != NULL ) {
+				fprintf(stderr, "Source name only allowed once!\n");
+				return RET_ERROR;
+			}
+			*sourcename = strdup(buffer + 7);
+			if( FAILEDTOALLOC(*sourcename) )
+				return RET_ERROR_OOM;
+			continue;
+		} else if( strncmp(buffer, "signature ", 10) == 0 ) {
+			v = buffer + 10;
+			if( *signatures == NULL ) {
+				s = calloc(1, sizeof(struct signatures)
+						+sizeof(struct signature));
+				if( FAILEDTOALLOC(s) )
+					return RET_ERROR_OOM;
+			} else {
+				s = realloc(*signatures, sizeof(struct signatures)
+						+(s->count+1)*
+						sizeof(struct signature));
+				if( FAILEDTOALLOC(s) )
+					return RET_ERROR_OOM;
+			}
+			*signatures = s;
+			sig = s->signatures + s->count;
+			s->count++;
+			s->validcount++;
+			sig->expired_key = false;
+			sig->expired_signature = false;
+			sig->revoced_key = false;
+			sig->state = sist_valid;
+			switch( *v ) {
+				case 'b':
+					sig->state = sist_bad;
+					s->validcount--;
+					v++;
+					break;
+				case 'e':
+					sig->state = sist_mostly;
+					sig->expired_signature = true;
+					s->validcount--;
+					v++;
+					break;
+				case 'i':
+					sig->state = sist_invalid;
+					s->validcount--;
+					v++;
+					break;
+			}
+			p = v;
+			while( (*p >= '0' && *p <= '9') || (*p >= 'a' && *p <= 'f'))
+				p++;
+			sig->keyid = strndup(v, p-v);
+			sig->primary_keyid = NULL;
+			if( FAILEDTOALLOC(sig->keyid) )
+				return RET_ERROR_OOM;
+			if( *p == ':' ) {
+				p++;
+				v = p;
+				while( (*p >= '0' && *p <= '9') || (*p >= 'a' && *p <= 'f'))
+					p++;
+				if( *p != '\0' ) {
+					fprintf(stderr, "Invalid character in key id: '%c'!\n", *p);
+					return RET_ERROR;
+				}
+				sig->primary_keyid = strdup(v);
+			} else if( *p != '\0' ) {
+				fprintf(stderr, "Invalid character in key id: '%c'!\n", *p);
+				return RET_ERROR;
+			} else
+				sig->primary_keyid = strdup(sig->keyid);
+			if( FAILEDTOALLOC(sig->primary_keyid) )
+				return RET_ERROR_OOM;
+			continue;
+		} else if( strncmp(buffer, "section ", 8) == 0 ) {
+			v = buffer + 8;
+			l = sections;
+		} else if( strncmp(buffer, "binary ", 7) == 0 ) {
+			v = buffer + 7;
+			l = binaries;
+		} else if( strncmp(buffer, "byhand ", 7) == 0 ) {
+			v = buffer + 7;
+			l = byhands;
+		} else if( strncmp(buffer, "architecture ", 13) == 0 ) {
+			v = buffer + 13;
+			r = architecture_intern(v, &architecture);
+			if( RET_WAS_ERROR(r) )
+				return r;
+			r = atomlist_add(architectures, architecture);
+			if( RET_WAS_ERROR(r) )
+				return r;
+			continue;
+		} else if( strcmp(buffer, "finished") == 0 ) {
+			break;
+		} else {
+			fprintf(stderr, "Unparseable line '%s'\n", buffer);
+			return RET_ERROR;
+		}
+		r = strlist_add_dup(l, v);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
+	if( ferror(stdin) ) {
+		int e = errno;
+		fprintf(stderr, "Error %d reading data from stdin: %s\n",
+				e, strerror(e));
+		return RET_ERRNO(e);
+	}
+	if( *sourcename == NULL ) {
+		fprintf(stderr, "No source name specified!\n");
+		return RET_ERROR;
+	}
+	return RET_OK;
+}
+
+static inline void verifystrlist(struct upload_conditions *conditions, const struct strlist *list) {
+	int i;
+	for( i = 0 ; i < list->count ; i++ ) {
+		if( !uploaders_verifystring(conditions, list->values[i]) )
+			break;
+	}
+}
+static inline void verifyatomlist(struct upload_conditions *conditions, const struct atomlist *list) {
+	int i;
+	for( i = 0 ; i < list->count ; i++ ) {
+		if( !uploaders_verifyatom(conditions, list->atoms[i]) )
+			break;
+	}
+}
+
+
+ACTION_C(n, n, checkuploaders) {
+	retvalue result, r;
+	struct distribution *d;
+	char *sourcename = NULL;
+	struct strlist sections, binaries, byhands;
+	struct atomlist architectures;
+	struct signatures *signatures = NULL;
+	struct upload_conditions *conditions;
+	bool accepted, rejected;
+	char *buffer = NULL;
+	size_t bufferlen = 0;
+	int i;
+
+	r = distribution_match(alldistributions, argc-1, argv+1, false, READONLY);
+	assert( r != RET_NOTHING );
+	if( RET_WAS_ERROR(r) ) {
+		return r;
+	}
+	for( d = alldistributions ; d != NULL ; d = d->next ) {
+		if( !d->selected )
+			continue;
+		r = distribution_loaduploaders(d);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
+
+	strlist_init(&sections);
+	strlist_init(&binaries);
+	strlist_init(&byhands);
+	atomlist_init(&architectures);
+
+	r = read_package_description(&sourcename, &sections, &binaries, &byhands, &architectures, &signatures, &buffer, &bufferlen);
+	free(buffer);
+	if( RET_WAS_ERROR(r) ) {
+		free(sourcename);
+		strlist_done(&sections);
+		strlist_done(&byhands);
+		atomlist_done(&architectures);
+		signatures_free(signatures);
+		return r;
+	}
+
+	result = RET_NOTHING;
+	accepted = false;
+	for( i = 1 ; !accepted && i < argc ; i++ ) {
+		r = distribution_get(alldistributions, argv[i], false, &d);
+		if( RET_WAS_ERROR(r) ) {
+			result = r;
+			break;
+		}
+		r = distribution_loaduploaders(d);
+		if( RET_WAS_ERROR(r) ) {
+			result = r;
+			break;
+		}
+		if( d->uploaderslist == NULL ) {
+			printf("'%s' would have been accepted by '%s' (as it has no uploader restrictions)\n", sourcename, d->codename);
+			accepted = true;
+			break;
+		}
+		r = uploaders_permissions(d->uploaderslist, signatures, &conditions);
+		if( RET_WAS_ERROR(r) ) {
+			result = r;
+			break;
+		}
+		rejected = false;
+		do switch( uploaders_nextcondition(conditions) ) {
+			case uc_ACCEPTED:
+				accepted = true;
+				break;
+			case uc_REJECTED:
+				rejected = true;
+				break;
+			case uc_CODENAME:
+				uploaders_verifystring(conditions, d->codename);
+				break;
+			case uc_SOURCENAME:
+				uploaders_verifystring(conditions, sourcename);
+				break;
+			case uc_SECTIONS:
+				verifystrlist(conditions, &sections);
+				break;
+			case uc_ARCHITECTURES:
+				verifyatomlist(conditions, &architectures);
+				break;
+			case uc_BYHAND:
+				verifystrlist(conditions, &byhands);
+				break;
+			case uc_BINARIES:
+				verifystrlist(conditions, &byhands);
+				break;
+		} while( !accepted && !rejected );
+		free(conditions);
+
+		if( accepted ) {
+			printf("'%s' would have been accepted by '%s'\n", sourcename, d->codename);
+			break;
+		}
+	}
+	if( !accepted )
+		printf("'%s' would NOT have been accepted by any of the distributions selected.\n", sourcename);
+	free(sourcename);
+	strlist_done(&sections);
+	strlist_done(&byhands);
+	atomlist_done(&architectures);
+	signatures_free(signatures);
+	if( RET_WAS_ERROR(result) )
+		return result;
+	else if( accepted )
+		return RET_OK;
+	else
+		return RET_NOTHING;
+}
+
 /***********************clearvanished***********************************/
 
 ACTION_D(n, n, n, clearvanished) {
@@ -3247,6 +3620,8 @@ static const struct action {
 		1, 1, "__extractcontrol <.deb-file>"},
 	{"__extractfilelist",	A_N(extractfilelist),
 		1, 1, "__extractfilelist <.deb-file>"},
+	{"__checkuploaders",	A_C(checkuploaders),
+		1, -1,	"__checkuploaders <codenames>"},
 	{"_versioncompare",	A_N(versioncompare),
 		2, 2, "_versioncompare <version> <version>"},
 	{"_detect", 		A__F(detect),
@@ -3275,6 +3650,8 @@ static const struct action {
 		2, -1, "[-C <component>] [-A <architecture>] [-T <type>] remove <codename> <package-names>"},
 	{"removesrc", 		A_D(removesrc),
 		2, 3, "removesrc <codename> <source-package-names> [<source-version>]"},
+	{"removesrcs", 		A_D(removesrcs),
+		2, -1, "removesrcs <codename> (<source-package-name>[=<source-version>])+"},
 	{"ls", 		A_ROBact(ls),
 		1, 1, "[-C <component>] [-A <architecture>] [-T <type>] ls <package-name>"},
 	{"list", 		A_ROBact(list),
@@ -3292,6 +3669,8 @@ static const struct action {
 	{"export", 		A_F(export),
 		0, -1, "export [<distributions>]"},
 	{"check", 		A_RFact(check),
+		0, -1, "check [<distributions>]"},
+	{"sizes", 		A_RF(sizes),
 		0, -1, "check [<distributions>]"},
 	{"reoverride", 		A_Fact(reoverride),
 		0, -1, "[-T ...] [-C ...] [-A ...] reoverride [<distributions>]"},
