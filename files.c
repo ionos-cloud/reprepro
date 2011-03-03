@@ -1,9 +1,8 @@
 /*  This file is part of "reprepro"
  *  Copyright (C) 2003,2004,2005 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
+ *  it under the terms of the GNU General Public License version 2 as 
+ *  published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -35,6 +34,7 @@
 #include "names.h"
 #include "files.h"
 #include "copyfile.h"
+#include "ignore.h"
 
 struct s_filesdb {
 	DB *database;
@@ -521,7 +521,6 @@ retvalue files_include(filesdb db,const char *sourcefilename,const char *filekey
 	retvalue r;
 	char *md5sumfound;
 
-	assert( md5sum == NULL || calculatedmd5sum == NULL );
 	if( md5sum != NULL ) {
 		r = files_expect(db,filekey,md5sum);
 		if( RET_WAS_ERROR(r) )
@@ -530,7 +529,13 @@ retvalue files_include(filesdb db,const char *sourcefilename,const char *filekey
 			if( delete >= D_MOVE ) {
 				copyfile_delete(sourcefilename);
 			}
-			return RET_NOTHING;
+			if( calculatedmd5sum != NULL ) {
+				char *n = strdup(md5sum);
+				if( n == NULL )
+					return RET_ERROR_OOM;
+				*calculatedmd5sum = n;
+			}
+			return RET_OK;
 		}
 	} else {
 		char *md5indatabase,*md5offile;
@@ -544,7 +549,7 @@ retvalue files_include(filesdb db,const char *sourcefilename,const char *filekey
 					*calculatedmd5sum = md5indatabase;
 				else
 					free(md5indatabase);
-				return RET_NOTHING;
+				return RET_OK;
 			}
 			r = files_calcmd5(&md5offile,sourcefilename);
 			if( RET_WAS_ERROR(r) ) {
@@ -570,9 +575,16 @@ retvalue files_include(filesdb db,const char *sourcefilename,const char *filekey
 			}
 		}
 	}
-	if( delete == D_INPLACE ) {
+	if( sourcefilename == NULL ) {
 		fprintf(stderr,"Unable to find %s/%s!\n",db->mirrordir,filekey);
 		return RET_ERROR_MISSING;
+	} if( delete == D_INPLACE ) {
+		if( IGNORING("Make sure your .changes file is correct (perhaps you need to spcify -sa or to ignore it","looking around if it is elsewhere as",missingfile,"Unable to find %s/%s!\n",db->mirrordir,filekey))
+			r = copyfile_copy(db->mirrordir,filekey,sourcefilename,md5sum,&md5sumfound);
+		else
+			r = RET_ERROR_MISSING;
+		if( RET_WAS_ERROR(r) )
+			return r;
 	} else if( delete == D_COPY ) {
 		r = copyfile_copy(db->mirrordir,filekey,sourcefilename,md5sum,&md5sumfound);
 		if( RET_WAS_ERROR(r) )
@@ -601,9 +613,14 @@ retvalue files_includefile(filesdb db,const char *sourcedir,const char *basename
 	char *sourcefilename;
 	retvalue r;
 
-	sourcefilename = calc_dirconcat(sourcedir,basename);
-	if( sourcefilename == NULL )
-		return RET_ERROR_OOM;
+	if( sourcedir == NULL ) {
+		assert(delete == D_INPLACE);
+		sourcefilename = NULL;
+	} else {
+		sourcefilename = calc_dirconcat(sourcedir,basename);
+		if( sourcefilename == NULL )
+			return RET_ERROR_OOM;
+	}
 	r = files_include(db,sourcefilename,filekey,md5sum,calculatedmd5sum,delete);
 	free(sourcefilename);
 	return r;
@@ -616,7 +633,8 @@ retvalue files_includefiles(filesdb db,const char *sourcedir,const struct strlis
 	retvalue result,r;
 	int i;
 
-	assert( sourcedir != NULL ); assert( basefilenames != NULL );
+	assert( sourcedir != NULL || delete == D_INPLACE );
+	assert( basefilenames != NULL );
 	assert( filekeys != NULL ); assert( md5sums != NULL );
 	assert( basefilenames->count == filekeys->count );
 	assert( filekeys->count == md5sums->count );

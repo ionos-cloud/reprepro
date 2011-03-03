@@ -74,12 +74,16 @@ EXTRA_DIST = autogen.sh
 
 bin_PROGRAMS = reprepro
 
-AM_CPPFLAGS = -D_GNU_SOURCE=1 -DPKGDATADIR=\"$(pkgdatadir)\" -Wall
+AM_CPPFLAGS = -D_GNU_SOURCE=1 -Wall
 
-reprepro_SOURCES = guesscomponent.c files.c md5.c md5sum.c dirs.c chunks.c reference.c packages.c binaries.c sources.c names.c dpkgversions.c release.c mprintf.c updates.c strlist.c signature.c distribution.c extractcontrol.c checkindeb.c checkindsc.c checkin.c copyfile.c upgradelist.c target.c aptmethod.c downloadcache.c main.c override.c terms.c ignore.c filterlist.c exports.c tracking.c optionsfile.c readrelease.c
-noinst_HEADERS = guesscomponent.h md5.h md5sum.h dirs.h files.h chunks.h reference.h packages.h binaries.h sources.h names.h release.h error.h mprintf.h updates.h strlist.h signature.h distribution.h extractcontrol.h checkindeb.h checkindsc.h copyfile.h upgradelist.h target.h aptmethod.h downloadcache.h override.h terms.h ignore.h filterlist.h dpkgversions.h checkin.h exports.h globals.h tracking.h trackingt.h optionsfile.h readrelease.h
+reprepro_SOURCES = guesscomponent.c files.c md5.c md5sum.c dirs.c chunks.c reference.c packages.c binaries.c sources.c names.c dpkgversions.c release.c mprintf.c updates.c strlist.c signature.c distribution.c extractcontrol.c checkindeb.c checkindsc.c checkin.c copyfile.c upgradelist.c target.c aptmethod.c downloadcache.c main.c override.c terms.c ignore.c filterlist.c exports.c tracking.c optionsfile.c readrelease.c donefile.c
+noinst_HEADERS = guesscomponent.h md5.h md5sum.h dirs.h files.h chunks.h reference.h packages.h binaries.h sources.h names.h release.h error.h mprintf.h updates.h strlist.h signature.h distribution.h extractcontrol.h checkindeb.h checkindsc.h copyfile.h upgradelist.h target.h aptmethod.h downloadcache.h override.h terms.h ignore.h filterlist.h dpkgversions.h checkin.h exports.h globals.h tracking.h trackingt.h optionsfile.h readrelease.h donefile.h
 
 MAINTAINERCLEANFILES = Makefile.in configure install-sh stamp-h.in aclocal.m4 config.h.in mkinstalldirs config.guess config.sub missing
+
+SPLINT = splint
+SPLITFLAGSFORVIM = -linelen 10000 -locindentspaces 0
+SPLINTFLAGS = +posixlib $(SPLITFLAGSFORVIM)
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
 CONFIG_HEADER = config.h
@@ -97,7 +101,7 @@ dpkgversions.o release.o mprintf.o updates.o strlist.o signature.o \
 distribution.o extractcontrol.o checkindeb.o checkindsc.o checkin.o \
 copyfile.o upgradelist.o target.o aptmethod.o downloadcache.o main.o \
 override.o terms.o ignore.o filterlist.o exports.o tracking.o \
-optionsfile.o readrelease.o
+optionsfile.o readrelease.o donefile.o
 reprepro_LDADD = $(LDADD)
 reprepro_DEPENDENCIES = 
 reprepro_LDFLAGS = 
@@ -380,7 +384,8 @@ checkindeb.o: checkindeb.c config.h error.h globals.h strlist.h md5sum.h \
 checkindsc.o: checkindsc.c config.h error.h globals.h strlist.h md5sum.h \
 	names.h dirs.h chunks.h checkindsc.h distribution.h target.h \
 	trackingt.h reference.h packages.h files.h exports.h release.h \
-	override.h signature.h sources.h guesscomponent.h tracking.h
+	override.h signature.h sources.h guesscomponent.h tracking.h \
+	ignore.h
 chunks.o: chunks.c config.h error.h globals.h ignore.h chunks.h \
 	strlist.h names.h
 copyfile.o: copyfile.c config.h error.h globals.h strlist.h names.h \
@@ -390,6 +395,8 @@ distribution.o: distribution.c config.h error.h globals.h chunks.h \
 	strlist.h sources.h target.h names.h trackingt.h reference.h \
 	packages.h files.h exports.h release.h md5sum.h dirs.h \
 	copyfile.h tracking.h distribution.h
+donefile.o: donefile.c config.h donefile.h error.h globals.h names.h \
+	strlist.h
 downloadcache.o: downloadcache.c config.h error.h globals.h strlist.h \
 	names.h dirs.h files.h downloadcache.h aptmethod.h
 dpkgversions.o: dpkgversions.c config.h error.h globals.h dpkgversions.h
@@ -399,7 +406,7 @@ exports.o: exports.c config.h error.h globals.h mprintf.h strlist.h \
 extractcontrol.o: extractcontrol.c config.h error.h globals.h md5sum.h \
 	chunks.h strlist.h extractcontrol.h
 files.o: files.c config.h error.h globals.h strlist.h names.h md5sum.h \
-	dirs.h files.h copyfile.h
+	dirs.h files.h copyfile.h ignore.h
 filterlist.o: filterlist.c config.h error.h globals.h mprintf.h \
 	strlist.h names.h chunks.h filterlist.h
 guesscomponent.o: guesscomponent.c config.h error.h globals.h strlist.h \
@@ -455,7 +462,7 @@ updates.o: updates.c config.h error.h globals.h mprintf.h strlist.h \
 	dirs.h names.h chunks.h signature.h md5sum.h aptmethod.h \
 	files.h updates.h reference.h release.h upgradelist.h \
 	packages.h trackingt.h downloadcache.h distribution.h target.h \
-	exports.h terms.h filterlist.h readrelease.h
+	exports.h terms.h filterlist.h readrelease.h donefile.h
 upgradelist.o: upgradelist.c config.h error.h globals.h strlist.h \
 	chunks.h dpkgversions.h target.h names.h trackingt.h \
 	reference.h packages.h files.h exports.h release.h \
@@ -553,6 +560,9 @@ maintainer-clean-local:
 # Some things for my private laziness
 strictbooleancheck:
 	/home/brl/gcc/b/gcc/cc1 -DHAVE_CONFIG_H -I/home/brl/gcc/b/gcc/include -I/usr/include -I.  -D_GNU_SOURCE=1 -Wall -DHASGPGMEGOODEXP  -DAVOID_CHECKPROBLEMS=1 -g -W -O2 *.c
+
+splint:
+	$(SPLINT) $(DEFS) $(INCLUDES) -D_GNU_SOURCE=1 $(SPLINTFLAGS) *.c
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

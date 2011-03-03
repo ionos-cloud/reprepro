@@ -1,9 +1,8 @@
 /*  This file is part of "reprepro"
  *  Copyright (C) 2003,2004,2005 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
+ *  it under the terms of the GNU General Public License version 2 as 
+ *  published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -37,6 +36,8 @@
 #include "copyfile.h"
 #include "tracking.h"
 #include "distribution.h"
+
+extern int verbose;
 
 retvalue distribution_free(struct distribution *distribution) {
 	retvalue result,r;
@@ -88,6 +89,12 @@ static retvalue createtargets(struct distribution *distribution) {
 		for( j = 0 ; j < distribution->architectures.count ; j++ ) {
 			arch = distribution->architectures.values[j];
 			if( strcmp(arch,"source") != 0 ) {
+				if( strcmp(arch,"all") == 0 && verbose >= 0 ) {
+					fprintf(stderr,
+"WARNING: Distribution %s contains an architecture called 'all'.\n",
+						distribution->codename);
+				}
+
 				r = target_initialize_binary(distribution->codename,comp,arch,&distribution->deb,&t);
 				if( RET_IS_OK(r) ) {
 					if( last != NULL ) {

@@ -1,9 +1,8 @@
 /*  This file is part of "reprepro"
  *  Copyright (C) 2003,2004,2005 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
+ *  it under the terms of the GNU General Public License version 2 as 
+ *  published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -256,8 +255,9 @@ retvalue signature_check(const char *options, const char *releasegpg, const char
 			return RET_ERROR_GPGME;
 		case GPGME_SIG_STAT_NONE:
 			fprintf(stderr,"gpgme returned an impossible condition for '%s'!\n"
-"If you are using woody and there was no ~/.gnupg yet, try repeating the last command.\n"
-,releasegpg);
+"This means gpg is utterly confused. Sometimes running the same command again helps,\n"
+"sometimes calling gpg --verify '%s' manually helps.\n"
+,releasegpg,releasegpg);
 			return RET_ERROR_GPGME;
 		case GPGME_SIG_STAT_ERROR:
 			fprintf(stderr,"gpgme reported errors checking '%s'!\n",releasegpg);
@@ -448,9 +448,10 @@ retvalue signature_readsignedchunk(const char *filename, char **chunkread, bool_
 		case GPGME_SIG_STAT_NONE:
 			gpgme_data_release(dh_gpg);
 			gpgme_data_release(dh);
-			fprintf(stderr,"gpgme returned an impossible condition in '%s'!\n"
-"If you are using woody and there was no ~/.gnupg yet, try repeating the last command.\n"
-,filename);
+			fprintf(stderr,"gpgme returned an impossible condition for '%s'!\n"
+"This means gpg is utterly confused. Sometimes running the same command again helps,\n"
+"sometimes calling gpg --verify '%s' manually helps.\n"
+,filename,filename);
 			return RET_ERROR_GPGME;
 		case GPGME_SIG_STAT_ERROR:
 			gpgme_data_release(dh_gpg);

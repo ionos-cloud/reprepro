@@ -43,4 +43,4 @@ for pkg in `grep '^Package: ' debian/control | sed -e 's/^Package: //'` ; do
 	dpkg --build debian/tmp .. 
 done
 #dpkg-genchanges > ../"${PACKAGE}_$VERSION$REVISION"_abbacus.changes
-dpkg-genchanges > ../"$OUTPUT"
+dpkg-genchanges "$@" > ../"$OUTPUT"

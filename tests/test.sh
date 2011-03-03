@@ -30,7 +30,7 @@ else
 	REPREPRO="$SRCDIR/reprepro"
 fi
 TESTS="$SRCDIR/tests"
-UPDATETYPE=iteratedupdate
+UPDATETYPE=update
 export PATH="$TESTS:$PATH"
 if ! [ -x "$REPREPRO" ] ; then
 	echo "Could not find $REPREPRO!" >&2
@@ -66,11 +66,7 @@ $HELPER "$REPREPRO" -b . export
 test -f dists/test1/Release
 test -f dists/test2/Release
 
-# the md5sums of empty .gz files change between 0.7 and 0.8 because
-# of other generationg (and now being os unknown(255) instead os unix(3)
-# previous was
-# EMPTYGZMD5SUM=7029066c27ac6f5ef18d660d5741979a
-EMPTYGZMD5SUM=163be0a88c70ca629fd516dbaadad96a
+EMPTYGZMD5SUM=7029066c27ac6f5ef18d660d5741979a
 EMPTYBZ2MD5SUM=4059d198768f9f8dc9372dc1c54bc3c3
 cat > dists/test1/Release.expected <<END
 Codename: test1
@@ -131,8 +127,8 @@ MD5Sum:
  4059d198768f9f8dc9372dc1c54bc3c3 14 ugly/source/Sources.bz2
  e73a8a85315766763a41ad4dc6744bf5 144 ugly/source/Release
 END
-echo -e '%g/^Date:/s/Date: .*/Date: normalized/\nw\nq' | ed -s dists/test1/Release
-echo -e '%g/^Date:/s/Date: .*/Date: normalized/\nw\nq' | ed -s dists/test2/Release
+echo -e '%g/^Date:/s/Date: .*/Date: normalized/\n%g/gz$/s/^ 163be0a88c70ca629fd516dbaadad96a / 7029066c27ac6f5ef18d660d5741979a /\nw\nq' | ed -s dists/test1/Release
+echo -e '%g/^Date:/s/Date: .*/Date: normalized/\n%g/gz$/s/^ 163be0a88c70ca629fd516dbaadad96a / 7029066c27ac6f5ef18d660d5741979a /\nw\nq' | ed -s dists/test2/Release
 diff -u dists/test1/Release.expected dists/test1/Release || exit 1
 diff -u dists/test2/Release.expected dists/test2/Release || exit 1
 
@@ -151,7 +147,7 @@ $HELPER "$REPREPRO" -b . -A abacus remove test1 simple
 $HELPER "$REPREPRO" -b . -C ugly remove test1 bloat+-0a9z.app-addons
 $HELPER "$REPREPRO" -b . -C stupid remove test1 simple-addons
 CURDATE="`TZ=GMT LC_ALL=C date +'%a, %d %b %Y %H:%M:%S +0000'`"
-echo -e '%g/^Date:/s/Date: .*/Date: normalized/\nw\nq' | ed -s dists/test1/Release
+echo -e '%g/^Date:/s/Date: .*/Date: normalized/\n%g/gz$/s/^ 163be0a88c70ca629fd516dbaadad96a / 7029066c27ac6f5ef18d660d5741979a /\nw\nq' | ed -s dists/test1/Release
 
 diff dists/test1/Release.expected dists/test1/Release || exit 1
 
@@ -328,7 +324,29 @@ Files:
 END
 diff -u results.expected results
 
+echo "now testing .orig.tar.gz handling"
+tar -czf test_1.orig.tar.gz test.changes
+PACKAGE=test EPOCH="" VERSION=1 REVISION="-2" SECTION="stupid/base" genpackage.sh -si
+ERRORMSG="`$HELPER "$REPREPRO" -b . include test1 test.changes || echo "error:$?"`"
+echo $ERRORMSG | grep -q "error:249"
+$HELPER "$REPREPRO" -b . --ignore=missingfile include test1 test.changes
+grep test_1-2.dsc dists/test1/stupid/source/Sources
+
+tar -czf testb_2.orig.tar.gz test.changes
+PACKAGE=testb EPOCH="1:" VERSION=2 REVISION="-2" SECTION="stupid/base" genpackage.sh -sa
+$HELPER "$REPREPRO" -b . include test1 test.changes
+grep testb_2-2.dsc dists/test1/stupid/source/Sources
+rm -r testb-2 test2.changes
+PACKAGE=testb EPOCH="1:" VERSION=2 REVISION="-3" SECTION="stupid/base" OUTPUT="test2.changes" genpackage.sh -sd
+$HELPER "$REPREPRO" -b . include test1 test2.changes
+grep testb_2-3.dsc dists/test1/stupid/source/Sources
+
 echo "now testing some error messages:"
+PACKAGE=4test EPOCH="1:" VERSION=b.1 REVISION="-1" SECTION="stupid/base" genpackage.sh
+ERRORMSG="`$HELPER "$REPREPRO" -b . include test1 test.changes 2>&1 || echo "error:$?"`"
+echo $ERRORMSG | grep -v "error:"
+echo $ERRORMSG | grep -q "Warning: Package version 'b.1-1.dsc' does not start with a digit"
+
 ERRORCODE=0
 $HELPER "$REPREPRO" -b . include unknown || ERRORCODE=$?
 [ $ERRORCODE == 255 ]

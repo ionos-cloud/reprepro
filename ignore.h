@@ -21,7 +21,8 @@
 	IGN(brokenversioncmp) \
 	IGN(extension) \
 	IGN(unusedarch) \
-	IGN(surprisingarch)
+	IGN(surprisingarch) \
+	IGN(missingfile)
 
 
 enum ignore { 

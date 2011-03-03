@@ -1,9 +1,8 @@
 /*  This file is part of "reprepro"
  *  Copyright (C) 2004,2005 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
+ *  it under the terms of the GNU General Public License version 2 as 
+ *  published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -41,6 +40,7 @@ extern int verbose;
 
 
 struct aptmethod {
+	/*@only@*/ /*@null@*/
 	struct aptmethod *next;
 	char *name;
 	char *baseuri;
@@ -99,27 +99,23 @@ static void aptmethod_free(/*@only@*/struct aptmethod *method) {
 }
 
 retvalue aptmethod_shutdown(struct aptmethodrun *run) {
-	struct aptmethod *method,*lastmethod;
+	struct aptmethod *method,*lastmethod,**method_ptr;
 
 	/* first get rid of everything not running: */
-	method = run->methods; lastmethod = NULL;
-	while( method != NULL ) {
-		struct aptmethod *h;
+	method_ptr = &run->methods;
+	while( *method_ptr != NULL ) {
 
-		if( method->child > 0 ) {
+		if( (*method_ptr)->child > 0 ) {
 			if( verbose > 5 )
-				fprintf(stderr,"Still waiting for %d\n",(int)method->child);
-			lastmethod = method;
-			method = method->next;
+				fprintf(stderr,"Still waiting for %d\n",(int)(*method_ptr)->child);
+			method_ptr = &(*method_ptr)->next;
 			continue;
 		} else {
-			h = method->next;
-			if( lastmethod != NULL )
-				lastmethod->next = h;
-			else
-				run->methods = h;
-			aptmethod_free(method);
-			method = h;
+			/*@only@*/ struct aptmethod *h;
+			h = (*method_ptr);
+			*method_ptr = h->next;
+			h->next = NULL;
+			aptmethod_free(h);
 		}
 	}
 

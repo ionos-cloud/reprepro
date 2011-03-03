@@ -1,4 +1,4 @@
-.TH REPREPRO 1 "21 January, 2006" "reprepro" REPREPRO
+.TH REPREPRO 1 "11 April, 2006" "reprepro" REPREPRO
 .SH NAME
 reprepro \- produce, manage and sync a local repository of debian packages
 .SH SYNOPSIS
@@ -164,13 +164,11 @@ funny and support for passphrases with more than 8 characters depend on your lib
 I suggest using gpg\-agent or something like that instead.
 .TP 
 .B \-\-noskipold
-When updating do not skip targets where no new index files are available.
-Since version 0.8 reprepro by default skips update of targets where no
-index file had to be downloaded as it was already there. 
-(Assuming that if the file is already there, everything is most likely already done.)
+When updating do not skip targets where no new index files and no files
+marked as already processed are available.
 
-Thus if you only change an script to preprocess downloaded index files or
-changed a Listfilter, you most likely want to add \-\-noskipold.
+If you changed a script to preprocess downloaded index files or
+changed a Listfilter, you most likely want to call reprepro with \-\-noskipold.
 .SH COMMANDS
 .TP
 .BR export " [ " \fIcodenames\fP " ]"
@@ -323,7 +321,7 @@ is given as argument or as a line of the input
 (when run without arguments), and calculate
 their md5sum and add them to the list of known files.
 (Warning: this is a low level operation, no input validation
- or normalization is done.)
+or normalization is done.)
 .TP
 .BR _forget " [ " \fIfilekeys\fP " ]"
 Like
@@ -331,7 +329,7 @@ Like
 but remove the given \fIfilekey\fP from the list of known
 files.
 (Warning: this is a low level operation, no input validation
- or normalization is done.)
+or normalization is done.)
 .TP
 .B _listmd5sums
 Print a list of all known files and their md5sums.
@@ -380,8 +378,8 @@ To allow command line options to override options file options,
 most boolean options also have a corresponding form starting with \fB\-\-no\fP.
 
 (The only exception is when the path to look for config files
- changes, the options file will only opened once and of course
- before any options within the options file are parsed.)
+changes, the options file will only opened once and of course
+before any options within the options file are parsed.)
 
 The file
 .B distributions
@@ -473,7 +471,7 @@ Otherwise the value will be given to libgpgme to determine to key to
 use.
 (That should be roughly the one \fBgpg \-\-list\-secret\-keys\fP \fIvalue\fP would output).
 This key should either have no passphrase, you need to specify
-\fB--ask-passphrase\fP or use gpg-agent.
+\fB\-\-ask\-passphrase\fP or use gpg\-agent.
 .TP
 .B DebOverride
 When this field is present, it describes the override file used
@@ -643,18 +641,18 @@ but does nothing.)
 .SH "OVERRIDE FILES"
 Override files are yet only used when things are manually added,
 not when imported while updating from an external source.
-The format should resemble the extended ftp-archive format,
+The format should resemble the extended ftp\-archive format,
 to be specific it is:
 
 .B \fIpackagename\fP \fIfieldname\fP \fInewvalue\fP
 
 For example:
 .br
-.B kernel-image-2.4.31-yourorga Section protected/base
+.B kernel\-image\-2.4.31\-yourorga Section protected/base
 .br
-.B kernel-image-2.4.31-yourorga Priority standard
+.B kernel\-image\-2.4.31\-yourorga Priority standard
 .br
-.B kernel-image-2.4.31-yourorga Maintainer That's me <me@localhost>
+.B kernel\-image\-2.4.31\-yourorga Maintainer That's me <me@localhost>
 .br
 .B reprepro Priority required
 
@@ -687,14 +685,19 @@ If comparing an old and a new version fails, assume the new one is newer.
 Allow strings to be empty that are used to construct filenames.
 (like versions, architectures, ...)
 .TP
+.B extension
+Allow to \fBincludedeb\fP files that do not end with \fB.deb\fP,
+to \fBincludedsc\fP files not ending in \fB.dsc\fP and to
+\fBinclude\fP files not ending in \fB.changes\fP.
+.TP
 .B forbiddenchar \fR(insecure)
 Do not insist on Debian policy for package and source names
 and versions.
 Thus allowing all 7-bit characters but slashes (as they would
 break the file storage) and things syntactically active
 (spaces, underscores in filenames in .changes files, opening
- parantheses in source names of binary packages).
-To allow some 8-bit chars additionally, use \fB8but\fP additionally.
+parantheses in source names of binary packages).
+To allow some 8-bit chars additionally, use \fB8bit\fP additionally.
 .TP
 .B 8bit \fR(more insecure)
 Allow 8-bit characters not looking like overlong UTF-8 sequences
@@ -721,6 +724,13 @@ Ignore missing fields in a .changes file that are only checked but
 not procesed. 
 Those include: Format, Date, Urgency, Maintainer, Description, Changes
 .TP
+.B missingfile \fR(might be insecure)
+When including a .dsc file from a .changes file,
+try to get files needed but not listed in the .changes file
+(e.g. when someone forgot to specify \-sa to dpkg\-buildpackage)
+from the directory the .changes file is in instead of erroring out.
+(\fB\-\-delete\fP will not work with those files, though.)
+.TP
 .B overlongcomments \fR(I hope you know what you do)
 Allow overlong comments. That is a line started with a hash(#)
 followed by lines starting with spaces. By default reprepro errors
@@ -728,22 +738,29 @@ out in that case, as marking every line as comment is as easy and
 people might try to comment a single line within a multi-line
 header (which does not work but makes all the rest a comment).
 .TP
+.B shortkeyid \fR(insecure)
+Allow gpg-keys to be specified with less than 8 hexdigits of their fingerprint.
+.TP
 .B spaceonlyline \fR(I hope you know what you do)
 Allow lines containing only (but non-zero) spaces. As these
 do not seperate chunks as thus will cause reprepro to behave
 unexpected, they cause error messages by default.
 .TP
-.B wrongdistribution \fR(save to ignore)
-Do not error out if a .changes file is to be placed in a
-distribution not listed in that files' Distributions: header.
+.B surprisingarch
+No longer rejct a .changes file containing files for a
+architecture not listed in the Architecture-header within it.
 .TP
 .B unknownfield \fR(for forward compatibility)
 Ignore unknown fields in the config files, instead of refusing to run
 then.
 .TP
 .B unusedarch \fR(save to ignore)
-No longer rejct a .changes file containing not files for any of the
-architectured listed in the Architecture-header within it.
+No longer rejct a .changes file containing no files for any of the
+architectures listed in the Architecture-header within it.
+.TP
+.B wrongdistribution \fR(save to ignore)
+Do not error out if a .changes file is to be placed in a
+distribution not listed in that files' Distributions: header.
 .SH GUESSING
 When including a binary or source package without explicitly
 declaring a component with
@@ -787,12 +804,12 @@ is sometimes also treated as architecture.
 .TP
 .B component
 Things like \fBmain\fP, \fBnon\-free\fP and \fBcontrib\fP
-  (by policy and some other programs also called section, reprepro follows
-   the naming scheme of apt here.)
+(by policy and some other programs also called section, reprepro follows
+the naming scheme of apt here.)
 .TP
 .B section
-Things like \fBbase\fP, \fBinterpreters\fP, \fBoldlibs\fP and \fBnon-free/math\fP
-  (by policy and some other programs also called subsections).
+Things like \fBbase\fP, \fBinterpreters\fP, \fBoldlibs\fP and \fBnon\-free/math\fP
+(by policy and some other programs also called subsections).
 .TP
 .B md5sum
 The checksum of a file in the format
@@ -869,10 +886,57 @@ Increased verbosity always shows those things one does not want to know.
 While the source part is mostly considered as the architecture
 .B source
 some parts may still not use this notation.
+.SH "WORK-AROUNDS TO COMMON PROBLEMS"
+.TP
+.B gpgme returned an impossible condition
+With the woody version this normaly meant that there was no .gnupg
+directory in $HOME, but it created one and reprepro succeeds when called
+again with the same command.
+Since sarge the problem sometimes shows up, too. But it is no longer
+reproducible and it does not fix itself, neighter. Try running
+\fBgpg \-\-verify \fP\fIfile-you-had-problems-with\fP manually as the
+user reprepro is running and with the same $HOME. This alone might
+fix the problem. It should not print any messages except perhaps
+.br
+gpg: no valid OpenPGP data found.
+.br
+gpg: the signature could not be verified.
+.br
+if it was an unsigned file.
+.TP
+.B not including .orig.tar.gz when a .changes file's version does not end in \-0 or \-1
+If dpkg\-buildpackage is run without the \fB\-sa\fP option to build a version with
+a Debian revision not being \-0 or \-1, it does not list the \fB.orig.tar.gz\fP file
+in the \fB.changes\fP file.
+If you want to \fBinclude\fP such a file with repepro
+when the .orig.tar.gz file does not already exist in the pool, reprepro will report
+an error.
+This can be worked around by:
+.br
+call \fBdpkg\-buildpackage\fP with \fB\-sa\fP (recommended)
+.br
+copy the .orig.tar.gz file to the proper place in the pool before
+.br
+call reprepro with \-\-ignore=missingfile (discouraged)
+.TP
+.B leftover files in the pool directory.
+reprepro is sometimes a bit too timid of deleting stuff. When things
+go wrong and there have been errors it sometimes just leaves everything
+where it is.
+To see what files reprepro rememberes to be in your pool directory but
+does not know anything needing them right know, you can use
+.br
+\fBreprepro dumpunreferenced\fP
+.br
+To delete them:
+.br
+\fBreprepro deleteunreferenced\fP
 .SH "REPORTING BUGS"
-Report bugs to <brlink@debian.org> or the Debian BTS.
+Report bugs or wishlist requests to <brlink@debian.org>
+.br
+or the Debian BTS (e.g. by using \fBreportbug reperepro\fP)
 .SH COPYRIGHT
-Copyright \(co 2004,2005 Bernhard R. Link
+Copyright \(co 2004,2005,2006 Bernhard R. Link
 .br 
 This is free software; see the source for copying conditions. There is NO
 warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.

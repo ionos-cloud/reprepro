@@ -1,9 +1,8 @@
 /*  This file is part of "reprepro"
  *  Copyright (C) 2003,2004,2005 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
+ *  it under the terms of the GNU General Public License version 2 as 
+ *  published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -306,8 +305,6 @@ retvalue deb_prepare(/*@out@*/struct debpackage **deb,filesdb filesdb,const char
 
 	assert( (givenmd5sum!=NULL && givenfilekey!=NULL ) ||
 		(givenmd5sum==NULL && givenfilekey==NULL ) );
-
-	//TODO: add some check here to make sure it is really a .deb file...
 
 	/* First taking a closer look to the file: */
 
