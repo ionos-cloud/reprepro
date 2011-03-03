@@ -23,6 +23,7 @@
 #include <assert.h>
 
 #include "error.h"
+#include "ignore.h"
 #include "strlist.h"
 #include "indexfile.h"
 #include "dpkgversions.h"
@@ -195,6 +196,15 @@ static retvalue upgradelist_trypackage(struct upgradelist *upgrade, void *privda
 	retvalue r;
 	upgrade_decision decision;
 	struct package_data *current,*insertafter;
+
+	if( architecture == architecture_all ) {
+		if( upgrade->target->packagetype_atom == pt_dsc ) {
+			fputs("Internal error: trying to put binary ('all')"
+					" package into source architecture!\n",
+					stderr);
+			return RET_ERROR_INTERNAL;
+		}
+	}
 
 	/* insertafter = NULL will mean insert before list */
 	insertafter = upgrade->last;
@@ -513,16 +523,44 @@ retvalue upgradelist_pull(struct upgradelist *upgrade, struct target *source, up
 		char *version;
 		architecture_t package_architecture;
 
-		r = upgrade->target->getversion(control, &version);
+		assert (source->packagetype_atom
+				== upgrade->target->packagetype_atom);
+
+		r = source->getversion(control, &version);
 		assert( r != RET_NOTHING );
 		if( !RET_IS_OK(r) ) {
 			RET_UPDATE(result, r);
 			break;
 		}
-		r = upgrade->target->getarchitecture(control, &package_architecture);
+		r = source->getarchitecture(control, &package_architecture);
 		if( !RET_IS_OK(r) ) {
 			RET_UPDATE(result, r);
 			break;
+		}
+		if( package_architecture != upgrade->target->architecture_atom &&
+				package_architecture != architecture_all ) {
+			free(version);
+			continue;
+			if( source->architecture_atom
+			    == upgrade->target->architecture_atom
+			    && !ignore[IGN_wrongarchitecture] ) {
+				fprintf(stderr,
+"WARNING: architecture '%s' package '%s' in '%s'!\n",
+						atoms_architectures[
+						package_architecture],
+						package,
+						source->identifier);
+				if( ignored[IGN_wrongarchitecture] == 0 ) {
+					fprintf(stderr,
+"(expected 'all' or '%s', so ignoring this package, but\n"
+"your database seems to be in a bad state. (Try running 'reprepro check')!)\n",
+						atoms_architectures[
+						source->architecture_atom]);
+				}
+				ignored[IGN_wrongarchitecture]++;
+			}
+			free(version);
+			continue;
 		}
 		r = upgradelist_trypackage(upgrade, privdata,
 				predecide, decide_data,
@@ -649,6 +687,11 @@ retvalue upgradelist_install(struct upgradelist *upgrade, struct logger *logger,
 	for( pkg = upgrade->list ; pkg != NULL ; pkg = pkg->next ) {
 		if( pkg->version == pkg->new_version && !pkg->deleted ) {
 			char *newcontrol;
+
+			assert( (pkg->architecture == architecture_all &&
+				 upgrade->target->packagetype_atom != pt_dsc)
+				|| pkg->architecture ==
+					upgrade->target->architecture_atom);
 
 			r = files_checkorimprove(database,
 					&pkg->new_filekeys,

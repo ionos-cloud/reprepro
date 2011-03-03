@@ -701,7 +701,7 @@ retvalue package_check(struct database *database, UNUSED(struct distribution *di
 	struct checksumsarray files;
 	struct strlist expectedfilekeys;
 	char *dummy, *version;
-	retvalue result,r;
+	retvalue result = RET_OK, r;
 	architecture_t package_architecture;
 
 	r = target->getversion(chunk, &version);
@@ -718,15 +718,24 @@ retvalue package_check(struct database *database, UNUSED(struct distribution *di
 			r = RET_ERROR_MISSING;
 		return r;
 	}
+	/* check if the architecture matches the architecture where this
+	 * package belongs to. */
+	if( target->architecture_atom != package_architecture &&
+	    package_architecture != architecture_all ) {
+		fprintf(stderr, "Wrong architecture '%s' of package '%s' in '%s'!\n",
+				atoms_architectures[package_architecture],
+				package, target->identifier);
+		result = RET_ERROR;
+	}
 	r = target->getinstalldata(target, package, version,
 			package_architecture, chunk, &dummy,
 			&expectedfilekeys, &files);
 	if( RET_WAS_ERROR(r) ) {
 		fprintf(stderr, "Error extracting information of package '%s'!\n",
 				package);
+		result = r;
 	}
 	free(version);
-	result = r;
 	if( RET_IS_OK(r) ) {
 		free(dummy);
 		if( !strlist_subset(&expectedfilekeys, &files.names, NULL) ||

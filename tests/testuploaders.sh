@@ -1,0 +1,210 @@
+#!/bin/bash
+
+set -e
+if [ "x$TESTINCSETUP" != "xissetup" ] ; then
+	source $(dirname $0)/test.inc
+fi
+
+mkdir -p conf
+cat > conf/distributions <<EOF
+Codename: test1
+Components: main
+Architectures: source coal
+Uploaders: uploaders1
+
+Codename: test2
+Components: main
+Architectures: source coal
+Uploaders: uploaders2
+EOF
+
+function checknonetakes() {
+testrun - -b . __checkuploaders test1 test2 < "$1" 3<<EOF
+stdout
+*='testpackage' would NOT have been accepted by any of the distributions selected.
+EOF
+}
+
+function check1takes() {
+testrun - -b . __checkuploaders test1 test2 < "$1" 3<<EOF
+stdout
+*='testpackage' would have been accepted by 'test1'
+EOF
+}
+function check2takes() {
+testrun - -b . __checkuploaders test1 test2 < "$1" 3<<EOF
+stdout
+*='testpackage' would have been accepted by 'test2'
+EOF
+}
+
+cat > descr1 <<EOF
+source testpackage
+architecture source
+EOF
+
+testrun - -b . __checkuploaders test1 test2 < descr1 3<<EOF
+*=Error opening './conf/uploaders1': No such file or directory
+-v0*=There have been errors!
+returns 254
+EOF
+
+cat > conf/uploaders1 <<EOF
+EOF
+
+testrun - -b . __checkuploaders test1 test2 < descr1 3<<EOF
+*=Error opening './conf/uploaders2': No such file or directory
+-v0*=There have been errors!
+returns 254
+EOF
+
+cat > conf/uploaders2 <<EOF
+allow source 'testpackage' by unsigned
+EOF
+
+check2takes descr1
+
+cat > descrbad <<EOF
+unknowncommand
+EOF
+
+testrun - -b . __checkuploaders test1 test2 < descrbad 3<<EOF
+*=Unparseable line 'unknowncommand'
+-v0*=There have been errors!
+returns 255
+EOF
+
+cat > descrbad <<EOF
+architecture source
+EOF
+
+testrun - -b . __checkuploaders test1 test2 < descrbad 3<<EOF
+*=No source name specified!
+-v0*=There have been errors!
+returns 255
+EOF
+
+cat > descres <<EOF
+source testpackage
+architecture source
+signature e0000000000000000
+EOF
+cat > descrs <<EOF
+source testpackage
+architecture source
+signature 0000000000000000
+EOF
+
+checknonetakes descres
+checknonetakes descrs
+
+echo "now test2 accepts all valid signatures for testpackage"
+cat >> conf/uploaders2 <<EOF
+allow source 'testpackage' by any key
+EOF
+
+check2takes descrs
+checknonetakes descres
+
+cat >>conf/uploaders1 <<EOF
+group test
+EOF
+testrun - -b . __checkuploaders test1 test2 < descrbad 3<<EOF
+*=./conf/uploaders1:1:11: missing 'add', 'contains', 'unused' or 'empty' keyword.
+-v0*=There have been errors!
+returns 255
+EOF
+
+cat >conf/uploaders1 <<EOF
+group test add
+EOF
+
+testrun - -b . __checkuploaders test1 test2 < descrbad 3<<EOF
+*=./conf/uploaders1:1:15: key id or fingerprint expected!
+-v0*=There have been errors!
+returns 255
+EOF
+
+cat >conf/uploaders1 <<EOF
+group test add 00000000
+EOF
+
+testrun - -b . __checkuploaders test1 test2 < descres 3<<EOF
+-v0*=./conf/uploaders1:1: Warning: group 'test' gets members but is not used in any rule
+stdout
+*='testpackage' would NOT have been accepted by any of the distributions selected.
+EOF
+
+cat >>conf/uploaders1 <<EOF
+group test unused
+EOF
+
+checknonetakes descres
+
+cat >>conf/uploaders1 <<EOF
+allow * by group test
+EOF
+
+testrun - -b . __checkuploaders test1 test2 < descrbad 3<<EOF
+*=./conf/uploaders1:3: cannot use group 'test' marked as unused in line 2.
+-v0*=There have been errors!
+returns 255
+EOF
+
+cat >conf/uploaders1 <<EOF
+group test add 00000000
+group test unused
+allow * by group tset
+EOF
+
+testrun - -b . __checkuploaders test1 test2 < descres 3<<EOF
+-v0*=./conf/uploaders1:3: Warning: group 'tset' gets used but never gets any members
+stdout
+*='testpackage' would NOT have been accepted by any of the distributions selected.
+EOF
+
+cat >>conf/uploaders1 <<EOF
+group tset contains test
+EOF
+
+testrun - -b . __checkuploaders test1 test2 < descres 3<<EOF
+*=./conf/uploaders1:4: cannot use group 'test' marked as unused in line 2.
+-v0*=There have been errors!
+returns 255
+EOF
+
+sed -e '/unused/d' -i conf/uploaders1
+
+check1takes descrs
+checknonetakes descres
+
+cat >>conf/uploaders1 <<EOF
+group test contains indirection
+group indirection contains test
+EOF
+
+testrun - -b . __checkuploaders test1 test2 < descres 3<<EOF
+*=./conf/uploaders1:5: cannot add group 'test' to group 'indirection' as the later is already member of the former!
+-v0*=There have been errors!
+returns 255
+EOF
+
+cat >conf/uploaders1 <<EOF
+group group add 76543210
+group foo add 00000000
+group bla contains group
+group blub contains foo
+allow * by group bla
+allow architectures contain 'coal' by group blub
+EOF
+
+check2takes descrs
+sed -e 's/0000000000000000/fedcba9876543210/g' descrs >> descr2
+sed -e 's/0000000000000000/fedcba9876542210/g' descrs >> descr3
+echo "architecture coal" >> descrs
+check1takes descrs
+check1takes descr2
+check2takes descr3
+
+rm -r conf descr*
+testsuccess

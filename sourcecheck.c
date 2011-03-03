@@ -208,10 +208,10 @@ static retvalue process_binaries(struct database *db, struct distribution *d, st
 				continue;
 			}
 			s = sources;
-			while (s != NULL && strcmp(source, s->name) < 0) {
+			while (s != NULL && strcmp(s->name, source) < 0) {
 				s = s->next;
 			}
-			if (strcmp(source, s->name) == 0) {
+			if (s != NULL && strcmp(source, s->name) == 0) {
 				v = &s->version;
 				while (v != NULL && strcmp(version, v->version) != 0)
 					v = v->next;

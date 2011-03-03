@@ -1,3 +1,9 @@
+Updates between 4.5.0 and 4.5.1:
+- 'check' also checks if architectures match
+- buffix in 'sourcemissing', 'unusedsources' and 'reportcruft' without tracking
+- fix 'pull' copying packages with wrong architecture
+- compile with libdb5
+
 Updates between 4.4.0 and 4.5.0:
 - support reading of Release files without MD5Sum
 - add all missing Checksums-* when importing from remote repositories

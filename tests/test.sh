@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# This needs installed:
+# apt, dpkg-dev, ed, python-apt, lzma
+# it will fail if run over a changing hour
+
 set -e
 
 source $(dirname $0)/test.inc

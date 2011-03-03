@@ -233,6 +233,9 @@ static retvalue database_opentable(UNUSED(struct database *database), const char
 		}
 	}
 
+#if DB_VERSION_MAJOR == 5
+#define DB_OPEN(database,filename,name,type,flags) database->open(database,NULL,filename,name,type,flags,0664)
+#else
 #if DB_VERSION_MAJOR == 4
 #define DB_OPEN(database,filename,name,type,flags) database->open(database,NULL,filename,name,type,flags,0664)
 #else
@@ -240,6 +243,7 @@ static retvalue database_opentable(UNUSED(struct database *database), const char
 #define DB_OPEN(database,filename,name,type,flags) database->open(database,filename,name,type,flags,0664)
 #else
 #error Unexpected DB_VERSION_MAJOR!
+#endif
 #endif
 #endif
 	dbret = DB_OPEN(table, fullfilename, subtable, types[type], flags);

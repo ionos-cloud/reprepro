@@ -656,7 +656,7 @@ retvalue filelistcompressor_finish(struct filelistcompressor *c, /*@out@*/char *
 		free(c->filelist);
 		return RET_ERROR_OOM;
 	}
-	c->filelist[c->len] = '\0';
+	l[c->len] = '\0';
 	*list = l;
 	*size = c->len+1;
 	return RET_OK;
