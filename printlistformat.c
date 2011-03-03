@@ -29,6 +29,7 @@
 #include "atoms.h"
 #include "chunks.h"
 #include "target.h"
+#include "distribution.h"
 #include "printlistformat.h"
 
 retvalue listformat_print(const char *listformat, const struct target *target, const char *package, const char *control) {
@@ -102,7 +103,7 @@ retvalue listformat_print(const char *listformat, const struct target *target, c
 		} else if( q - p == 10 &&
 				strncasecmp(p, "{$codename", 10) == 0 ) {
 			value = NULL;
-			v = target->codename;
+			v = target->distribution->codename;
 		} else if( q - p == 14 &&
 				strncasecmp(p, "{$architecture", 14) == 0 ) {
 			value = NULL;

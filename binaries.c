@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005,2006,2007,2009 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2006,2007,2009,2010 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -266,8 +266,8 @@ retvalue binaries_getchecksums(const char *chunk, struct checksumsarray *filekey
 	return RET_OK;
 }
 
-retvalue binaries_doreoverride(const struct distribution *distribution,const char *packagename,const char *controlchunk,/*@out@*/char **newcontrolchunk) {
-	const struct overrideinfo *o;
+retvalue binaries_doreoverride(const struct target *target, const char *packagename, const char *controlchunk, /*@out@*/char **newcontrolchunk) {
+	const struct overridedata *o;
 	struct fieldtoadd *fields;
 	char *newchunk;
 	retvalue r;
@@ -275,7 +275,7 @@ retvalue binaries_doreoverride(const struct distribution *distribution,const cha
 	if( interrupted() )
 		return RET_ERROR_INTERRUPTED;
 
-	o = override_search(distribution->overrides.deb, packagename);
+	o = override_search(target->distribution->overrides.deb, packagename);
 	if( o == NULL )
 		return RET_NOTHING;
 
@@ -290,15 +290,15 @@ retvalue binaries_doreoverride(const struct distribution *distribution,const cha
 	return RET_OK;
 }
 
-retvalue ubinaries_doreoverride(const struct distribution *distribution,const char *packagename,const char *controlchunk,/*@out@*/char **newcontrolchunk) {
-	const struct overrideinfo *o;
+retvalue ubinaries_doreoverride(const struct target *target, const char *packagename, const char *controlchunk, /*@out@*/char **newcontrolchunk) {
+	const struct overridedata *o;
 	struct fieldtoadd *fields;
 	char *newchunk;
 
 	if( interrupted() )
 		return RET_ERROR_INTERRUPTED;
 
-	o = override_search(distribution->overrides.udeb, packagename);
+	o = override_search(target->distribution->overrides.udeb, packagename);
 	if( o == NULL )
 		return RET_NOTHING;
 
@@ -542,7 +542,7 @@ retvalue binaries_readdeb(struct deb_headers *deb, const char *filename, bool ne
 }
 
 /* do overwrites, add Filename and Checksums to the control-item */
-retvalue binaries_complete(const struct deb_headers *pkg, const char *filekey, const struct checksums *checksums, const struct overrideinfo *override, const char *section, const char *priority, char **newcontrol) {
+retvalue binaries_complete(const struct deb_headers *pkg, const char *filekey, const struct checksums *checksums, const struct overridedata *override, const char *section, const char *priority, char **newcontrol) {
 	struct fieldtoadd *replace;
 	char *newchunk;
 	enum checksumtype type;

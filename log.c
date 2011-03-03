@@ -37,6 +37,7 @@
 #include "atoms.h"
 #include "dirs.h"
 #include "target.h"
+#include "distribution.h"
 #include "configparser.h"
 #include "log.h"
 #include "filecntl.h"
@@ -148,7 +149,7 @@ static retvalue logfile_write(struct logfile *logfile,struct target *target,cons
 		if( version != NULL && oldversion != NULL )
 			ret = dprintf(logfile->fd,
 "EEEE-EE-EE EE:EE:EE replace %s %s %s %s %s %s %s\n",
-				target->codename,
+				target->distribution->codename,
 				atoms_packagetypes[target->packagetype_atom],
 				atoms_components[target->component_atom],
 				atoms_architectures[target->architecture_atom],
@@ -156,7 +157,7 @@ static retvalue logfile_write(struct logfile *logfile,struct target *target,cons
 		else if( version != NULL )
 			ret = dprintf(logfile->fd,
 "EEEE-EE-EE EE:EE:EE add %s %s %s %s %s %s\n",
-				target->codename,
+				target->distribution->codename,
 				atoms_packagetypes[target->packagetype_atom],
 				atoms_components[target->component_atom],
 				atoms_architectures[target->architecture_atom],
@@ -164,7 +165,7 @@ static retvalue logfile_write(struct logfile *logfile,struct target *target,cons
 		else
 			ret = dprintf(logfile->fd,
 "EEEE-EE-EE EE:EE:EE remove %s %s %s %s %s %s\n",
-				target->codename,
+				target->distribution->codename,
 				atoms_packagetypes[target->packagetype_atom],
 				atoms_components[target->component_atom],
 				atoms_architectures[target->architecture_atom],
@@ -175,7 +176,7 @@ static retvalue logfile_write(struct logfile *logfile,struct target *target,cons
 			1900+t.tm_year, t.tm_mon+1,
 			t.tm_mday, t.tm_hour,
 			t.tm_min, t.tm_sec,
-			target->codename,
+			target->distribution->codename,
 			atoms_packagetypes[target->packagetype_atom],
 			atoms_components[target->component_atom],
 			atoms_architectures[target->architecture_atom],
@@ -186,7 +187,7 @@ static retvalue logfile_write(struct logfile *logfile,struct target *target,cons
 			1900+t.tm_year, t.tm_mon+1,
 			t.tm_mday, t.tm_hour,
 			t.tm_min, t.tm_sec,
-			target->codename,
+			target->distribution->codename,
 			atoms_packagetypes[target->packagetype_atom],
 			atoms_components[target->component_atom],
 			atoms_architectures[target->architecture_atom],
@@ -197,7 +198,7 @@ static retvalue logfile_write(struct logfile *logfile,struct target *target,cons
 			1900+t.tm_year, t.tm_mon+1,
 			t.tm_mday, t.tm_hour,
 			t.tm_min, t.tm_sec,
-			target->codename,
+			target->distribution->codename,
 			atoms_packagetypes[target->packagetype_atom],
 			atoms_components[target->component_atom],
 			atoms_architectures[target->architecture_atom],
@@ -841,7 +842,7 @@ static retvalue notificator_enqueue(struct notificator *n, struct target *target
 	i = 0;
 	arguments[i++] = strdup(n->scriptname);
 	arguments[i++] = strdup(action);
-	arguments[i++] = strdup(target->codename);
+	arguments[i++] = strdup(target->distribution->codename);
 	arguments[i++] = strdup(atoms_packagetypes[target->packagetype_atom]);
 	arguments[i++] = strdup(atoms_components[target->component_atom]);
 	arguments[i++] = strdup(atoms_architectures[target->architecture_atom]);

@@ -22,7 +22,7 @@ struct distribution;
 #ifndef REPREPRO_CONTENTS_H
 #include "contents.h"
 #endif
-struct overrideinfo;
+struct overridefile;
 struct uploaders;
 
 struct distribution {
@@ -50,7 +50,7 @@ struct distribution {
 	/*@null@*/char *fakecomponentprefix;
 	/* only loaded when you've done it yourself: */
 	struct {
-		/*@null@*/struct overrideinfo *dsc,*deb,*udeb;
+		/*@null@*/struct overridefile *dsc, *deb, *udeb;
 	} overrides;
 	/* the list of components containing a debian-installer dir, normally only "main" */
 	struct atomlist udebcomponents;

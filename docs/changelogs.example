@@ -67,7 +67,7 @@ addsource() {
 }
 delsource() {
 	DSCFILE="$1"
-	TARGETDIR=changelogs/"$(echo $DSCFILE | sed -e 's/\.dsc$//')"
+	TARGETDIR="$CHANGELOGDIR"/"$(echo $DSCFILE | sed -e 's/\.dsc$//')"
 	SUBDIR="$(basename $TARGETDIR)"
 	BASEDIR="$(dirname $TARGETDIR)"
 	if [ "x$JUSTADDED" = "x$TARGETDIR" ] ; then

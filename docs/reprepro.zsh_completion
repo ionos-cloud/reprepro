@@ -291,6 +291,7 @@ _arguments \
 		malformedchunk\:"ignore lines without colons"\
 		unknownfield\:"ignore unknown fields"\
 		wrongdistribution\:"put .changes files in distributed they were not made for"\
+		wrongarchitecture\:"do not warn about wrong Architecture fields in downloaded Packages files"\
 		missingfield\:"allow missing fields"\
 		brokenold\:"ignore broken packages in database"\
 		brokenversioncmp\:"ignore versions not parseable"\
@@ -318,7 +319,7 @@ _arguments \
 		extension unusedarch surprisingarch surprisingbinary\
 		wrongsourceversion wrongversion brokensignatures\
 		missingfile uploaders undefinedtarget undefinedtracking\
-		expiredkey expiredsignature revokedkey)' \
+		expiredkey expiredsignature revokedkey wrongarchitecture)' \
 	'--waitforlock=[Time to wait if database is locked]:count:(0 3600)' \
 	'--spacecheck[Mode for calculating free space before downloading packages]:behavior:(full none)' \
 	'--dbsafetymargin[Safety margin for the partition with the database]:bytes count:' \

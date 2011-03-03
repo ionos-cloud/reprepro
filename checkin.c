@@ -514,7 +514,7 @@ static retvalue changes_fixfields(const struct distribution *distribution, const
 	}
 
 	for( ; e != NULL ; e = e->next ) {
-		const struct overrideinfo *oinfo = NULL;
+		const struct overridedata *oinfo = NULL;
 		const char *force = NULL;
 
 		if( e->type == fe_BYHAND || e->type == fe_LOG ) {
@@ -567,6 +567,20 @@ static retvalue changes_fixfields(const struct distribution *distribution, const
 		if( strcmp(e->priority,"-") == 0 ) {
 			fprintf(stderr,"No priority specified for '%s'!\n",filename);
 			return RET_ERROR;
+		}
+		if( !atom_defined(forcecomponent) ) {
+			const char *fc;
+
+			fc = override_get(oinfo, "$Component");
+			if( fc != NULL ) {
+				forcecomponent = component_find(fc);
+				if( !atom_defined(forcecomponent) ) {
+					fprintf(stderr,
+"Unparseable component '%s' in $Component override of '%s'\n",
+						fc, e->name);
+					return RET_ERROR;
+				}
+			}
 		}
 
 		// I'm undecided here. If this is a udeb, one could also use
@@ -987,7 +1001,7 @@ static retvalue changes_check_sourcefile(struct changes *changes, struct fileent
 
 static retvalue dsc_prepare(struct changes *changes, struct fileentry *dsc, struct database *database, struct distribution *distribution, const char *dscfilename){
 	retvalue r;
-	const struct overrideinfo *oinfo;
+	const struct overridedata *oinfo;
 	char *dscbasename;
 	char *control;
 	int i;

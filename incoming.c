@@ -921,9 +921,10 @@ static retvalue candidate_usefile(const struct incoming *i,const struct candidat
 	return RET_OK;
 }
 
-static inline retvalue getsectionprioritycomponent(const struct incoming *i, const struct candidate *c, const struct distribution *into, const struct candidate_file *file, const char *name, const struct overrideinfo *oinfo, /*@out@*/const char **section_p, /*@out@*/const char **priority_p, /*@out@*/component_t *component) {
+static inline retvalue getsectionprioritycomponent(const struct incoming *i, const struct candidate *c, const struct distribution *into, const struct candidate_file *file, const char *name, const struct overridedata *oinfo, /*@out@*/const char **section_p, /*@out@*/const char **priority_p, /*@out@*/component_t *component) {
 	retvalue r;
-	const char *section, *priority;
+	const char *section, *priority, *forcecomponent;
+	component_t fc;
 
 	section = override_get(oinfo, SECTION_FIELDNAME);
 	if( section == NULL ) {
@@ -948,9 +949,22 @@ static inline retvalue getsectionprioritycomponent(const struct incoming *i, con
 		return RET_ERROR;
 	}
 
+	forcecomponent = override_get(oinfo, "$Component");
+	if( forcecomponent != NULL ) {
+		fc = component_find(forcecomponent);
+		if( !atom_defined(fc)) {
+			fprintf(stderr,
+"Unknown component '%s' (in $Component in override file for '%s'\n",
+					forcecomponent, name);
+			return RET_ERROR;
+		}
+		/* guess_component will check if that is valid for this
+		 * distribution */
+	} else
+		fc = atom_unknown;
 	r = guess_component(into->codename, &into->components,
 			BASENAME(i,file->ofs), section,
-			atom_unknown, component);
+			fc, component);
 	if( RET_WAS_ERROR(r) ) {
 		return r;
 	}
@@ -1116,7 +1130,7 @@ static retvalue candidate_preparechangesfile(struct database *database,const str
 
 static retvalue prepare_deb(struct database *database,const struct incoming *i,const struct candidate *c,struct candidate_perdistribution *per,const struct candidate_file *file) {
 	const char *section IFSTUPIDCC(=NULL), *priority IFSTUPIDCC(=NULL), *filekey;
-	const struct overrideinfo *oinfo;
+	const struct overridedata *oinfo;
 	struct candidate_package *package;
 	const struct distribution *into = per->into;
 	retvalue r;
@@ -1249,7 +1263,7 @@ static retvalue prepare_source_file(struct database *database, const struct inco
 
 static retvalue prepare_dsc(struct database *database,const struct incoming *i,const struct candidate *c,struct candidate_perdistribution *per,const struct candidate_file *file) {
 	const char *section IFSTUPIDCC(=NULL), *priority IFSTUPIDCC(=NULL);
-	const struct overrideinfo *oinfo;
+	const struct overridedata *oinfo;
 	struct candidate_package *package;
 	const struct distribution *into = per->into;
 	retvalue r;

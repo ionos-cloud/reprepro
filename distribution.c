@@ -139,7 +139,7 @@ static retvalue createtargets(struct distribution *distribution) {
 			}
 
 			r = target_initialize_binary(
-					distribution->codename,
+					distribution,
 					c, a,
 					&distribution->deb,
 					distribution->readonly,
@@ -157,7 +157,7 @@ static retvalue createtargets(struct distribution *distribution) {
 				return r;
 			if( atomlist_in(&distribution->udebcomponents, c) ) {
 				r = target_initialize_ubinary(
-						distribution->codename,
+						distribution,
 						c, a,
 						&distribution->udeb,
 						distribution->readonly,
@@ -180,7 +180,7 @@ static retvalue createtargets(struct distribution *distribution) {
 		 * (yes, yes, source is not really an architecture, but
 		 *  the .changes files started with this...) */
 		if( has_source ) {
-			r = target_initialize_source(distribution->codename,
+			r = target_initialize_source(distribution,
 					c, &distribution->dsc,
 					distribution->readonly,
 					distribution->fakecomponentprefix, &t);
@@ -1023,21 +1023,24 @@ retvalue distribution_loadalloverrides(struct distribution *distribution) {
 	retvalue r;
 
 	if( distribution->overrides.deb == NULL ) {
-		r = override_read(distribution->deb_override, &distribution->overrides.deb);
+		r = override_read(distribution->deb_override,
+				&distribution->overrides.deb, false);
 		if( RET_WAS_ERROR(r) ) {
 			distribution->overrides.deb = NULL;
 			return r;
 		}
 	}
 	if( distribution->overrides.udeb == NULL ) {
-		r = override_read(distribution->udeb_override, &distribution->overrides.udeb);
+		r = override_read(distribution->udeb_override,
+				&distribution->overrides.udeb, false);
 		if( RET_WAS_ERROR(r) ) {
 			distribution->overrides.udeb = NULL;
 			return r;
 		}
 	}
 	if( distribution->overrides.dsc == NULL ) {
-		r = override_read(distribution->dsc_override, &distribution->overrides.dsc);
+		r = override_read(distribution->dsc_override,
+				&distribution->overrides.dsc, true);
 		if( RET_WAS_ERROR(r) ) {
 			distribution->overrides.dsc = NULL;
 			return r;

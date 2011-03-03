@@ -32,12 +32,13 @@ typedef retvalue get_installdata(const struct target *, const char *, const char
 /* md5sums may be NULL */
 typedef retvalue get_filekeys(const char *, /*@out@*/struct strlist *);
 typedef retvalue get_checksums(const char *, /*@out@*/struct checksumsarray *);
-typedef retvalue do_reoverride(const struct distribution *,const char *packagename,const char *controlchunk,/*@out@*/char **newcontrolchunk);
+typedef retvalue do_reoverride(const struct target *, const char *packagename, const char *controlchunk, /*@out@*/char **newcontrolchunk);
 typedef retvalue do_retrack(const char *packagename, const char *controlchunk, trackingdb, struct database *);
 typedef retvalue get_sourceandversion(const char *chunk, const char *packagename, /*@out@*/char **source, /*@out@*/char **version);
 
+struct distribution;
 struct target {
-	char *codename;
+	struct distribution *distribution;
 	component_t component_atom;
 	architecture_t architecture_atom;
 	packagetype_t packagetype_atom;
@@ -70,9 +71,9 @@ struct target {
 	bool staletracking;
 };
 
-retvalue target_initialize_ubinary(const char *codename, component_t, architecture_t, /*@dependent@*/const struct exportmode *, bool readonly, /*@NULL@*/const char *fakecomponentprefix, /*@out@*/struct target **);
-retvalue target_initialize_binary(const char *codename, component_t, architecture_t, /*@dependent@*/const struct exportmode *, bool readonly, /*@NULL@*/const char *fakecomponentprefix, /*@out@*/struct target **);
-retvalue target_initialize_source(const char *codename, component_t, /*@dependent@*/const struct exportmode *, bool readonly, /*@NULL@*/const char *fakecomponentprefix, /*@out@*/struct target **);
+retvalue target_initialize_ubinary(/*@dependant@*/struct distribution *, component_t, architecture_t, /*@dependent@*/const struct exportmode *, bool readonly, /*@NULL@*/const char *fakecomponentprefix, /*@out@*/struct target **);
+retvalue target_initialize_binary(/*@dependant@*/struct distribution *, component_t, architecture_t, /*@dependent@*/const struct exportmode *, bool readonly, /*@NULL@*/const char *fakecomponentprefix, /*@out@*/struct target **);
+retvalue target_initialize_source(/*@dependant@*/struct distribution *, component_t, /*@dependent@*/const struct exportmode *, bool readonly, /*@NULL@*/const char *fakecomponentprefix, /*@out@*/struct target **);
 retvalue target_free(struct target *target);
 
 retvalue target_export(struct target *target, struct database *, bool onlyneeded, bool snapshot, struct release *release);

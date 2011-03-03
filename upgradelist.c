@@ -265,6 +265,7 @@ static retvalue upgradelist_trypackage(struct upgradelist *upgrade, void *privda
 	if( current == NULL ) {
 		/* adding a package not yet known */
 		struct package_data *new;
+		char *newcontrol;
 
 		decision = predecide(predecide_data, upgrade->target,
 				packagename_const, NULL, version, chunk);
@@ -309,6 +310,17 @@ static retvalue upgradelist_trypackage(struct upgradelist *upgrade, void *privda
 			package_data_free(new);
 			return r;
 		}
+		/* apply override data */
+		r = upgrade->target->doreoverride(upgrade->target,
+				new->name, new->new_control, &newcontrol);
+		if( RET_WAS_ERROR(r) ) {
+			package_data_free(new);
+			return r;
+		}
+		if( RET_IS_OK(r) ) {
+			free(new->new_control);
+			new->new_control = newcontrol;
+		}
 		if( insertafter != NULL ) {
 			new->next = insertafter->next;
 			insertafter->next = new;
@@ -319,7 +331,7 @@ static retvalue upgradelist_trypackage(struct upgradelist *upgrade, void *privda
 		upgrade->last = new;
 	} else {
 		/* The package already exists: */
-		char *control;
+		char *control, *newcontrol;
 		struct strlist files;
 		struct checksumsarray origfiles;
 		int versioncmp;
@@ -423,6 +435,20 @@ static retvalue upgradelist_trypackage(struct upgradelist *upgrade, void *privda
 		if( RET_WAS_ERROR(r) ) {
 			free(version);
 			return r;
+		}
+		/* apply override data */
+		r = upgrade->target->doreoverride(upgrade->target,
+				packagename_const, control, &newcontrol);
+		if( RET_WAS_ERROR(r) ) {
+			free(version);
+			free(control);
+			strlist_done(&files);
+			checksumsarray_done(&origfiles);
+			return r;
+		}
+		if( RET_IS_OK(r) ) {
+			free(control);
+			control = newcontrol;
 		}
 		current->deleted = false;
 		free(current->new_version);

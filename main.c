@@ -2397,10 +2397,10 @@ ACTION_D(y, y, y, includedeb) {
 
 	if( isudeb )
 		result = override_read( distribution->udeb_override,
-				&distribution->overrides.udeb);
+				&distribution->overrides.udeb, false);
 	else
 		result = override_read( distribution->deb_override,
-				&distribution->overrides.deb);
+				&distribution->overrides.deb, false);
 	if( RET_WAS_ERROR(result) ) {
 		return result;
 	}
@@ -2497,7 +2497,7 @@ ACTION_D(y, y, y, includedsc) {
 		return RET_ERROR;
 	}
 	result = override_read(distribution->dsc_override,
-			&distribution->overrides.dsc);
+			&distribution->overrides.dsc, true);
 	if( RET_WAS_ERROR(result) ) {
 		return result;
 	}

@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005,2006,2007,2008,2009 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2006,2007,2008,2009,2010 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -322,8 +322,8 @@ retvalue sources_getchecksums(const char *chunk, struct checksumsarray *out) {
 	return RET_OK;
 }
 
-retvalue sources_doreoverride(const struct distribution *distribution,const char *packagename,const char *controlchunk,/*@out@*/char **newcontrolchunk) {
-	const struct overrideinfo *o;
+retvalue sources_doreoverride(const struct target *target, const char *packagename, const char *controlchunk, /*@out@*/char **newcontrolchunk) {
+	const struct overridedata *o;
 	struct fieldtoadd *fields;
 	char *newchunk;
 	retvalue r;
@@ -331,7 +331,7 @@ retvalue sources_doreoverride(const struct distribution *distribution,const char
 	if( interrupted() )
 		return RET_ERROR_INTERRUPTED;
 
-	o = override_search(distribution->overrides.dsc, packagename);
+	o = override_search(target->distribution->overrides.dsc, packagename);
 	if( o == NULL )
 		return RET_NOTHING;
 
@@ -545,7 +545,7 @@ void sources_done(struct dsc_headers *dsc) {
 	free(dsc->priority);
 }
 
-retvalue sources_complete(const struct dsc_headers *dsc, const char *directory, const struct overrideinfo *override, const char *section, const char *priority, char **newcontrol) {
+retvalue sources_complete(const struct dsc_headers *dsc, const char *directory, const struct overridedata *override, const char *section, const char *priority, char **newcontrol) {
 	retvalue r;
 	struct fieldtoadd *name;
 	struct fieldtoadd *replace;

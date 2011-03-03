@@ -104,7 +104,7 @@ _reprepro()
 		brokenversioncmp extension unusedarch surprisingarch\
 		surprisingbinary wrongsourceversion wrongversion dscinbinnmu\
 		brokensignatures uploaders missingfile\
-	       	expiredkey expiredsignature revokedkey'
+	       	expiredkey expiredsignature revokedkey wrongarchitecture'
 	noargoptions='--delete --nodelete --help -h --verbose -v\
 	--nothingiserror --nolistsdownload --keepunreferencedfiles --keepunusednewfiles\
 	--keepdirectories --keeptemporaries --keepuneededlists\

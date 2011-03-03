@@ -164,7 +164,7 @@ retvalue dsc_add(struct database *database, component_t forcecomponent, const ch
 	struct dscpackage *pkg;
 	struct trackingdata trackingdata;
 	char *destdirectory, *origdirectory;
-	const struct overrideinfo *oinfo;
+	const struct overridedata *oinfo;
 	char *control;
 	int i;
 
@@ -279,6 +279,20 @@ retvalue dsc_add(struct database *database, component_t forcecomponent, const ch
 		free(origdirectory);
 		dsc_free(pkg);
 		return RET_ERROR;
+	}
+	if( !atom_defined(forcecomponent) ) {
+		const char *fc;
+
+		fc = override_get(oinfo, "$Component");
+		if( fc != NULL ) {
+			forcecomponent = component_find(fc);
+			if( !atom_defined(forcecomponent) ) {
+				fprintf(stderr,
+"Unparseable component '%s' in $Component override of '%s'\n",
+					fc, pkg->dsc.name);
+				return RET_ERROR;
+			}
+		}
 	}
 
 	/* decide where it has to go */

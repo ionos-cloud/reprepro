@@ -14,15 +14,15 @@
 
 
 /* Functions for the target.h-stuff: */
-retvalue binaries_getversion(const char *chunk,char **version);
-retvalue binaries_getinstalldata(const struct target *t, const char *packagename, const char *version, architecture_t, const char *chunk, /*@out@*/char **control, /*@out@*/struct strlist *filekeys, /*@out@*/struct checksumsarray *origfiles);
-retvalue binaries_getarchitecture(const char *chunk, /*@out@*/architecture_t *);
-retvalue binaries_getfilekeys(const char *chunk, /*@out@*/struct strlist *);
-retvalue binaries_getchecksums(const char *chunk, /*@out@*/struct checksumsarray *);
-retvalue binaries_doreoverride(const struct distribution *,const char *packagename,const char *controlchunk,/*@out@*/char **newcontrolchunk);
-retvalue ubinaries_doreoverride(const struct distribution *,const char *packagename,const char *controlchunk,/*@out@*/char **newcontrolchunk);
-retvalue binaries_retrack(const char *packagename, const char *chunk, trackingdb tracks, struct database *);
-retvalue binaries_getsourceandversion(const char *chunk, const char *packagename, char **source, char **version);
+get_version binaries_getversion;
+get_installdata binaries_getinstalldata;
+get_architecture binaries_getarchitecture;
+get_filekeys binaries_getfilekeys;
+get_checksums binaries_getchecksums;
+do_reoverride binaries_doreoverride;
+do_reoverride ubinaries_doreoverride;
+do_retrack binaries_retrack;
+get_sourceandversion binaries_getsourceandversion;
 
 /* Functions for checkindeb.c and incoming.c: */
 
@@ -48,8 +48,8 @@ void binaries_debdone(struct deb_headers *);
 
 retvalue binaries_calcfilekeys(component_t, const struct deb_headers *, packagetype_t, /*@out@*/struct strlist *);
 
-struct overrideinfo;
-retvalue binaries_complete(const struct deb_headers *, const char *filekey, const struct checksums *, const struct overrideinfo *, const char *section, const char *priority, char **newcontrol);
+struct overridedata;
+retvalue binaries_complete(const struct deb_headers *, const char *filekey, const struct checksums *, const struct overridedata *, const char *section, const char *priority, char **newcontrol);
 
 retvalue binaries_adddeb(const struct deb_headers *, struct database *, const struct atomlist *forcedarchitectures, packagetype_t, struct distribution *, /*@null@*/struct trackingdata *, component_t, const struct strlist *filekeys, const char *control);
 retvalue binaries_checkadddeb(const struct deb_headers *, struct database *, architecture_t forcearchitecture, packagetype_t, struct distribution *, bool tracking, component_t, bool permitnewerold);
