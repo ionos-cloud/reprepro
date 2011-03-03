@@ -21,7 +21,7 @@ struct filterlist {
 };
 
 struct configiterator;
-retvalue filterlist_load(/*@out@*/struct filterlist *, const char *confdir, struct configiterator *);
+retvalue filterlist_load(/*@out@*/struct filterlist *, struct configiterator *);
 
 void filterlist_release(struct filterlist *list);
 

@@ -74,18 +74,21 @@
 #define LLONG_MAX __LONG_LONG_MAX__
 #endif
 
+/* global options available to the rest */
+struct global_config global;
+
 /* global options */
 static char /*@only@*/ /*@notnull@*/ // *g*
-	*basedir = NULL,
-	*outdir = NULL,
-	*distdir = NULL,
+	*x_basedir = NULL,
+	*x_outdir = NULL,
+	*x_distdir = NULL,
 	*dbdir = NULL,
-	*listdir = NULL,
-	*confdir = NULL,
-	*logdir = NULL,
+	*x_listdir = NULL,
+	*x_confdir = NULL,
+	*x_logdir = NULL,
 	/* This should have never been a seperate directory, well to late... */
-	*overridedir = NULL,
-	*methoddir = NULL;
+	*x_overridedir = NULL,
+	*x_methoddir = NULL;
 static char /*@only@*/ /*@null@*/
 	*x_section = NULL,
 	*x_priority = NULL,
@@ -117,7 +120,7 @@ static off_t reservedotherspace = 1024*1024;
  * to change something owned by lower owners. */
 enum config_option_owner config_state,
 #define O(x) owner_ ## x = CONFIG_OWNER_DEFAULT
-O(fast), O(outdir), O(basedir), O(distdir), O(dbdir), O(listdir), O(confdir), O(logdir), O(overridedir), O(methoddir), O(x_section), O(x_priority), O(x_component), O(x_architecture), O(x_packagetype), O(nothingiserror), O(nolistsdownload), O(keepunreferenced), O(keepunneededlists), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock), O(spacecheckmode), O(reserveddbspace), O(reservedotherspace), O(guessgpgtty), O(verbosedatabase), O(oldfilesdb);
+O(fast), O(x_outdir), O(x_basedir), O(x_distdir), O(dbdir), O(x_listdir), O(x_confdir), O(x_logdir), O(x_overridedir), O(x_methoddir), O(x_section), O(x_priority), O(x_component), O(x_architecture), O(x_packagetype), O(nothingiserror), O(nolistsdownload), O(keepunreferenced), O(keepunneededlists), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock), O(spacecheckmode), O(reserveddbspace), O(reservedotherspace), O(guessgpgtty), O(verbosedatabase), O(oldfilesdb);
 #undef O
 
 #define CONFIGSET(variable,value) if(owner_ ## variable <= config_state) { \
@@ -554,7 +557,7 @@ ACTION_D(y, n, y, remove) {
 
 	logger_wait();
 
-	r = distribution_export(export, distribution, distdir, database);
+	r = distribution_export(export, distribution, database);
 	RET_ENDUPDATE(result,r);
 
 	if( d.trackingdata != NULL ) {
@@ -670,7 +673,7 @@ ACTION_D(n, n, y, removesrc) {
 						distribution->codename);
 			}
 		} else {
-			r = distribution_export(export, distribution, distdir, database);
+			r = distribution_export(export, distribution, database);
 			RET_ENDUPDATE(result,r);
 		}
 		r = tracking_done(tracks);
@@ -686,7 +689,7 @@ ACTION_D(n, n, y, removesrc) {
 			NULL, NULL, NULL,
 			package_source_fits, dereferenced, NULL,
 			&data);
-	r = distribution_export(export, distribution, distdir, database);
+	r = distribution_export(export, distribution, database);
 	RET_ENDUPDATE(result, r);
 	return result;
 }
@@ -746,7 +749,7 @@ ACTION_D(y, n, y, removefilter) {
 			package_matches_condition, dereferenced,
 			(tracks != NULL)?&trackingdata:NULL,
 			condition);
-	r = distribution_export(export, distribution, distdir, database);
+	r = distribution_export(export, distribution, database);
 	RET_ENDUPDATE(result, r);
 	if( tracks != NULL ) {
 		trackingdata_finish(tracks, &trackingdata,
@@ -952,7 +955,7 @@ ACTION_F(n, n, y, y, export) {
 			printf("Exporting %s...\n",d->codename);
 		}
 
-		r = distribution_fullexport(d, distdir, database);
+		r = distribution_fullexport(d, database);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) && export != EXPORT_FORCE) {
 			return r;
@@ -968,7 +971,7 @@ ACTION_D(n, n, y, update) {
 	struct update_pattern *patterns;
 	struct update_distribution *u_distributions;
 
-	result = dirs_make_recursive(listdir);
+	result = dirs_make_recursive(global.listdir);
 	if( RET_WAS_ERROR(result) ) {
 		return result;
 	}
@@ -978,12 +981,12 @@ ACTION_D(n, n, y, update) {
 	if( RET_WAS_ERROR(result) )
 		return result;
 
-	result = updates_getpatterns(confdir, &patterns);
+	result = updates_getpatterns(&patterns);
 	if( RET_WAS_ERROR(result) )
 		return result;
 	assert( RET_IS_OK(result) );
 
-	result = updates_calcindices(listdir, patterns, alldistributions, fast,
+	result = updates_calcindices(patterns, alldistributions, fast,
 			&u_distributions);
 	if( RET_WAS_ERROR(result) ) {
 		updates_freepatterns(patterns);
@@ -992,16 +995,16 @@ ACTION_D(n, n, y, update) {
 	assert( RET_IS_OK(result) );
 
 	if( !keepunneededlists ) {
-		result = updates_clearlists(listdir,u_distributions);
+		result = updates_clearlists(u_distributions);
 	}
 	if( !RET_WAS_ERROR(result) )
-		result = updates_update(database, methoddir, u_distributions,
+		result = updates_update(database, u_distributions,
 				nolistsdownload, skipold, dereferenced,
 				spacecheckmode, reserveddbspace, reservedotherspace);
 	updates_freeupdatedistributions(u_distributions);
 	updates_freepatterns(patterns);
 
-	r = distribution_exportlist(export, alldistributions, distdir, database);
+	r = distribution_exportlist(export, alldistributions, database);
 	RET_ENDUPDATE(result,r);
 
 	return result;
@@ -1012,7 +1015,7 @@ ACTION_D(n, n, y, predelete) {
 	struct update_pattern *patterns;
 	struct update_distribution *u_distributions;
 
-	result = dirs_make_recursive(listdir);
+	result = dirs_make_recursive(global.listdir);
 	if( RET_WAS_ERROR(result) ) {
 		return result;
 	}
@@ -1022,13 +1025,13 @@ ACTION_D(n, n, y, predelete) {
 	if( RET_WAS_ERROR(result) )
 		return result;
 
-	result = updates_getpatterns(confdir,&patterns);
+	result = updates_getpatterns(&patterns);
 	if( RET_WAS_ERROR(result) ) {
 		return result;
 	}
 	assert( RET_IS_OK(result) );
 
-	result = updates_calcindices(listdir, patterns, alldistributions, fast,
+	result = updates_calcindices(patterns, alldistributions, fast,
 			&u_distributions);
 	if( RET_WAS_ERROR(result) ) {
 		updates_freepatterns(patterns);
@@ -1037,14 +1040,14 @@ ACTION_D(n, n, y, predelete) {
 	assert( RET_IS_OK(result) );
 
 	if( !keepunneededlists ) {
-		result = updates_clearlists(listdir, u_distributions);
+		result = updates_clearlists(u_distributions);
 	}
 	if( !RET_WAS_ERROR(result) )
-		result = updates_predelete(database, methoddir, u_distributions, nolistsdownload, skipold, dereferenced);
+		result = updates_predelete(database, u_distributions, nolistsdownload, skipold, dereferenced);
 	updates_freeupdatedistributions(u_distributions);
 	updates_freepatterns(patterns);
 
-	r = distribution_exportlist(export, alldistributions, distdir, database);
+	r = distribution_exportlist(export, alldistributions, database);
 	RET_ENDUPDATE(result, r);
 
 	return result;
@@ -1055,7 +1058,7 @@ ACTION_D(n, n, y, iteratedupdate) {
 	struct update_pattern *patterns;
 	struct update_distribution *u_distributions;
 
-	result = dirs_make_recursive(listdir);
+	result = dirs_make_recursive(global.listdir);
 	if( RET_WAS_ERROR(result) ) {
 		return result;
 	}
@@ -1065,11 +1068,11 @@ ACTION_D(n, n, y, iteratedupdate) {
 	if( RET_WAS_ERROR(result) )
 		return result;
 
-	result = updates_getpatterns(confdir, &patterns);
+	result = updates_getpatterns(&patterns);
 	if( RET_WAS_ERROR(result) )
 		return result;
 
-	result = updates_calcindices(listdir, patterns, alldistributions, fast,
+	result = updates_calcindices(patterns, alldistributions, fast,
 			&u_distributions);
 	if( RET_WAS_ERROR(result) ) {
 		updates_freepatterns(patterns);
@@ -1077,10 +1080,10 @@ ACTION_D(n, n, y, iteratedupdate) {
 	}
 
 	if( !keepunneededlists ) {
-		result = updates_clearlists(listdir,u_distributions);
+		result = updates_clearlists(u_distributions);
 	}
 	if( !RET_WAS_ERROR(result) )
-		result = updates_iteratedupdate(database, distdir, methoddir, u_distributions, nolistsdownload, skipold, dereferenced, export, spacecheckmode, reserveddbspace, reservedotherspace);
+		result = updates_iteratedupdate(database, u_distributions, nolistsdownload, skipold, dereferenced, export, spacecheckmode, reserveddbspace, reservedotherspace);
 	updates_freeupdatedistributions(u_distributions);
 	updates_freepatterns(patterns);
 
@@ -1092,7 +1095,7 @@ ACTION_B(n, n, y, checkupdate) {
 	struct update_pattern *patterns;
 	struct update_distribution *u_distributions;
 
-	result = dirs_make_recursive(listdir);
+	result = dirs_make_recursive(global.listdir);
 	if( RET_WAS_ERROR(result) ) {
 		return result;
 	}
@@ -1102,19 +1105,19 @@ ACTION_B(n, n, y, checkupdate) {
 	if( RET_WAS_ERROR(result) )
 		return result;
 
-	result = updates_getpatterns(confdir, &patterns);
+	result = updates_getpatterns(&patterns);
 	if( RET_WAS_ERROR(result) ) {
 		return result;
 	}
 
-	result = updates_calcindices(listdir, patterns, alldistributions, fast,
+	result = updates_calcindices(patterns, alldistributions, fast,
 			&u_distributions);
 	if( RET_WAS_ERROR(result) ) {
 		updates_freepatterns(patterns);
 		return result;
 	}
 
-	result = updates_checkupdate(database, methoddir, u_distributions,
+	result = updates_checkupdate(database, u_distributions,
 			nolistsdownload, skipold);
 
 	updates_freeupdatedistributions(u_distributions);
@@ -1134,7 +1137,7 @@ ACTION_D(n, n, y, pull) {
 	if( RET_WAS_ERROR(result) )
 		return result;
 
-	result = pull_getrules(confdir, &rules);
+	result = pull_getrules(&rules);
 	if( RET_WAS_ERROR(result) ) {
 		return result;
 	}
@@ -1150,7 +1153,7 @@ ACTION_D(n, n, y, pull) {
 	pull_freerules(rules);
 	pull_freedistributions(p);
 
-	r = distribution_exportlist(export, alldistributions, distdir, database);
+	r = distribution_exportlist(export, alldistributions, database);
 	RET_ENDUPDATE(result,r);
 
 	return result;
@@ -1166,7 +1169,7 @@ ACTION_B(n, n, y, checkpull) {
 	if( RET_WAS_ERROR(result) )
 		return result;
 
-	result = pull_getrules(confdir,&rules);
+	result = pull_getrules(&rules);
 	if( RET_WAS_ERROR(result) ) {
 		return result;
 	}
@@ -1207,7 +1210,7 @@ ACTION_D(y, n, y, copy) {
 
 	logger_wait();
 
-	r = distribution_export(export, destination, distdir, database);
+	r = distribution_export(export, destination, database);
 	RET_ENDUPDATE(result,r);
 
 	return result;
@@ -1236,7 +1239,7 @@ ACTION_D(y, n, y, copysrc) {
 
 	logger_wait();
 
-	r = distribution_export(export, destination, distdir, database);
+	r = distribution_export(export, destination, database);
 	RET_ENDUPDATE(result,r);
 
 	return result;
@@ -1245,6 +1248,8 @@ ACTION_D(y, n, y, copysrc) {
 ACTION_D(y, n, y, copyfilter) {
 	struct distribution *destination, *source;
 	retvalue result, r;
+
+	assert( argc == 3 );
 
 	result = distribution_get(alldistributions, argv[1], true, &destination);
 	assert( result != RET_NOTHING );
@@ -1264,7 +1269,7 @@ ACTION_D(y, n, y, copyfilter) {
 
 	logger_wait();
 
-	r = distribution_export(export, destination, distdir, database);
+	r = distribution_export(export, destination, database);
 	RET_ENDUPDATE(result,r);
 
 	return result;
@@ -1282,14 +1287,14 @@ ACTION_D(y, n, y, restore) {
 	if( RET_WAS_ERROR(result) )
 		return result;
 
-	r = restore_by_name(distdir, database, destination,
+	r = restore_by_name(database, destination,
 			component, architecture, packagetype, argv[2],
 			argc-3, argv+3, dereferenced);
 	RET_ENDUPDATE(result,r);
 
 	logger_wait();
 
-	r = distribution_export(export, destination, distdir, database);
+	r = distribution_export(export, destination, database);
 	RET_ENDUPDATE(result,r);
 
 	return result;
@@ -1308,14 +1313,14 @@ ACTION_D(y, n, y, restoresrc) {
 	if( RET_WAS_ERROR(result) )
 		return result;
 
-	r = restore_by_source(distdir, database, destination,
+	r = restore_by_source(database, destination,
 			component, architecture, packagetype, argv[2],
 			argc-3, argv+3, dereferenced);
 	RET_ENDUPDATE(result,r);
 
 	logger_wait();
 
-	r = distribution_export(export, destination, distdir, database);
+	r = distribution_export(export, destination, database);
 	RET_ENDUPDATE(result,r);
 
 	return result;
@@ -1325,6 +1330,8 @@ ACTION_D(y, n, y, restorefilter) {
 	struct distribution *destination;
 	retvalue result, r;
 
+	assert( argc == 3 );
+
 	result = distribution_get(alldistributions, argv[1], true, &destination);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
@@ -1333,14 +1340,14 @@ ACTION_D(y, n, y, restorefilter) {
 	if( RET_WAS_ERROR(result) )
 		return result;
 
-	r = restore_by_formula(distdir, database, destination,
+	r = restore_by_formula(database, destination,
 			component, architecture, packagetype, argv[2],
 			argv[3], dereferenced);
 	RET_ENDUPDATE(result,r);
 
 	logger_wait();
 
-	r = distribution_export(export, destination, distdir, database);
+	r = distribution_export(export, destination, database);
 	RET_ENDUPDATE(result,r);
 
 	return result;
@@ -1378,7 +1385,7 @@ ACTION_D(y, n, y, addpackage) {
 
 	logger_wait();
 
-	r = distribution_export(export, destination, distdir, database);
+	r = distribution_export(export, destination, database);
 	RET_ENDUPDATE(result,r);
 
 	return result;
@@ -1696,7 +1703,7 @@ ACTION_F(y, n, y, y, reoverride) {
 			fprintf(stderr,"Reapplying override to %s...\n",d->codename);
 		}
 
-		r = distribution_loadalloverrides(d, confdir, overridedir);
+		r = distribution_loadalloverrides(d);
 		if( RET_IS_OK(r) ) {
 			struct target *t;
 
@@ -1718,7 +1725,7 @@ ACTION_F(y, n, y, y, reoverride) {
 		if( RET_WAS_ERROR(result) )
 			break;
 	}
-	r = distribution_exportlist(export, alldistributions, distdir, database);
+	r = distribution_exportlist(export, alldistributions, database);
 	RET_ENDUPDATE(result,r);
 
 	return result;
@@ -1776,12 +1783,10 @@ ACTION_D(y, y, y, includedeb) {
 	}
 
 	if( isudeb )
-		result = override_read(confdir, overridedir,
-				distribution->udeb_override,
+		result = override_read( distribution->udeb_override,
 				&distribution->overrides.udeb);
 	else
-		result = override_read(confdir, overridedir,
-				distribution->deb_override,
+		result = override_read( distribution->deb_override,
 				&distribution->overrides.deb);
 	if( RET_WAS_ERROR(result) ) {
 		return result;
@@ -1823,7 +1828,7 @@ ACTION_D(y, y, y, includedeb) {
 
 	logger_wait();
 
-	r = distribution_export(export, distribution, distdir, database);
+	r = distribution_export(export, distribution, database);
 	RET_ENDUPDATE(result,r);
 
 	return result;
@@ -1853,8 +1858,7 @@ ACTION_D(y, y, y, includedsc) {
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
-	result = override_read(confdir, overridedir,
-			distribution->dsc_override,
+	result = override_read(distribution->dsc_override,
 			&distribution->overrides.dsc);
 	if( RET_WAS_ERROR(result) ) {
 		return result;
@@ -1881,7 +1885,7 @@ ACTION_D(y, y, y, includedsc) {
 	distribution_unloadoverrides(distribution);
 	r = tracking_done(tracks);
 	RET_ENDUPDATE(result,r);
-	r = distribution_export(export, distribution, distdir, database);
+	r = distribution_export(export, distribution, database);
 	RET_ENDUPDATE(result,r);
 
 	return result;
@@ -1904,7 +1908,7 @@ ACTION_D(y, y, y, include) {
 	if( RET_WAS_ERROR(result) )
 		return result;
 
-	result = distribution_loadalloverrides(distribution, confdir, overridedir);
+	result = distribution_loadalloverrides(distribution);
 	if( RET_WAS_ERROR(result) ) {
 		return result;
 	}
@@ -1917,7 +1921,7 @@ ACTION_D(y, y, y, include) {
 	} else {
 		tracks = NULL;
 	}
-	result = distribution_loaduploaders(distribution, confdir);
+	result = distribution_loaduploaders(distribution);
 	if( RET_WAS_ERROR(result) ) {
 		r = tracking_done(tracks);
 		RET_ENDUPDATE(result,r);
@@ -1934,7 +1938,7 @@ ACTION_D(y, y, y, include) {
 	distribution_unloaduploaders(distribution);
 	r = tracking_done(tracks);
 	RET_ENDUPDATE(result,r);
-	r = distribution_export(export, distribution, distdir, database);
+	r = distribution_export(export, distribution, database);
 	RET_ENDUPDATE(result,r);
 
 	return result;
@@ -1946,7 +1950,7 @@ ACTION_C(n, n, createsymlinks) {
 	retvalue result,r;
 	struct distribution *d,*d2;
 
-	r = dirs_make_recursive(distdir);
+	r = dirs_make_recursive(global.distdir);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
@@ -1988,7 +1992,7 @@ ACTION_C(n, n, createsymlinks) {
 			continue;
 		}
 
-		linkname = calc_dirconcat(distdir,d->suite);
+		linkname = calc_dirconcat(global.distdir, d->suite);
 		bufsize = strlen(d->codename)+10;
 		buffer = calloc(1,bufsize);
 		if( linkname == NULL || buffer == NULL ) {
@@ -2184,12 +2188,11 @@ ACTION_D(n, n, y, processincoming) {
 	for( d = alldistributions ; d != NULL ; d = d->next )
 		d->selected = true;
 
-	result = process_incoming(basedir, confdir, overridedir, database, dereferenced, alldistributions, argv[1], (argc==3)?argv[2]:NULL);
+	result = process_incoming(database, dereferenced, alldistributions, argv[1], (argc==3)?argv[2]:NULL);
 
 	logger_wait();
 
-	r = distribution_exportlist(export, alldistributions,
-			distdir, database);
+	r = distribution_exportlist(export, alldistributions, database);
 	RET_ENDUPDATE(result,r);
 
 	return result;
@@ -2206,7 +2209,7 @@ ACTION_R(n, n, y, y, gensnapshot) {
 	if( RET_WAS_ERROR(result) )
 		return result;
 
-	return distribution_snapshot(distribution, distdir, database, argv[2]);
+	return distribution_snapshot(distribution, database, argv[2]);
 }
 
 
@@ -2509,7 +2512,7 @@ static retvalue callaction(const struct action *action, int argc, const char *ar
 	if( ISSET(needs, NEED_DATABASE))
 		needs |= NEED_CONFIG;
 	if( ISSET(needs, NEED_CONFIG) ) {
-		r = distribution_readall(confdir, logdir, &alldistributions);
+		r = distribution_readall(&alldistributions);
 		if( RET_WAS_ERROR(r) )
 			return r;
 	}
@@ -2545,7 +2548,7 @@ static retvalue callaction(const struct action *action, int argc, const char *ar
 	if( RET_IS_OK(result) ) {
 
 		if( ISSET(needs,NEED_FILESDB) )
-			result = database_openfiles(database, outdir);
+			result = database_openfiles(database, global.outdir);
 
 		assert( result != RET_NOTHING );
 		if( RET_IS_OK(result) ) {
@@ -2824,30 +2827,30 @@ static void handle_option(int c,const char *optarg) {
 					setexport(optarg);
 					break;
 				case LO_OUTDIR:
-					CONFIGDUP(outdir, optarg);
+					CONFIGDUP(x_outdir, optarg);
 					break;
 				case LO_DISTDIR:
-					CONFIGDUP(distdir,optarg);
+					CONFIGDUP(x_distdir,optarg);
 					break;
 				case LO_DBDIR:
 					CONFIGDUP(dbdir,optarg);
 					break;
 				case LO_LISTDIR:
-					CONFIGDUP(listdir,optarg);
+					CONFIGDUP(x_listdir,optarg);
 					break;
 				case LO_OVERRIDEDIR:
 					if( verbose >= -1 )
 						fprintf(stderr, "Warning: --overridedir is obsolete. \nPlease put override files in the conf dir for compatibility with future version.\n");
-					CONFIGDUP(overridedir,optarg);
+					CONFIGDUP(x_overridedir,optarg);
 					break;
 				case LO_CONFDIR:
-					CONFIGDUP(confdir,optarg);
+					CONFIGDUP(x_confdir,optarg);
 					break;
 				case LO_LOGDIR:
-					CONFIGDUP(logdir,optarg);
+					CONFIGDUP(x_logdir,optarg);
 					break;
 				case LO_METHODDIR:
-					CONFIGDUP(methoddir,optarg);
+					CONFIGDUP(x_methoddir,optarg);
 					break;
 				case LO_VERSION:
 					fprintf(stderr,"%s: This is " PACKAGE " version " VERSION "\n",programname);
@@ -2897,7 +2900,7 @@ static void handle_option(int c,const char *optarg) {
 			fprintf(stderr, "Ignoring no longer existing option -f/--force!\n");
 			break;
 		case 'b':
-			CONFIGDUP(basedir, optarg);
+			CONFIGDUP(x_basedir, optarg);
 			break;
 		case 'i':
 			r = set_ignore(optarg, true, config_state);
@@ -3085,25 +3088,24 @@ int main(int argc,char *argv[]) {
 	/* only for this CONFIG_OWNER_ENVIRONMENT is a bit stupid,
 	 * but perhaps it gets more... */
 	config_state = CONFIG_OWNER_ENVIRONMENT;
-	if( basedir == NULL && getenv("REPREPRO_BASE_DIR") != NULL ) {
-		CONFIGDUP(basedir, getenv("REPREPRO_BASE_DIR"));
+	if( x_basedir == NULL && getenv("REPREPRO_BASE_DIR") != NULL ) {
+		CONFIGDUP(x_basedir, getenv("REPREPRO_BASE_DIR"));
 	}
-	if( confdir == NULL && getenv("REPREPRO_CONFIG_DIR") != NULL ) {
-		CONFIGDUP(confdir,getenv("REPREPRO_CONFIG_DIR"));
+	if( x_confdir == NULL && getenv("REPREPRO_CONFIG_DIR") != NULL ) {
+		CONFIGDUP(x_confdir,getenv("REPREPRO_CONFIG_DIR"));
 	}
 
-	if( basedir == NULL )
-		basedir = strdup(STD_BASE_DIR);
-	if( confdir == NULL && basedir != NULL )
-		confdir = calc_dirconcat(basedir, "conf");
-
-	if( basedir == NULL || confdir == NULL ) {
+	if( x_basedir == NULL )
+		x_basedir = strdup(STD_BASE_DIR);
+	if( x_confdir == NULL && x_basedir != NULL )
+		x_confdir = calc_dirconcat(x_basedir, "conf");
+	if( FAILEDTOALLOC(x_basedir) || FAILEDTOALLOC(x_confdir) ) {
 		(void)fputs("Out of Memory!\n",stderr);
 		exit(EXIT_FAILURE);
 	}
 
 	config_state = CONFIG_OWNER_FILE;
-	optionsfile_parse(confdir,longopts,handle_option);
+	optionsfile_parse(longopts, handle_option);
 
 	if( guessgpgtty && (getenv("GPG_TTY")==NULL) && isatty(0) ) {
 		static char terminalname[1024];
@@ -3119,34 +3121,42 @@ int main(int argc,char *argv[]) {
 	}
 
 	/* basedir might have changed, so recalculate */
-	if( owner_confdir == CONFIG_OWNER_DEFAULT ) {
-		free(confdir);
-		confdir = calc_dirconcat(basedir, "conf");
+	if( owner_x_confdir == CONFIG_OWNER_DEFAULT ) {
+		free(x_confdir);
+		x_confdir = calc_dirconcat(x_basedir, "conf");
 	}
 	if( delete < D_COPY )
 		delete = D_COPY;
-	if( methoddir == NULL )
-		methoddir = strdup(STD_METHOD_DIR);
-	if( outdir == NULL )
-		outdir = strdup(basedir);
-	if( distdir == NULL && outdir != NULL )
-		distdir = calc_dirconcat(outdir, "dists");
+	if( x_methoddir == NULL )
+		x_methoddir = strdup(STD_METHOD_DIR);
+	if( x_outdir == NULL )
+		x_outdir = strdup(x_basedir);
+	if( x_distdir == NULL && x_outdir != NULL )
+		x_distdir = calc_dirconcat(x_outdir, "dists");
 	if( dbdir == NULL )
-		dbdir = calc_dirconcat(basedir, "db");
-	if( logdir == NULL )
-		logdir = calc_dirconcat(basedir, "logs");
-	if( listdir == NULL )
-		listdir = calc_dirconcat(basedir, "lists");
-	if( overridedir == NULL )
-		overridedir = calc_dirconcat(basedir, "override");
-	if( outdir == NULL || distdir == NULL || dbdir == NULL ||
-	    listdir == NULL || logdir == NULL || confdir == NULL ||
-	    overridedir == NULL || methoddir == NULL) {
+		dbdir = calc_dirconcat(x_basedir, "db");
+	if( x_logdir == NULL )
+		x_logdir = calc_dirconcat(x_basedir, "logs");
+	if( x_listdir == NULL )
+		x_listdir = calc_dirconcat(x_basedir, "lists");
+	if( x_overridedir == NULL )
+		x_overridedir = calc_dirconcat(x_basedir, "override");
+	if( FAILEDTOALLOC(x_outdir) || FAILEDTOALLOC(x_distdir) ||
+	    FAILEDTOALLOC(dbdir) || FAILEDTOALLOC(x_listdir) ||
+	    FAILEDTOALLOC(x_logdir) || FAILEDTOALLOC(x_confdir) ||
+	    FAILEDTOALLOC(x_overridedir) || FAILEDTOALLOC(x_methoddir) ) {
 		(void)fputs("Out of Memory!\n",stderr);
 		exit(EXIT_FAILURE);
 	}
 	if( interrupted() )
 		exit(EXIT_RET(RET_ERROR_INTERRUPTED));
+	global.basedir = x_basedir;
+	global.outdir = x_outdir;
+	global.confdir = x_confdir;
+	global.distdir = x_distdir;
+	global.logdir = x_logdir;
+	global.methoddir = x_methoddir;
+	global.listdir = x_listdir;
 	a = all_actions;
 	while( a->name != NULL ) {
 		if( strcasecmp(a->name,argv[optind]) == 0 ) {
@@ -3157,14 +3167,14 @@ int main(int argc,char *argv[]) {
 			 * readable */
 			signatures_done();
 			free(dbdir);
-			free(distdir);
-			free(listdir);
-			free(logdir);
-			free(confdir);
-			free(overridedir);
-			free(basedir);
-			free(outdir);
-			free(methoddir);
+			free(x_distdir);
+			free(x_listdir);
+			free(x_logdir);
+			free(x_confdir);
+			free(x_overridedir);
+			free(x_basedir);
+			free(x_outdir);
+			free(x_methoddir);
 			free(x_component);
 			free(x_architecture);
 			free(x_packagetype);
@@ -3184,14 +3194,14 @@ int main(int argc,char *argv[]) {
 	fprintf(stderr,"Unknown action '%s'. (see --help for available options and actions)\n",argv[optind]);
 	signatures_done();
 	free(dbdir);
-	free(distdir);
-	free(listdir);
-	free(logdir);
-	free(confdir);
-	free(overridedir);
-	free(basedir);
-	free(outdir);
-	free(methoddir);
+	free(x_distdir);
+	free(x_listdir);
+	free(x_logdir);
+	free(x_confdir);
+	free(x_overridedir);
+	free(x_basedir);
+	free(x_outdir);
+	free(x_methoddir);
 	free(x_component);
 	free(x_architecture);
 	free(x_packagetype);

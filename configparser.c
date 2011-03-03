@@ -131,7 +131,7 @@ static inline retvalue finishchunk(configfinishfunction finishfunc, void *privda
 	return r;
 }
 
-retvalue configfile_parse(const char *confdir, const char *filename, bool ignoreunknown, configinitfunction initfunc, configfinishfunction finishfunc, const struct configfield *fields, size_t fieldcount, void *privdata) {
+retvalue configfile_parse(const char *filename, bool ignoreunknown, configinitfunction initfunc, configfinishfunction finishfunc, const struct configfield *fields, size_t fieldcount, void *privdata) {
 	bool found[fieldcount];
 	void *last = NULL, *this = NULL;
 	char key[100];
@@ -141,7 +141,7 @@ retvalue configfile_parse(const char *confdir, const char *filename, bool ignore
 	struct configiterator iter;
 	retvalue result, r;
 
-	iter.filename = calc_dirconcat(confdir, filename);
+	iter.filename = calc_conffile(filename);
 	if( iter.filename == NULL )
 		return RET_ERROR_OOM;
 	iter.line = 0;
@@ -281,7 +281,7 @@ retvalue configfile_parse(const char *confdir, const char *filename, bool ignore
 
 		iter.eol = false;
 		if( i < fieldcount ) {
-			r = fields[i].setfunc(privdata, confdir, fields[i].name, this, &iter);
+			r = fields[i].setfunc(privdata, fields[i].name, this, &iter);
 			RET_UPDATE(result, r);
 			if( RET_WAS_ERROR(r) )
 				break;

@@ -111,7 +111,7 @@ retvalue exportmode_init(/*@out@*/struct exportmode *mode, bool uncompressed, /*
 }
 
 // TODO: check for scripts in confdir early...
-retvalue exportmode_set(struct exportmode *mode, const char *confdir, struct configiterator *iter) {
+retvalue exportmode_set(struct exportmode *mode, struct configiterator *iter) {
 	retvalue r;
 	char *word;
 
@@ -193,9 +193,9 @@ retvalue exportmode_set(struct exportmode *mode, const char *confdir, struct con
 			free(mode->hook);
 			mode->hook = word;
 		} else {
-			char *fullfilename = calc_dirconcat(confdir, word);
+			char *fullfilename = calc_conffile(word);
 			free(word);
-			if( fullfilename == NULL )
+			if( FAILEDTOALLOC(fullfilename) )
 				return RET_ERROR_OOM;
 			free(mode->hook);
 			mode->hook = fullfilename;
@@ -297,8 +297,14 @@ static retvalue callexporthook(/*@null@*/const char *hook, const char *relfilena
 		if( reltmpfilename == NULL ) {
 			exit(255);
 		}
+		setenv("REPREPRO_BASE_DIR", global.basedir, true);
+		setenv("REPREPRO_OUT_DIR", global.outdir, true);
+		setenv("REPREPRO_CONF_DIR", global.confdir, true);
+		setenv("REPREPRO_DIST_DIR", global.distdir, true);
+		setenv("REPREPRO_LOG_DIR", global.logdir, true);
 		(void)execl(hook, hook, release_dirofdist(release),
-				reltmpfilename, relfilename, mode, NULL);
+				reltmpfilename, relfilename, mode,
+				ENDOFARGUMENTS);
 		e = errno;
 		fprintf(stderr, "Error %d while executing '%s': %s\n",
 				e, hook, strerror(e));

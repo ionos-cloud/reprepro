@@ -18,6 +18,7 @@
 #include <errno.h>
 #include <assert.h>
 #include <limits.h>
+#include <stdlib.h>
 #include <malloc.h>
 #include <string.h>
 #include <stdio.h>
@@ -34,8 +35,8 @@
 
 struct sourceextraction {
 	bool failed, completed;
-	int difffile, tarfile;
-	enum compression diffcompression, tarcompression;
+	int difffile, tarfile, debiantarfile;
+	enum compression diffcompression, tarcompression, debiancompression;
 	/*@null@*/ char **section_p, **priority_p;
 };
 
@@ -47,6 +48,7 @@ struct sourceextraction *sourceextraction_init(char **section_p, char **priority
 		return n;
 	n->difffile = -1;
 	n->tarfile = -1;
+	n->debiantarfile = -1;
 	n->section_p = section_p;
 	n->priority_p = priority_p;
 	return n;
@@ -85,6 +87,10 @@ void sourceextraction_setpart(struct sourceextraction *e, int i, const char *bas
 		e->difffile = i;
 		e->diffcompression = c;
 		return;
+	} else if( endswith(basename, bl, ".debian.tar" ) ) {
+		e->debiantarfile = i;
+		e->debiancompression = c;
+		return;
 	} else if( endswith(basename, bl, ".tar" ) ) {
 		e->tarfile = i;
 		e->tarcompression = c;
@@ -105,6 +111,12 @@ bool sourceextraction_needs(struct sourceextraction *e, int *ofs_p) {
 			return false;
 		*ofs_p = e->difffile;
 		return true;
+#ifdef HAVE_LIBARCHIVE
+	} else if( e->debiantarfile >= 0 &&
+			! unsupportedcompression(e->debiancompression) ) {
+		*ofs_p = e->debiantarfile;
+		return true;
+#endif
 	} else if( e->tarfile >= 0 ) {
 #ifdef HAVE_LIBARCHIVE
 		if( unsupportedcompression(e->tarcompression) )
@@ -412,7 +424,8 @@ static retvalue parse_tarfile(struct sourceextraction *e, const char *filename, 
 			// TODO: is this already enough to give up totally?
 			iscontrol = false;
 		else
-			iscontrol = strcmp(s+1, "debian/control") == 0;
+			iscontrol = strcmp(s+1, "debian/control") == 0 ||
+				    strcmp(name, "debian/control") == 0;
 
 		if( !iscontrol ) {
 			a = archive_read_data_skip(tar);
@@ -478,7 +491,21 @@ retvalue sourceextraction_analyse(struct sourceextraction *e, const char *fullfi
 		return r;
 	}
 
-	/* if it's not the diff, look into the .tar file */
+#ifdef HAVE_LIBARCHIVE
+	if( e->debiantarfile >= 0 ) {
+		e->debiantarfile = -1;
+		assert( !unsupportedcompression(e->debiancompression) );
+		r = parse_tarfile(e, fullfilename, e->debiancompression, &found);
+		if( !RET_IS_OK(r) )
+			e->failed = true;
+		else if( found )
+			/* do not look in the tar, we found debian/control */
+			e->completed = true;
+		return r;
+	}
+#endif
+
+	/* if it's not the diff nor the .debian.tar, look into the .tar file: */
 	assert( e->tarfile >= 0 );
 	assert( !unsupportedcompression(e->tarcompression) );
 	e->tarfile = -1;

@@ -4825,6 +4825,13 @@ fi
 rm -r -f db2
 cp -a db db2
 echo tracking is $tracking
+testrun - --keepunreferenced --dbdir db2 -b . removesrc a unknown 3<<EOF
+stderr
+-t1*=Nothing about source package 'unknown' found in the tracking data of 'a'!
+-t1*=This either means nothing from this source in this version is there,
+-t1*=or the tracking information might be out of date.
+stdout
+EOF
 testrun - --keepunreferenced --dbdir db2 -b . removesrc a ab 3-1 3<<EOF
 stdout
 -v1*=removing 'ab-addons' from 'a|all|${FAKEARCHITECTURE}'...

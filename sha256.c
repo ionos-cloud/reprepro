@@ -6,7 +6,6 @@
 
 #include <config.h>
 
-#include <endian.h>
 #include <limits.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -17,7 +16,7 @@
 
 #include "sha256.h"
 
-#if __BYTE_ORDER == __LITTLE_ENDIAN
+#ifndef WORDS_BIGENDIAN
 # define SWAP(n) \
     (((n) << 24) | (((n) & 0xff00) << 8) | (((n) >> 8) & 0xff00) | ((n) >> 24))
 #else

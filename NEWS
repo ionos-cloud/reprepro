@@ -1,3 +1,12 @@
+Updates between 3.5.0 and 3.5.1:
+- support upcoming version 3 format source packages
+  (priority and section extraction only for wig&pen and quilt format)
+- set environment variables REPREPRO_*_DIR when calling hooks.
+  (note that those are set to the last set values, so for example
+   REPREPRO_CONF_DIR will be the directory with 'distributions' in it,
+   not necessarily the one with 'options' in it that was parsed).
+- other minor bugfixes
+
 Updates between 3.4.2 and 3.5.0:
 - allow suite names as command line arguments
   (when there is not codename of this name and only one distribution
@@ -50,7 +59,7 @@ Updates between 3.0.1 and 3.1.0:
 - add sha1 hashes to the generated Release files.
   the changes semantics needed in the release.caches.db file for this
   should be transient. This will only cause index files without
-  uncompressed variants to be regenerated once uppon upgrade, but
+  uncompressed variants to be regenerated once upon upgrade, but
   switching back and forth between previous versions and this or
   later versions will cause regenerating of unchanged files.
 - internal changes of reading of text files (.dsc/.changes/Release/

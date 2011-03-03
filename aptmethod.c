@@ -258,7 +258,7 @@ retvalue aptmethod_newmethod(struct aptmethodrun *run, const char *uri, const ch
 
 /**************************Fire up a method*****************************/
 
-inline static retvalue aptmethod_startup(struct aptmethod *method, const char *methoddir) {
+inline static retvalue aptmethod_startup(struct aptmethod *method) {
 	pid_t f;
 	int mstdin[2];
 	int mstdout[2];
@@ -330,12 +330,18 @@ inline static retvalue aptmethod_startup(struct aptmethod *method, const char *m
 		}
 		closefrom(3);
 
-		methodname = calc_dirconcat(methoddir,method->name);
-
-		if( methodname == NULL )
+		methodname = calc_dirconcat(global.methoddir, method->name);
+		if( FAILEDTOALLOC(methodname) )
 			exit(255);
 
-		(void)execl(methodname,methodname,NULL);
+		/* not really useful here, unless someone write reprepro
+		 * specific modules (which I hope noone will) */
+		setenv("REPREPRO_BASE_DIR", global.basedir, true);
+		setenv("REPREPRO_OUT_DIR", global.outdir, true);
+		setenv("REPREPRO_CONF_DIR", global.confdir, true);
+		setenv("REPREPRO_DIST_DIR", global.distdir, true);
+		setenv("REPREPRO_LOG_DIR", global.logdir, true);
+		(void)execl(methodname, methodname, ENDOFARGUMENTS);
 
 		e = errno;
 		fprintf(stderr, "Error %d while executing '%s': %s\n",
@@ -1137,7 +1143,7 @@ static retvalue readwrite(struct aptmethodrun *run,/*@out@*/int *workleft,struct
 	return result;
 }
 
-retvalue aptmethod_download(struct aptmethodrun *run,const char *methoddir,struct database *database) {
+retvalue aptmethod_download(struct aptmethodrun *run, struct database *database) {
 	struct aptmethod *method;
 	retvalue result,r;
 	int workleft;
@@ -1146,7 +1152,7 @@ retvalue aptmethod_download(struct aptmethodrun *run,const char *methoddir,struc
 
 	/* fire up all methods, removing those that do not work: */
 	for( method = run->methods; method != NULL ; method = method->next ) {
-		r = aptmethod_startup(method, methoddir);
+		r = aptmethod_startup(method);
 		/* do not remove failed methods here any longer,
 		 * and not remove methods having nothing to do,
 		 * as this breaks when no index files are downloaded

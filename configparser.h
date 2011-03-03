@@ -10,7 +10,7 @@
 
 struct configiterator;
 
-typedef retvalue configsetfunction(void *,const char *,const char *,void *,struct configiterator *);
+typedef retvalue configsetfunction(void *,const char *,void *,struct configiterator *);
 typedef retvalue configinitfunction(void *,void *,void **);
 typedef retvalue configfinishfunction(void *, void *, void **, bool, struct configiterator *);
 
@@ -55,7 +55,7 @@ retvalue config_getconstant(struct configiterator *, const struct constant *, in
 retvalue config_completeword(struct configiterator *, char, /*@out@*/char **);
 void config_overline(struct configiterator *);
 bool config_nextline(struct configiterator *);
-retvalue configfile_parse(const char *confdir, const char *filename, bool ignoreunknown, configinitfunction, configfinishfunction, const struct configfield *, size_t, void *privdata);
+retvalue configfile_parse(const char *filename, bool ignoreunknown, configinitfunction, configfinishfunction, const struct configfield *, size_t, void *privdata);
 
 #define CFlinkedlistinit(sname) \
 static retvalue configparser_ ## sname ## _init(void *rootptr, void *lastitem, void **newptr) { \
@@ -71,24 +71,24 @@ static retvalue configparser_ ## sname ## _init(void *rootptr, void *lastitem, v
 	return RET_OK; \
 }
 #define CFcheckvalueSETPROC(sname, field, checker) \
-static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UNUSED(const char *confdir), const char *name, void *data, struct configiterator *iter) { \
+static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), const char *name, void *data, struct configiterator *iter) { \
 	struct sname *item = data; \
 	return config_getonlyword(iter, name, checker, &item->field); \
 }
 #define CFvalueSETPROC(sname, field) \
-static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UNUSED(const char *confdir), const char *name, void *data, struct configiterator *iter) { \
+static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), const char *name, void *data, struct configiterator *iter) { \
 	struct sname *item = data; \
 	return config_getonlyword(iter, name, NULL, &item->field); \
 }
 #define CFscriptSETPROC(sname, field) \
-static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), const char *confdir, const char *name, void *data, struct configiterator *iter) { \
+static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), const char *name, void *data, struct configiterator *iter) { \
 	struct sname *item = data; \
 	char *value, *fullvalue; retvalue r; \
 	r = config_getonlyword(iter, name, NULL, &value); \
 	if( RET_IS_OK(r) ) { \
 		assert( value != NULL && value[0] != '\0' ); \
 		if( value[0] != '/' ) { \
-			fullvalue = calc_dirconcat(confdir, value); \
+			fullvalue = calc_dirconcat(global.confdir, value); \
 			free(value); \
 		} else \
 			fullvalue = value; \
@@ -99,17 +99,17 @@ static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), co
 	return r; \
 }
 #define CFlinelistSETPROC(sname, field) \
-static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UNUSED(const char *confdir), UNUSED(const char *name), void *data, struct configiterator *iter) { \
+static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UNUSED(const char *name), void *data, struct configiterator *iter) { \
 	struct sname *item = data; \
 	return config_getlines(iter, &item->field); \
 }
 #define CFstrlistSETPROC(sname, field) \
-static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UNUSED(const char *confdir), UNUSED(const char *name), void *data, struct configiterator *iter) { \
+static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UNUSED(const char *name), void *data, struct configiterator *iter) { \
 	struct sname *item = data; \
 	return config_getwords(iter, &item->field); \
 }
 #define CFcheckuniqstrlistSETPROC(sname, field, checker) \
-static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UNUSED(const char *confdir), const char *name, void *data, struct configiterator *iter) { \
+static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), const char *name, void *data, struct configiterator *iter) { \
 	struct sname *item = data; \
 	retvalue r; \
 	r = config_getuniqwords(iter, name, checker, &item->field); \
@@ -125,50 +125,50 @@ static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UN
 	return r; \
 }
 #define CFuniqstrlistSETPROC(sname, field) \
-static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UNUSED(const char *confdir), const char *name, void *data, struct configiterator *iter) { \
+static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), const char *name, void *data, struct configiterator *iter) { \
 	struct sname *item = data; \
 	return config_getuniqwords(iter, name, NULL, &item->field); \
 }
 #define CFuniqstrlistSETPROCset(sname, name) \
-static retvalue configparser_ ## sname ## _set_ ## name (UNUSED(void *dummy), UNUSED(const char *confdir), const char *name, void *data, struct configiterator *iter) { \
+static retvalue configparser_ ## sname ## _set_ ## name (UNUSED(void *dummy), const char *name, void *data, struct configiterator *iter) { \
 	struct sname *item = data; \
 	item->name ## _set = true; \
 	return config_getuniqwords(iter, name, NULL, &item->name); \
 }
 #define CFsplitstrlistSETPROC(sname, field) \
-static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UNUSED(const char *confdir), const char *name, void *data, struct configiterator *iter) { \
+static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), const char *name, void *data, struct configiterator *iter) { \
 	struct sname *item = data; \
 	item->field ## _set = true; \
 	return config_getsplitwords(iter, name, &item->field ## _from, &item->field ## _into); \
 }
 #define CFtruthSETPROC(sname, field) \
-static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UNUSED(const char *confdir), const char *name, void *data, struct configiterator *iter) { \
+static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), const char *name, void *data, struct configiterator *iter) { \
 	struct sname *item = data; \
 	return config_gettruth(iter, name, &item->field); \
 }
 #define CFtruthSETPROC2(sname, name, field) \
-static retvalue configparser_ ## sname ## _set_ ## name(UNUSED(void *dummy), UNUSED(const char *confdir), const char *name, void *data, struct configiterator *iter) { \
+static retvalue configparser_ ## sname ## _set_ ## name(UNUSED(void *dummy), const char *name, void *data, struct configiterator *iter) { \
 	struct sname *item = data; \
 	return config_gettruth(iter, name, &item->field); \
 }
 #define CFallSETPROC(sname, field) \
-static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UNUSED(const char *confdir), UNUSED(const char *name), void *data, struct configiterator *iter) { \
+static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UNUSED(const char *name), void *data, struct configiterator *iter) { \
 	struct sname *item = data; \
 	return config_getall(iter, &item->field); \
 }
 #define CFfilterlistSETPROC(sname, field) \
-static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), const char *confdir, UNUSED(const char *name), void *data, struct configiterator *iter) { \
+static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UNUSED(const char *name), void *data, struct configiterator *iter) { \
 	struct sname *item = data; \
-	return filterlist_load(&item->field, confdir, iter); \
+	return filterlist_load(&item->field, iter); \
 }
 #define CFexportmodeSETPROC(sname, field) \
-static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), const char *confdir, UNUSED(const char *name), void *data, struct configiterator *iter) { \
+static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UNUSED(const char *name), void *data, struct configiterator *iter) { \
 	struct sname *item = data; \
-	return exportmode_set(&item->field, confdir, iter); \
+	return exportmode_set(&item->field, iter); \
 }
-#define CFUSETPROC(sname,field) static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UNUSED(const char *confdir), UNUSED(const char *name), void *thisdata_ ## sname, struct configiterator *iter)
-#define CFuSETPROC(sname,field) static retvalue configparser_ ## sname ## _set_ ## field(void *privdata_ ## sname, UNUSED(const char *confdir), UNUSED(const char *name), void *thisdata_ ## sname, struct configiterator *iter)
-#define CFSETPROC(sname,field) static retvalue configparser_ ## sname ## _set_ ## field(void *privdata_ ## sname, UNUSED(const char *confdir), const char *headername, void *thisdata_ ## sname, struct configiterator *iter)
+#define CFUSETPROC(sname,field) static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UNUSED(const char *name), void *thisdata_ ## sname, struct configiterator *iter)
+#define CFuSETPROC(sname,field) static retvalue configparser_ ## sname ## _set_ ## field(void *privdata_ ## sname, UNUSED(const char *name), void *thisdata_ ## sname, struct configiterator *iter)
+#define CFSETPROC(sname,field) static retvalue configparser_ ## sname ## _set_ ## field(void *privdata_ ## sname, const char *headername, void *thisdata_ ## sname, struct configiterator *iter)
 #define CFSETPROCVARS(sname,item,mydata) struct sname *item = thisdata_ ## sname; struct read_ ## sname ## _data *mydata = privdata_ ## sname
 #define CFSETPROCVAR(sname,item) struct sname *item = thisdata_ ## sname
 
@@ -180,7 +180,7 @@ static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), co
 
 // TODO: better error reporting:
 #define CFtermSETPROC(sname, field) \
-static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UNUSED(const char *confdir), UNUSED(const char *name), void *data, struct configiterator *iter) { \
+static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UNUSED(const char *name), void *data, struct configiterator *iter) { \
 	struct sname *item = data; \
 	char *formula; \
 	retvalue r; \

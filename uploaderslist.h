@@ -8,7 +8,7 @@ struct uploadpermissions {
 
 struct uploaders;
 
-retvalue uploaders_get(/*@out@*/struct uploaders **list, const char *confdir, const char *filename);
+retvalue uploaders_get(/*@out@*/struct uploaders **list, const char *filename);
 void uploaders_unlock(/*@only@*//*@null@*/struct uploaders *);
 
 retvalue uploaders_unsignedpermissions(struct uploaders *,

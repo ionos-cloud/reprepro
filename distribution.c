@@ -169,7 +169,6 @@ static retvalue createtargets(struct distribution *distribution) {
 }
 
 struct read_distribution_data {
-	const char *logdir;
 	struct distribution *distributions;
 };
 
@@ -335,8 +334,8 @@ CFUSETPROC(distribution, Contents) {
 	return contentsoptions_parse(d, iter);
 }
 CFuSETPROC(distribution, logger) {
-	CFSETPROCVARS(distribution, d, mydata);
-	return logger_init(confdir, mydata->logdir, iter, &d->logger);
+	CFSETPROCVAR(distribution, d);
+	return logger_init(iter, &d->logger);
 }
 CFUSETPROC(distribution, Tracking) {
 	CFSETPROCVAR(distribution, d);
@@ -374,11 +373,10 @@ static const struct configfield distributionconfigfields[] = {
 };
 
 /* read specification of all distributions */
-retvalue distribution_readall(const char *confdir, const char *logdir, struct distribution **distributions) {
+retvalue distribution_readall(struct distribution **distributions) {
 	struct read_distribution_data mydata;
 	retvalue result;
 
-	mydata.logdir = logdir;
 	mydata.distributions = NULL;
 
 	// TODO: readd some way to tell about -b or --confdir here?
@@ -394,7 +392,7 @@ retvalue distribution_readall(const char *confdir, const char *logdir, struct di
 	}
 	*/
 
-	result = configfile_parse(confdir, "distributions",
+	result = configfile_parse("distributions",
 			IGNORABLE(unknownfield),
 			startparsedistribution, finishparsedistribution,
 			distributionconfigfields,
@@ -408,7 +406,7 @@ retvalue distribution_readall(const char *confdir, const char *logdir, struct di
 	}
 	if( mydata.distributions == NULL ) {
 		fprintf(stderr, "No distribution definitions found in %s/distributions!\n",
-				confdir);
+				global.confdir);
 		distribution_freelist(mydata.distributions);
 		return RET_ERROR_MISSING;
 	}
@@ -470,7 +468,7 @@ retvalue distribution_foreach_roopenedpart(struct distribution *distribution,str
 retvalue distribution_foreach_package(struct distribution *distribution, struct database *database, const char *component, const char *architecture, const char *packagetype, each_package_action action, each_target_action target_action, void *data) {
 	retvalue result,r;
 	struct target *t;
-	struct target_cursor iterator IFSTUPIDCC(={});
+	struct target_cursor iterator IFSTUPIDCC(=TARGET_CURSOR_ZERO);
 	const char *package, *control;
 
 	result = RET_NOTHING;
@@ -507,7 +505,7 @@ retvalue distribution_foreach_package_c(struct distribution *distribution, struc
 	retvalue result,r;
 	struct target *t;
 	const char *package, *control;
-	struct target_cursor iterator IFSTUPIDCC(={});
+	struct target_cursor iterator IFSTUPIDCC(=TARGET_CURSOR_ZERO);
 
 	result = RET_NOTHING;
 	for( t = distribution->targets ; t != NULL ; t = t->next ) {
@@ -649,7 +647,7 @@ retvalue distribution_get(struct distribution *alldistributions, const char *nam
 	return RET_OK;
 }
 
-retvalue distribution_snapshot(struct distribution *distribution, const char *distdir, struct database *database, const char *name) {
+retvalue distribution_snapshot(struct distribution *distribution, struct database *database, const char *name) {
 	struct target *target;
 	retvalue result,r;
 	struct release *release;
@@ -657,7 +655,7 @@ retvalue distribution_snapshot(struct distribution *distribution, const char *di
 
 	assert( distribution != NULL );
 
-	r = release_initsnapshot(distdir,distribution->codename,name,&release);
+	r = release_initsnapshot(distribution->codename, name, &release);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
@@ -700,14 +698,14 @@ retvalue distribution_snapshot(struct distribution *distribution, const char *di
 	return result;
 }
 
-static retvalue export(struct distribution *distribution, const char *distdir, struct database *database, bool onlyneeded) {
+static retvalue export(struct distribution *distribution, struct database *database, bool onlyneeded) {
 	struct target *target;
 	retvalue result,r;
 	struct release *release;
 
 	assert( distribution != NULL );
 
-	r = release_init(&release, database, distdir, distribution->codename);
+	r = release_init(&release, database, distribution->codename);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
@@ -764,8 +762,8 @@ static retvalue export(struct distribution *distribution, const char *distdir, s
 	return result;
 }
 
-retvalue distribution_fullexport(struct distribution *distribution, const char *distdir, struct database *database) {
-	return export(distribution, distdir, database, false);
+retvalue distribution_fullexport(struct distribution *distribution, struct database *database) {
+	return export(distribution, database, false);
 }
 
 retvalue distribution_freelist(struct distribution *distributions) {
@@ -781,7 +779,7 @@ retvalue distribution_freelist(struct distribution *distributions) {
 	return result;
 }
 
-retvalue distribution_exportlist(enum exportwhen when, struct distribution *distributions, const char *distdir, struct database *database) {
+retvalue distribution_exportlist(enum exportwhen when, struct distribution *distributions, struct database *database) {
 	retvalue result,r;
 	bool todo = false;
 	struct distribution *d;
@@ -837,7 +835,7 @@ retvalue distribution_exportlist(enum exportwhen when, struct distribution *dist
 "Please report this and how you got this message as bugreport. Thanks.\n"
 "Doing a export despite --export=changed....\n",
 						d->codename);
-					r = export(d, distdir, database, true);
+					r = export(d, database, true);
 					RET_UPDATE(result,r);
 					break;
 				}
@@ -847,14 +845,14 @@ retvalue distribution_exportlist(enum exportwhen when, struct distribution *dist
 					( d->status == RET_NOTHING &&
 					  when != EXPORT_CHANGED) ||
 					when == EXPORT_FORCE);
-			r = export(d, distdir, database, true);
+			r = export(d, database, true);
 			RET_UPDATE(result,r);
 		}
 	}
 	return result;
 }
 
-retvalue distribution_export(enum exportwhen when, struct distribution *distribution, const char *distdir, struct database *database) {
+retvalue distribution_export(enum exportwhen when, struct distribution *distribution, struct database *database) {
 	if( when == EXPORT_NEVER ) {
 		if( verbose >= 10 )
 			fprintf(stderr,
@@ -887,8 +885,7 @@ retvalue distribution_export(enum exportwhen when, struct distribution *distribu
 "Please report this and how you got this message as bugreport. Thanks.\n"
 "Doing a export despite --export=changed....\n",
 						distribution->codename);
-				return export(distribution, distdir,
-						database, true);
+				return export(distribution, database, true);
 				break;
 			}
 		}
@@ -897,7 +894,7 @@ retvalue distribution_export(enum exportwhen when, struct distribution *distribu
 	}
 	if( verbose >= 0 )
 		printf("Exporting indices...\n");
-	return export(distribution, distdir, database, true);
+	return export(distribution, database, true);
 }
 
 /* get a pointer to the apropiate part of the linked list */
@@ -936,25 +933,25 @@ struct distribution *distribution_find(struct distribution *distributions, const
 	return NULL;
 }
 
-retvalue distribution_loadalloverrides(struct distribution *distribution, const char *confdir, const char *overridedir) {
+retvalue distribution_loadalloverrides(struct distribution *distribution) {
 	retvalue r;
 
 	if( distribution->overrides.deb == NULL ) {
-		r = override_read(confdir, overridedir, distribution->deb_override, &distribution->overrides.deb);
+		r = override_read(distribution->deb_override, &distribution->overrides.deb);
 		if( RET_WAS_ERROR(r) ) {
 			distribution->overrides.deb = NULL;
 			return r;
 		}
 	}
 	if( distribution->overrides.udeb == NULL ) {
-		r = override_read(confdir, overridedir, distribution->udeb_override, &distribution->overrides.udeb);
+		r = override_read(distribution->udeb_override, &distribution->overrides.udeb);
 		if( RET_WAS_ERROR(r) ) {
 			distribution->overrides.udeb = NULL;
 			return r;
 		}
 	}
 	if( distribution->overrides.dsc == NULL ) {
-		r = override_read(confdir, overridedir, distribution->dsc_override, &distribution->overrides.dsc);
+		r = override_read(distribution->dsc_override, &distribution->overrides.dsc);
 		if( RET_WAS_ERROR(r) ) {
 			distribution->overrides.dsc = NULL;
 			return r;
@@ -968,12 +965,12 @@ retvalue distribution_loadalloverrides(struct distribution *distribution, const 
 		return RET_NOTHING;
 }
 
-retvalue distribution_loaduploaders(struct distribution *distribution, const char *confdir) {
+retvalue distribution_loaduploaders(struct distribution *distribution) {
 	if( distribution->uploaders != NULL ) {
 		if( distribution->uploaderslist != NULL )
 			return RET_OK;
 		return uploaders_get(&distribution->uploaderslist,
-				confdir, distribution->uploaders);
+				distribution->uploaders);
 	} else {
 		distribution->uploaderslist = NULL;
 		return RET_NOTHING;

@@ -124,12 +124,12 @@ static retvalue newreleaseentry(struct release *release, /*@only@*/ char *relati
 	return RET_OK;
 }
 
-retvalue release_init(struct release **release, struct database *database, const char *distdir, const char *codename) {
+retvalue release_init(struct release **release, struct database *database, const char *codename) {
 	struct release *n;
 	retvalue r;
 
 	n = calloc(1,sizeof(struct release));
-	n->dirofdist = calc_dirconcat(distdir,codename);
+	n->dirofdist = calc_dirconcat(global.distdir, codename);
 	if( n->dirofdist == NULL ) {
 		free(n);
 		return RET_ERROR_OOM;
@@ -146,11 +146,11 @@ retvalue release_init(struct release **release, struct database *database, const
 	return RET_OK;
 }
 
-retvalue release_initsnapshot(const char *distdir, const char *codename, const char *name, struct release **release) {
+retvalue release_initsnapshot(const char *codename, const char *name, struct release **release) {
 	struct release *n;
 
 	n = calloc(1,sizeof(struct release));
-	n->dirofdist = calc_snapshotbasedir(distdir, codename, name);
+	n->dirofdist = calc_snapshotbasedir(codename, name);
 	if( n->dirofdist == NULL ) {
 		free(n);
 		return RET_ERROR_OOM;

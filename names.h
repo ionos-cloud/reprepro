@@ -7,24 +7,18 @@
 
 char *calc_addsuffix(const char *str1,const char *str2);
 char *calc_dirconcat(const char *str1,const char *str2);
-char *calc_dirconcatn(const char *str1,const char *str2,size_t len2);
-char *calc_dirsuffixconcat(const char *str1,const char *str2,const char *suffix);
 char *calc_dirconcat3(const char *str1,const char *str2,const char *str3);
 
-
+#define calc_conffile(name) calc_dirconcat(global.confdir, name)
 char *calc_binary_basename(const char *package,const char *version,const char *architecture,const char *packagetype);
 char *calc_source_basename(const char *name,const char *version);
 char *calc_changes_basename(const char *name,const char *version,const struct strlist *architectures);
 char *calc_sourcedir(const char *component,const char *sourcename);
 char *calc_filekey(const char *component,const char *sourcename,const char *filename);
-char *calc_fullfilename(const char *mirrordir,const char *filekey);
-char *calc_fullsrcfilename(const char *mirrordir,const char *directory,const char *filename);
 char *calc_identifier(const char *codename,const char *component,const char *architecture,const char *packagetype);
 char *calc_trackreferee(const char *codename,const char *sourcename,const char *sourceversion);
-char *calc_snapshotbasedir(const char *distdir, const char *codename, const char *name);
+#define calc_snapshotbasedir(codename, name) mprintf("%s/%s/snapshots/%s", global.distdir, codename, name)
 
-char *calc_downloadedlistfile(const char *listdir,const char *codename,const char *origin,const char *component,const char *architecture,const char *packagetype);
-char *calc_downloadedlistpattern(const char *codename);
 
 /* Create a strlist consisting out of calc_dirconcat'ed entries of the old */
 retvalue calc_dirconcats(const char *directory, const struct strlist *basefilenames,/*@out@*/struct strlist *files);

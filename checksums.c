@@ -19,6 +19,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <sys/types.h>
 #include <malloc.h>
 #include <string.h>
@@ -736,7 +737,7 @@ retvalue checksumsarray_parse(struct checksumsarray *out, const struct strlist l
 			}
 		}
 	}
-	assert( count == filenames.count );
+	assert( count == (size_t)filenames.count );
 
 	if( filenames.count == 0 ) {
 		strlist_done(&filenames);
@@ -1014,7 +1015,7 @@ static retvalue copy(const char *destination, const char *source, const struct c
 retvalue checksums_hardlink(const char *directory, const char *filekey, const char *sourcefilename, const struct checksums *checksums) {
 	retvalue r;
 	int i,e;
-	char *fullfilename = calc_fullfilename(directory, filekey);
+	char *fullfilename = calc_dirconcat(directory, filekey);
 	if( fullfilename == NULL )
 		return RET_ERROR_OOM;
 

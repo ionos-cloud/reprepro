@@ -177,7 +177,7 @@ static inline retvalue filterlistfile_read(struct filterlistfile *n, const char 
 	return r;
 }
 
-static inline retvalue filterlistfile_getl(const char *confdir, const char *filename, size_t len, struct filterlistfile **list) {
+static inline retvalue filterlistfile_getl(const char *filename, size_t len, struct filterlistfile **list) {
 	struct filterlistfile *p;
 	retvalue r;
 
@@ -200,7 +200,7 @@ static inline retvalue filterlistfile_getl(const char *confdir, const char *file
 		return RET_ERROR_OOM;
 	}
 	if( p->filename[0] != '/' ) {
-		char *fullfilename = calc_dirconcat(confdir, p->filename);
+		char *fullfilename = calc_conffile(p->filename);
 		if( fullfilename == NULL )
 			r = RET_ERROR_OOM;
 		else {
@@ -222,7 +222,7 @@ static inline retvalue filterlistfile_getl(const char *confdir, const char *file
 	return r;
 }
 
-static inline retvalue filterlistfile_get(const char *confdir, /*@only@*/char *filename, /*@out@*/struct filterlistfile **list) {
+static inline retvalue filterlistfile_get(/*@only@*/char *filename, /*@out@*/struct filterlistfile **list) {
 	struct filterlistfile *p;
 	retvalue r;
 	size_t len = strlen(filename);
@@ -249,7 +249,7 @@ static inline retvalue filterlistfile_get(const char *confdir, /*@only@*/char *f
 		return RET_ERROR_OOM;
 	}
 	if( p->filename[0] != '/' ) {
-		char *fullfilename = calc_dirconcat(confdir, p->filename);
+		char *fullfilename = calc_conffile(p->filename);
 		if( fullfilename == NULL )
 			r = RET_ERROR_OOM;
 		else {
@@ -295,7 +295,7 @@ static const struct constant filterlisttype_listtypes[] = {
 	{NULL, 0}
 };
 
-retvalue filterlist_load(struct filterlist *list, const char *confdir, struct configiterator *iter) {
+retvalue filterlist_load(struct filterlist *list, struct configiterator *iter) {
 	enum filterlisttype defaulttype;
 	size_t count;
 	struct filterlistfile **files;
@@ -328,7 +328,7 @@ retvalue filterlist_load(struct filterlist *list, const char *confdir, struct co
 			n[count] = NULL;
 			files = n;
 			// TODO: make filename only
-			r = filterlistfile_get(confdir, filename, &files[count]);
+			r = filterlistfile_get(filename, &files[count]);
 			if( RET_IS_OK(r) )
 				count++;
 		}

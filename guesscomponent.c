@@ -20,7 +20,6 @@
 #include <string.h>
 #include <strings.h>
 #include <stdio.h>
-#include <malloc.h>
 #include "error.h"
 #include "strlist.h"
 #include "guesscomponent.h"

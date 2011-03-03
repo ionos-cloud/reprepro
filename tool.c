@@ -676,7 +676,7 @@ static retvalue read_dscfile(const char *fullfilename, struct dscfile **dsc) {
 static retvalue parse_dsc(struct fileentry *dscfile, struct changes *changes) {
 	struct dscfile *n;
 	retvalue r;
-	size_t i;
+	int i;
 
 	if( dscfile->fullfilename == NULL )
 		return RET_NOTHING;
@@ -704,7 +704,7 @@ static retvalue parse_dsc(struct fileentry *dscfile, struct changes *changes) {
 
 static retvalue write_dsc_file(struct fileentry *dscfile, unsigned int flags) {
 	struct dscfile *dsc = dscfile->dsc;
-	unsigned int i;
+	int i;
 	struct chunkeditfield *cef;
 	retvalue r;
 	char *control; size_t controllen;
@@ -1378,13 +1378,14 @@ static void verify_binary_name(const char *basename, const char *name, const cha
 static retvalue verify(const char *changesfilename, struct changes *changes) {
 	retvalue r;
 	struct fileentry *file;
-	unsigned int j;
+	size_t k;
 
 	printf("Checking Source packages...\n");
 	for( file = changes->files; file != NULL ; file = file->next ) {
 		const char *name, *version, *p;
 		size_t namelen, versionlen, l;
-		bool has_tar, has_diff, has_orig;
+		bool has_tar, has_diff, has_orig, has_format_tar;
+		int i;
 
 		if( file->type != ft_DSC )
 			continue;
@@ -1520,12 +1521,15 @@ static retvalue verify(const char *changesfilename, struct changes *changes) {
 					(unsigned int)versionlen, version);
 		}
 		has_tar = false;
+		has_format_tar = false;
 		has_diff = false;
 		has_orig = false;
-		for( j = 0 ; j < file->dsc->expected.names.count ; j++ ) {
-			const char *basename = file->dsc->expected.names.values[j];
-			const struct fileentry *sfile = file->dsc->uplink[j];
-			size_t expectedversionlen;
+		for( i = 0 ; i < file->dsc->expected.names.count ; i++ ) {
+			const char *basename = file->dsc->expected.names.values[i];
+			const struct fileentry *sfile = file->dsc->uplink[i];
+			size_t expectedversionlen, expectedformatlen;
+			const char *expectedformat;
+			bool istar = false, versionok;
 
 			switch( sfile->type ) {
 				case ft_UNKNOWN:
@@ -1537,16 +1541,13 @@ static retvalue verify(const char *changesfilename, struct changes *changes) {
 				case ft_TAR_GZ:
 				case ft_TAR_BZ2:
 				case ft_TAR_LZMA:
-					if( has_tar || has_orig )
-						fprintf(stderr,
-"ERROR: '%s' lists multiple .tar files!\n",
-						file->fullfilename);
+					istar = true;
 					has_tar = true;
 					break;
 				case ft_ORIG_TAR_GZ:
 				case ft_ORIG_TAR_BZ2:
 				case ft_ORIG_TAR_LZMA:
-					if( has_tar || has_orig )
+					if( has_orig )
 						fprintf(stderr,
 "ERROR: '%s' lists multiple .tar files!\n",
 						file->fullfilename);
@@ -1568,17 +1569,21 @@ static retvalue verify(const char *changesfilename, struct changes *changes) {
 			if( name == NULL ) // TODO: try extracting it from this
 				continue;
 			if( strncmp(sfile->basename, name, namelen) != 0
-					|| sfile->basename[namelen] != '_' )
+					|| sfile->basename[namelen] != '_' ) {
 				fprintf(stderr,
 "ERROR: '%s' does not begin with '%*s_' as expected!\n",
 					sfile->basename,
 					(unsigned int)namelen, name);
+				/* cannot check further */
+				continue;
+			}
 
 			if( version == NULL )
 				continue;
 
-			if(sfile->type == ft_ORIG_TAR_GZ
-					|| sfile->type == ft_ORIG_TAR_BZ2) {
+			if( sfile->type == ft_ORIG_TAR_GZ
+					|| sfile->type == ft_ORIG_TAR_BZ2
+					|| sfile->type == ft_ORIG_TAR_LZMA ) {
 				const char *p, *revision;
 				revision = NULL;
 				for( p=version; *p != '\0'; p++ ) {
@@ -1592,19 +1597,53 @@ static retvalue verify(const char *changesfilename, struct changes *changes) {
 			} else
 				expectedversionlen = versionlen;
 
-			if( strncmp(sfile->basename+namelen+1,
-					version, expectedversionlen) != 0
-				|| ( sfile->type != ft_UNKNOWN &&
-					strcmp(sfile->basename+namelen+1
-						+expectedversionlen,
-					typesuffix[sfile->type]) != 0 ))
+			versionok = strncmp(sfile->basename+namelen+1,
+					version, expectedversionlen) == 0;
+			if( istar ) {
+				const char *p;
+
+				if( !versionok ) {
+					fprintf(stderr,
+"ERROR: '%s' does not start with '%*s_%*s' as expected!\n",
+						sfile->basename,
+						(unsigned int)namelen, name,
+						(unsigned int)expectedversionlen,
+						version);
+					continue;
+				}
+				expectedformat = sfile->basename + namelen + 1 +
+					expectedversionlen;
+				if( strncmp(expectedformat, ".tar.", 5) == 0 )
+					expectedformatlen = 0;
+				else if( (p = strchr(expectedformat + 1, '.') ) == NULL )
+					expectedformatlen = 0;
+				else {
+					expectedformatlen = p - expectedformat;
+					has_format_tar = true;
+				}
+			} else {
+				expectedformat = "";
+				expectedformatlen = 0;
+			}
+
+			if( !versionok ) {
+				if( sfile->type == ft_UNKNOWN )
+					continue;
+				if( strcmp(sfile->basename+namelen+1
+						+expectedversionlen
+						+expectedformatlen,
+						typesuffix[sfile->type]) == 0 )
+					continue;
 				fprintf(stderr,
-"ERROR: '%s' is not called '%*s_%*s%s' as expected!\n",
+"ERROR: '%s' is not called '%*s_%*s%*s%s' as expected!\n",
 					sfile->basename,
 					(unsigned int)namelen, name,
 					(unsigned int)expectedversionlen,
 					version,
+					(unsigned int)expectedformatlen,
+					expectedformat,
 					typesuffix[sfile->type]);
+			}
 		}
 		if( !has_tar && !has_orig )
 			if( has_diff )
@@ -1619,14 +1658,14 @@ static retvalue verify(const char *changesfilename, struct changes *changes) {
 			fprintf(stderr,
 "ERROR: '%s' lists a .diff, but the .tar is not called .orig.tar!\n",
 					file->fullfilename);
-		else if( !has_diff && has_orig )
+		else if( !has_format_tar && !has_diff && has_orig )
 			fprintf(stderr,
 "ERROR: '%s' lists a .orig.tar, but no .diff!\n",
 					file->fullfilename);
 	}
 	printf("Checking Binary consistency...\n");
-	for( j = 0 ; j < changes->binarycount ; j++ ) {
-		struct binary *b = &changes->binaries[j];
+	for( k = 0 ; k < changes->binarycount ; k++ ) {
+		struct binary *b = &changes->binaries[k];
 
 		if( b->files == NULL && !b->uncheckable ) {
 			/* no files - not even conjectured -, headers must be wrong */
@@ -1795,7 +1834,7 @@ static retvalue verify(const char *changesfilename, struct changes *changes) {
 		}
 
 		if( file->type == ft_DSC ) {
-			unsigned int i;
+			int i;
 
 			if( file->dsc == NULL ) {
 				fprintf(stderr,
@@ -1867,7 +1906,7 @@ static retvalue updatechecksums(const char *changesfilename, struct changes *c, 
 		return r;
 	/* first update all .dsc files and perhaps recalculate their checksums */
 	for( file = c->files; file != NULL ; file = file->next ) {
-		unsigned int i;
+		int i;
 		bool improvedhash[cs_hashCOUNT];
 
 		if( file->type != ft_DSC )
@@ -1992,7 +2031,7 @@ static retvalue includeallsources(const char *changesfilename, struct changes *c
 	struct fileentry *file;
 
 	for( file = c->files; file != NULL ; file = file->next ) {
-		unsigned int i;
+		int i;
 
 		if( file->type != ft_DSC )
 			continue;
@@ -2052,7 +2091,7 @@ static retvalue adddsc(struct changes *c, const char *dscfilename, const struct 
 	struct dscfile *dsc;
 	char *fullfilename, *basename;
 	char *origdirectory;
-	size_t i;
+	int i;
 
 	r = findfile(dscfilename, c, searchpath, ".", &fullfilename);
 	if( RET_WAS_ERROR(r) )

@@ -1479,10 +1479,29 @@ the environment may determine the place of the options file).
 .B REPREPRO_BASE_DIR
 The directory in this variable is used instead of the current directory,
 if no \fB\-b\fP or \fB\-\-basedir\fP options are supplied.
+.br
+It is also set in all hook scripts called by reprepro
+(relative to the current directory or absolute,
+depending on how reprepro got it).
 .TP
 .B REPREPRO_CONFIG_DIR
 The directory in this variable is used when no \fB\-\-confdir\fP is
 supplied.
+.br
+It is also set in all hook scripts called by reprepro
+(relative to the current directory or absolute,
+depending on how reprepro got it).
+.TP
+.B REPREPRO_OUT_DIR
+This is not used, but only set in hook scripts called by reprepro
+to the directory in which the \fBpool\fP subdirectory resides
+(relative to the current directory or absolute,
+depending on how reprepro got it).
+.TP
+.B REPREPRO_DIST_DIR
+This is not used, but only set in hook scripts called by reprepro
+to the \fBdists\fP directory (relative to the current directory or
+absolute, depending on how reprepro got it).
 .TP
 .B GNUPGHOME
 Not used by reprepro directly.

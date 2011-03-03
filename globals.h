@@ -58,4 +58,23 @@ enum config_option_owner { 	CONFIG_OWNER_DEFAULT=0,
 				CONFIG_OWNER_FILE,
 				CONFIG_OWNER_ENVIRONMENT,
 		           	CONFIG_OWNER_CMDLINE};
+#ifndef _D_EXACT_NAMELEN
+#define _D_EXACT_NAMELEN(r) strlen((r)->d_name)
+#endif
+/* for systems defining NULL to 0 instead of the nicer (void*)0 */
+#define ENDOFARGUMENTS ((char *)0)
+
+/* global information */
+extern struct global_config {
+	const char *basedir;
+	const char *outdir;
+	const char *distdir;
+	const char *confdir;
+	const char *methoddir;
+	const char *logdir;
+	const char *listdir;
+	/* deprecated: */
+	const char *overridedir;
+} global;
+
 #endif

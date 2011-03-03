@@ -17,6 +17,7 @@
 
 #include <errno.h>
 #include <assert.h>
+#include <stdlib.h>
 #include <malloc.h>
 #include <stdio.h>
 #include <string.h>

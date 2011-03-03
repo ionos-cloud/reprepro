@@ -18,7 +18,7 @@
 struct pull_rule;
 struct pull_distribution;
 
-retvalue pull_getrules(const char *confdir,/*@out@*/struct pull_rule **rules);
+retvalue pull_getrules(/*@out@*/struct pull_rule **);
 
 void pull_freerules(/*@only@*/struct pull_rule *p);
 void pull_freedistributions(/*@only@*/struct pull_distribution *p);

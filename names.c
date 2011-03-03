@@ -20,6 +20,7 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>
+#include <stdlib.h>
 #include <malloc.h>
 #include <sys/types.h>
 #include "error.h"
@@ -28,85 +29,6 @@
 #include "names.h"
 
 extern int verbose;
-
-// This escaping is quite harsh, but so nothing bad can happen...
-static inline size_t escapedlen(const char *p) {
-	size_t l = 0;
-	if( *p == '-' ) {
-		l = 3;
-		p++;
-	}
-	while( *p != '\0' ) {
-		if( (*p < 'A' || *p > 'Z' ) && (*p < 'a' || *p > 'z' ) && ( *p < '0' || *p > '9') && *p != '-' )
-			l +=3;
-		else
-			l++;
-		p++;
-	}
-	return l;
-}
-
-static inline char *escapecpy(char *dest,const char *orig) {
-	static char hex[16] = "0123456789ABCDEF";
-	if( *orig == '-' ) {
-		orig++;
-		*dest = '%'; dest++;
-		*dest = '2'; dest++;
-		*dest = 'D'; dest++;
-	}
-	while( *orig != '\0' ) {
-		if( (*orig < 'A' || *orig > 'Z' ) && (*orig < 'a' || *orig > 'z' ) && ( *orig < '0' || *orig > '9') && *orig != '-' ) {
-			*dest = '%'; dest++;
-			*dest = hex[(*orig >> 4)& 0xF ]; dest++;
-			*dest = hex[*orig & 0xF ]; dest++;
-		} else {
-			*dest = *orig;
-			dest++;
-		}
-		orig++;
-	}
-	return dest;
-}
-
-char *calc_downloadedlistfile(const char *listdir,const char *codename,const char *origin,const char *component,const char *architecture,const char *packagetype) {
-	size_t l_listdir,len,l_packagetype;
-	char *result,*p;
-
-	l_listdir = strlen(listdir),
-	len = escapedlen(codename) + escapedlen(origin) + escapedlen(component) + escapedlen(architecture);
-	l_packagetype = strlen(packagetype);
-	p = result = malloc(l_listdir + len + l_packagetype + 7);
-	if( result == NULL )
-		return result;
-	memcpy(p,listdir,l_listdir);
-	p += l_listdir;
-	*p = '/'; p++;
-	p = escapecpy(p,codename);
-	*p = '_'; p++;
-	p = escapecpy(p,origin);
-	*p = '_'; p++;
-	strcpy(p,packagetype); p += l_packagetype;
-	*p = '_'; p++;
-	p = escapecpy(p,component);
-	*p = '_'; p++;
-	p = escapecpy(p,architecture);
-	*p = '\0';
-	return result;
-}
-
-char *calc_downloadedlistpattern(const char *codename) {
-	size_t len;
-	char *result,*p;
-
-	len = escapedlen(codename);
-	p = result = malloc(len + 2);
-	if( result == NULL )
-		return result;
-	p = escapecpy(p,codename);
-	*p = '_'; p++;
-	*p = '\0';
-	return result;
-}
 
 char *calc_identifier(const char *codename,const char *component,const char *architecture,const char *packagetype) {
 	// TODO: add checks to all data possibly given into here...
@@ -126,38 +48,9 @@ char *calc_addsuffix(const char *str1,const char *str2) {
 char *calc_dirconcat(const char *str1,const char *str2) {
 	return mprintf("%s/%s",str1,str2);
 }
-char *calc_dirconcatn(const char *str1,const char *str2,size_t len2) {
-	size_t len1;
-	char *r;
-
-	assert(str1 != NULL);
-	assert(str2 != NULL);
-	len1 = strlen(str1);
-	if( (size_t)(len1+len2+2) < len1 || (size_t)(len1+len2+2) < len2 )
-		return NULL;
-	r = malloc(len1+len2+2);
-	if( r == NULL )
-		return NULL;
-	strcpy(r,str1);
-	r[len1] = '/';
-	memcpy(r+len1+1,str2,len2);
-	r[len1+1+len2] = '\0';
-	return r;
-}
 
 char *calc_dirconcat3(const char *str1,const char *str2,const char *str3) {
 	return mprintf("%s/%s/%s",str1,str2,str3);
-}
-char *calc_dirsuffixconcat(const char *str1,const char *str2,const char *suffix) {
-	return mprintf("%s/%s.%s",str1,str2,suffix);
-}
-
-char *calc_fullfilename(const char *mirrordir,const char *filekey){
-	return calc_dirconcat(mirrordir,filekey);
-}
-
-char *calc_fullsrcfilename(const char *mirrordir,const char *directory,const char *filename){
-	return mprintf("%s/%s/%s",mirrordir,directory,filename);
 }
 
 char *calc_sourcedir(const char *component,const char *sourcename) {
@@ -312,8 +205,4 @@ char *calc_changes_basename(const char *name,const char *version,const struct st
 	assert( *(p-1) == '\0' );
 	assert( (size_t)(p-n) == l );
 	return n;
-}
-
-char *calc_snapshotbasedir(const char *distdir, const char *codename, const char *name) {
-	return mprintf("%s/%s/snapshots/%s", distdir, codename, name);
 }
