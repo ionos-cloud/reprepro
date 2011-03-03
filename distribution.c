@@ -28,7 +28,6 @@
 #include <time.h>
 #include "error.h"
 #include "mprintf.h"
-#include "chunks.h"
 #include "sources.h"
 #include "dirs.h"
 #include "names.h"
@@ -792,7 +791,7 @@ retvalue distribution_exportlist(enum exportwhen when, struct distribution *dist
 	if( when == EXPORT_NEVER ) {
 		if( verbose > 10 )
 			fprintf(stderr, "Not exporting anything as --export=never specified\n");
-		return distribution_freelist(distributions);
+		return RET_NOTHING;
 	}
 
 	for( d=distributions; d != NULL; d = d->next ) {

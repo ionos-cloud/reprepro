@@ -115,18 +115,6 @@ static retvalue getBasenames(const struct strlist *filelines,/*@out@*/struct str
 	return r;
 }
 
-retvalue sources_getname(const char *control, char **packagename){
-	retvalue r;
-
-	r = chunk_getvalue(control,"Package",packagename);
-	if( RET_WAS_ERROR(r) )
-		return r;
-	if( r == RET_NOTHING ) {
-		fprintf(stderr, "Missing 'Package' field in chunk:'%s'\n", control);
-		return RET_ERROR;
-	}
-	return r;
-}
 retvalue sources_getversion(const char *control, char **version) {
 	retvalue r;
 
@@ -318,10 +306,6 @@ retvalue sources_getchecksums(const char *chunk, struct checksumsarray *out) {
 	}
 	checksumsarray_move(out, &a);
 	return RET_OK;
-}
-
-char *sources_getupstreamindex(const char *suite_from, const char *component_from, UNUSED(const char *architecture)) {
-	return mprintf("dists/%s/%s/source/Sources.gz",suite_from,component_from);
 }
 
 retvalue sources_doreoverride(const struct distribution *distribution,const char *packagename,const char *controlchunk,/*@out@*/char **newcontrolchunk) {

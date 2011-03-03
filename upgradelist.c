@@ -24,7 +24,7 @@
 
 #include "error.h"
 #include "strlist.h"
-#include "chunks.h"
+#include "indexfile.h"
 #include "dpkgversions.h"
 #include "target.h"
 #include "downloadcache.h"
@@ -72,9 +72,6 @@ struct upgradelist {
 	 * (NULL=before start of list) */
 	/*@null@*//*@dependent@*/struct package_data *last;
 	/* internal...*/
-	/*@dependent@*/struct aptmethod *currentaptmethod;
-	/*@temp@*/upgrade_decide_function *predecide;
-	/*@temp@*/void *predecide_data;
 };
 
 static void package_data_free(/*@only@*/struct package_data *data){
@@ -196,21 +193,10 @@ void upgradelist_free(struct upgradelist *upgrade) {
 	return;
 }
 
-static retvalue upgradelist_trypackage(void *data,const char *chunk){
-	struct upgradelist *upgrade = data;
-	char *packagename,*version;
+static retvalue upgradelist_trypackage(struct upgradelist *upgrade, /*@null@*/struct aptmethod *aptmethod, upgrade_decide_function *predecide, void *predecide_data, const char *packagename_const, /*@null@*//*@only@*/char *packagename, /*@only@*/char *version, const char *chunk){
 	retvalue r;
 	upgrade_decision decision;
 	struct package_data *current,*insertafter;
-
-	r = upgrade->target->getname(chunk, &packagename);
-	if( RET_WAS_ERROR(r) )
-		return r;
-	r = upgrade->target->getversion(chunk, &version);
-	if( RET_WAS_ERROR(r) ) {
-		free(packagename);
-		return r;
-	}
 
 	/* insertafter = NULL will mean insert before list */
 	insertafter = upgrade->last;
@@ -234,7 +220,7 @@ static retvalue upgradelist_trypackage(void *data,const char *chunk){
 		if( current == NULL )
 			cmp = -1; /* every package is before the end of list */
 		else
-			cmp = strcmp(packagename,current->name);
+			cmp = strcmp(packagename_const, current->name);
 
 		if( cmp == 0 )
 			break;
@@ -249,7 +235,7 @@ static retvalue upgradelist_trypackage(void *data,const char *chunk){
 				break;
 			}
 			// I only hope noone creates indices anti-sorted:
-			precmp = strcmp(packagename,insertafter->name);
+			precmp = strcmp(packagename_const, insertafter->name);
 			if( precmp == 0 ) {
 				current = insertafter;
 				break;
@@ -282,7 +268,7 @@ static retvalue upgradelist_trypackage(void *data,const char *chunk){
 		/* adding a package not yet known */
 		struct package_data *new;
 
-		decision = upgrade->predecide(upgrade->predecide_data,packagename,NULL,version,chunk);
+		decision = predecide(predecide_data, packagename_const, NULL, version, chunk);
 		if( decision != UD_UPGRADE ) {
 			upgrade->last = insertafter;
 			free(packagename);
@@ -296,10 +282,18 @@ static retvalue upgradelist_trypackage(void *data,const char *chunk){
 			free(version);
 			return RET_ERROR_OOM;
 		}
-//		assert(upgrade->currentaptmethod!=NULL);
 		new->deleted = false; //to be sure...
-		new->aptmethod = upgrade->currentaptmethod;
-		new->name = packagename;
+		new->aptmethod = aptmethod;
+		if( packagename == NULL ) {
+			new->name = strdup(packagename_const);
+			if( FAILEDTOALLOC(new->name) ) {
+				free(packagename);
+				free(version);
+				free(new);
+				return RET_ERROR_OOM;
+			}
+		} else
+			new->name = packagename;
 		packagename = NULL; //to be sure...
 		new->new_version = version;
 		new->version = version;
@@ -310,7 +304,7 @@ static retvalue upgradelist_trypackage(void *data,const char *chunk){
 				&new->new_origfiles, &new->new_filetype);
 		if( RET_WAS_ERROR(r) ) {
 			package_data_free(new);
-			return RET_ERROR_OOM;
+			return r;
 		}
 		if( insertafter != NULL ) {
 			new->next = insertafter->next;
@@ -361,8 +355,8 @@ static retvalue upgradelist_trypackage(void *data,const char *chunk){
 		}
 		if( versioncmp > 0 && verbose > 30 )
 			fprintf(stderr,"'%s' from '%s' is newer than '%s' currently\n",
-				version,packagename,current->version);
-		decision = upgrade->predecide(upgrade->predecide_data,current->name,
+				version, packagename_const, current->version);
+		decision = predecide(predecide_data,current->name,
 				current->version,version,chunk);
 		if( decision != UD_UPGRADE ) {
 			/* Even if we do not install it, setting it on hold
@@ -415,7 +409,9 @@ static retvalue upgradelist_trypackage(void *data,const char *chunk){
 //		if( versioncmp >= 0 && current->version == current->version_in_use
 //				&& current->new_version != NULL ) {
 
-		r = upgrade->target->getinstalldata(upgrade->target, packagename, version, chunk, &control, &files, &origfiles, &filetype);
+		r = upgrade->target->getinstalldata(upgrade->target,
+				packagename_const, version, chunk,
+				&control, &files, &origfiles, &filetype);
 		free(packagename);
 		if( RET_WAS_ERROR(r) ) {
 			free(version);
@@ -425,8 +421,7 @@ static retvalue upgradelist_trypackage(void *data,const char *chunk){
 		free(current->new_version);
 		current->new_version = version;
 		current->version = version;
-//		assert(upgrade->currentaptmethod!=NULL);
-		current->aptmethod = upgrade->currentaptmethod;
+		current->aptmethod = aptmethod;
 		strlist_move(&current->new_filekeys,&files);
 		checksumsarray_move(&current->new_origfiles, &origfiles);
 		free(current->new_control);
@@ -436,14 +431,37 @@ static retvalue upgradelist_trypackage(void *data,const char *chunk){
 	return RET_OK;
 }
 
-retvalue upgradelist_update(struct upgradelist *upgrade,struct aptmethod *method,const char *filename,upgrade_decide_function *decide,void *decide_data){
+retvalue upgradelist_update(struct upgradelist *upgrade, struct aptmethod *method, const char *filename, upgrade_decide_function *decide, void *decide_data, bool ignorewrongarchitecture) {
+	struct indexfile *i;
+	char *packagename, *version;
+	const char *control;
+	retvalue result, r;
 
+	r = indexfile_open(&i, filename);
+	if( !RET_IS_OK(r) )
+		return r;
+
+	result = RET_NOTHING;
 	upgrade->last = NULL;
-	upgrade->currentaptmethod = method;
-	upgrade->predecide = decide;
-	upgrade->predecide_data = decide_data;
-
-	return chunk_foreach(filename, upgradelist_trypackage, upgrade, false);
+	while( indexfile_getnext(i, &packagename, &version, &control,
+				upgrade->target, ignorewrongarchitecture) ) {
+		r = upgradelist_trypackage(upgrade, method, decide, decide_data,
+				packagename, packagename, version, control);
+		RET_UPDATE(result, r);
+		if( RET_WAS_ERROR(r) ) {
+			if( verbose > 0 )
+				fprintf(stderr,
+"Stop reading further chunks from '%s' due to previous errors.\n", filename);
+			break;
+		}
+		if( interrupted() ) {
+			result = RET_ERROR_INTERRUPTED;
+			break;
+		}
+	}
+	r = indexfile_close(i);
+	RET_ENDUPDATE(result, r);
+	return result;
 }
 
 retvalue upgradelist_pull(struct upgradelist *upgrade,struct target *source,upgrade_decide_function *predecide,void *decide_data,struct database *database) {
@@ -452,19 +470,29 @@ retvalue upgradelist_pull(struct upgradelist *upgrade,struct target *source,upgr
 	struct target_cursor iterator;
 
 	upgrade->last = NULL;
-	upgrade->currentaptmethod = NULL;
-	upgrade->predecide = predecide;
-	upgrade->predecide_data = decide_data;
-
 	r = target_openiterator(source, database, READONLY, &iterator);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	result = RET_NOTHING;
 	while( target_nextpackage(&iterator, &package, &control) ) {
-		r = upgradelist_trypackage(upgrade, control);
+		char *version;
+
+		r = upgrade->target->getversion(control, &version);
+		assert( r != RET_NOTHING );
+		if( !RET_IS_OK(r) ) {
+			RET_UPDATE(result, r);
+			break;
+		}
+		r = upgradelist_trypackage(upgrade, NULL,
+				predecide, decide_data,
+				package, NULL, version, control);
 		RET_UPDATE(result, r);
 		if( RET_WAS_ERROR(r) )
 			break;
+		if( interrupted() ) {
+			result = RET_ERROR_INTERRUPTED;
+			break;
+		}
 	}
 	r = target_closeiterator(&iterator);
 	RET_ENDUPDATE(result,r);

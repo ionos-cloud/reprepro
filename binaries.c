@@ -174,18 +174,6 @@ static inline retvalue calcnewcontrol(const char *chunk,const char *sourcename,c
 	return RET_OK;
 }
 
-retvalue binaries_getname(const char *control, char **packagename){
-	retvalue r;
-
-	r = chunk_getvalue(control,"Package",packagename);
-	if( RET_WAS_ERROR(r) )
-		return r;
-	if( r == RET_NOTHING ) {
-		fprintf(stderr, "Missing 'Package' field in chunk:'%s'\n", control);
-		return RET_ERROR;
-	}
-	return r;
-}
 retvalue binaries_getversion(const char *control, char **version) {
 	retvalue r;
 
@@ -255,13 +243,6 @@ retvalue binaries_getchecksums(const char *chunk, struct checksumsarray *filekey
 	}
 	checksumsarray_move(filekeys, &a);
 	return RET_OK;
-}
-
-char *binaries_getupstreamindex(const char *suite_from, const char *component_from, const char *architecture) {
-	return mprintf("dists/%s/%s/binary-%s/Packages.gz",suite_from,component_from,architecture);
-}
-char *ubinaries_getupstreamindex(const char *suite_from, const char *component_from, const char *architecture) {
-	return mprintf("dists/%s/%s/debian-installer/binary-%s/Packages.gz",suite_from,component_from,architecture);
 }
 
 retvalue binaries_doreoverride(const struct distribution *distribution,const char *packagename,const char *controlchunk,/*@out@*/char **newcontrolchunk) {

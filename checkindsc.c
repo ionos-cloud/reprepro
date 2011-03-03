@@ -34,7 +34,6 @@
 #include "names.h"
 #include "checksums.h"
 #include "dirs.h"
-#include "chunks.h"
 #include "checkindsc.h"
 #include "reference.h"
 #include "sources.h"

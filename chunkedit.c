@@ -25,7 +25,6 @@
 #include <ctype.h>
 #include <assert.h>
 #include "error.h"
-#include "chunks.h"
 #include "chunkedit.h"
 #include "names.h"
 

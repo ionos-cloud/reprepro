@@ -1,3 +1,37 @@
+2008-08-03
+	* remove iteratedupdate
+
+2008-07-30
+	* fix double-free whith --export=never
+
+2008-07-27
+	* buffered read of index files upon "update".
+
+2008-07-26
+	* add support to retrieve packages from flat repositories.
+
+2008-07-25
+	* refactor indexfile parsing. (Needed for future changes,
+	perhaps speeding some things up a tiny littly bit).
+	* fix logic error causing restorefilter aborting
+
+2008-07-23
+	* Do not claim --noskipold makes a difference in the update output
+	for targets not having any upstream to pull from.
+
+2008-07-22
+	* better cope with a file needed multiple times when
+	  updating
+
+2008-07-12
+	* make list package argument optional, listing all
+	packages if not there.
+	* fix bug causing assert() instead of proper error message
+	if list gets too many arguments.
+
+2008-07-03
+	* add IgnoreHashes directive for conf/updates
+
 2008-06-26  Bernhard R. Link <brlink@debian.org>
 	* add FakeComponentPrefix, that adds a prefix to components
 	in the Release file and removes them from Codename and Suite

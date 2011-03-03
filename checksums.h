@@ -26,6 +26,7 @@ struct checksums;
 
 extern const char * const changes_checksum_names[];
 extern const char * const source_checksum_names[];
+extern const struct constant *hashnames;
 
 struct hashes {
 	struct hash_data {
@@ -106,6 +107,9 @@ retvalue checksumsarray_include(struct checksumsarray *, /*@only@*/char *, const
 void checksumsarray_resetunsupported(const struct checksumsarray *, bool[cs_hashCOUNT]);
 
 retvalue hashline_parse(const char *filenametoshow, const char *line, enum checksumtype cs, /*@out@*/const char **basename_p, /*@out@*/struct hash_data *data_p, /*@out@*/struct hash_data *size_p);
+
+struct configiterator;
+retvalue checksums_parseignorelist(bool ignorelist[cs_hashCOUNT], const char *, struct configiterator *);
 
 #ifdef CHECKSUMS_CONTEXT
 #ifndef MD5_H

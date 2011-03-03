@@ -158,6 +158,10 @@ struct update_pattern {
 	struct filterlist filterlist;
 	// NULL means nothing to execute after lists are downloaded...
 	/*@null@*/char *listhook;
+	/* checksums to not read check in Release file: */
+	bool ignorehashes[cs_hashCOUNT];
+	/* the name of the flat component, causing flat mode if non-NULL*/
+	/*@null@*/char *flat;
 	bool used;
 };
 
@@ -172,26 +176,43 @@ struct update_origin {
 	bool failed;
 	// is set when fetching packages..
 	/*@null@*/struct aptmethod *download;
+	/* filenames and checksums from the release file: */
 	struct checksumsarray indexchecksums;
+	/* index files used */
+	struct update_index_file *files;
 };
 
-struct update_index {
-	struct update_index *next;
-	/* all following are NULL when this is a delete rule */
+struct update_index_file {
+	struct update_index_file *next;
 	struct update_origin *origin;
 	char *filename;
 	char *upstream;
+	const char *upstream_check;
 	/* != NULL if filename was changed by ListHook, then the original */
 	char *original_filename;
 	/* index into origin's checkfile, -1 = none */
 	int checksum_ofs;
+	/* already queued (or checks to not be new) */
+	bool queued;
+	/* if newly downloaded or not in done file */
+	bool new;
+	/* content needed (i.e. listhooks have to be run) */
+	bool needed;
 	/* there was something missed here */
 	bool failed;
+	/* do not generate 'done' file */
+	bool incomplete;
+};
+
+struct update_index_connector {
+	struct update_index_connector *next;
+	/* NULL when this is a delete rule */
+	/*@null@*/ struct update_index_file *file;
 };
 
 struct update_target {
 	/*@null@*/struct update_target *next;
-	/*@null@*/struct update_index *indices;
+	/*@null@*/struct update_index_connector *indices;
 	/*@dependent@*/struct target *target;
 	/*@null@*/struct upgradelist *upgradelist;
 	/* Ignore delete marks (as some lists were missing) */
@@ -296,6 +317,7 @@ static void update_pattern_free(/*@only@*/struct update_pattern *update) {
 	free(update->fallback);
 	free(update->suite_from);
 	free(update->verifyrelease);
+	free(update->flat);
 	strlist_done(&update->config);
 	strlist_done(&update->architectures_from);
 	strlist_done(&update->architectures_into);
@@ -328,7 +350,16 @@ static void updates_freeorigins(/*@only@*/struct update_origin *o) {
 		free(origin->suite_from);
 		free(origin->releasefile);
 		free(origin->releasegpgfile);
-		checksumsarray_done(&origin->indexchecksums),
+		checksumsarray_done(&origin->indexchecksums);
+		while( origin->files != NULL ) {
+			struct update_index_file *file = origin->files;
+			origin->files = file->next;
+
+			free(file->upstream);
+			free(file->filename);
+			free(file->original_filename);
+			free(file);
+		}
 		free(origin);
 	}
 }
@@ -340,13 +371,10 @@ static void updates_freetargets(/*@only@*/struct update_target *t) {
 		ut = t;
 		t = ut->next;
 		while( ut->indices != NULL ) {
-			struct update_index *ui;
+			struct update_index_connector *ui;
 
 			ui = ut->indices;
 			ut->indices = ui->next;
-			free(ui->filename);
-			free(ui->original_filename);
-			free(ui->upstream);
 			free(ui);
 		}
 		free(ut);
@@ -389,6 +417,7 @@ static inline retvalue newupdatetarget(struct update_target **ts,/*@dependent@*/
 CFlinkedlistinit(update_pattern)
 CFvalueSETPROC(update_pattern, name)
 CFvalueSETPROC(update_pattern, suite_from)
+CFvalueSETPROC(update_pattern, flat)
 CFurlSETPROC(update_pattern, method)
 CFurlSETPROC(update_pattern, fallback)
 /* what here? */
@@ -417,6 +446,7 @@ CFUSETPROC(update_pattern, architectures) {
 	}
 	return r;
 }
+CFhashesSETPROC(update_pattern, ignorehashes);
 
 static const struct configfield updateconfigfields[] = {
 	CFr("Name", update_pattern, name),
@@ -426,20 +456,47 @@ static const struct configfield updateconfigfields[] = {
 	CF("Suite", update_pattern, suite_from),
 	CF("Architectures", update_pattern, architectures),
 	CF("Components", update_pattern, components),
+	CF("Flat", update_pattern, flat),
 	CF("UDebComponents", update_pattern, udebcomponents),
 	CF("IgnoreRelease", update_pattern, ignorerelease),
+	CF("IgnoreHashes", update_pattern, ignorehashes),
 	CF("VerifyRelease", update_pattern, verifyrelease),
 	CF("ListHook", update_pattern, listhook),
 	CF("FilterFormula", update_pattern, includecondition),
 	CF("FilterList", update_pattern, filterlist)
 };
 
+CFfinishparse(update_pattern) {
+	CFUfinishparseVARS(update_pattern, n, last_p, mydata);
+
+	if( complete ) {
+		if( n->components_set && n->flat != NULL ) {
+			fprintf(stderr,
+"%s:%u to %u: Update pattern may not contain Components and Flat fields ad the same time.\n",
+				config_filename(iter), config_firstline(iter),
+				config_line(iter));
+			return RET_ERROR;
+		}
+		if( n->udebcomponents_set && n->flat != NULL ) {
+			fprintf(stderr,
+"%s:%u to %u: Update pattern may not contain UDebComponents and Flat fields ad the same time.\n",
+				config_filename(iter), config_firstline(iter),
+				config_line(iter));
+			return RET_ERROR;
+		}
+	}
+	return linkedlistfinish(privdata_update_pattern, thisdata_update_pattern,
+			lastdata_p_update_pattern, complete, iter);
+}
+
+
 retvalue updates_getpatterns(struct update_pattern **patterns) {
 	struct update_pattern *update = NULL;
 	retvalue r;
 
 	r = configfile_parse("updates", IGNORABLE(unknownfield),
-			configparser_update_pattern_init, linkedlistfinish,
+			configparser_update_pattern_init,
+			finishparseupdate_pattern,
 			updateconfigfields, ARRAYCOUNT(updateconfigfields),
 			&update);
 	if( RET_IS_OK(r) )
@@ -673,35 +730,93 @@ static retvalue getorigins(struct update_pattern *patterns, const struct distrib
  * Step 3: calculate which remote indices are to be retrieved and processed *
  ****************************************************************************/
 
-static inline retvalue newindex(struct update_index **indices, struct update_origin *origin,struct target *target, const char *architecture_from, const char *component_from) {
-	struct update_index *index;
+static inline struct update_index_file *addindexfile(struct update_origin *origin, const char *codename, const char *architecture_from, const char *component_from, const char *packagetype) {
+	struct update_index_file *file, *i;
+	char *f, *u; const char *uc;
 
-	index = malloc(sizeof(struct update_index));
+	assert( origin != NULL && origin->pattern != NULL);
+
+	f = calc_downloadedlistfile(codename,
+			origin->pattern->name,
+			component_from, architecture_from,
+			packagetype);
+	if( FAILEDTOALLOC(f) )
+		return NULL;
+	/* check if this is already queued (flat or > used) */
+	for( i = origin->files ; i != NULL ; i = i->next ) {
+		if( strcmp(i->filename, f) != 0 )
+			continue;
+		free(f);
+		return i;
+	}
+
+	file = calloc(1, sizeof(struct update_index_file));
+	if( FAILEDTOALLOC(file) ) {
+		free(f);
+		return NULL;
+	}
+	file->filename = f;
+	if( strcmp(packagetype, "deb") == 0 ) {
+		if( origin->pattern->flat != NULL ) {
+			u = mprintf("%s/Packages.gz", origin->suite_from);
+			uc = "Packages.gz";
+		} else {
+			u = mprintf("dists/%s/%s/binary-%s/Packages.gz",
+				origin->suite_from,
+				component_from, architecture_from);
+			uc = u + strlen(origin->suite_from) + 7; /* "dists/%s/" */
+		}
+
+	} else if( strcmp(packagetype, "udeb") == 0 ) {
+		u = mprintf("dists/%s/%s/debian-installer/binary-%s/Packages.gz",
+				origin->suite_from,
+				component_from, architecture_from);
+		uc = u + strlen(origin->suite_from) + 7; /* "dists/%s/" */
+	} else if( strcmp(packagetype, "dsc") == 0 ) {
+		if( origin->pattern->flat != NULL ) {
+			u = mprintf("%s/Sources.gz", origin->suite_from);
+			uc = "Sources.gz";
+		} else {
+			u = mprintf("dists/%s/%s/source/Sources.gz",
+					origin->suite_from, component_from);
+			uc = u + strlen(origin->suite_from) + 7; /* "dists/%s/" */
+		}
+
+	} else {
+		u = NULL;
+		assert( "Unexpected package type" == NULL );
+	}
+	if( FAILEDTOALLOC(u) ) {
+		free(file->filename);
+		free(file);
+		return NULL;
+	}
+	file->upstream = u;
+	file->upstream_check = uc;
+	file->origin = origin;
+	file->checksum_ofs = -1;
+	file->next = origin->files;
+	origin->files = file;
+	return file;
+}
+
+static inline retvalue newindex(struct update_index_connector **indices, struct update_origin *origin,struct target *target, const char *architecture_from, const char *component_from) {
+	struct update_index_connector *index;
+
+	index = malloc(sizeof(struct update_index_connector));
 	if( index == NULL )
 		return RET_ERROR_OOM;
 
 	assert( origin != NULL && origin->pattern != NULL);
 
-	index->filename = calc_downloadedlistfile(
-			target->codename, origin->pattern->name,
-			component_from, architecture_from,
+	index->file = addindexfile(origin, target->codename,
+			architecture_from, component_from,
 			target->packagetype);
-	if( index->filename == NULL ) {
+	if( FAILEDTOALLOC(index->file) ) {
 		free(index);
 		return RET_ERROR_OOM;
 	}
-	index->original_filename = NULL;
-	index->upstream = target->getupstreamindex(origin->suite_from,
-			component_from, architecture_from);
-	if( FAILEDTOALLOC(index->upstream) ) {
-		free(index->filename);
-		free(index);
-		return RET_ERROR_OOM;
-	}
-	index->origin = origin;
-	index->checksum_ofs = -1;
 	index->next = *indices;
-	index->failed = false;
 	*indices = index;
 	return RET_OK;
 }
@@ -709,8 +824,8 @@ static inline retvalue newindex(struct update_index **indices, struct update_ori
 
 static retvalue addorigintotarget(struct update_origin *origin, struct target *target, struct distribution *distribution, struct update_target *updatetargets ) {
 	const struct update_pattern *p = origin->pattern;
-	const struct strlist *c_from,*c_into;
-	const struct strlist *a_from,*a_into;
+	const struct strlist *c_from, *c_into;
+	const struct strlist *a_from, *a_into;
 	int ai,ci;
 	retvalue r;
 
@@ -749,7 +864,7 @@ static retvalue addorigintotarget(struct update_origin *origin, struct target *t
 			if( strcmp(c_into->values[ci],target->component) != 0 )
 				continue;
 
-			r = newindex(&updatetargets->indices, origin,target,
+			r = newindex(&updatetargets->indices, origin, target,
 					a_from->values[ai], c_from->values[ci]);
 			if( RET_WAS_ERROR(r) )
 				return r;
@@ -758,11 +873,43 @@ static retvalue addorigintotarget(struct update_origin *origin, struct target *t
 	return RET_OK;
 }
 
-static retvalue adddeleteruletotarget(struct update_target *updatetargets ) {
-	struct update_index *index;
+static retvalue addflatorigintotarget(struct update_origin *origin, struct target *target, struct distribution *distribution, struct update_target *updatetargets ) {
+	const struct update_pattern *p = origin->pattern;
+	const struct strlist *a_from, *a_into;
+	int ai;
+	retvalue r;
 
-	index = calloc(1,sizeof(struct update_index));
-	if( index == NULL )
+	assert( origin != NULL && p != NULL && p->flat != NULL);
+
+	if( p->architectures_set ) {
+		a_from = &p->architectures_from;
+		a_into = &p->architectures_into;
+	} else {
+		a_from = &distribution->architectures;
+		a_into = &distribution->architectures;
+	}
+	if( strcmp(target->packagetype, "udeb") == 0 )
+		return RET_NOTHING;
+
+	for( ai = 0 ; ai < a_into->count ; ai++ ) {
+		if( strcmp(a_into->values[ai], target->architecture) != 0 )
+			continue;
+
+		if( strcmp(p->flat, target->component) != 0 )
+				continue;
+		r = newindex(&updatetargets->indices, origin, target,
+					"flat", p->flat);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
+	return RET_OK;
+}
+
+static retvalue adddeleteruletotarget(struct update_target *updatetargets) {
+	struct update_index_connector *index;
+
+	index = calloc(1, sizeof(struct update_index_connector));
+	if( FAILEDTOALLOC(index) )
 		return RET_ERROR_OOM;
 	index->next = updatetargets->indices;
 	updatetargets->indices = index;
@@ -778,7 +925,7 @@ static retvalue gettargets(struct update_origin *origins, struct distribution *d
 	updatetargets = NULL;
 
 	for( target = distribution->targets ; target != NULL ; target = target->next) {
-		r = newupdatetarget(&updatetargets,target);
+		r = newupdatetarget(&updatetargets, target);
 		if( RET_WAS_ERROR(r) ) {
 			updates_freetargets(updatetargets);
 			return r;
@@ -787,8 +934,11 @@ static retvalue gettargets(struct update_origin *origins, struct distribution *d
 		for( origin = origins ; origin != NULL ; origin=origin->next ) {
 			if( origin->pattern == NULL )
 				r = adddeleteruletotarget(updatetargets);
-			else
+			else if( origin->pattern->flat == NULL )
 				r = addorigintotarget(origin, target,
+						distribution, updatetargets);
+			else
+				r = addflatorigintotarget(origin, target,
 						distribution, updatetargets);
 			if( RET_WAS_ERROR(r) ) {
 				updates_freetargets(updatetargets);
@@ -798,12 +948,21 @@ static retvalue gettargets(struct update_origin *origins, struct distribution *d
 	}
 
 	*ts = updatetargets;
-
 	return RET_OK;
 }
 
-static inline retvalue findmissingupdate(int count,const struct distribution *distribution,struct update_origin *updates) {
+static inline retvalue findmissingupdate(const struct distribution *distribution, struct update_origin *updates) {
 	retvalue result;
+	struct update_origin *last;
+	int count;
+
+	assert( updates != NULL );
+	last = updates;
+	count = 1;
+	while( last->next != NULL ) {
+		last = last->next;
+		count++;
+	}
 
 	result = RET_OK;
 
@@ -861,18 +1020,8 @@ retvalue updates_calcindices(struct update_pattern *patterns, struct distributio
 		if( RET_WAS_ERROR(r) )
 			break;
 		if( RET_IS_OK(r) ) {
-			struct update_origin *last;
-			int count;
-
-			assert( u_d->origins != NULL );
-			last = u_d->origins;
-			count = 1;
-			while( last->next != NULL ) {
-				last = last->next;
-				count++;
-			}
 			/* Check if we got all: */
-			r = findmissingupdate(count,distribution,u_d->origins);
+			r = findmissingupdate(distribution, u_d->origins);
 			if( RET_WAS_ERROR(r) )
 				break;
 
@@ -897,6 +1046,7 @@ retvalue updates_calcindices(struct update_pattern *patterns, struct distributio
 
 static bool foundinorigins(struct update_origin *origins, size_t nameoffset, const char *name) {
 	struct update_origin *o;
+	struct update_index_file *i;
 
 	for( o = origins; o != NULL ; o = o->next ) {
 		if( o->releasefile == NULL )
@@ -904,37 +1054,29 @@ static bool foundinorigins(struct update_origin *origins, size_t nameoffset, con
 		assert(strlen(o->releasefile) > nameoffset);
 		if( strcmp(name,o->releasefile+nameoffset) == 0 )
 			return true;
-		if( o->releasegpgfile == NULL )
-			continue;
-		assert(strlen(o->releasegpgfile) > nameoffset);
-		if( strcmp(name,o->releasegpgfile+nameoffset) == 0 )
-			return true;
-	}
-	return false;
-}
-
-static bool foundinindices(struct update_target *targets, size_t nameoffset, const char *name) {
-	struct update_target *t;
-	struct update_index *i;
-
-	for( t = targets; t != NULL ; t = t->next ) {
-		for( i = t->indices ; i != NULL ; i=i->next ) {
+		if( o->releasegpgfile != NULL ) {
+			assert(strlen(o->releasegpgfile) > nameoffset);
+			if( strcmp(name,o->releasegpgfile+nameoffset) == 0 )
+				return true;
+		}
+		for( i = o->files ; i != NULL ; i=i->next ) {
 			size_t l;
 
-			if( i->filename == NULL )
-				continue;
+			assert( i->filename != NULL );
 			l = strlen(i->filename);
-			assert(l > nameoffset);
-			if( strncmp(name,i->filename+nameoffset,l-nameoffset) == 0 &&
-				(name[l-nameoffset] == '\0' ||
-				 strcmp(name+(l-nameoffset), ".done") == 0) )
+			assert( l > nameoffset );
+			if( strncmp(name, i->filename + nameoffset,
+						l-nameoffset) == 0 &&
+					(name[l - nameoffset] == '\0' ||
+					 strcmp(name + (l - nameoffset),
+						 ".done") == 0) )
 				return true;
 		}
 	}
 	return false;
 }
 
-static retvalue listclean_distribution(DIR *dir, const char *pattern, struct update_origin *origins, struct update_target *targets) {
+static retvalue listclean_distribution(DIR *dir, const char *pattern, struct update_origin *origins) {
 	struct dirent *r;
 	size_t patternlen = strlen(pattern);
 	size_t nameoffset = strlen(global.listdir)+1;
@@ -959,9 +1101,7 @@ static retvalue listclean_distribution(DIR *dir, const char *pattern, struct upd
 		namelen = _D_EXACT_NAMLEN(r);
 		if( namelen < patternlen || strncmp(pattern,r->d_name,patternlen) != 0)
 			continue;
-		if( foundinorigins(origins,nameoffset,r->d_name) )
-			continue;
-		if( foundinindices(targets,nameoffset,r->d_name) )
+		if( foundinorigins(origins, nameoffset, r->d_name) )
 			continue;
 		fullfilename = calc_dirconcat(global.listdir, r->d_name);
 		if( fullfilename == NULL )
@@ -1006,7 +1146,7 @@ retvalue updates_clearlists(struct update_distribution *distributions) {
 			free(pattern);
 			return RET_ERRNO(e);
 		}
-		r = listclean_distribution(dir, pattern, d->origins, d->targets);
+		r = listclean_distribution(dir, pattern, d->origins);
 		free(pattern);
 		if( closedir(dir) != 0 ) {
 			int e = errno;
@@ -1088,7 +1228,10 @@ static inline retvalue queuemetalists(struct update_origin *origin) {
 		return RET_ERROR;
 	}
 
-	toget = mprintf("dists/%s/Release",origin->suite_from);
+	if( p->flat != NULL )
+		toget = mprintf("%s/Release", origin->suite_from);
+	else
+		toget = mprintf("dists/%s/Release", origin->suite_from);
 	r = aptmethod_queueindexfile(origin->download,
 			toget, origin->releasefile, NULL);
 	free(toget);
@@ -1096,7 +1239,11 @@ static inline retvalue queuemetalists(struct update_origin *origin) {
 		return r;
 
 	if( p->verifyrelease != NULL ) {
-		toget = mprintf("dists/%s/Release.gpg",origin->suite_from);
+		if( p->flat != NULL )
+			toget = mprintf("%s/Release.gpg", origin->suite_from);
+		else
+			toget = mprintf("dists/%s/Release.gpg",
+					origin->suite_from);
 		r = aptmethod_queueindexfile(origin->download,
 				toget, origin->releasegpgfile, NULL);
 		free(toget);
@@ -1159,7 +1306,9 @@ static inline retvalue readchecksums(struct update_origin *origin) {
 			return r;
 		}
 	}
-	r = release_getchecksums(origin->releasefile, &origin->indexchecksums);
+	r = release_getchecksums(origin->releasefile,
+			origin->pattern->ignorehashes,
+			&origin->indexchecksums);
 	assert( r != RET_NOTHING );
 	if( RET_WAS_ERROR(r) )
 		origin->failed = true;
@@ -1167,105 +1316,121 @@ static inline retvalue readchecksums(struct update_origin *origin) {
 }
 
 /* returns RET_NOTHING when nothing new will be there */
-static inline retvalue queueindex(struct update_index *index) {
-	const struct update_origin *origin = index->origin;
+static inline retvalue queueindex(struct update_index_file *index) {
 	int i;
-	size_t l;
+	retvalue r;
+	const struct update_origin *origin = index->origin;
+	struct checksums *oldchecksums;
+	const struct checksums *checksums;
 
 	assert( index != NULL && index->origin != NULL );
+
+	if( index->failed )
+		return RET_ERROR;
+
 	index->checksum_ofs = -1;
 	if( origin->download == NULL || origin->failed ) {
 		return RET_NOTHING;
 	}
+
+	if( index->queued )
+		return index->new?RET_OK:RET_NOTHING;
+
 	if( origin->releasefile == NULL ) {
 		retvalue r;
 		/* TODO: save the content to make sure it is the old instead */
 		donefile_delete(index->filename);
 		r = aptmethod_queueindexfile(origin->download,
 				index->upstream, index->filename, NULL);
+		if( RET_WAS_ERROR(r) )
+			index->failed = true;
+		index->new = true;
+		index->queued = true;
 		assert( r != RET_NOTHING );
 		return r;
 	}
 
-	//TODO: this is a very crude hack, think of something better...
-	l = 7 + strlen(origin->suite_from); // == strlen("dists/%s/")
-	assert( strlen(index->upstream) > l );
+	i = strlist_ofs(&origin->indexchecksums.names, index->upstream_check);
+	if( i < 0 ) {
+		fprintf(stderr,
+"Could not find '%s' within the Release file of '%s':\n'%s'\n",
+				index->upstream_check, origin->pattern->name,
+				origin->releasefile);
+		return RET_ERROR_WRONG_MD5;
+	}
+	index->checksum_ofs = i;
+	checksums = origin->indexchecksums.checksums[i];
+	r = checksums_cheaptest(index->filename, checksums, false);
+	if( r == RET_ERROR_WRONG_MD5 ) {
+		// TODO: once supporting .diff file,
+		// check if the old file is useable for
+		// that here...
+		deletefile(index->filename);
+		r = RET_NOTHING;
+	}
+	if( RET_IS_OK(r) )
+		r = checksums_read(index->filename, &oldchecksums);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	if( RET_IS_OK(r) ) {
+		bool improves;
 
-	for( i = 0 ; i < origin->indexchecksums.names.count ; i++ ) {
-		retvalue r;
-		struct checksums *oldchecksums;
-		const char *filename = origin->indexchecksums.names.values[i];
-		const struct checksums *checksums =
-			origin->indexchecksums.checksums[i];
-
-		if( strcmp(index->upstream+l, filename) != 0 )
-			continue;
-
-		index->checksum_ofs = i;
-		r = checksums_cheaptest(index->filename, checksums, false);
-		if( r == RET_ERROR_WRONG_MD5 ) {
+		if( checksums_check(checksums, oldchecksums, &improves) ) {
+			if( improves ) {
+				r = checksums_combine(&origin->indexchecksums.checksums[i],
+						oldchecksums, NULL);
+				checksums = origin->indexchecksums.checksums[i];
+			}
+			checksums_free(oldchecksums);
+			if( RET_WAS_ERROR(r) )
+				return r;
+			r = RET_NOTHING;
+		} else {
 			// TODO: once supporting .diff file,
 			// check if the old file is useable for
 			// that here...
+			checksums_free(oldchecksums);
 			deletefile(index->filename);
-			r = RET_NOTHING;
+			r = RET_OK;
 		}
-		if( RET_IS_OK(r) )
-			r = checksums_read(index->filename, &oldchecksums);
-		if( RET_WAS_ERROR(r) )
-			return r;
-		if( r != RET_NOTHING ) {
-			bool improves;
-
-			if( checksums_check(checksums, oldchecksums, &improves) ) {
-				if( improves ) {
-					r = checksums_combine(&origin->indexchecksums.checksums[i], oldchecksums, NULL);
-					checksums = origin->indexchecksums.checksums[i];
-				}
-				checksums_free(oldchecksums);
-			} else {
-				// TODO: once supporting .diff file,
-				// check if the old file is useable for
-				// that here...
-				checksums_free(oldchecksums);
-				deletefile(index->filename);
-				r = RET_NOTHING;
-			}
-		}
-		if( r == RET_NOTHING ) {
-			donefile_delete(index->filename);
-			r = aptmethod_queueindexfile(origin->download,
+	} else {
+		assert( r == RET_NOTHING );
+		/* not there yet, download: */
+		r = RET_OK;
+	}
+	index->queued = true;
+	if( RET_IS_OK(r) ) {
+		r = aptmethod_queueindexfile(origin->download,
 					index->upstream, index->filename,
 					&origin->indexchecksums.checksums[i]);
-			assert( r != RET_NOTHING );
-		} else if( RET_IS_OK(r) ) {
-			/* file is already there, but it might still need
-			 * processing as last time it was not due to some
-			 * error of some other file */
-			r = donefile_isold(index->filename, checksums);
-		}
-		return r;
+		assert( r != RET_NOTHING );
+	} else if( r == RET_NOTHING ) {
+		/* file is already there, but it might still need
+		 * processing as it was not last time due to some
+		 * error of some other file */
+		r = donefile_isold(index->filename, checksums);
 	}
-	fprintf(stderr,
-"Could not find '%s' within the Release file of '%s':\n'%s'\n",
-			index->upstream, origin->pattern->name,
-			origin->releasefile);
-	return RET_ERROR_WRONG_MD5;
+	if( r != RET_NOTHING )
+		index->new = true;
+	else
+		index->new = false;
+	if( RET_WAS_ERROR(r) )
+		index->failed = true;
+	return r;
 }
-
 
 static retvalue updates_queuelists(struct update_distribution *distributions, bool skipold, bool *anythingtodo) {
 	retvalue result,r;
 	struct update_origin *origin;
 	struct update_target *target;
-	struct update_index *index;
+	struct update_index_connector *index;
 	struct update_distribution *d;
 
 	result = RET_NOTHING;
 	for( d=distributions ; d != NULL ; d=d->next) {
 
 		for( origin=d->origins; origin != NULL ; origin=origin->next ) {
-			if( origin->pattern == NULL)
+			if( origin->pattern == NULL )
 				continue;
 			r = readchecksums(origin);
 			RET_UPDATE(result,r);
@@ -1277,15 +1442,13 @@ static retvalue updates_queuelists(struct update_distribution *distributions, bo
 			target->nothingnew = skipold;
 			target->incomplete = false;
 			for( index=target->indices ; index!=NULL ; index=index->next ) {
-				if( index->origin == NULL )
+				if( index->file == NULL )
 					continue;
-				r = queueindex(index);
+				r = queueindex(index->file);
 				if( RET_IS_OK(r) ) {
 					target->nothingnew = false;
 					*anythingtodo = true;
 				}
-				if( RET_WAS_ERROR(r) )
-					index->failed = true;
 				RET_UPDATE(result,r);
 				if( RET_WAS_ERROR(r) )
 					return r;
@@ -1299,23 +1462,25 @@ static retvalue updates_queuelists(struct update_distribution *distributions, bo
  * Step 8: call possible list hooks allowing them to modify the lists       *
  ****************************************************************************/
 
-static retvalue calllisthook(const char *listhook,struct update_index *index) {
+static retvalue calllisthook(struct update_index_file *f) {
+	struct update_origin *origin = f->origin;
+	const char *listhook = origin->pattern->listhook;
 	char *newfilename;
-	pid_t f,c;
+	pid_t child, c;
 	int status;
 
-	newfilename = mprintf("%s_changed",index->filename);
-	if( newfilename == NULL )
+	newfilename = mprintf("%s_changed", f->filename);
+	if( FAILEDTOALLOC(newfilename) )
 		return RET_ERROR_OOM;
-	f = fork();
-	if( f < 0 ) {
+	child = fork();
+	if( child < 0 ) {
 		int e = errno;
 		free(newfilename);
 		fprintf(stderr, "Error %d while forking for listhook: %s\n",
 				e, strerror(e));
 		return RET_ERRNO(e);
 	}
-	if( f == 0 ) {
+	if( child == 0 ) {
 		int e;
 		(void)closefrom(3);
 		setenv("REPREPRO_BASE_DIR", global.basedir, true);
@@ -1323,7 +1488,7 @@ static retvalue calllisthook(const char *listhook,struct update_index *index) {
 		setenv("REPREPRO_CONF_DIR", global.confdir, true);
 		setenv("REPREPRO_DIST_DIR", global.distdir, true);
 		setenv("REPREPRO_LOG_DIR", global.logdir, true);
-		execl(listhook, listhook, index->filename, newfilename,
+		execl(listhook, listhook, f->filename, newfilename,
 				ENDOFARGUMENTS);
 		e = errno;
 		fprintf(stderr, "Error %d while executing '%s': %s\n",
@@ -1331,19 +1496,20 @@ static retvalue calllisthook(const char *listhook,struct update_index *index) {
 		exit(255);
 	}
 	if( verbose > 5 )
-		fprintf(stderr,"Called %s '%s' '%s'\n",listhook,index->filename,newfilename);
-	assert(index->original_filename == NULL);
-	index->original_filename = index->filename;
-	index->filename=newfilename;
+		fprintf(stderr, "Called %s '%s' '%s'\n", listhook,
+				f->filename, newfilename);
+	assert(f->original_filename == NULL);
+	f->original_filename = f->filename;
+	f->filename = newfilename;
 	do {
-		c = waitpid(f,&status,WUNTRACED);
+		c = waitpid(child, &status, WUNTRACED);
 		if( c < 0 ) {
 			int e = errno;
 			fprintf(stderr, "Error %d while waiting for hook '%s' to finish: %s\n",
 					e, listhook, strerror(e));
 			return RET_ERRNO(e);
 		}
-	} while( c != f );
+	} while( c != child );
 	if( WIFEXITED(status) ) {
 		if( WEXITSTATUS(status) == 0 ) {
 			if( verbose > 5 )
@@ -1357,37 +1523,57 @@ static retvalue calllisthook(const char *listhook,struct update_index *index) {
 		fprintf(stderr,"Listhook terminated abnormally. (status is %x)!\n",status);
 		return RET_ERROR;
 	}
+	return RET_OK;
+}
+
+static retvalue calllisthooks(struct update_distribution *d) {
+	retvalue result,r;
+	struct update_target *target;
+	struct update_index_file *f;
+	struct update_index_connector *index;
+	struct update_origin *origin;
+
+	result = RET_NOTHING;
+	for( target = d->targets; target != NULL ; target = target->next ) {
+		if( target->nothingnew )
+			continue;
+		/* if anything is new, we will to need to look at
+		 * all (in case there are delete rules) */
+		for( index=target->indices ; index != NULL ;
+				index=index->next ) {
+			if( index->file == NULL )
+				continue;
+			index->file->needed = true;
+		}
+	}
+	for( origin=d->origins; origin!=NULL ; origin=origin->next ) {
+		if( origin->pattern == NULL || origin->pattern->listhook == NULL )
+			continue;
+
+		for( f = origin->files ; f != NULL ; f = f->next ) {
+			if( !f->needed )
+				continue;
+			if( f->failed )
+				continue;
+			r = calllisthook(f);
+			if( RET_WAS_ERROR(r) ) {
+				f->failed = true;
+				return r;
+			}
+			RET_UPDATE(result,r);
+		}
+	}
+	return result;
 }
 
 static retvalue updates_calllisthooks(struct update_distribution *distributions) {
 	retvalue result,r;
-	struct update_target *target;
-	struct update_index *index;
 	struct update_distribution *d;
 
 	result = RET_NOTHING;
 	for( d=distributions ; d != NULL ; d=d->next) {
-
-		for( target=d->targets; target!=NULL ; target=target->next ) {
-			if( target->nothingnew )
-				continue;
-			for( index=target->indices ; index != NULL ;
-						     index=index->next ) {
-				if( index->origin == NULL )
-					continue;
-				if( index->origin->pattern->listhook == NULL )
-					continue;
-				if( index->failed || index->origin->failed ) {
-					continue;
-				}
-				r = calllisthook(index->origin->pattern->listhook,index);
-				if( RET_WAS_ERROR(r) ) {
-					index->failed = true;
-					return r;
-				}
-				RET_UPDATE(result,r);
-			}
-		}
+		r = calllisthooks(d);
+		RET_UPDATE(result,r);
 	}
 	return result;
 }
@@ -1430,13 +1616,18 @@ static upgrade_decision ud_decide_by_pattern(void *privdata, const char *package
 
 
 static inline retvalue searchformissing(FILE *out,struct database *database,struct update_target *u) {
-	struct update_index *index;
+	struct update_index_connector *index;
 	retvalue result,r;
 
 	if( u->nothingnew ) {
-		if( verbose >= 0 ) {
-		fprintf(out,"  nothing new for '%s' (use --noskipold to process anyway)\n",u->target->identifier);
-		}
+		if( u->indices == NULL && verbose >= 4 )
+			fprintf(out,
+"  nothing to do for '%s'\n",
+				u->target->identifier);
+		else if( u->indices != NULL && verbose >= 0 )
+			fprintf(out,
+"  nothing new for '%s' (use --noskipold to process anyway)\n",
+				u->target->identifier);
 		return RET_NOTHING;
 	}
 	if( verbose > 2 )
@@ -1448,8 +1639,9 @@ static inline retvalue searchformissing(FILE *out,struct database *database,stru
 	result = RET_NOTHING;
 
 	for( index=u->indices ; index != NULL ; index=index->next ) {
+		const struct update_index_file *file = index->file;
 
-		if( index->origin == NULL ) {
+		if( file == NULL ) {
 			if( verbose > 4 )
 				fprintf(out,"  marking everything to be deleted\n");
 			r = upgradelist_deleteall(u->upgradelist);
@@ -1462,21 +1654,24 @@ static inline retvalue searchformissing(FILE *out,struct database *database,stru
 			continue;
 		}
 
-		if( index->failed || index->origin->failed ) {
+		if( file->failed || file->origin->failed ) {
 			if( verbose >= 1 )
-				fprintf(stderr,"  missing '%s'\n",index->filename);
+				fprintf(stderr,"  missing '%s'\n",
+						file->filename);
 			u->incomplete = true;
 			u->ignoredelete = true;
 			continue;
 		}
 
 		if( verbose > 4 )
-			fprintf(out,"  reading '%s'\n",index->filename);
-		assert(index->origin->download!= NULL);
+			fprintf(out,"  reading '%s'\n", file->filename);
+		assert(file->origin->download!= NULL);
 		r = upgradelist_update(u->upgradelist,
-				index->origin->download,index->filename,
+				file->origin->download,
+				file->filename,
 				ud_decide_by_pattern,
-				(void*)index->origin->pattern);
+				(void*)file->origin->pattern,
+				file->origin->pattern->flat != NULL);
 		if( RET_WAS_ERROR(r) ) {
 			u->incomplete = true;
 			u->ignoredelete = true;
@@ -1563,31 +1758,35 @@ static retvalue updates_install(struct database *database,struct update_distribu
  *          time, unless --noskipold is given                               *
  ****************************************************************************/
 
-static void markdone(struct update_target *target) {
-	struct update_index *index;
+static void markdone(struct update_distribution *d) {
+	struct update_origin *o;
+	struct update_index_file *f;
+	struct update_index_connector *i;
+	struct update_target *t;
 
-	if( target->incomplete )
-		return;
+	for( t = d->targets ; t != NULL ; t = t->next ) {
+		if( !t->incomplete )
+			continue;
+		for( i= t->indices ; i != NULL ; i = i->next ) {
+			if( i->file != NULL )
+				i->file->incomplete = true;
+		}
+	}
 
-	for( index=target->indices ; index != NULL ; index=index->next ) {
-		const struct update_origin *origin = index->origin;
-		const struct checksums *checksums;
+	for( o = d->origins ; o != NULL ; o = o->next ) {
+		for( f = o->files ; f != NULL ; f = f->next ) {
+			const struct checksums *checksums;
 
-		if( origin == NULL )
-			/* No need to mark a delete rule as done */
-			continue;
-		if( origin->releasefile == NULL )
-			/* TODO: once they can be detected as
-			 * old, also generate donefile here */
-			continue;
-		if( index->checksum_ofs < 0 )
-			continue;
-		assert( index->checksum_ofs < origin->indexchecksums.names.count );
-		checksums = origin->indexchecksums.checksums[index->checksum_ofs];
-		if( index->original_filename == NULL )
-			donefile_create(index->filename, checksums);
-		else
-			donefile_create(index->original_filename, checksums);
+			if( f->checksum_ofs < 0 )
+				continue;
+
+			assert( f->checksum_ofs < o->indexchecksums.names.count );
+			checksums = o->indexchecksums.checksums[f->checksum_ofs];
+			if( f->original_filename == NULL )
+				donefile_create(f->filename, checksums);
+			else
+				donefile_create(f->original_filename, checksums);
+		}
 	}
 }
 
@@ -1763,11 +1962,7 @@ retvalue updates_update(struct database *database, struct update_distribution *d
 	}
 
 	for( d=distributions ; d != NULL ; d=d->next) {
-		struct update_target *u;
-
-		for( u=d->targets ; u != NULL ; u=u->next ) {
-			markdone(u);
-		}
+			markdone(d);
 	}
 	logger_wait();
 
@@ -1971,224 +2166,5 @@ retvalue updates_predelete(struct database *database, struct update_distribution
 		}
 	}
 	logger_wait();
-	return result;
-}
-
-/*****************************************************************************
- * Mostly an experiment, and not very well tested: Instead of doing anything *
- * in the same run, update the targets one after the other.                  *
- *****************************************************************************/
-
-static retvalue singledistributionupdate(struct database *database, struct update_distribution *d, bool nolistsdownload, bool skipold, struct strlist *dereferencedfilekeys, enum spacecheckmode mode, off_t reserveddb, off_t reservedother) {
-	struct aptmethodrun *run;
-	struct downloadcache *cache;
-	struct update_origin *origin;
-	struct update_target *target;
-	retvalue result,r;
-
-	result = distribution_prepareforwriting(d->distribution);
-	if( RET_WAS_ERROR(result) )
-		return result;
-	result = RET_OK;
-
-	r = aptmethod_initialize_run(&run);
-	if( RET_WAS_ERROR(r) )
-		return r;
-
-	/* preperations */
-	for( origin=d->origins; origin != NULL ; origin=origin->next ) {
-		if( origin->pattern == NULL)
-			continue;
-		r = startuporigin(run,origin);
-		RET_UPDATE(result,r);
-		if( RET_WAS_ERROR(r) ) {
-			aptmethod_shutdown(run);
-			return r;
-		}
-	}
-	if( !nolistsdownload ) {
-		for( origin=d->origins; origin != NULL ; origin=origin->next ) {
-			if( origin->pattern == NULL)
-				continue;
-			if( origin->pattern->ignorerelease )
-				continue;
-			r = queuemetalists(origin);
-			RET_UPDATE(result,r);
-			if( RET_WAS_ERROR(r) ) {
-				aptmethod_shutdown(run);
-				origin->failed = true;
-				return r;
-			}
-		}
-		r = aptmethod_download(run, NULL);
-		RET_UPDATE(result,r);
-		if( RET_WAS_ERROR(r) ) {
-			aptmethod_shutdown(run);
-			return r;
-		}
-		for( origin=d->origins; origin != NULL ; origin=origin->next ) {
-			if( origin->pattern == NULL)
-				continue;
-			r = readchecksums(origin);
-			RET_UPDATE(result,r);
-			if( RET_WAS_ERROR(r) ) {
-				aptmethod_shutdown(run);
-				return r;
-			}
-		}
-	}
-
-	for( target=d->targets; target!=NULL ; target=target->next ) {
-		struct update_index *index;
-		target->nothingnew = skipold;
-		target->incomplete = false;
-		if( !nolistsdownload ) {
-			for( index=target->indices ; index!=NULL ; index=index->next ) {
-				if( index->origin == NULL || index->origin->failed )
-					continue;
-				r = queueindex(index);
-				if( RET_WAS_ERROR(r) ) {
-					RET_UPDATE(result,r);
-					aptmethod_shutdown(run);
-					index->failed = true;
-					return r;
-				} else if( RET_IS_OK(r) ) {
-					target->nothingnew = false;
-				}
-			}
-			if( target->nothingnew )
-				continue;
-			r = aptmethod_download(run, NULL);
-			RET_UPDATE(result,r);
-			if( RET_WAS_ERROR(r) ) {
-				aptmethod_shutdown(run);
-				return r;
-			}
-		}
-
-		for( index=target->indices ; index != NULL ; index=index->next ) {
-			if( index->origin == NULL )
-				continue;
-			if( index->origin->pattern->listhook == NULL )
-				continue;
-			if( index->failed || index->origin->failed ) {
-				continue;
-			}
-			/* Call ListHooks (if given) on the downloaded index files. */
-			r = calllisthook(index->origin->pattern->listhook,index);
-			if( RET_WAS_ERROR(r) ) {
-				index->failed = true;
-				RET_UPDATE(result,r);
-				aptmethod_shutdown(run);
-				return r;
-			}
-
-		}
-		/* Then get all packages */
-		if( verbose >= 0 )
-			printf("Calculating packages to get for %s's %s...\n",d->distribution->codename,target->target->identifier);
-		r = downloadcache_initialize(database, mode, reserveddb, reservedother, &cache);
-		RET_UPDATE(result,r);
-		if( !RET_IS_OK(r) ) {
-			(void)downloadcache_free(cache);
-			if( RET_WAS_ERROR(r) ) {
-				aptmethod_shutdown(run);
-				return result;
-			}
-			continue;
-		}
-		r = searchformissing(stdout, database, target);
-		if( RET_WAS_ERROR(r) )
-			target->incomplete = true;
-		else if( r == RET_NOTHING ) {
-			(void)downloadcache_free(cache);
-			continue;
-		}
-		RET_UPDATE(result,r);
-		if( RET_WAS_ERROR(r) ) {
-			(void)downloadcache_free(cache);
-			aptmethod_shutdown(run);
-			return result;
-		}
-		r = upgradelist_enqueue(target->upgradelist, cache, database);
-		if( RET_WAS_ERROR(r) )
-			target->incomplete = true;
-		RET_UPDATE(result,r);
-		if( RET_WAS_ERROR(r) ) {
-			(void)downloadcache_free(cache);
-			aptmethod_shutdown(run);
-			return result;
-		}
-		if( verbose >= 0 )
-			fprintf(stderr,"Getting packages for %s's %s...\n",d->distribution->codename,target->target->identifier);
-		r = aptmethod_download(run, database);
-		RET_UPDATE(result,r);
-		if( RET_WAS_ERROR(r) ) {
-			(void)downloadcache_free(cache);
-			aptmethod_shutdown(run);
-			return result;
-		}
-		r = downloadcache_free(cache);
-		RET_UPDATE(result,r);
-
-		if( verbose >= 0 )
-			fprintf(stderr,"Installing/removing packages for %s's %s...\n",d->distribution->codename,target->target->identifier);
-		r = upgradelist_install(target->upgradelist,
-				d->distribution->logger, database,
-				target->ignoredelete, dereferencedfilekeys);
-		logger_wait();
-		if( RET_WAS_ERROR(r) )
-			target->incomplete = true;
-		RET_UPDATE(result,r);
-		upgradelist_free(target->upgradelist);
-		target->upgradelist = NULL;
-		if( RET_WAS_ERROR(r) ) {
-			aptmethod_shutdown(run);
-			return result;
-		}
-		markdone(target);
-	}
-	if( verbose > 0 )
-		fprintf(stderr,"Shutting down aptmethods...\n");
-	r = aptmethod_shutdown(run);
-	RET_UPDATE(result,r);
-
-	return result;
-}
-
-retvalue updates_iteratedupdate(struct database *database, struct update_distribution *distributions, bool nolistsdownload, bool skipold, struct strlist *dereferencedfilekeys, enum exportwhen export, enum spacecheckmode mode, off_t reserveddb, off_t reservedother) {
-	retvalue result,r;
-	struct update_distribution *d;
-
-	causingfile = NULL;
-
-	if( nolistsdownload ) {
-		if( verbose >= 0 )
-			fprintf(stderr,"Warning: As --nolistsdownload is given, index files are NOT checked.\n");
-		if( skipold && verbose >= 0 ) {
-			fprintf(stderr,"Ignoring --skipold because of --nolistsdownload\n");
-		}
-		skipold = false;
-	}
-
-	result = RET_NOTHING;
-	for( d=distributions ; d != NULL ; d=d->next) {
-		if( d->distribution->deb_override != NULL ||
-		    d->distribution->dsc_override != NULL ||
-		    d->distribution->udeb_override!= NULL ) {
-			if( verbose >= 0 )
-				fprintf(stderr,"Warning: Override-Files of '%s' ignored as not yet supported while updating!\n",d->distribution->codename);
-		}
-		if( d->distribution->tracking != dt_NONE ) {
-			fprintf(stderr,"WARNING: Updating does not update trackingdata. Trackingdata of %s will be outdated!\n",d->distribution->codename);
-		}
-		r = singledistributionupdate(database, d,
-				nolistsdownload, skipold, dereferencedfilekeys,
-				mode, reserveddb, reservedother);
-		RET_ENDUPDATE(d->distribution->status,r);
-		RET_UPDATE(result,r);
-		r = distribution_export(export, d->distribution, database);
-		RET_UPDATE(result,r);
-	}
 	return result;
 }

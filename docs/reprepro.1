@@ -1,4 +1,4 @@
-.TH REPREPRO 1 "2008-05-15" "reprepro" REPREPRO
+.TH REPREPRO 1 "2008-07-08" "reprepro" REPREPRO
 .SH NAME
 reprepro \- produce, manage and sync a local repository of debian packages
 .SH SYNOPSIS
@@ -289,7 +289,7 @@ would be linked from the same suite name, or if the link
 already exists (though when \fB\-\-delete\fP is given it
 will delete already existing symlinks)
 .TP
-.B list \fIcodename\fP \fIpackagename\fP
+.B list \fIcodename\fP \fR[\fP \fIpackagename\fP \fR]\fP
 List all packages (source and binary, except when
 .B \-T
 or
@@ -299,6 +299,7 @@ is given) with the given name in all components (except when
 is given) and architectures (except when
 .B \-A
 is given) of the specified distribution.
+If no package name is given, list everything.
 .TP
 .B listfilter \fIcodename\fP \fIcondition\fP
 as list, but does not list a single package, but all packages
@@ -354,12 +355,6 @@ specified in the config with their upstreams. See the
 description of
 .B conf/updates
 below.
-.TP
-.BR iteratedupdate " [ " \fIcodenames\fP " ] (EXPERIMENTAL!)"
-This is an experimental variant of update, that processes
-the distributions and targets within them one by one,
-resulting in much lower memory consumption for an update
-of multiple distributions.
 .TP
 .BR checkupdate " [ " \fIcodenames\fP " ]"
 Same like
@@ -1024,6 +1019,42 @@ If this is present, no
 .B Release
 file will be downloaded and thus the md5sums of the other
 index files will not be checked.
+.TP
+.B Flat
+If this field is in an update rule, is is supposed to be a
+flat repository, i.e. an repository without an \fBdists\fP
+dir and no subdirectories for the index files.
+(If the corresponding \fBsources.list\fP line has the suite
+end with an slash, then you might need this one.)
+The argument for the \fBFlat:\fP field is the Component to
+put those packages into.
+No \fBComponents\fP or \fBUDebComponents\fP
+fields are allowed in an flat update rule.
+If the \fBArchitecture\fP field has any \fB>\fP items,
+the part left of the "\fB>\fP" is ignored.
+.br
+For example the \fBsources.list\fP line
+ deb http://cran.r-project.org/bin/linux/debian etch-cran/
+.br
+would translate to
+.br
+ Name: R
+ Method: http://cran.r-project.org/bin/linux/debian
+ Suite: etch-cran
+ Flat: whatevercomponentyoudlikethepackagesin
+.TP
+.B IgnoreHashes
+This directive tells reprepro to not check the listed
+hashes in the downloaded Release file (and only in the Release file).
+Possible values are currently \fBsha1\fP and \fBsha256\fP.
+
+Note that \fBmd5\fP is not possible as reprepro internally still
+always needs md5 hashes. Note that this does not speed anything
+up in any measurable way. The only reason to specify this if
+the Release file of the distribution you want to mirror from
+uses an faulty algorithm implementation.
+Otherwise you will gain nothing and only lose security but not
+gain speed.
 .TP
 .B FilterFormula
 This can be a formula to specify which packages to accept from

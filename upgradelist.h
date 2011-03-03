@@ -29,7 +29,7 @@ void upgradelist_dump(struct upgradelist *upgrade);
 retvalue upgradelist_listmissing(struct upgradelist *upgrade,struct database *);
 
 /* Take all items in 'filename' into account, and remember them coming from 'method' */
-retvalue upgradelist_update(struct upgradelist *upgrade,/*@dependent@*/struct aptmethod *method,const char *filename,upgrade_decide_function *predecide,void *decide_data);
+retvalue upgradelist_update(struct upgradelist *upgrade, /*@dependent@*/struct aptmethod *method, const char *filename, upgrade_decide_function *predecide, void *decide_data, bool ignorewrongarchitecture);
 
 /* Take all items in source into account */
 retvalue upgradelist_pull(struct upgradelist *upgrade,struct target *source,upgrade_decide_function *predecide,void *decide_data,struct database *);

@@ -155,8 +155,8 @@ EOF
 testrun - -b . include CTest testbadsigned.changes 3<<EOF
 stderr
 =Data seems not to be signed trying to use directly...
-*=Skipping inclusion of 'package-addons' '9-2' in 'CTest|everything|abacus', as it has already '9-2'.
-*=Skipping inclusion of 'package' '9-2' in 'CTest|everything|abacus', as it has already '9-2'.
+*=Skipping inclusion of 'package-addons' '9-2' in 'CTest|everything|${FAKEARCHITECTURE}', as it has already '9-2'.
+*=Skipping inclusion of 'package' '9-2' in 'CTest|everything|${FAKEARCHITECTURE}', as it has already '9-2'.
 *=Skipping inclusion of 'package' '9-2' in 'CTest|everything|source', as it has already '9-2'.
 stdout
 EOF
@@ -187,8 +187,8 @@ testrun - -b . include CTest testrevsigned.changes 3<<EOF
 stderr
 -v1*=Ignoring signature with '12D6C95C8C737389EAAF535972F1D61F685AF714' on 'testrevsigned.changes', as the key is revoked.
 =Data seems not to be signed trying to use directly...
-*=Skipping inclusion of 'package-addons' '9-2' in 'CTest|everything|abacus', as it has already '9-2'.
-*=Skipping inclusion of 'package' '9-2' in 'CTest|everything|abacus', as it has already '9-2'.
+*=Skipping inclusion of 'package-addons' '9-2' in 'CTest|everything|${FAKEARCHITECTURE}', as it has already '9-2'.
+*=Skipping inclusion of 'package' '9-2' in 'CTest|everything|${FAKEARCHITECTURE}', as it has already '9-2'.
 *=Skipping inclusion of 'package' '9-2' in 'CTest|everything|source', as it has already '9-2'.
 stdout
 EOF
@@ -224,8 +224,8 @@ EOF
 testrun - -b . include CTest testsigned.changes 3<<EOF
 stderr
 =Data seems not to be signed trying to use directly...
-*=Skipping inclusion of 'package-addons' '9-2' in 'CTest|everything|abacus', as it has already '9-2'.
-*=Skipping inclusion of 'package' '9-2' in 'CTest|everything|abacus', as it has already '9-2'.
+*=Skipping inclusion of 'package-addons' '9-2' in 'CTest|everything|${FAKEARCHITECTURE}', as it has already '9-2'.
+*=Skipping inclusion of 'package' '9-2' in 'CTest|everything|${FAKEARCHITECTURE}', as it has already '9-2'.
 *=Skipping inclusion of 'package' '9-2' in 'CTest|everything|source', as it has already '9-2'.
 stdout
 EOF
@@ -245,13 +245,13 @@ stderr
 =Data seems not to be signed trying to use directly...
 stdout
 -v3*=Will not put 'package' in 'CTest|everything|source', as already there with same version '9-2'.
--v3*=Will not put 'package' in 'CTest|everything|abacus', as already there with same version '9-2'.
--v3*=Will not put 'package-addons' in 'CTest|everything|abacus', as already there with same version '9-2'.
+-v3*=Will not put 'package' in 'CTest|everything|${FAKEARCHITECTURE}', as already there with same version '9-2'.
+-v3*=Will not put 'package-addons' in 'CTest|everything|${FAKEARCHITECTURE}', as already there with same version '9-2'.
 -v0*=Skipping test.changes because all packages are skipped!
 -v3*=deleting './i/package_9-2.dsc'...
 -v3*=deleting './i/package-addons_9-2_all.deb'...
 -v3*=deleting './i/package_9-2.tar.gz'...
--v3*=deleting './i/package_9-2_abacus.deb'...
+-v3*=deleting './i/package_9-2_${FAKEARCHITECTURE}.deb'...
 -v3*=deleting './i/test.changes'...
 EOF
 
@@ -274,13 +274,13 @@ stderr
 -v0*='testrevsigned.changes' would have been accepted into 'BTest' if signature with '12D6C95C8C737389EAAF535972F1D61F685AF714' was checkable and valid.
 stdout
 -v3*=Will not put 'package' in 'CTest|everything|source', as already there with same version '9-2'.
--v3*=Will not put 'package' in 'CTest|everything|abacus', as already there with same version '9-2'.
--v3*=Will not put 'package-addons' in 'CTest|everything|abacus', as already there with same version '9-2'.
+-v3*=Will not put 'package' in 'CTest|everything|${FAKEARCHITECTURE}', as already there with same version '9-2'.
+-v3*=Will not put 'package-addons' in 'CTest|everything|${FAKEARCHITECTURE}', as already there with same version '9-2'.
 -v0*=Skipping testrevsigned.changes because all packages are skipped!
 -v3*=deleting './i/package_9-2.dsc'...
 -v3*=deleting './i/package-addons_9-2_all.deb'...
 -v3*=deleting './i/package_9-2.tar.gz'...
--v3*=deleting './i/package_9-2_abacus.deb'...
+-v3*=deleting './i/package_9-2_${FAKEARCHITECTURE}.deb'...
 -v3*=deleting './i/testrevsigned.changes'...
 EOF
 
@@ -299,13 +299,13 @@ stderr
 =Data seems not to be signed trying to use directly...
 stdout
 -v3*=Will not put 'package' in 'CTest|everything|source', as already there with same version '9-2'.
--v3*=Will not put 'package' in 'CTest|everything|abacus', as already there with same version '9-2'.
--v3*=Will not put 'package-addons' in 'CTest|everything|abacus', as already there with same version '9-2'.
+-v3*=Will not put 'package' in 'CTest|everything|${FAKEARCHITECTURE}', as already there with same version '9-2'.
+-v3*=Will not put 'package-addons' in 'CTest|everything|${FAKEARCHITECTURE}', as already there with same version '9-2'.
 -v0*=Skipping testbadsigned.changes because all packages are skipped!
 -v3*=deleting './i/package_9-2.dsc'...
 -v3*=deleting './i/package-addons_9-2_all.deb'...
 -v3*=deleting './i/package_9-2.tar.gz'...
--v3*=deleting './i/package_9-2_abacus.deb'...
+-v3*=deleting './i/package_9-2_${FAKEARCHITECTURE}.deb'...
 -v3*=deleting './i/testbadsigned.changes'...
 EOF
 

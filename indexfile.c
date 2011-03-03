@@ -1,0 +1,280 @@
+/*  This file is part of "reprepro"
+ *  Copyright (C) 2003,2004,2005,2007,2008 Bernhard R. Link
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License version 2 as
+ *  published by the Free Software Foundation.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1301  USA
+ */
+#include <config.h>
+
+#include <errno.h>
+#include <stdlib.h>
+#include <malloc.h>
+#include <string.h>
+#include <stdio.h>
+#include <ctype.h>
+#include <zlib.h>
+#include <assert.h>
+#include "error.h"
+#include "chunks.h"
+#include "names.h"
+#include "indexfile.h"
+
+/* the purpose of this code is to read index files, either from a snapshot
+ * previously generated or downloaded while updating. */
+
+struct indexfile {
+	gzFile f;
+	char *filename;
+	int linenumber, startlinenumber;
+	retvalue status;
+	char *buffer;
+	int size, ofs, content;
+	bool failed;
+};
+
+extern int verbose;
+
+retvalue indexfile_open(struct indexfile **file_p, const char *filename) {
+	struct indexfile *f = calloc(1, sizeof(struct indexfile));
+
+	if( FAILEDTOALLOC(f) )
+		return RET_ERROR_OOM;
+	f->filename = strdup(filename);
+	if( FAILEDTOALLOC(f->filename) ) {
+		free(f);
+		return RET_ERROR_OOM;
+	}
+	f->f = gzopen(filename, "r");
+	if( f->f == NULL ) {
+		fprintf(stderr, "Unable to open file %s: %s\n",
+				filename, strerror(errno));
+		free(f->filename);
+		free(f);
+		return RET_ERRNO(errno);
+	}
+	f->linenumber = 0;
+	f->startlinenumber = 0;
+	f->status = RET_OK;
+	f->size = 256*1024;
+	f->ofs = 0;
+	f->content = 0;
+	/* +1 for *d = '\0' in eof case */
+	f->buffer = malloc(f->size + 1);
+	if( FAILEDTOALLOC(f->buffer) ) {
+		(void)gzclose(f->f);
+		free(f);
+		return RET_ERROR_OOM;
+	}
+	*file_p = f;
+	return RET_OK;
+}
+
+retvalue indexfile_close(struct indexfile *f) {
+	retvalue r;
+
+	//TODO: check result:
+	gzclose(f->f);
+
+	free(f->filename);
+	free(f->buffer);
+	r = f->status;
+	free(f);
+
+	return r;
+}
+
+static retvalue indexfile_get(struct indexfile *f) {
+	char *p, *d, *e, *start;
+	bool afternewline, nothingyet;
+	int bytes_read;
+
+	if( f->failed )
+		return RET_ERROR;
+
+	d = f->buffer;
+	afternewline = true;
+	nothingyet = true;
+	do {
+		start = f->buffer + f->ofs;
+		p = start ;
+		e = p + f->content;
+
+		// TODO: if the chunk_get* are more tested with strange
+		// input, this could be kept in-situ and only chunk_edit
+		// beautifying this chunk...
+
+		while( p < e ) {
+			/* just ignore '\r', even if not line-end... */
+			if( *p == '\r' ) {
+				p++;
+				continue;
+			}
+			if( *p == '\n' ) {
+				f->linenumber++;
+				if( afternewline ) {
+					p++;
+					f->content -= (p - start);
+					f->ofs += (p - start);
+					assert( f->ofs == (p - f->buffer));
+					if( nothingyet )
+						/* restart */
+						return indexfile_get(f);
+					if( d > f->buffer && *(d-1) == '\n' )
+						d--;
+					*d = '\0';
+					return RET_OK;
+				}
+				afternewline = true;
+				nothingyet = false;
+			} else
+				afternewline = false;
+			if( unlikely(*p == '\0') ) {
+				*(d++) = ' ';
+				p++;
+			} else
+				*(d++) = *(p++);
+		}
+		/* ** out of data, read new ** */
+
+		/* start at beginning of free space */
+		f->ofs = (d - f->buffer);
+		f->content = 0;
+
+		if( f->size - f->ofs <= 2048 ) {
+			/* Adding code to enlarge the buffer in this case
+			 * is risky as hard to test properly.
+			 *
+			 * Also it is almost certainly caused by some
+			 * mis-representation of the file or perhaps
+			 * some attack. Requesting all existing memory in
+			 * those cases does not sound very useful. */
+
+			fprintf(stderr,
+"Error parsing %s line %d: Ridiculous long (>= 256K) control chunk!\n",
+					f->filename,
+					f->startlinenumber);
+			f->failed = true;
+			return RET_ERROR;
+		}
+
+		bytes_read = gzread(f->f, d, f->size - f->ofs);
+		if( bytes_read < 0 )
+			return RET_ERROR;
+		else if( bytes_read == 0 )
+			break;
+		f->content = bytes_read;
+	} while( true );
+
+	if( d == f->buffer )
+		return RET_NOTHING;
+
+	/* end of file reached, return what we got so far */
+	assert( f->content == 0 );
+	assert( d-f->buffer <= f->size );
+	if( d > f->buffer && *(d-1) == '\n' )
+		d--;
+	*d = '\0';
+	return RET_OK;
+}
+
+bool indexfile_getnext(struct indexfile *f, char **name_p, char **version_p, const char **control_p, const struct target *target, bool allowwrongarchitecture) {
+	retvalue r;
+	bool ignorecruft = false; // TODO
+	char *packagename, *version, *architecture;
+	const char *control;
+
+	packagename = NULL; version = NULL;
+	do {
+		free(packagename); packagename = NULL;
+		free(version); version = NULL;
+		f->startlinenumber = f->linenumber + 1;
+		r = indexfile_get(f);
+		if( !RET_IS_OK(r) )
+			break;
+		control = f->buffer;
+		r = chunk_getvalue(control, "Package", &packagename);
+		if( r == RET_NOTHING ) {
+			fprintf(stderr,
+"Error parsing %s line %d to %d: Chunk without 'Package:' field!\n",
+					f->filename,
+					f->startlinenumber, f->linenumber);
+			if( !ignorecruft )
+				r = RET_ERROR_MISSING;
+			else
+				continue;
+		}
+		if( RET_WAS_ERROR(r) )
+			break;
+
+		r = chunk_getvalue(control, "Version", &version);
+		if( r == RET_NOTHING ) {
+			fprintf(stderr,
+"Error parsing %s line %d to %d: Chunk without 'Version:' field!\n",
+					f->filename,
+					f->startlinenumber, f->linenumber);
+			if( !ignorecruft )
+				r = RET_ERROR_MISSING;
+			else
+				continue;
+		}
+		if( RET_WAS_ERROR(r) )
+			break;
+		r = chunk_getvalue(control, "Architecture", &architecture);
+		if( RET_WAS_ERROR(r) )
+			break;
+		if( r == RET_NOTHING )
+			architecture = NULL;
+		if( strcmp(target->packagetype, "dsc") == 0 ) {
+			free(architecture);
+		} else {
+			/* check if architecture fits for target and error
+			    out if not ignorewrongarchitecture */
+			if( architecture == NULL ) {
+				fprintf(stderr,
+"Error parsing %s line %d to %d: Chunk without 'Architecture:' field!\n",
+						f->filename,
+						f->startlinenumber, f->linenumber);
+				if( !ignorecruft ) {
+					r = RET_ERROR_MISSING;
+					break;
+				} else
+					continue;
+			} else if( strcmp(architecture, "all") != 0 &&
+			           strcmp(architecture,
+						target->architecture) != 0) {
+				if( allowwrongarchitecture ) {
+					free(architecture);
+					continue;
+				} else {
+					fprintf(stderr,
+"Error parsing %s line %d to %d: Wrong 'Architecture:' field '%s' (need 'all' or '%s')!\n",
+						f->filename,
+						f->startlinenumber, f->linenumber,
+						architecture,
+						target->architecture);
+					r = RET_ERROR;
+				}
+			}
+			free(architecture);
+		}
+		if( RET_WAS_ERROR(r) )
+			break;
+		*control_p = control;
+		*name_p = packagename;
+		*version_p = version;
+		return true;
+	} while( true );
+	free(packagename);
+	free(version);
+	RET_UPDATE(f->status, r);
+	return false;
+}

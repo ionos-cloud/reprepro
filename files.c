@@ -433,6 +433,10 @@ retvalue files_printchecksums(struct database *database) {
 			(void)putchar(' ');
 			(void)fputs(checksum, stdout);
 			(void)putchar('\n');
+			if( interrupted() ) {
+				result = RET_ERROR_INTERRUPTED;
+				break;
+			}
 		}
 		r = cursor_close(database->checksums, cursor);
 		RET_ENDUPDATE(result, r);
@@ -457,6 +461,10 @@ retvalue files_printchecksums(struct database *database) {
 			(void)fputs(checksum, stdout);
 		RET_UPDATE(result, r);
 		(void)putchar('\n');
+		if( interrupted() ) {
+			result = RET_ERROR_INTERRUPTED;
+			break;
+		}
 	}
 	r = cursor_close(database->oldmd5sums, cursor);
 	RET_ENDUPDATE(result, r);

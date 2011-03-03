@@ -35,6 +35,7 @@
 #include "filecntl.h"
 #include "names.h"
 #include "dirs.h"
+#include "configparser.h"
 
 const char * const changes_checksum_names[] = {
 	"Files", "Checksums-Sha1", "Checksums-Sha256"
@@ -1386,3 +1387,10 @@ retvalue checksums_replace(const char *filename, const char *data, size_t len, s
 		*checksums_p = checksums;
 	return RET_OK;
 }
+
+const struct constant hashes_constants[cs_hashCOUNT+1] = {
+	{"md5", cs_md5sum},
+	{"sha1", cs_sha1sum},
+	{"sha256", cs_sha256sum},
+	{NULL, 0}
+}, *hashnames = hashes_constants;

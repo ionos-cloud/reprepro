@@ -10,7 +10,7 @@
 #endif
 
 /* get a strlist with the md5sums of a Release-file */
-retvalue release_getchecksums(const char *releasefile, /*@out@*/struct checksumsarray *);
+retvalue release_getchecksums(const char *releasefile, const bool ignore[cs_hashCOUNT], /*@out@*/struct checksumsarray *);
 
 #endif
 

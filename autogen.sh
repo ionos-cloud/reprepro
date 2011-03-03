@@ -1,6 +1,7 @@
 #!/bin/sh
 set -e
 
+mkdir -p ac
 aclocal
 autoheader
 automake -a -c

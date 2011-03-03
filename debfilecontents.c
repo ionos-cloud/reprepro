@@ -28,7 +28,6 @@
 #include <archive_entry.h>
 #include "error.h"
 #include "ar.h"
-#include "chunks.h"
 #include "filelist.h"
 #include "debfile.h"
 

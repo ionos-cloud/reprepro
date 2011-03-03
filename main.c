@@ -35,7 +35,6 @@
 #include "strlist.h"
 #include "dirs.h"
 #include "names.h"
-#include "chunks.h"
 #include "files.h"
 #include "filelist.h"
 #include "database_p.h"
@@ -761,8 +760,6 @@ ACTION_D(y, n, y, removefilter) {
 	return result;
 }
 
-
-
 static retvalue list_in_target(void *data, struct target *target,
 		UNUSED(struct distribution *distribution)) {
 	retvalue r,result;
@@ -783,21 +780,40 @@ static retvalue list_in_target(void *data, struct target *target,
 	return result;
 }
 
+static retvalue list_package(UNUSED(struct database *dummy1), UNUSED(struct distribution *dummy2), struct target *target, const char *package, const char *control, UNUSED(void *dummy3)) {
+	retvalue r;
+	char *version;
+
+	r = target->getversion(control, &version);
+	if( RET_IS_OK(r) ) {
+		printf("%s: %s %s\n", target->identifier, package, version);
+		free(version);
+	} else {
+		printf("Could not retrieve version from %s in %s\n",
+				package, target->identifier);
+	}
+	return r;
+}
+
 ACTION_B(y, n, y, list) {
-	retvalue r,result;
+	retvalue r;
 	struct distribution *distribution;
 
-	assert( argc == 3 );
+	assert( argc >= 2 );
 
 	r = distribution_get(alldistributions, argv[1], false, &distribution);
 	assert( r != RET_NOTHING );
 	if( RET_WAS_ERROR(r) )
 		return r;
 
-	result = distribution_foreach_roopenedpart(distribution, database,
+	if( argc == 2 )
+		return distribution_foreach_package(distribution, database,
+			component, architecture, packagetype,
+			list_package, NULL, NULL);
+	else
+		return distribution_foreach_roopenedpart(distribution, database,
 			component, architecture, packagetype,
 			list_in_target, (void*)argv[2]);
-	return result;
 }
 
 
@@ -1053,43 +1069,6 @@ ACTION_D(n, n, y, predelete) {
 	return result;
 }
 
-ACTION_D(n, n, y, iteratedupdate) {
-	retvalue result;
-	struct update_pattern *patterns;
-	struct update_distribution *u_distributions;
-
-	result = dirs_make_recursive(global.listdir);
-	if( RET_WAS_ERROR(result) ) {
-		return result;
-	}
-
-	result = distribution_match(alldistributions, argc-1, argv+1, true);
-	assert( result != RET_NOTHING );
-	if( RET_WAS_ERROR(result) )
-		return result;
-
-	result = updates_getpatterns(&patterns);
-	if( RET_WAS_ERROR(result) )
-		return result;
-
-	result = updates_calcindices(patterns, alldistributions, fast,
-			&u_distributions);
-	if( RET_WAS_ERROR(result) ) {
-		updates_freepatterns(patterns);
-		return result;
-	}
-
-	if( !keepunneededlists ) {
-		result = updates_clearlists(u_distributions);
-	}
-	if( !RET_WAS_ERROR(result) )
-		result = updates_iteratedupdate(database, u_distributions, nolistsdownload, skipold, dereferenced, export, spacecheckmode, reserveddbspace, reservedotherspace);
-	updates_freeupdatedistributions(u_distributions);
-	updates_freepatterns(patterns);
-
-	return result;
-}
-
 ACTION_B(n, n, y, checkupdate) {
 	retvalue result;
 	struct update_pattern *patterns;
@@ -1330,7 +1309,7 @@ ACTION_D(y, n, y, restorefilter) {
 	struct distribution *destination;
 	retvalue result, r;
 
-	assert( argc == 3 );
+	assert( argc == 4 );
 
 	result = distribution_get(alldistributions, argv[1], true, &destination);
 	assert( result != RET_NOTHING );
@@ -2417,7 +2396,7 @@ static const struct action {
 	{"removesrc", 		A_D(removesrc),
 		2, 3, "removesrc <codename> <source-package-names> [<source-version>]"},
 	{"list", 		A_ROBact(list),
-		2, -1, "[-C <component>] [-A <architecture>] [-T <type>] list <codename> <package-name>"},
+		1, 2, "[-C <component>] [-A <architecture>] [-T <type>] list <codename> [<package-name>]"},
 	{"listfilter", 		A_ROBact(listfilter),
 		2, 2, "[-C <component>] [-A <architecture>] [-T <type>] listfilter <codename> <term to describe which packages to list>"},
 	{"removefilter", 	A_Dact(removefilter),
@@ -2454,8 +2433,6 @@ static const struct action {
 		3, 3, "removetrack <distribution> <sourcename> <version>"},
 	{"update",		A_D(update),
 		0, -1, "update [<distributions>]"},
-	{"iteratedupdate",	A_D(iteratedupdate),
-		0, -1, "iteratedupdate [<distributions>]"},
 	{"checkupdate",		A_B(checkupdate),
 		0, -1, "checkupdate [<distributions>]"},
 	{"predelete",		A_D(predelete),

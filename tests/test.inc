@@ -2,6 +2,8 @@
 
 set -e
 
+export LC_ALL=C
+
 testrun() {
 rules=$1
 shift
@@ -234,6 +236,20 @@ mkdir "$WORKDIR"
 cd "$WORKDIR"
 
 touch results.empty
+cat > empty.rules <<EOF
+stdout
+stderr
+returns 0
+EOF
+function md5() {
+md5sum "$1" | cut -d' ' -f1
+}
+function sha1() {
+sha1sum "$1" | cut -d' ' -f1
+}
+function sha256() {
+sha256sum "$1" | cut -d' ' -f1
+}
 function printindexpart() {
 	FILENAME="$1"
 	dpkg-deb -I "$FILENAME" control >"$FILENAME".control
@@ -245,9 +261,9 @@ H
 'd i
 Filename: $FILENAME
 Size: $(stat -c "%s" "$FILENAME")
-SHA256: $(sha256sum "$FILENAME" | cut -d' ' -f1)
-SHA1: $(sha1sum "$FILENAME" | cut -d' ' -f1)
-MD5sum: $(md5sum "$FILENAME" | cut -d' ' -f1)
+SHA256: $(sha256 "$FILENAME")
+SHA1: $(sha1 "$FILENAME")
+MD5sum: $(md5 "$FILENAME")
 .
 $ a
 
@@ -289,6 +305,17 @@ cat <<EOF
 $(sha "$1") $(sha2 "$1") $(md5sum "$1" | cut -d' ' -f1) $(stat -c "%s" "$1")
 EOF
 }
+function md5releaseline() {
+ echo "$(mdandsize dists/"$1"/"$2") $2"
+}
+function sha1releaseline() {
+ echo "$(sha1andsize dists/"$1"/"$2") $2"
+}
+function sha2releaseline() {
+ echo "$(sha2andsize dists/"$1"/"$2") $2"
+}
+
+
 EMPTYMD5ONLY="d41d8cd98f00b204e9800998ecf8427e"
 EMPTYMD5="d41d8cd98f00b204e9800998ecf8427e 0"
 EMPTYGZMD5="7029066c27ac6f5ef18d660d5741979a 20"
@@ -300,4 +327,14 @@ EMPTYSHA2="e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 0"
 EMPTYGZSHA2="59869db34853933b239f1e2219cf7d431da006aa919635478511fabbfc8849d2 20"
 EMPTYBZ2SHA2="d3dda84eb03b9738d118eb2be78e246106900493c0ae07819ad60815134a8058 14"
 
+function runtest() {
+	echo "Running test '$1'.."
+	TESTNAME=" $1"
+	source "$(dirname $0)/test$1.sh"
+}
+function testsuccess() {
+	echo "Test$TESTNAME completed successfully"
+}
+
 setoptions default "" ""
+TESTINCSETUP=issetup
