@@ -375,7 +375,7 @@ rmdir dists/B/snapshots
 rmdir dists/A/snapshots
 dodiff -r -u dists/B.snapshot dists/B
 dodiff -r -u dists/A.snapshot dists/A
-mkdir rmdir dists/B/snapshots
+mkdir dists/B/snapshots
 mkdir dists/A/snapshots
 mv dists/B.snapshot dists/B/snapshots/now
 mv dists/A.snapshot dists/A/snapshots/now
@@ -583,5 +583,5 @@ EOF
 testrun empty -b . dumpunreferenced
 testrun empty -b . dumpreferences
 
-rm -r conf db dists importindex logs
+rm -r conf db dists importindex logs tmp
 testsuccess

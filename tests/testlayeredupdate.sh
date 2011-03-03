@@ -366,12 +366,6 @@ if [ $verbosity -ge 5 ] ; then
 echo "  reading './lists/base_codename2_a_x_Packages'" >>results.expected
 echo "  marking everything to be deleted" >>results.expected
 echo "  reading './lists/base_codename1_a_x_Packages'" >>results.expected ; fi
-if [ $verbosity -ge 0 ] ; then
-echo "Getting packages..." >>results.expected ; fi
-if [ $verbosity -ge 1 ] ; then
-echo "Shutting down aptmethods..." >>results.expected ; fi
-if [ $verbosity -ge 0 ] ; then
-echo "Installing (and possibly deleting) packages..." >>results.expected ; fi
 dodiff results.expected results
 mv results.expected results2.expected
 
@@ -482,12 +476,6 @@ echo "  marking everything to be deleted" >>results.expected
 echo "  reading './lists/base_codename2_a_x_Packages'" >>results.expected
 echo "  reading './lists/base_codename1_a_x_Packages'" >>results.expected
 fi
-if [ $verbosity -ge 0 ] ; then
-echo "Getting packages..." >>results.expected ; fi
-if [ $verbosity -ge 1 ] ; then
-echo "Shutting down aptmethods..." >>results.expected ; fi
-if [ $verbosity -ge 0 ] ; then
-echo "Installing (and possibly deleting) packages..." >>results.expected ; fi
 dodiff results.expected results
 
 testrun - -b . update codename2 codename1 3<<EOF

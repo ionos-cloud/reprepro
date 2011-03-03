@@ -102,6 +102,8 @@ struct distribution {
 	bool readonly;
 	/* tracking information might be obsolete */
 	bool needretrack;
+	/* omitted because of --onlysmalldeletes */
+	bool omitted;
 };
 
 retvalue distribution_get(struct distribution *all, const char *name, bool lookedat, /*@out@*/struct distribution **);

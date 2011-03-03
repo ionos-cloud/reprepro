@@ -164,9 +164,6 @@ stdout
 -v4*=  nothing to do for 'u|1234|a|x'
 -v3*=  processing updates for '1234|a|x'
 #-v5*=  reading './lists/flattest_flatsource_Packages'
--v0*=Getting packages...
--v1*=Shutting down aptmethods...
--v0*=Installing (and possibly deleting) packages...
 EOF
 
 cat > flatsource/Packages <<EOF
@@ -200,9 +197,6 @@ stdout
 -v4*=  nothing to do for 'u|1234|a|x'
 -v3*=  processing updates for '1234|a|x'
 #-v5*=  reading './lists/flattest_flatsource_Packages'
--v0*=Getting packages...
--v1*=Shutting down aptmethods...
--v0*=Installing (and possibly deleting) packages...
 EOF
 
 cat > flatsource/Packages <<EOF

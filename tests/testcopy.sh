@@ -216,5 +216,5 @@ stderr
 *=Changes will only be visible after the next 'export'!
 EOF
 
-rm -r db conf pool logs
+rm -r db conf pool logs lists
 testsuccess

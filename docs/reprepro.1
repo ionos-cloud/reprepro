@@ -427,6 +427,16 @@ and might change meaning without any further notice.
 When downloading packages, show each completed percent of completed package
 downloads together with the size of completely downloaded packages.
 (Repeating this option increases the frequency of this output).
+.TP
+.B \-\-onlysmalldeletes
+The pull and update commands will skip every distribution in which one
+target loses more than 20% of its packages (and at least 10).
+
+Using this option (or putting it in the options config file) can
+avoid removing large quantities of data but means you might often
+give
+.B \-\-noonlysmalldeletes
+to override it.
 .SH COMMANDS
 .TP
 .BR export " [ " \fIcodenames\fP " ]"

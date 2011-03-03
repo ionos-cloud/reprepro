@@ -134,7 +134,7 @@ static off_t reservedotherspace = 1024*1024;
  * to change something owned by lower owners. */
 enum config_option_owner config_state,
 #define O(x) owner_ ## x = CONFIG_OWNER_DEFAULT
-O(fast), O(x_morguedir), O(x_outdir), O(x_basedir), O(x_distdir), O(x_dbdir), O(x_listdir), O(x_confdir), O(x_logdir), O(x_methoddir), O(x_section), O(x_priority), O(x_component), O(x_architecture), O(x_packagetype), O(nothingiserror), O(nolistsdownload), O(keepunusednew), O(keepunreferenced), O(keeptemporaries), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock), O(spacecheckmode), O(reserveddbspace), O(reservedotherspace), O(guessgpgtty), O(verbosedatabase), O(gunzip), O(bunzip2), O(unlzma), O(unxz), O(gnupghome), O(listformat), O(listmax), O(listskip);
+O(fast), O(x_morguedir), O(x_outdir), O(x_basedir), O(x_distdir), O(x_dbdir), O(x_listdir), O(x_confdir), O(x_logdir), O(x_methoddir), O(x_section), O(x_priority), O(x_component), O(x_architecture), O(x_packagetype), O(nothingiserror), O(nolistsdownload), O(keepunusednew), O(keepunreferenced), O(keeptemporaries), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock), O(spacecheckmode), O(reserveddbspace), O(reservedotherspace), O(guessgpgtty), O(verbosedatabase), O(gunzip), O(bunzip2), O(unlzma), O(unxz), O(gnupghome), O(listformat), O(listmax), O(listskip), O(onlysmalldeletes);
 #undef O
 
 #define CONFIGSET(variable,value) if(owner_ ## variable <= config_state) { \
@@ -3612,6 +3612,7 @@ LO_KEEPUNNEEDEDLISTS,
 LO_NOTHINGISERROR,
 LO_NOLISTDOWNLOAD,
 LO_ASKPASSPHRASE,
+LO_ONLYSMALLDELETES,
 LO_KEEPDIRECTORIES,
 LO_KEEPTEMPORARIES,
 LO_FAST,
@@ -3624,6 +3625,7 @@ LO_NOKEEPUNNEEDEDLISTS,
 LO_NONOTHINGISERROR,
 LO_LISTDOWNLOAD,
 LO_NOASKPASSPHRASE,
+LO_NOONLYSMALLDELETES,
 LO_NOKEEPDIRECTORIES,
 LO_NOKEEPTEMPORARIES,
 LO_NOFAST,
@@ -3801,6 +3803,12 @@ static void handle_option(int c, const char *argument) {
 					break;
 				case LO_NOKEEPTEMPORARIES:
 					CONFIGGSET(keeptemporaries, false);
+					break;
+				case LO_ONLYSMALLDELETES:
+					CONFIGGSET(onlysmalldeletes, true);
+					break;
+				case LO_NOONLYSMALLDELETES:
+					CONFIGGSET(onlysmalldeletes, false);
 					break;
 				case LO_KEEPDIRECTORIES:
 					CONFIGGSET(keepdirectories, true);
@@ -4138,6 +4146,7 @@ int main(int argc,char *argv[]) {
 		{"keepunreferencedfiles", no_argument, &longoption, LO_KEEPUNREFERENCED},
 		{"keepunusednewfiles", no_argument, &longoption, LO_KEEPUNUSEDNEW},
 		{"keepunneededlists", no_argument, &longoption, LO_KEEPUNNEEDEDLISTS},
+		{"onlysmalldeletes", no_argument, &longoption, LO_ONLYSMALLDELETES},
 		{"keepdirectories", no_argument, &longoption, LO_KEEPDIRECTORIES},
 		{"keeptemporaries", no_argument, &longoption, LO_KEEPTEMPORARIES},
 		{"ask-passphrase", no_argument, &longoption, LO_ASKPASSPHRASE},
@@ -4147,6 +4156,7 @@ int main(int argc,char *argv[]) {
 		{"nokeepunreferencedfiles", no_argument, &longoption, LO_NOKEEPUNREFERENCED},
 		{"nokeepunusednewfiles", no_argument, &longoption, LO_NOKEEPUNUSEDNEW},
 		{"nokeepunneededlists", no_argument, &longoption, LO_NOKEEPUNNEEDEDLISTS},
+		{"noonlysmalldeletes", no_argument, &longoption, LO_NOONLYSMALLDELETES},
 		{"nokeepdirectories", no_argument, &longoption, LO_NOKEEPDIRECTORIES},
 		{"nokeeptemporaries", no_argument, &longoption, LO_NOKEEPTEMPORARIES},
 		{"noask-passphrase", no_argument, &longoption, LO_NOASKPASSPHRASE},

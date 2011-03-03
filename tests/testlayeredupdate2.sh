@@ -640,9 +640,6 @@ stdout
 -v3*=  processing updates for 'boring|main|${FAKEARCHITECTURE}'
 #-v5*=  reading './lists/b_x_Packages'
 -v5*=  reading './lists/b_x_main_${FAKEARCHITECTURE}_Packages'
--v0*=Getting packages...
--v1*=Shutting down aptmethods...
--v0*=Installing (and possibly deleting) packages...
 stderr
 EOF
 

@@ -79,6 +79,7 @@ extern struct global_config {
 	/* flags: */
 	bool keepdirectories;
 	bool keeptemporaries;
+	bool onlysmalldeletes;
 	/* verbosity of downloading statistics */
 	int showdownloadpercent;
 } global;

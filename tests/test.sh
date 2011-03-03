@@ -26,6 +26,7 @@ runtest copy
 runtest buildneeding
 runtest morgue
 runtest diffgeneration
+runtest onlysmalldeletes
 
 set +v +x
 echo

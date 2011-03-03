@@ -37,10 +37,12 @@ retvalue changes_parsefileline(const char *fileline, /*@out@*/filetype *result_t
 	const char *priostart,*prioend;
 	const char *filestart,*nameend,*fileend;
 	const char *archstart,*archend;
-	const char *versionstart,*typestart;
+	const char *versionstart;
 	filetype type;
 	char *section, *priority, *basefilename, *name;
 	architecture_t architecture;
+	size_t l;
+	bool checkfilename = false;
 
 	p = fileline;
 	while( *p !='\0' && xisspace(*p) )
@@ -144,82 +146,126 @@ retvalue changes_parsefileline(const char *fileline, /*@out@*/filetype *result_t
 	nameend = p;
 	p++;
 	versionstart = p;
-	// We cannot say where the version ends and the filename starts,
-	// but as the packagetypes would be valid part of the version, too,
-	// this check gets the broken things.
-	names_overversion(&p, true);
-	if( *p != '\0' && *p != '_' ) {
-		fprintf(stderr, "Unexpected character '%c' in file name within '%s'!\n",
-				*p, fileline);
-		return RET_ERROR;
-	}
-	if( *p == '_' ) {
-		/* Things having a underscole will have an architecture
-		 * and be either .deb or .udeb or .log (reprepro extension) */
+
+	/* changing 3.0 format to now also allow _ in source files
+	 * makes this parsing quite more ugly... */
+
+	while( *p !='\0' && !xisspace(*p) )
+		p++;
+	l = p - versionstart;
+
+	/* identify the binary types (they have no compression
+	 * and will need a _ */
+
+	if( l >= 4 && memcmp(p-4, ".deb", 4) == 0 )
+		type = fe_DEB;
+	else if( l >= 5 && memcmp(p-5, ".udeb", 5) == 0 )
+		type = fe_UDEB;
+	else
+		type = fe_UNKNOWN;
+
+	if( type != fe_UNKNOWN ) {
+		/* a _ should separate the version from the rest */
+		p = versionstart;
+		names_overversion(&p, true);
+		if( *p != '\0' && *p != '_' ) {
+			fprintf(stderr, "Unexpected character '%c' in file name within '%s'!\n",
+					*p, fileline);
+			return RET_ERROR;
+		}
+		if( *p != '_' ) {
+			fprintf(stderr, "Cannot cope with .[u]deb filename not containing an underscore (in '%s')!", fileline);
+			return RET_ERROR;
+		}
 		p++;
 		archstart = p;
-		while( *p !='\0' && *p != '.' )
-			p++;
-		if( *p != '.' ) {
-			fprintf(stderr,
-"'%s' is not of the expected form name_version_arch.[u]deb!\n", filestart);
-			return RET_ERROR;
-		}
-		archend = p;
-		p++;
-		typestart = p;
-		while( *p !='\0' && !xisspace(*p) )
-			p++;
-		if( p-typestart == 3 && strncmp(typestart,"deb",3) == 0 )
-			type = fe_DEB;
-		else if( p-typestart == 4 && strncmp(typestart,"udeb",4) == 0 )
-			type = fe_UDEB;
-		else if( p-typestart == 3 && strncmp(typestart,"log",3) == 0 )
-			type = fe_LOG;
-		else if( p-typestart == 5 && strncmp(typestart,"build",5) == 0 )
-			type = fe_LOG;
+		if( type == fe_DEB )
+			archend = versionstart + l - 4;
 		else {
-			fprintf(stderr, "'%s' is not .deb or .udeb!\n", filestart);
-			return RET_ERROR;
+			assert( type == fe_UDEB );
+			archend = versionstart + l - 5;
 		}
-		if( type != fe_LOG && strncmp(archstart,"source",6) == 0 ) {
+		if( archend - archstart == 6 &&
+				strncmp(archstart,"source",6) == 0 ) {
 			fprintf(stderr,
 "Architecture 'source' not allowed for .[u]debs ('%s')!\n", filestart);
 			return RET_ERROR;
 		}
 	} else {
 		enum compression c;
-		size_t l;
+		const char *eoi;
 
-		/* this looks like some source-package, we will have
-		 * to look for the packagetype ourself... */
-		while( *p !='\0' && !xisspace(*p) ) {
-			p++;
-		}
-		/* ignore compression suffix */
-		l = p - versionstart;
+		/* without those, it gets more complicated.
+		 * It's not .deb or .udeb, so most likely a
+		 * source file (or perhaps a log (reprepro extension)) */
+
+		/* if it uses a known compression, things are easy,
+		 * so try this first: */
+
 		c = compression_by_suffix(versionstart, &l);
 		p = versionstart + l;
 
-		if( l > 9 && strncmp(p-9, ".orig.tar", 9) == 0 )
+		archstart = "source";
+		archend = archstart + 6;
+		if( l > 9 && strncmp(p-9, ".orig.tar", 9) == 0 ) {
 			type = fe_ORIG;
-		else if( l > 4 && strncmp(p-4, ".tar", 4) == 0 )
+			eoi = p - 9;
+		} else if( l > 4 && strncmp(p-4, ".tar", 4) == 0 ) {
 			type = fe_TAR;
-		else if( l > 5 && strncmp(p-5,".diff", 5) == 0 )
+			eoi = p - 4;
+		} else if( l > 5 && strncmp(p-5,".diff", 5) == 0 ) {
 			type = fe_DIFF;
-		else if( l > 4 && strncmp(p-4,".dsc",4) == 0 && c == c_none )
+			eoi = p - 5;
+		} else if( l > 4 && strncmp(p-4,".dsc",4) == 0 && c == c_none ) {
 			type = fe_DSC;
-		else if( l > 4 && strncmp(p-4, ".log", 4) == 0 )
+			eoi = p - 4;
+		} else if( l > 4 && strncmp(p-4, ".log", 4) == 0 ) {
 			type = fe_LOG;
-		else if( l > 6 && strncmp(p-6, ".build", 6) == 0 )
+			eoi = p - 4;
+		} else if( l > 6 && strncmp(p-6, ".build", 6) == 0 ) {
 			type = fe_LOG;
-		else {
-			type = fe_UNKNOWN;
+			eoi = p - 6;
+		}
+		if( type != fe_UNKNOWN ) {
+			/* check for a proper version */
+			p = versionstart;
+			names_overversion(&p, true);
+			if( p >= eoi ) {
+				/* all well */
+			} else if( type == fe_TAR ) {
+				/* a tar might be a component with ugly
+				 * data between .orig- and the .tar.c */
+				const char *o = strstr(versionstart, ".orig-");
+				if (o == NULL || o > eoi) {
+					fprintf(stderr,
+"Unexpected character '%c' in file name within '%s'!\n",
+							*p, fileline);
+					return RET_ERROR;
+				}
+				checkfilename = true;
+			} else if( type == fe_LOG ) {
+				if( *p == '_' ) {
+					archstart = p + 1;
+					archend = eoi;
+					checkfilename = true;
+				} else {
+					fprintf(stderr,
+"Unexpected character '%c' in file name within '%s'!\n",
+						*p, fileline);
+				}
+			} else {
+				fprintf(stderr,
+"Unexpected character '%c' in file name within '%s'!\n",
+						*p, fileline);
+				return RET_ERROR;
+
+			}
+		} else {
+			/* everything else is assumed to be source */
+			checkfilename = true;
 			fprintf(stderr,
 "Unknown file type: '%s', assuming source format...\n", fileline);
 		}
-		archstart = "source";
-		archend = archstart + 6;
 	}
 	section = strndup(sectionstart, sectionend - sectionstart);
 	priority = strndup(priostart, prioend - priostart);
@@ -233,6 +279,20 @@ retvalue changes_parsefileline(const char *fileline, /*@out@*/filetype *result_t
 		free(section); free(priority);
 		free(basefilename); free(name);
 		return RET_ERROR_OOM;
+	}
+	if( checkfilename || !atom_defined(architecture)) {
+		retvalue r;
+
+		/* as we no longer run properversion over the whole
+		 * rest of the string, at least make sure nothing evil
+		 * is in this name */
+		r = properfilename(basefilename);
+		if( !RET_IS_OK(r) ) {
+			assert( r != RET_NOTHING );
+			free(section); free(priority);
+			free(basefilename); free(name);
+			return r;
+		}
 	}
 	hash_p->start = md5start;
 	hash_p->len = md5end - md5start;
