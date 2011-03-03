@@ -128,7 +128,7 @@ retvalue extractcontrol(char **control,const char *debfile) {
 		}
 	}
 	
-	/* avoid beeing a memory leak */
+	/* avoid being a memory leak */
 	if( !(RET_IS_OK(result)) )
 		controlchunk = NULL;
 

@@ -43,6 +43,7 @@
 #include "distribution.h"
 #include "terms.h"
 #include "filterlist.h"
+#include "readrelease.h"
 
 // TODO: what about other signatures? Is hard-coding ".gpg" sensible?
 
@@ -152,6 +153,8 @@ struct update_target {
 	/*@null@*/struct upgradelist *upgradelist;
 	/* Ignore delete marks (as some lists were missing) */
 	bool_t ignoredelete;
+	/* don't do anything because of --skipold */
+	bool_t nothingnew;
 };
 
 struct update_distribution {
@@ -248,6 +251,7 @@ static inline retvalue newupdatetarget(struct update_target **ts,/*@dependent@*/
 	ut->indices = NULL;
 	ut->upgradelist = NULL;
 	ut->ignoredelete = FALSE;
+	ut->nothingnew = FALSE;
 	*ts = ut;
 	return RET_OK;
 }
@@ -1106,6 +1110,7 @@ static inline retvalue readchecksums(struct update_origin *origin) {
 	return r;
 }
 
+/* returns RET_NOTHING when nothing new will be retrieved */
 static inline retvalue queueindex(struct update_index *index,int force) {
 	const struct update_origin *origin = index->origin;
 	int i;
@@ -1134,6 +1139,10 @@ static inline retvalue queueindex(struct update_index *index,int force) {
 				r = aptmethod_queuefile(origin->download,
 					index->upstream,index->filename,
 					md5sum,NULL,NULL);
+			} else if( RET_IS_OK(r) ) {
+				/* file is already there, nothing has
+				 * to be done */
+				r = RET_NOTHING;
 			}
 			return r;
 		}
@@ -1172,7 +1181,7 @@ static retvalue updates_queuemetalists(struct update_distribution *distributions
 	return result;
 }
 
-static retvalue updates_queuelists(struct update_distribution *distributions,int force) {
+static retvalue updates_queuelists(struct update_distribution *distributions,bool_t skipold,bool_t *anythingtodo,int force) {
 	retvalue result,r;
 	struct update_origin *origin;
 	struct update_target *target;
@@ -1196,10 +1205,17 @@ static retvalue updates_queuelists(struct update_distribution *distributions,int
 			}
 		}
 		for( target=d->targets; target!=NULL ; target=target->next ) {
+			target->nothingnew = skipold;
 			for( index=target->indices ; index!=NULL ; index=index->next ) {
 				if( index->origin == NULL )
 					continue;
 				r = queueindex(index,force);
+				if( RET_IS_OK(r) ) {
+					target->nothingnew = FALSE;
+					*anythingtodo = TRUE;
+				}
+				if( RET_WAS_ERROR(r) )
+					index->failed = TRUE;
 				RET_UPDATE(result,r);
 				if( RET_WAS_ERROR(r) && force <= 0 )
 					return r;
@@ -1274,6 +1290,8 @@ static retvalue updates_calllisthooks(struct update_distribution *distributions,
 	for( d=distributions ; d != NULL ; d=d->next) {
 
 		for( target=d->targets; target!=NULL ; target=target->next ) {
+			if( target->nothingnew )
+				continue;
 			for( index=target->indices ; index != NULL ; 
 						     index=index->next ) {
 				if( index->origin == NULL )
@@ -1329,6 +1347,12 @@ static inline retvalue searchformissing(const char *dbdir,struct update_target *
 	struct update_index *index;
 	retvalue result,r;
 
+	if( u->nothingnew ) {
+		if( verbose >= 0 ) {
+		fprintf(stderr,"  nothing new for '%s' (use --noskipold to process anyway)\n",u->target->identifier);
+		}
+		return RET_NOTHING;
+	}
 	if( verbose > 2 )
 		fprintf(stderr,"  processing updates for '%s'\n",u->target->identifier);
 	r = upgradelist_initialize(&u->upgradelist,u->target,dbdir);
@@ -1395,6 +1419,8 @@ static retvalue updates_enqueue(struct downloadcache *cache,filesdb filesdb,stru
 
 	result = RET_NOTHING;
 	for( u=distribution->targets ; u != NULL ; u=u->next ) {
+		if( u->nothingnew )
+			continue;
 		r = upgradelist_enqueue(u->upgradelist,cache,filesdb,force);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) && force <= 0 )
@@ -1410,6 +1436,8 @@ static retvalue updates_install(const char *dbdir,filesdb filesdb,references ref
 
 	result = RET_NOTHING;
 	for( u=distribution->targets ; u != NULL ; u=u->next ) {
+		if( u->nothingnew )
+			continue;
 		r = upgradelist_install(u->upgradelist,dbdir,filesdb,refs,force,u->ignoredelete,dereferencedfilekeys);
 		RET_UPDATE(result,r);
 		upgradelist_free(u->upgradelist);
@@ -1429,7 +1457,7 @@ static void updates_dump(struct update_distribution *distribution) {
 	}
 }
 
-static retvalue updates_downloadlists(const char *methoddir,struct aptmethodrun *run,struct update_distribution *distributions, int force) {
+static retvalue updates_downloadlists(const char *methoddir,struct aptmethodrun *run,struct update_distribution *distributions, bool_t skipold, bool_t *anythingtodo, int force) {
 	retvalue r,result;
 
 	/* first get all "Release" and "Release.gpg" files */
@@ -1445,7 +1473,7 @@ static retvalue updates_downloadlists(const char *methoddir,struct aptmethodrun 
 	}
 
 	/* Then get all index files (with perhaps md5sums from the above) */
-	r = updates_queuelists(distributions,force);
+	r = updates_queuelists(distributions,skipold,anythingtodo,force);
 	RET_UPDATE(result,r);
 	if( RET_WAS_ERROR(result) && force <= 0 ) {
 		return result;
@@ -1460,7 +1488,7 @@ static retvalue updates_downloadlists(const char *methoddir,struct aptmethodrun 
 	return result;
 }
 
-retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,references refs,struct update_distribution *distributions,int force,bool_t nolistsdownload,struct strlist *dereferencedfilekeys) {
+retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,references refs,struct update_distribution *distributions,int force,bool_t nolistsdownload,bool_t skipold,struct strlist *dereferencedfilekeys) {
 	retvalue result,r;
 	struct update_distribution *d;
 	struct aptmethodrun *run;
@@ -1469,6 +1497,13 @@ retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,
 	r = aptmethod_initialize_run(&run);
 	if( RET_WAS_ERROR(r) )
 		return r;
+
+	if( nolistsdownload ) {
+		if( skipold && verbose >= 0 ) {
+			fprintf(stderr,"Ignoring --skipold because of --nolistsdownload\n");
+		}
+		skipold = FALSE;
+	}
 
 	/* preperations */
 	result = updates_startup(run,distributions,force);
@@ -1480,10 +1515,16 @@ retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,
 		if( verbose >= 0 )
 			fprintf(stderr,"Warning: As --nolistsdownload is given, index files are NOT checked.\n");
 	} else {
-		r = updates_downloadlists(methoddir,run,distributions,force);
+		bool_t anythingtodo = !skipold;
+
+		r = updates_downloadlists(methoddir,run,distributions,skipold,&anythingtodo,force);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(result) && force <= 0 ) {
 			aptmethod_shutdown(run);
+			return result;
+		}
+		if( !anythingtodo ) {
+			fprintf(stderr,"Nothing to do found. (Use --noskipold to force processing)\n");
 			return result;
 		}
 	}
@@ -1549,7 +1590,7 @@ retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,
 	return result;
 }
 
-retvalue updates_checkupdate(const char *dbdir,const char *methoddir,struct update_distribution *distributions,int force,bool_t nolistsdownload) {
+retvalue updates_checkupdate(const char *dbdir,const char *methoddir,struct update_distribution *distributions,int force,bool_t nolistsdownload,bool_t skipold) {
 	struct update_distribution *d;
 	retvalue result,r;
 	struct aptmethodrun *run;
@@ -1557,6 +1598,13 @@ retvalue updates_checkupdate(const char *dbdir,const char *methoddir,struct upda
 	r = aptmethod_initialize_run(&run);
 	if( RET_WAS_ERROR(r) )
 		return r;
+
+	if( nolistsdownload ) {
+		if( skipold && verbose >= 0 ) {
+			fprintf(stderr,"Ignoring --skipold because of --nolistsdownload\n");
+		}
+		skipold = FALSE;
+	}
 
 	result = updates_startup(run,distributions,force);
 	if( RET_WAS_ERROR(result) && force <= 0 ) {
@@ -1567,10 +1615,15 @@ retvalue updates_checkupdate(const char *dbdir,const char *methoddir,struct upda
 		if( verbose >= 0 )
 			fprintf(stderr,"Warning: As --nolistsdownload is given, index files are NOT checked.\n");
 	} else {
-		r = updates_downloadlists(methoddir,run,distributions,force);
+		bool_t anythingtodo = !skipold;
+		r = updates_downloadlists(methoddir,run,distributions,skipold,&anythingtodo,force);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(result) && force <= 0 ) {
 			aptmethod_shutdown(run);
+			return result;
+		}
+		if( !anythingtodo ) {
+			fprintf(stderr,"Nothing to do found. (Use --noskipold to force processing)\n");
 			return result;
 		}
 	}
@@ -1605,7 +1658,7 @@ retvalue updates_checkupdate(const char *dbdir,const char *methoddir,struct upda
 	return result;
 }
 
-static retvalue singledistributionupdate(const char *dbdir,const char *methoddir,filesdb filesdb,references refs,struct update_distribution *d,int force,bool_t nolistsdownload,struct strlist *dereferencedfilekeys) {
+static retvalue singledistributionupdate(const char *dbdir,const char *methoddir,filesdb filesdb,references refs,struct update_distribution *d,int force,bool_t nolistsdownload,bool_t skipold, struct strlist *dereferencedfilekeys) {
 	struct aptmethodrun *run;
 	struct downloadcache *cache;
 	struct update_origin *origin;
@@ -1668,6 +1721,7 @@ static retvalue singledistributionupdate(const char *dbdir,const char *methoddir
 
 	for( target=d->targets; target!=NULL ; target=target->next ) {
 		struct update_index *index;
+		target->nothingnew = skipold;
 		if( !nolistsdownload ) {
 			for( index=target->indices ; index!=NULL ; index=index->next ) {
 				if( index->origin == NULL || index->origin->failed )
@@ -1680,8 +1734,12 @@ static retvalue singledistributionupdate(const char *dbdir,const char *methoddir
 						return r;
 					}
 					index->failed = TRUE;
+				} else if( RET_IS_OK(r) ) {
+					target->nothingnew = FALSE;
 				}
 			}
+			if( target->nothingnew )
+				continue;
 			r = aptmethod_download(run,methoddir,NULL);
 			RET_UPDATE(result,r);
 			if( RET_WAS_ERROR(r) && force <= 0 ) {
@@ -1724,6 +1782,10 @@ static retvalue singledistributionupdate(const char *dbdir,const char *methoddir
 			continue;
 		}
 		r = searchformissing(dbdir,target,force);
+		if( r == RET_NOTHING ) {
+			(void)downloadcache_free(cache);
+			continue;
+		}
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) && force <= 0 ) {
 			(void)downloadcache_free(cache);
@@ -1768,7 +1830,7 @@ static retvalue singledistributionupdate(const char *dbdir,const char *methoddir
 	return result;
 }
 
-retvalue updates_iteratedupdate(const char *confdir,const char *dbdir,const char *distdir,const char *methoddir,filesdb filesdb,references refs,struct update_distribution *distributions,int force,bool_t nolistsdownload,struct strlist *dereferencedfilekeys) {
+retvalue updates_iteratedupdate(const char *confdir,const char *dbdir,const char *distdir,const char *methoddir,filesdb filesdb,references refs,struct update_distribution *distributions,int force,bool_t nolistsdownload,bool_t skipold,struct strlist *dereferencedfilekeys) {
 	retvalue result,r;
 	struct update_distribution *d;
 
@@ -1785,10 +1847,10 @@ retvalue updates_iteratedupdate(const char *confdir,const char *dbdir,const char
 			if( verbose >= 0 )
 				fprintf(stderr,"Warning: Override-Files of '%s' ignored as not yet supported while updating!\n",d->distribution->codename);
 		}
-		r = singledistributionupdate(dbdir,methoddir,filesdb,refs,d,force,nolistsdownload,dereferencedfilekeys);
+		r = singledistributionupdate(dbdir,methoddir,filesdb,refs,d,force,nolistsdownload,skipold,dereferencedfilekeys);
 		RET_UPDATE(result,r);
 		if( RET_IS_OK(r) ) {
-			r = distribution_export(d->distribution,confdir,dbdir,distdir,force,TRUE);
+			r = distribution_export(d->distribution,confdir,dbdir,distdir,TRUE);
 			RET_UPDATE(result,r);
 		}
 	}

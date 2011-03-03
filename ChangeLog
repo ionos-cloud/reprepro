@@ -1,3 +1,52 @@
+2005-12-24  Bernhard R. Link <brlink@debian.org>
+	* add cache database to store md5sums
+	of released files in there.
+
+2005-12-23  Bernhard R. Link <brlink@debian.org>
+	* Implement native .bz2 compression 
+	(only when libbz2.so was available at build time)
+
+2005-12-22  Bernhard R. Link <brlink@debian.org>
+	* fix some spelling errors
+	(thanks to Guilherme de S. Pastore for notifying me)
+
+	* make index exportion code more low level, allowing
+	in-place md5sum calculation without needing to reread
+	the generated files.
+
+	* fix problem of bzip2.example script
+
+2005-12-20  Bernhard R. Link <brlink@debian.org>
+	* refactor index exporting/release generation
+	so that is always puts the uncompressed checksums
+	in the Release file.
+	* reverting the changes from 2005-12-15
+          (i.e. again not writing uncompressed Sources
+	   by default, as the checksum now shows up
+	   in the Release file anyway, as apt needs it)
+	* {Dsc,Deb,UDeb}Indices' external programs
+	are now only called with the uncompressed files.
+
+2005-12-19  Bernhard R. Link <brlink@debian.org>
+	* fix segfault introduced into interatedupdate
+	by --skipold.
+
+2005-12-18  Bernhard R. Link <brlink@debian.org>
+	* split Release reading from release.c to readrelease.c
+
+2005-12-15  Bernhard R. Link <brlink@debian.org>
+	* Generate uncompressed source/Sources by default.
+
+2005-12-11  Bernhard R. Link <brlink@debian.org>
+	* Unless the new --noskipold is used, 
+	only targets with newly downloaded index
+	files are updated.
+
+2005-12-10  Bernhard R. Link <brlink@debian.org>
+	* remove pool-directories gotten empty
+	(thanks to Julien Valroff for suggesting this)
+	* new --keepdirectories option to not try this
+
 2005-10-27  Bernhard R. Link <brlink@debian.org>
 	* add colons in description within bzip.example
 	(thanks to Steve Kemp for finding this)

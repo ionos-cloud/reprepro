@@ -203,8 +203,6 @@ distdir: $(DISTFILES)
 	    || cp -p $$d/$$file $(distdir)/$$file || :; \
 	  fi; \
 	done
-randomgen.o: randomgen.c
-randomgen2.o: randomgen2.c
 
 info-am:
 info: info-am

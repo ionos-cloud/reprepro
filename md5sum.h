@@ -23,4 +23,6 @@ retvalue md5sum_place(const char *origfilename,const char *destfilename,
  * return RET_NOTHING and delete it (and warn if warnifwrong) if it has wrong */
 retvalue md5sum_ensure(const char *fullfilename,const char *md5sum,bool_t warnifwrong);
 
+struct MD5Context;
+retvalue md5sum_genstring(char **md5,struct MD5Context *context,off_t filesize);
 #endif

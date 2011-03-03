@@ -160,6 +160,7 @@ def main():
     oldrelfile = sys.argv[3]
     mode = sys.argv[4]
 
+    # this is only needed with reprepro <= 0.7
     if oldrelfile.endswith(".gz"):
     	sys.exit(0);
 

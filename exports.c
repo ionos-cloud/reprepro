@@ -41,115 +41,23 @@
 extern int verbose;
 
 static retvalue printout(void *data,UNUSED(const char *package),const char *chunk) {
-	FILE *pf = data;
+	struct filetorelease *file = data;
 	size_t l;
 
 	l = strlen(chunk);
-	if( fwrite(chunk,l,1,pf) != 1 || fwrite("\n",1,1,pf) != 1 )
-		return RET_ERROR;
-	else {
-		if( chunk[l-1] != '\n' )
-			if( fwrite("\n",1,1,pf) != 1 )
-				return RET_ERROR;
-		return RET_OK;
-	}
+	if( l == 0 )
+		return RET_NOTHING;
+	(void)release_writedata(file,chunk,l);
+	(void)release_writestring(file,"\n");
+	if( chunk[l-1] != '\n' )
+		(void)release_writestring(file,"\n");
+	return RET_OK;
 }
-
-static retvalue zprintout(void *data,UNUSED(const char *package),const char *chunk) {
-	gzFile pf = data;
-	size_t l;
-
-	l = strlen(chunk);
-	if( gzwrite(pf,(const voidp)chunk,l) != (ssize_t)l || gzwrite(pf,"\n",1) != 1 )
-		return RET_ERROR;
-	else {
-		if( chunk[l-1] != '\n' )
-			if( gzwrite(pf,"\n",1) != 1 )
-				return RET_ERROR;
-		return RET_OK;
-	}
-}
-
-/* print the database to a "Packages" or "Sources" file */
-static retvalue packagesdb_printout(packagesdb packagesdb,const char *filename) {
-	retvalue ret;
-	int r;
-	FILE *pf;
-
-	pf = fopen(filename,"wb");
-	if( pf == NULL ) {
-		fprintf(stderr,"Error creating '%s': %m\n",filename);
-		return RET_ERRNO(errno);
-	}
-	ret = packages_foreach(packagesdb,printout,pf,0);
-	r = fclose(pf);
-	if( r != 0 )
-		RET_ENDUPDATE(ret,RET_ERRNO(errno));
-	/* Writing an empty file is also something done */
-	if( ret == RET_NOTHING )
-		return RET_OK;
-	return ret;
-}
-
-/* print the database to a "Packages.gz" or "Sources.gz" file */
-static retvalue packagesdb_zprintout(packagesdb packagesdb,const char *filename) {
-	retvalue ret;
-	int r;
-	gzFile pf;
-
-	pf = gzopen(filename,"wb");
-	if( pf == NULL ) {
-		fprintf(stderr,"Error creating '%s': %m\n",filename);
-		/* if errno is zero, it's a memory error: */
-		return RET_ERRNO(errno);
-	}
-	ret = packages_foreach(packagesdb,zprintout,pf,0);
-	r = gzclose(pf);
-	if( r < 0 )
-		RET_ENDUPDATE(ret,RET_ZERRNO(r));
-	/* Writing an empty file is also something done */
-	if( ret == RET_NOTHING )
-		return RET_OK;
-	return ret;
-}
-
-
-static retvalue export_writepackages(packagesdb packagesdb,const char *filename,indexcompression compression) {
-
-	if( verbose > 4 ) {
-		fprintf(stderr,"  writing to '%s'...\n",filename);
-	}
-
-	(void)unlink(filename);
-	switch( compression ) {
-		case ic_uncompressed:
-			return packagesdb_printout(packagesdb,filename);
-		case ic_gzip:
-			return packagesdb_zprintout(packagesdb,filename);
-	}
-	assert( compression == 0 && compression != 0 );
-	return RET_ERROR;
-}
-
-/*@null@*/
-static char *comprconcat(const char *str2,const char *str3,indexcompression compression) {
-
-	switch( compression ) {
-		case ic_uncompressed:
-			return mprintf("%s/%s",str2,str3);
-		case ic_gzip:
-			return mprintf("%s/%s.gz",str2,str3);
-	}
-	assert( compression == 0 && compression != 0 );
-	return NULL;
-}
-
 
 retvalue exportmode_init(/*@out@*/struct exportmode *mode,bool_t uncompressed,/*@null@*/const char *release,const char *indexfile,/*@null@*//*@only@*/char *options) {
 	mode->hook = NULL;
 	if( options == NULL ) {
-		mode->compressions[ic_uncompressed] = uncompressed;
-		mode->compressions[ic_gzip] = TRUE;
+		mode->compressions = IC_FLAG(ic_gzip) | (uncompressed?IC_FLAG(ic_uncompressed):0);
 		mode->filename = strdup(indexfile);
 		if( mode->filename == NULL )
 			return RET_ERROR_OOM;
@@ -199,17 +107,21 @@ retvalue exportmode_init(/*@out@*/struct exportmode *mode,bool_t uncompressed,/*
 			free(options);
 			return RET_ERROR;
 		}
-		mode->compressions[ic_uncompressed] = FALSE;
-		mode->compressions[ic_gzip] = FALSE;
+		mode->compressions = 0;
 		while( *b == '.' ) {
 			const char *e = b;
 			while( *e != '\0' && !xisspace(*e) )
 				e++;
 			if( xisspace(b[1]) || b[1] == '\0' )
-				mode->compressions[ic_uncompressed] = TRUE;
+				mode->compressions |= IC_FLAG(ic_uncompressed);
 			else if( b[1] == 'g' && b[2] == 'z' &&
 					(xisspace(b[3]) || b[3] == '\0'))
-				mode->compressions[ic_gzip] = TRUE;
+				mode->compressions |= IC_FLAG(ic_gzip);
+#ifdef HAVE_LIBBZ2
+			else if( b[1] == 'b' && b[2] == 'z' && b[3] == '2' &&
+					(xisspace(b[4]) || b[4] == '\0'))
+				mode->compressions |= IC_FLAG(ic_bzip2);
+#endif
 			else {
 				fprintf(stderr,"Unsupported extension '.%c'... in '%s'!\n",b[1],options);
 				free(options);
@@ -242,7 +154,40 @@ retvalue exportmode_init(/*@out@*/struct exportmode *mode,bool_t uncompressed,/*
 	return RET_OK;
 }
 
-static retvalue callexporthook(const char *confdir,/*@null@*/const char *hook, const char *dirofdist, const char *reltmpfilename, const char *relfilename, const char *mode, struct strlist *releasedfiles) {
+static retvalue gotfilename(const char *relname, size_t l, struct release *release) {
+
+	if( l > 12 && memcmp(relname+l-12,".tobedeleted",12) == 0) {
+		char *filename;
+
+		filename = strndup(relname,l-12);
+		if( filename == NULL )
+			return RET_ERROR_OOM;
+		return release_adddel(release,filename);
+
+	} if( l > 4 || strcmp(relname+(l-4),".new") == 0 ) {
+		char *filename,*tmpfilename;
+
+		filename = strndup(relname,l-4);
+		if( filename == NULL )
+			return RET_ERROR_OOM;
+		tmpfilename = strndup(relname,l);
+		if( tmpfilename == NULL ) {
+			free(filename);
+			return RET_ERROR_OOM;
+		}
+		return release_addnew(release,tmpfilename,filename);
+
+	} else {
+		char *filename;
+
+		filename = strndup(relname,l);
+		if( filename == NULL )
+			return RET_ERROR_OOM;
+		return release_addold(release,filename);
+	}
+}
+
+static retvalue callexporthook(const char *confdir,/*@null@*/const char *hook, const char *relfilename, const char *mode, struct release *release) {
 	pid_t f,c;
 	int status; 
 	int io[2];
@@ -269,6 +214,7 @@ static retvalue callexporthook(const char *confdir,/*@null@*/const char *hook, c
 	}
 	if( f == 0 ) {
 		long maxopen;
+		char *reltmpfilename;
 
 		if( dup2(io[1],3) < 0 ) {
 			fprintf(stderr,"Error dup2'ing fd %d to 3: %d=%m\n",
@@ -287,8 +233,13 @@ static retvalue callexporthook(const char *confdir,/*@null@*/const char *hook, c
 			if( io[1] != 3 )
 				(void)close(io[1]);
 		}
+		/* backward compatibilty */
+		reltmpfilename = calc_addsuffix(relfilename,"new");
+		if( reltmpfilename == NULL ) {
+			exit(255);
+		}
 		if( hook[0] == '/' )
-			(void)execl(hook,hook,dirofdist,reltmpfilename,relfilename,mode,NULL);
+			(void)execl(hook,hook,release_dirofdist(release),reltmpfilename,relfilename,mode,NULL);
 		else {
 			char *fullfilename = calc_dirconcat(confdir,hook);
 			if( fullfilename == NULL ) {
@@ -296,7 +247,7 @@ static retvalue callexporthook(const char *confdir,/*@null@*/const char *hook, c
 				exit(255);
 
 			}
-			(void)execl(fullfilename,fullfilename,dirofdist,reltmpfilename,relfilename,mode,NULL);
+			(void)execl(fullfilename,fullfilename,release_dirofdist(release),reltmpfilename,relfilename,mode,NULL);
 		}
 		fprintf(stderr,"Error while executing '%s': %d=%m\n",hook,errno);
 		exit(255);
@@ -304,8 +255,8 @@ static retvalue callexporthook(const char *confdir,/*@null@*/const char *hook, c
 	close(io[1]);
 	
 	if( verbose > 5 )
-		fprintf(stderr,"Called %s '%s' '%s' '%s' '%s'\n",
-			hook,dirofdist,reltmpfilename,relfilename,mode);
+		fprintf(stderr,"Called %s '%s' '%s.new' '%s' '%s'\n",
+			hook,release_dirofdist(release),relfilename,relfilename,mode);
 	/* read what comes from the client */
 	while( TRUE ) {
 		ssize_t r;
@@ -335,18 +286,12 @@ static retvalue callexporthook(const char *confdir,/*@null@*/const char *hook, c
 				// This makes on character long files impossible,
 				// but who needs them?
 				if( last < j ) {
-					char *item;
 					retvalue ret;
 
-					item = strndup(buffer+last,j-last+1);
-					if( item == NULL ) {
-						(void)close(io[0]);
-						return RET_ERROR_OOM;
-					}
-					ret = strlist_add(releasedfiles,item);
+					ret = gotfilename(buffer+last,j-last+1,release);
 					if( RET_WAS_ERROR(ret) ) {
 						(void)close(io[0]);
-						return RET_ERROR_OOM;
+						return ret;
 					}
 				}
 				last = next;
@@ -384,94 +329,49 @@ static retvalue callexporthook(const char *confdir,/*@null@*/const char *hook, c
 	}
 }
 
-retvalue export_target(const char *confdir,const char *dirofdist,const char *relativedir,packagesdb packages,const struct exportmode *exportmode,struct strlist *releasedfiles, bool_t onlymissing, int force) {
-	indexcompression compression;
-	retvalue result,r;
+retvalue export_target(const char *confdir,const char *relativedir,packagesdb packages,const struct exportmode *exportmode,struct release *release, bool_t onlyifmissing) {
+	retvalue r;
+	struct filetorelease *file;
+	const char *status;
+	char *relfilename;
 
-	result = RET_NOTHING;
+	relfilename = calc_dirconcat(relativedir,exportmode->filename);
+	if( relfilename == NULL )
+		return RET_ERROR_OOM;
 
-	//TODO: rewrite to .new managment and releasedfile file
-
-	for( compression = 0 ; compression <= ic_max ; compression++) {
-		if( exportmode->compressions[compression] ) {
-			char *relfilename,*reltmpfilename,*fullfilename;
-			bool_t alreadyexists;
-
-			relfilename = comprconcat(relativedir,
-					exportmode->filename,compression);
-			if( relfilename == NULL )
-				return RET_ERROR_OOM;
-			fullfilename = calc_dirconcat(dirofdist,relfilename);
-			if( fullfilename == NULL ) {
-				free(relfilename);
-				return RET_ERROR_OOM;
-			}
-
-			alreadyexists = isregularfile(fullfilename);
-			free(fullfilename);
-
-			reltmpfilename = calc_addsuffix(relfilename,"new");
-			if( reltmpfilename == NULL ) {
-				free(relfilename);
-				return RET_ERROR_OOM;
-			}
-			fullfilename = calc_dirconcat(dirofdist,reltmpfilename);
-			if( fullfilename == NULL ) {
-				free(relfilename);
-				free(reltmpfilename);
-				return RET_ERROR_OOM;
-			}
-			(void)unlink(fullfilename);
-
-			if( alreadyexists && onlymissing ) {
-				free(fullfilename);
-				r = callexporthook(confdir,exportmode->hook,
-						dirofdist,
-						reltmpfilename,relfilename,
-						"old",
-						releasedfiles);
-				free(reltmpfilename);
-				RET_UPDATE(result,r);
-				if( force <= 0  && RET_WAS_ERROR(r) ) {
-					free(relfilename);
-					return r;
-				}
-				r = strlist_add(releasedfiles,relfilename);
-				if( RET_WAS_ERROR(r) ) {
-					return r;
-				}
-				continue;
-			}
-			
-			r = export_writepackages(packages,
-					fullfilename,compression);
-			free(fullfilename);
-			RET_UPDATE(result,r);
-			if( force <= 0  && RET_WAS_ERROR(r) ) {
-				free(reltmpfilename);
-				free(relfilename);
-				return r;
-			}
-
-			// TODO: allow multiple hooks?
-			r = callexporthook(confdir,
-					exportmode->hook,dirofdist,
-					reltmpfilename,relfilename,
-					alreadyexists?"change":"new",
-					releasedfiles);
-			free(relfilename);
-			RET_UPDATE(result,r);
-			if( force <= 0 && RET_WAS_ERROR(r) ) {
-				free(reltmpfilename);
-				return r;
-			}
-
-			r = strlist_add(releasedfiles,reltmpfilename);
-			if( RET_WAS_ERROR(r) )
-				return r;
-		}
+	r = release_startfile(release,relfilename,exportmode->compressions,onlyifmissing,&file);
+	if( RET_WAS_ERROR(r) ) {
+		free(relfilename);
+		return r;
 	}
-	return result;
+	if( RET_IS_OK(r) ) {
+		if( release_oldexists(file) )
+			status = "change";
+		else
+			status = "new";
+		r = packages_foreach(packages,printout,file,0);
+		if( RET_WAS_ERROR(r) ) {
+			release_abortfile(file);
+			free(relfilename);
+			return r;
+		}
+		r = release_finishfile(release,file);
+		if( RET_WAS_ERROR(r) ) {
+			free(relfilename);
+			return r;
+		}
+	} else {
+		status = "old";
+	}
+	r = callexporthook(confdir,
+			exportmode->hook,
+					relfilename,
+					status,
+					release);
+	free(relfilename);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	return RET_OK;
 }
 
 void exportmode_done(struct exportmode *mode) {
@@ -479,181 +379,4 @@ void exportmode_done(struct exportmode *mode) {
 	free(mode->filename);
 	free(mode->hook);
 	free(mode->release);
-}
-
-retvalue export_checksums(const char *dirofdist,FILE *f,struct strlist *releasedfiles, int force) {
-	retvalue result,r;
-	int i,e;
-
-	result = RET_NOTHING;
-
-#define checkwritten if( e < 0 ) { \
-		e = errno; \
-		fprintf(stderr,"Error writing in Release.new: %d=%m!\n",e); \
-		return RET_ERRNO(e); \
-	}
-
-
-	e = fprintf(f,"MD5Sum:\n");
-	checkwritten;
-
-	for( i = 0 ; i < releasedfiles->count ; i++ ) {
-		const char *relname = releasedfiles->values[i];
-		char *fullfilename,*md5sum;
-		size_t l;
-
-		l = strlen(relname);
-		if( l > 12 && strcmp(relname+(l-12),".tobedeleted") == 0 ) {
-			/* deleted files will not show up in a Release file */
-			continue;
-		}
-		fullfilename = calc_dirconcat(dirofdist,relname);
-		if( fullfilename == NULL )
-			return RET_ERROR_OOM;
-
-		if( !isregularfile(fullfilename) ) {
-			fprintf(stderr,"Cannot find (or not regular file): '%s'\n",fullfilename);
-			r = RET_ERROR_MISSING;
-		} else
-			r = md5sum_read(fullfilename,&md5sum);
-		if( !RET_IS_OK(r) ) {
-			if( r == RET_NOTHING ) {
-				fprintf(stderr,"Cannot find %s\n",fullfilename);
-				r = RET_ERROR_MISSING;
-			}
-			free(fullfilename);
-			if( force > 0 ) {
-				RET_UPDATE(result,r);
-				continue;
-			} else
-				return r;
-		}
-		free(fullfilename);
-		e = fputc(' ',f);
-		if( e == 0 ){
-			free(md5sum);
-			e = -1;
-			checkwritten;
-			assert(FALSE);
-		}
-		e = fputs(md5sum,f);
-		free(md5sum);
-		checkwritten;
-		e = fputc(' ',f) - 1;
-		checkwritten;
-		if( l > 4 && strcmp(relname+(l-4),".new") == 0 ) {
-			size_t written;
-			written = fwrite(relname,sizeof(char),l-4,f);
-			if( written != l-4 ) {
-				e = -1;
-				checkwritten;
-			}
-		} else {
-			fputs(relname,f);
-			checkwritten;
-		}
-		e = fputc('\n',f) - 1;
-		checkwritten;
-	}
-	return result;
-#undef checkwritten
-}
-
-retvalue export_finalize(const char *dirofdist,struct strlist *releasedfiles, int force, bool_t issigned) {
-	retvalue result,r;
-	int i,e;
-	bool_t somethingwasdone;
-	char *tmpfullfilename,*finalfullfilename;
-
-	result = RET_NOTHING;
-	somethingwasdone = FALSE;
-
-	/* after all is written and all is computed, move all the files
-	 * at once: */
-	for( i = 0 ; i < releasedfiles->count ; i++ ) {
-		const char *relname = releasedfiles->values[i];
-		size_t l;
-
-		l = strlen(relname);
-		if( l > 12 && strcmp(relname+(l-12),".tobedeleted") == 0 ) {
-			tmpfullfilename = calc_dirconcatn(dirofdist,relname,l-12);
-			if( tmpfullfilename == NULL )
-				return RET_ERROR_OOM;
-			e = unlink(tmpfullfilename);
-			if( e < 0 ) {
-				e = errno;
-				// TODO: what to do in case of error?
-				fprintf(stderr,"Error deleting %s: %m. (Will be ignored)\n",tmpfullfilename);
-			}
-			free(tmpfullfilename);
-			continue;
-		}
-		if( l <= 4 || strcmp(relname+(l-4),".new") != 0 )
-			continue;
-		tmpfullfilename = calc_dirconcat(dirofdist,relname);
-		if( tmpfullfilename == NULL )
-			return RET_ERROR_OOM;
-		finalfullfilename = calc_dirconcatn(dirofdist,relname,l-4);
-		if( finalfullfilename == NULL ) {
-			free(tmpfullfilename);
-			return RET_ERROR_OOM;
-		}
-		e = rename(tmpfullfilename,finalfullfilename);
-		if( e < 0 ) {
-			e = errno;
-			fprintf(stderr,"Error moving %s to %s: %d=%m!",tmpfullfilename,finalfullfilename,e);
-			r = RET_ERRNO(e);
-			RET_UPDATE(result,r);
-			/* if we moved anything yet, do not stop with
-			 * later errors, as it is too late already */
-			if( force <= 0 && !somethingwasdone ) {
-				free(tmpfullfilename);
-				free(finalfullfilename);
-				return r;
-			}
-		} else
-			somethingwasdone = TRUE;
-		free(tmpfullfilename);
-		free(finalfullfilename);
-	}
-	if( issigned ) {
-		tmpfullfilename = calc_dirconcat(dirofdist,"Release.gpg.new");
-		if( tmpfullfilename == NULL )
-			return RET_ERROR_OOM;
-		finalfullfilename = calc_dirconcat(dirofdist,"Release.gpg");
-		if( finalfullfilename == NULL ) {
-			free(tmpfullfilename);
-			return RET_ERROR_OOM;
-		}
-		e = rename(tmpfullfilename,finalfullfilename);
-		if( e < 0 ) {
-			e = errno;
-			fprintf(stderr,"Error moving %s to %s: %d=%m!",tmpfullfilename,finalfullfilename,e);
-			r = RET_ERRNO(e);
-			RET_UPDATE(result,r);
-		}
-		free(tmpfullfilename);
-		free(finalfullfilename);
-	}
-
-	tmpfullfilename = calc_dirconcat(dirofdist,"Release.new");
-	if( tmpfullfilename == NULL )
-		return RET_ERROR_OOM;
-	finalfullfilename = calc_dirconcat(dirofdist,"Release");
-	if( finalfullfilename == NULL ) {
-		free(tmpfullfilename);
-		return RET_ERROR_OOM;
-	}
-	e = rename(tmpfullfilename,finalfullfilename);
-	if( e < 0 ) {
-		e = errno;
-		fprintf(stderr,"Error moving %s to %s: %d=%m!",tmpfullfilename,finalfullfilename,e);
-		r = RET_ERRNO(e);
-		RET_UPDATE(result,r);
-	}
-	free(tmpfullfilename);
-	free(finalfullfilename);
-
-	return result;
-
 }

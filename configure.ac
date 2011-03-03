@@ -4,7 +4,7 @@ dnl
 
 AC_INIT(main.c)
 AM_CONFIG_HEADER(config.h)
-AM_INIT_AUTOMAKE(reprepro,0.7)
+AM_INIT_AUTOMAKE(reprepro,0.8)
 
 AM_MAINTAINER_MODE
 
@@ -12,6 +12,7 @@ AC_PROG_CC
 AC_PROG_INSTALL
 
 AC_CHECK_LIB(z,gzopen,,[AC_MSG_ERROR(["no zlib found"])],)
+AC_CHECK_LIB(bz2,BZ2_bzCompressInit,,[AC_MSG_WARN(["no libbz2 found, compiling without"])],)
 AC_CHECK_LIB(db3,db_create,,[AC_MSG_ERROR(["no libdb3 found"])],)
 AC_CHECK_LIB(gpgme,gpgme_check_version,,[AC_MSG_ERROR(["no libgpgme found"])],)
 AC_CHECK_HEADER(gpgme.h,,[AC_MSG_ERROR(["no gpgme.h found"])])

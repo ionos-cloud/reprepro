@@ -459,7 +459,7 @@ retvalue target_reoverride(struct target *target,const struct alloverrides *ao) 
 
 /* export a database */
 
-retvalue target_export(struct target *target,const char *confdir,const char *dbdir,const char *dirofdist,int force,bool_t onlyneeded, struct strlist *releasedfiles ) {
+retvalue target_export(struct target *target,const char *confdir,const char *dbdir,bool_t onlyneeded, struct release *release ) {
 	retvalue result,r;
 	bool_t onlymissing;
 
@@ -477,11 +477,11 @@ retvalue target_export(struct target *target,const char *confdir,const char *dbd
 	/* not exporting if file is already there? */
 	onlymissing = onlyneeded && !target->wasmodified;
 
-	result = export_target(confdir,dirofdist,target->relativedirectory,
+	result = export_target(confdir,target->relativedirectory,
 				target->packages,
 				target->exportmode,
-				releasedfiles,
-				onlymissing, force);
+				release,
+				onlymissing);
 	r = target_closepackagesdb(target);
 	RET_ENDUPDATE(result,r);
 

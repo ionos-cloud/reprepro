@@ -64,7 +64,7 @@ retvalue target_initialize_source(const char *codename,const char *component,/*@
 retvalue target_free(struct target *target);
 
 retvalue target_mkdistdir(struct target *target,const char *distdir);
-retvalue target_export(struct target *target,const char *confdir,const char *dbdir,const char *dirofdist,int force,bool_t onlyneeded, struct strlist *releasedfiles );
+retvalue target_export(struct target *target,const char *confdir,const char *dbdir,bool_t onlyneeded, struct release *release);
 
 retvalue target_printmd5sums(const char *dirofdist,const struct target *target,FILE *out,int force);
 

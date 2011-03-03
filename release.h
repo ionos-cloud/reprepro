@@ -8,23 +8,48 @@
 #ifndef REPREPRO_STRLIST_H
 #include "strlist.h"
 #endif
-#ifndef REPREPRO_DISTRIBUTION_H
-#include "distribution.h"
+
+struct release;
+
+enum indexcompression {ic_uncompressed=0, ic_gzip,
+#ifdef HAVE_LIBBZ2
+			ic_bzip2,
 #endif
-#ifndef REPREPRO_TARGET_H
-#include "target.h"
-#endif
+			ic_count /* fake item to get count */
+};
+typedef unsigned int compressionset; /* 1 << indexcompression */
+#define IC_FLAG(a) (1<<(a))
 
-/******* Checking contents of release-files ***********/
+/* Initialize Release generation */
+retvalue release_init(const char *dbdir, const char *distdir, const char *codename, struct release **release);
 
-/* get a strlist with the md5sums of a Release-file */
-retvalue release_getchecksums(const char *releasefile,struct strlist *info);
+const char *release_dirofdist(struct release *release);
 
-/****** Generate release-files *************/
-/* Generate a "Release"-file for an arbitrary  directory */
-retvalue release_genrelease(const char *distributiondir,const struct distribution *distribution,const struct target *target,const char *filename,bool_t onlyifneeded, struct strlist *releasedfiles);
+retvalue release_addnew(struct release *release,/*@only@*/char *reltmpfile,/*@only@*/char *relfilename);
+retvalue release_adddel(struct release *release,/*@only@*/char *reltmpfile);
+retvalue release_addold(struct release *release,/*@only@*/char *relfilename);
 
-/* Generate a main "Release" file for a distribution */
-retvalue release_gen(const char *distributiondir,const struct distribution *distribution,struct strlist *releasedfiles, int force);
+struct filetorelease;
+
+retvalue release_startfile2(struct release *release, const char *relative_dir, const char *filename, compressionset compressions, bool_t usecache, struct filetorelease **file);
+
+retvalue release_startfile(struct release *release, const char *filename, compressionset compressions, bool_t usecache, struct filetorelease **file);
+
+/* return TRUE if an old file is already there */
+bool_t release_oldexists(struct filetorelease *file);
+
+/* errors will be cached for release_finishfile */
+retvalue release_writedata(struct filetorelease *file, const char *data, size_t len);
+#define release_writestring(file,data) release_writedata(file,data,strlen(data))
+
+void release_abortfile(/*@only@*/struct filetorelease *file);
+retvalue release_finishfile(struct release *release, /*@only@*/struct filetorelease *file);
+
+struct distribution;
+struct target;
+retvalue release_directorydescription(struct release *release, const struct distribution *distribution,const struct target *target,const char *filename,bool_t onlyifneeded);
+
+void release_free(/*@only@*/struct release *release);
+retvalue release_write(/*@only@*/struct release *release, struct distribution *distribution, bool_t onlyneeded);
 
 #endif

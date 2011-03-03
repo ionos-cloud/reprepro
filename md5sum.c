@@ -34,7 +34,7 @@
 
 extern int verbose;
 
-static retvalue md5sum_genstring(char **md5,struct MD5Context *context,off_t filesize) {
+retvalue md5sum_genstring(char **md5,struct MD5Context *context,off_t filesize) {
 static char tab[16] = {'0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f'};
 	unsigned char buffer[16];
 	char result[33],*md5sum;

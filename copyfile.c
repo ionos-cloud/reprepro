@@ -16,6 +16,7 @@
  */
 #include <config.h>
 
+#include <assert.h>
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -132,6 +133,7 @@ bool_t isregularfile(const char *fullfilename) {
 	struct stat s;
 	int i;
 
+	assert(fullfilename != NULL);
 	i = stat(fullfilename,&s);
 	return i == 0 && S_ISREG(s.st_mode);
 }

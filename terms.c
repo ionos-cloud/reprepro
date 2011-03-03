@@ -172,7 +172,7 @@ static retvalue parseatom(const char **formula,/*@out@*/struct term_atom **atom,
 #undef overspace
 }
 
-/* as this are quite special BDDs (a atom beeing false cannot make it true), 
+/* as this are quite special BDDs (a atom being false cannot make it true), 
  * the places where True and False can be found are
  * quite easy and fast to find: */
 

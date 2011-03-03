@@ -1,3 +1,32 @@
+Updates since 0.7:
+- unless the new --keepdirectories option is given,
+  try to remove pool/ directories that got empty by 
+  removing things from them. (To be exact, try to rmdir(2) 
+  them every time, which will only work if they are empty).
+- Unless the new --noskipold is used, only targets with newly 
+  downloaded index files are updated. (new = downloaded
+  by the instance of reprepro currently running)
+- reprepro now always puts the checksums of the uncompressed
+  index files into the Release file, even if it is not
+  written to disk. This fixes some problems with newer
+  versions of apt. (Take a look at DscIndices to get older
+  versions of reprepro to please them, too).
+- The export hooks (the programs specified as DebIndices,
+  UDebIndices and DscIndices) are now always called once
+  with the uncompressed names.
+- to compile reprepro with woody without a backported zlib
+  use the -DOLDZLIB switch.
+- reprepro now supports bzip2 output natively. (You can
+  still use the example if you want to call bzip2 yourself
+  instead of using the libbz2 library)
+- new db/release.cache.db file storing md5sums of written
+  index and Release files there. (This can cause Release
+  file give old md5sums when the files are not what it
+  expects, but unless you manually changed them that is
+  a good way to find errors, and manually changing if
+  fragile anyway, so better do not do it but ask me
+  if some feature is missing overrides cannot offer yet).
+
 Updates since 0.6:
 - new --ignore=missingfield,brokenold,brokenversioncmp, 
 	unusedarch,surpisingarch

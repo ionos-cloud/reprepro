@@ -459,6 +459,7 @@ retvalue upgradelist_enqueue(struct upgradelist *upgrade,struct downloadcache *c
 	struct package_data *pkg;
 	retvalue result,r;
 	result = RET_NOTHING;
+	assert(upgrade != NULL);
 	for( pkg = upgrade->list ; pkg != NULL ; pkg = pkg->next ) {
 		if( pkg->version == pkg->new_version && !pkg->deleted) {
 			assert(pkg->aptmethod != NULL);

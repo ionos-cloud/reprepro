@@ -5,9 +5,15 @@
 #include "error.h"
 #warning "What's hapening here?"
 #endif
-
+#ifndef REPREPRO_REFERENCES_H
+#include "reference.h"
+#endif
+#ifndef REPREPRO_RELEASE_H
 #include "release.h"
+#endif
+#ifndef REPREPRO_STRLIST_H
 #include "strlist.h"
+#endif
 
 struct update_pattern;
 struct update_origin;
@@ -24,8 +30,8 @@ retvalue updates_calcindices(const char *listdir,const struct update_pattern *pa
 /* remove all files ${listdir}/${distribution}_* that will not be needed. */
 retvalue updates_clearlists(const char *listdir,struct update_distribution *distributions);
 
-retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,references refs,struct update_distribution *distributions,int force,bool_t nolistdownload,/*@null@*/struct strlist *dereferencedfilekeys);
-retvalue updates_iteratedupdate(const char *confdir,const char *dbdir,const char *distdir,const char *methoddir,filesdb filesdb,references refs,struct update_distribution *distributions,int force,bool_t nolistdownload,/*@null@*/struct strlist *dereferencedfilekeys);
-retvalue updates_checkupdate(const char *dbdir,const char *methoddir,struct update_distribution *distributions,int force,bool_t nolistdownload);
+retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,references refs,struct update_distribution *distributions,int force,bool_t nolistsdownload,bool_t skipold,struct strlist *dereferencedfilekeys);
+retvalue updates_iteratedupdate(const char *confdir,const char *dbdir,const char *distdir,const char *methoddir,filesdb filesdb,references refs,struct update_distribution *distributions,int force,bool_t nolistsdownload,bool_t skipold,struct strlist *dereferencedfilekeys);
+retvalue updates_checkupdate(const char *dbdir,const char *methoddir,struct update_distribution *distributions,int force,bool_t nolistsdownload,bool_t skipold);
 
 #endif
