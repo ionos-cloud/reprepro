@@ -49,6 +49,7 @@ struct filterlistitem {
 	/*@owned@*//*@null@*/
 	struct filterlistitem *next;
 	char *packagename;
+	char *version;
 	enum filterlisttype what;
 };
 
@@ -85,7 +86,7 @@ static void filterlistfile_unlock(struct filterlistfile *list) {
 }
 
 static inline retvalue filterlistfile_parse(struct filterlistfile *n, const char *filename, FILE *f) {
-	char *lineend,*namestart,*nameend,*what;
+	char *lineend, *namestart, *nameend, *what, *version;
 	int cmp;
 	enum filterlisttype type;
 	struct filterlistitem *h;
@@ -118,6 +119,7 @@ static inline retvalue filterlistfile_parse(struct filterlistfile *n, const char
 			fprintf(stderr,"Malformed line in '%s': %d!\n",filename,lineno);
 			return RET_ERROR;
 		}
+		version = NULL;
 		if( strcmp(what,"install") == 0 ) {
 			type = flt_install;
 		} else if( strcmp(what,"deinstall") == 0 ) {
@@ -132,6 +134,24 @@ static inline retvalue filterlistfile_parse(struct filterlistfile *n, const char
 			type = flt_warning;
 		} else if( strcmp(what,"error") == 0 ) {
 			type = flt_error;
+		} else if( what[0] == '=' ) {
+			what++;
+			while( *what != '\0' && xisspace(*what) )
+				what++;
+			version = what;
+			if (*version == '\0') {
+				fprintf(stderr, "Malformed line %d in '%s': missing version after '='!\n", lineno, filename);
+				return RET_ERROR;
+			}
+			while( *what != '\0' && !xisspace(*what) )
+				what++;
+			while( *what != '\0' && xisspace(*what) )
+				*(what++) = '\0';
+			if (*what != '\0') {
+				fprintf(stderr, "Malformed line %d in '%s': space in version!\n", lineno, filename);
+				return RET_ERROR;
+			}
+			type = flt_install;
 		} else {
 			fprintf(stderr,"Unknown status in '%s':%d: '%s'!\n",filename,lineno,what);
 			return RET_ERROR;
@@ -155,6 +175,13 @@ static inline retvalue filterlistfile_parse(struct filterlistfile *n, const char
 		h->packagename = strdup(namestart);
 		if( h->packagename == NULL ) {
 			return RET_ERROR_OOM;
+		}
+		if( version == NULL )
+			h->version = NULL;
+		else {
+			h->version = strdup(version);
+			if( FAILEDTOALLOC(h->version) )
+				return RET_ERROR_OOM;
 		}
 	}
 	n->last = *last;
@@ -396,10 +423,16 @@ static inline bool find(const char *name, /*@null@*/struct filterlistfile *list)
 	return false;
 }
 
-enum filterlisttype filterlist_find(const char *name, const struct filterlist *list) {
+enum filterlisttype filterlist_find(const char *name, const char *version, const struct filterlist *list) {
 	size_t i;
 	for( i = 0 ; i < list->count ; i++ ) {
-		if( list->files[i]->root != NULL && find(name,list->files[i]) )
+		if( list->files[i]->root == NULL )
+			continue;
+		if( !find(name,list->files[i]) )
+			continue;
+		if( list->files[i]->last->version == NULL )
+			return list->files[i]->last->what;
+		if( strcmp(list->files[i]->last->version, version) == 0 )
 			return list->files[i]->last->what;
 	}
 	return list->defaulttype;

@@ -29,6 +29,6 @@ retvalue filterlist_load(/*@out@*/struct filterlist *, struct configiterator *);
 
 void filterlist_release(struct filterlist *list);
 
-enum filterlisttype filterlist_find(const char *name, const struct filterlist *root);
+enum filterlisttype filterlist_find(const char *name, const char *version, const struct filterlist *);
 
 #endif

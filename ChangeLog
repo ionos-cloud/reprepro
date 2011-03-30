@@ -1,3 +1,6 @@
+2010-03-30
+	* Support specifying a version in FilterList
+
 2010-02-29
 	* support compiling with libdb5
 	* fix memory bug in filelist generation

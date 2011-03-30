@@ -644,12 +644,12 @@ retvalue pull_prepare(struct distribution *alldistributions, struct pull_rule *r
  * decide what gets pulled                                                 *
  **************************************************************************/
 
-static upgrade_decision ud_decide_by_rule(void *privdata, const struct target *target, const char *package, /*@null@*/const char *old_version, UNUSED(const char *new_version), const char *newcontrolchunk) {
+static upgrade_decision ud_decide_by_rule(void *privdata, const struct target *target, const char *package, /*@null@*/const char *old_version, const char *new_version, const char *newcontrolchunk) {
 	struct pull_rule *rule = privdata;
 	upgrade_decision decision = UD_UPGRADE;
 	retvalue r;
 
-	switch( filterlist_find(package,&rule->filterlist) ) {
+	switch( filterlist_find(package, new_version, &rule->filterlist) ) {
 		case flt_deinstall:
 		case flt_purge:
 			return UD_NO;

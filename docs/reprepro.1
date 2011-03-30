@@ -1567,6 +1567,11 @@ will not be upgraded but also not downgraded or removed by previous
 delete rules.
 To abort the whole upgrade/pull if a package is available, use
 .B error\fR.
+Instead of a keyword you can also use "\fB= \fP\fIversion\fP" which
+is treated like \fBinstall\fP if the version matches and like no
+entry if it does not match.
+Only one such entry per package is currently supported and the version
+is currently compared as string.
 .TP
 .B ListHook
 If this is given, it is executed for all downloaded index files

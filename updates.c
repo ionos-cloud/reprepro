@@ -1576,7 +1576,7 @@ static retvalue updates_calllisthooks(struct update_distribution *distributions)
  *         (all the logic in upgradelist.c, this is only clue code)         *
  ****************************************************************************/
 
-static upgrade_decision ud_decide_by_pattern(void *privdata, const struct target *target, const char *package, /*@null@*/const char *old_version, UNUSED(const char *new_version), const char *newcontrolchunk) {
+static upgrade_decision ud_decide_by_pattern(void *privdata, const struct target *target, const char *package, /*@null@*/const char *old_version, const char *new_version, const char *newcontrolchunk) {
 	const struct update_pattern *pattern = privdata, *p;
 	retvalue r;
 	upgrade_decision decision = UD_UPGRADE;
@@ -1588,7 +1588,7 @@ static upgrade_decision ud_decide_by_pattern(void *privdata, const struct target
 	if( p == NULL )
 		listdecision = flt_install;
 	else
-		listdecision = filterlist_find(package, &p->filterlist);
+		listdecision = filterlist_find(package, new_version, &p->filterlist);
 
 	switch( listdecision ) {
 		case flt_deinstall:
