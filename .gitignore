@@ -1,9 +1,9 @@
 /aclocal.m4
 /stamp-h.in
-/Makefile.in
+Makefile.in
 /configure
 /config.h.in
-/Makefile
+Makefile
 /config.h
 /config.log
 /stamp-h*
@@ -13,6 +13,7 @@
 /.deps
 /reprepro
 /changestool
+/rredtool
 /*.o
 /.deps
 /old
