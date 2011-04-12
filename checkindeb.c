@@ -48,7 +48,7 @@
 Things to do with .deb's checkin by hand: (by comparison with apt-ftparchive)
 - extract the control file (that's the hard part -> extractcontrol.c )
 - check for Package, Version, Architecture, Maintainer, Description
-- apply overwrite if neccesary (section,priority and perhaps maintainer).
+- apply overwrite if neccesary (section, priority and perhaps maintainer).
 - add Size, MD5sum, Filename, Priority, Section
 - remove Status (warning if existant?)
 - check for Optional-field and reject then..
@@ -58,16 +58,16 @@ struct debpackage {
 	/* things to be set by deb_read: */
 	struct deb_headers deb;
 	/* things that will still be NULL then: */
-	component_t component_atom;
+	component_t component;
 	/* with deb_calclocations: */
 	const char *filekey;
 	struct strlist filekeys;
 };
 
 void deb_free(/*@only@*/struct debpackage *pkg) {
-	if( pkg != NULL ) {
+	if (pkg != NULL) {
 		binaries_debdone(&pkg->deb);
-		if( pkg->filekey != NULL )
+		if (pkg->filekey != NULL)
 			strlist_done(&pkg->filekeys);
 	}
 	free(pkg);
@@ -78,18 +78,20 @@ static retvalue deb_read(/*@out@*/struct debpackage **pkg, const char *filename,
 	retvalue r;
 	struct debpackage *deb;
 
-	deb = calloc(1,sizeof(struct debpackage));
+	deb = zNEW(struct debpackage);
+	if (FAILEDTOALLOC(deb))
+		return RET_ERROR_OOM;
 
 	r = binaries_readdeb(&deb->deb, filename, needssourceversion);
-	if( RET_IS_OK(r) )
+	if (RET_IS_OK(r))
 		r = properpackagename(deb->deb.name);
-	if( RET_IS_OK(r) )
+	if (RET_IS_OK(r))
 		r = propersourcename(deb->deb.source);
-	if( RET_IS_OK(r) && needssourceversion )
+	if (RET_IS_OK(r) && needssourceversion)
 		r = properversion(deb->deb.sourceversion);
-	if( RET_IS_OK(r) )
+	if (RET_IS_OK(r))
 		r = properversion(deb->deb.version);
-	if( RET_WAS_ERROR(r) ) {
+	if (RET_WAS_ERROR(r)) {
 		deb_free(deb);
 		return r;
 	}
@@ -104,7 +106,7 @@ static retvalue deb_preparelocation(struct debpackage *pkg, component_t forcecom
 	const struct overridedata *oinfo;
 	retvalue r;
 
-	if( packagetype == pt_udeb ) {
+	if (packagetype == pt_udeb) {
 		binoverride = distribution->overrides.udeb;
 		components = &distribution->udebcomponents;
 	} else {
@@ -112,21 +114,21 @@ static retvalue deb_preparelocation(struct debpackage *pkg, component_t forcecom
 		components = &distribution->components;
 	}
 
-	oinfo = override_search(binoverride,pkg->deb.name);
+	oinfo = override_search(binoverride, pkg->deb.name);
 	*oinfo_ptr = oinfo;
-	if( forcesection == NULL ) {
-		forcesection = override_get(oinfo,SECTION_FIELDNAME);
+	if (forcesection == NULL) {
+		forcesection = override_get(oinfo, SECTION_FIELDNAME);
 	}
-	if( forcepriority == NULL ) {
-		forcepriority = override_get(oinfo,PRIORITY_FIELDNAME);
+	if (forcepriority == NULL) {
+		forcepriority = override_get(oinfo, PRIORITY_FIELDNAME);
 	}
-	if( !atom_defined(forcecomponent) ) {
+	if (!atom_defined(forcecomponent)) {
 		const char *fc;
 
 		fc = override_get(oinfo, "$Component");
-		if( fc != NULL ) {
+		if (fc != NULL) {
 			forcecomponent = component_find(fc);
-			if( !atom_defined(forcecomponent) ) {
+			if (!atom_defined(forcecomponent)) {
 				fprintf(stderr,
 "Unparseable component '%s' in $Component override of '%s'\n",
 					fc, pkg->deb.name);
@@ -135,27 +137,27 @@ static retvalue deb_preparelocation(struct debpackage *pkg, component_t forcecom
 		}
 	}
 
-	if( forcesection != NULL ) {
+	if (forcesection != NULL) {
 		free(pkg->deb.section);
 		pkg->deb.section = strdup(forcesection);
-		if( pkg->deb.section == NULL ) {
+		if (FAILEDTOALLOC(pkg->deb.section)) {
 			return RET_ERROR_OOM;
 		}
 	}
-	if( forcepriority != NULL ) {
+	if (forcepriority != NULL) {
 		free(pkg->deb.priority);
 		pkg->deb.priority = strdup(forcepriority);
-		if( pkg->deb.priority == NULL ) {
+		if (FAILEDTOALLOC(pkg->deb.priority)) {
 			return RET_ERROR_OOM;
 		}
 	}
 
-	if( pkg->deb.section == NULL ) {
+	if (pkg->deb.section == NULL) {
 		fprintf(stderr, "No section given for '%s', skipping.\n",
 				pkg->deb.name);
 		return RET_ERROR;
 	}
-	if( pkg->deb.priority == NULL ) {
+	if (pkg->deb.priority == NULL) {
 		fprintf(stderr, "No priority given for '%s', skipping.\n",
 				pkg->deb.name);
 		return RET_ERROR;
@@ -165,50 +167,52 @@ static retvalue deb_preparelocation(struct debpackage *pkg, component_t forcecom
 
 	r = guess_component(distribution->codename, components,
 			pkg->deb.name, pkg->deb.section,
-			forcecomponent, &pkg->component_atom);
-	if( RET_WAS_ERROR(r) )
+			forcecomponent, &pkg->component);
+	if (RET_WAS_ERROR(r))
 		return r;
-	if( verbose > 0 && !atom_defined(forcecomponent) ) {
+	if (verbose > 0 && !atom_defined(forcecomponent)) {
 		fprintf(stderr, "%s: component guessed as '%s'\n", debfilename,
-				atoms_components[pkg->component_atom]);
+				atoms_components[pkg->component]);
 	}
 
 	/* some sanity checks: */
 
-	if( forcearchitectures != NULL &&
-			pkg->deb.architecture_atom != architecture_all &&
+	if (forcearchitectures != NULL &&
+			pkg->deb.architecture != architecture_all &&
 			!atomlist_in(forcearchitectures,
-				pkg->deb.architecture_atom) ) {
-		fprintf(stderr, "Cannot add '%s', as it is architecture '%s' and you specified to only include ",
+				pkg->deb.architecture)) {
+		fprintf(stderr,
+"Cannot add '%s', as it is architecture '%s' and you specified to only include ",
 				debfilename,
-				atoms_architectures[pkg->deb.architecture_atom]);
+				atoms_architectures[pkg->deb.architecture]);
 		atomlist_fprint(stderr, at_architecture, forcearchitectures);
 		fputs(".\n", stderr);
 		return RET_ERROR;
-	} else if( pkg->deb.architecture_atom != architecture_all &&
+	} else if (pkg->deb.architecture != architecture_all &&
 			!atomlist_in(&distribution->architectures,
-				pkg->deb.architecture_atom)) {
+				pkg->deb.architecture)) {
 		(void)fprintf(stderr,
 "Error looking at '%s': '%s' is not one of the valid architectures: '",
 				debfilename,
-				atoms_architectures[pkg->deb.architecture_atom]);
+				atoms_architectures[pkg->deb.architecture]);
 		(void)atomlist_fprint(stderr, at_architecture,
 				&distribution->architectures);
-		(void)fputs("'\n",stderr);
+		(void)fputs("'\n", stderr);
 		return RET_ERROR;
 	}
-	if( !atomlist_in(components, pkg->component_atom) ) {
+	if (!atomlist_in(components, pkg->component)) {
 		fprintf(stderr,
 "Error looking at %s': Would be placed in unavailable component '%s'!\n",
 				debfilename,
-				atoms_components[pkg->component_atom]);
-		/* this cannot be ignored as there is not data structure available*/
+				atoms_components[pkg->component]);
+		/* this cannot be ignored
+		 * as there is not data structure available */
 		return RET_ERROR;
 	}
 
-	r = binaries_calcfilekeys(pkg->component_atom, &pkg->deb,
+	r = binaries_calcfilekeys(pkg->component, &pkg->deb,
 			packagetype, &pkg->filekeys);
-	if( RET_WAS_ERROR(r) )
+	if (RET_WAS_ERROR(r))
 		return r;
 	pkg->filekey = pkg->filekeys.values[0];
 	return RET_OK;
@@ -222,26 +226,26 @@ retvalue deb_prepare(/*@out@*/struct debpackage **deb, component_t forcecomponen
 	char *control;
 	struct atomlist forcearchitectures;
 
-	assert( givenfilekey != NULL );
-	assert( checksums != NULL );
-	assert( allowed_binaries != NULL );
-	assert( expectedsourcepackage != NULL );
-	assert( expectedsourceversion != NULL );
+	assert (givenfilekey != NULL);
+	assert (checksums != NULL);
+	assert (allowed_binaries != NULL);
+	assert (expectedsourcepackage != NULL);
+	assert (expectedsourceversion != NULL);
 
 	/* First taking a closer look in the file: */
 
-	r = deb_read(&pkg,debfilename, true);
-	if( RET_WAS_ERROR(r) ) {
+	r = deb_read(&pkg, debfilename, true);
+	if (RET_WAS_ERROR(r)) {
 		return r;
 	}
-	if( !strlist_in(allowed_binaries, pkg->deb.name) &&
-	    !IGNORING_(surprisingbinary,
+	if (!strlist_in(allowed_binaries, pkg->deb.name) &&
+	    !IGNORING(surprisingbinary,
 "'%s' has packagename '%s' not listed in the .changes file!\n",
 					debfilename, pkg->deb.name)) {
 		deb_free(pkg);
 		return RET_ERROR;
 	}
-	if( strcmp(pkg->deb.source, expectedsourcepackage) != 0 ) {
+	if (strcmp(pkg->deb.source, expectedsourcepackage) != 0) {
 		/* this cannot be ignored easily, as it determines
 		 * the directory this file is stored into */
 	    fprintf(stderr,
@@ -251,8 +255,8 @@ retvalue deb_prepare(/*@out@*/struct debpackage **deb, component_t forcecomponen
 		deb_free(pkg);
 		return RET_ERROR;
 	}
-	if( strcmp(pkg->deb.sourceversion, expectedsourceversion) != 0 &&
-	    !IGNORING_(wrongsourceversion,
+	if (strcmp(pkg->deb.sourceversion, expectedsourceversion) != 0 &&
+	    !IGNORING(wrongsourceversion,
 "'%s' lists source version '%s', but .changes says it is '%s'!\n",
 				debfilename, pkg->deb.sourceversion,
 				expectedsourceversion)) {
@@ -264,13 +268,15 @@ retvalue deb_prepare(/*@out@*/struct debpackage **deb, component_t forcecomponen
 	forcearchitectures.size = 1;
 	forcearchitectures.atoms = &forcearchitecture;
 
-	r = deb_preparelocation(pkg, forcecomponent, &forcearchitectures, forcesection, forcepriority, packagetype, distribution, &oinfo, debfilename);
-	if( RET_WAS_ERROR(r) ) {
+	r = deb_preparelocation(pkg, forcecomponent, &forcearchitectures,
+			forcesection, forcepriority, packagetype, distribution,
+			&oinfo, debfilename);
+	if (RET_WAS_ERROR(r)) {
 		deb_free(pkg);
 		return r;
 	}
 
-	if( strcmp(givenfilekey,pkg->filekey) != 0 ) {
+	if (strcmp(givenfilekey, pkg->filekey) != 0) {
 		fprintf(stderr,
 "Name mismatch: .changes indicates '%s', but the file itself says '%s'!\n",
 				givenfilekey, pkg->filekey);
@@ -280,7 +286,7 @@ retvalue deb_prepare(/*@out@*/struct debpackage **deb, component_t forcecomponen
 	/* Prepare everything that can be prepared beforehand */
 	r = binaries_complete(&pkg->deb, pkg->filekey, checksums, oinfo,
 			pkg->deb.section, pkg->deb.priority, &control);
-	if( RET_WAS_ERROR(r) ) {
+	if (RET_WAS_ERROR(r)) {
 		deb_free(pkg);
 		return r;
 	}
@@ -292,7 +298,7 @@ retvalue deb_prepare(/*@out@*/struct debpackage **deb, component_t forcecomponen
 retvalue deb_addprepared(const struct debpackage *pkg, struct database *database, const struct atomlist *forcearchitectures, packagetype_t packagetype, struct distribution *distribution, struct trackingdata *trackingdata) {
 	return binaries_adddeb(&pkg->deb, database, forcearchitectures,
 			packagetype, distribution, trackingdata,
-			pkg->component_atom, &pkg->filekeys,
+			pkg->component, &pkg->filekeys,
 			pkg->deb.control);
 }
 
@@ -310,17 +316,19 @@ retvalue deb_add(struct database *database, component_t forcecomponent, const st
 
 	causingfile = debfilename;
 
-	r = deb_read(&pkg, debfilename, tracks != NULL );
-	if( RET_WAS_ERROR(r) ) {
+	r = deb_read(&pkg, debfilename, tracks != NULL);
+	if (RET_WAS_ERROR(r)) {
 		return r;
 	}
-	r = deb_preparelocation(pkg, forcecomponent, forcearchitectures, forcesection, forcepriority, packagetype, distribution, &oinfo, debfilename);
-	if( RET_WAS_ERROR(r) ) {
+	r = deb_preparelocation(pkg, forcecomponent, forcearchitectures,
+			forcesection, forcepriority, packagetype, distribution,
+			&oinfo, debfilename);
+	if (RET_WAS_ERROR(r)) {
 		deb_free(pkg);
 		return r;
 	}
 	r = files_preinclude(database, debfilename, pkg->filekey, &checksums);
-	if( RET_WAS_ERROR(r) ) {
+	if (RET_WAS_ERROR(r)) {
 		deb_free(pkg);
 		return r;
 	}
@@ -328,18 +336,18 @@ retvalue deb_add(struct database *database, component_t forcecomponent, const st
 	r = binaries_complete(&pkg->deb, pkg->filekey, checksums, oinfo,
 			pkg->deb.section, pkg->deb.priority, &control);
 	checksums_free(checksums);
-	if( RET_WAS_ERROR(r) ) {
+	if (RET_WAS_ERROR(r)) {
 		deb_free(pkg);
 		return r;
 	}
 	free(pkg->deb.control); pkg->deb.control = control;
 
-	if( tracks != NULL ) {
+	if (tracks != NULL) {
 		assert(pkg->deb.sourceversion != NULL);
 		r = trackingdata_summon(tracks,
 				pkg->deb.source, pkg->deb.sourceversion,
 				&trackingdata);
-		if( RET_WAS_ERROR(r) ) {
+		if (RET_WAS_ERROR(r)) {
 			deb_free(pkg);
 			return r;
 		}
@@ -348,20 +356,20 @@ retvalue deb_add(struct database *database, component_t forcecomponent, const st
 	r = binaries_adddeb(&pkg->deb, database, forcearchitectures,
 			packagetype, distribution,
 			(tracks!=NULL)?&trackingdata:NULL,
-			pkg->component_atom, &pkg->filekeys,
+			pkg->component, &pkg->filekeys,
 			pkg->deb.control);
 	RET_UPDATE(distribution->status, r);
 	deb_free(pkg);
 
-	if( tracks != NULL ) {
+	if (tracks != NULL) {
 		retvalue r2;
 		r2 = trackingdata_finish(tracks, &trackingdata, database);
-		RET_ENDUPDATE(r,r2);
+		RET_ENDUPDATE(r, r2);
 	}
 
-	if( RET_IS_OK(r) && delete >= D_MOVE ) {
+	if (RET_IS_OK(r) && delete >= D_MOVE) {
 		deletefile(debfilename);
-	} else if( r == RET_NOTHING && delete >= D_DELETE )
+	} else if (r == RET_NOTHING && delete >= D_DELETE)
 		deletefile(debfilename);
 
 	return r;

@@ -17,7 +17,7 @@ extern const char * const uncompression_config[c_COUNT];
 #else
 #define uncompression_builtin(c) ((c) == c_gzip)
 #endif
-#define uncompression_supported(c) ( (c) == c_none || \
+#define uncompression_supported(c) ((c) == c_none || \
 		uncompression_builtin(c) || \
 		extern_uncompressors[c] != NULL)
 

@@ -1240,7 +1240,8 @@ stdout
 -d1*=db: 'pool/stupid/t/test/test_1-2_${FAKEARCHITECTURE}.deb' added to checksums.db(pool).
 -d1*=db: 'pool/stupid/t/test/test_1-2.diff.gz' added to checksums.db(pool).
 -d1*=db: 'pool/stupid/t/test/test_1-2.dsc' added to checksums.db(pool).
--v0*=Deleting files just added to the pool but not used (to avoid use --keepunusednewfiles next time)
+-v0*=Deleting files just added to the pool but not used.
+-v0*=(to avoid use --keepunusednewfiles next time)
 -v1*=deleting and forgetting pool/stupid/t/test/test-addons_1-2_all.deb
 -d1*=db: 'pool/stupid/t/test/test-addons_1-2_all.deb' removed from checksums.db(pool).
 -v1*=deleting and forgetting pool/stupid/t/test/test_1-2_${FAKEARCHITECTURE}.deb
@@ -1955,7 +1956,7 @@ echo "Format: 2.0" > broken.changes
 testrun - -b . include test2 broken.changes 3<<EOF
 -v0=Data seems not to be signed trying to use directly...
 *=In 'broken.changes': Missing 'Date' field!
-=To Ignore use --ignore=missingfield.
+=To ignore use --ignore=missingfield.
 -v0*=There have been errors!
 returns 255
 EOF
@@ -2000,7 +2001,7 @@ testrun - -b . include test2 broken.changes 3<<EOF
 -v0=Data seems not to be signed trying to use directly...
 =Warning: Package version 'old' does not start with a digit, violating 'should'-directive in policy 5.6.11
 *=In 'broken.changes': Missing 'Maintainer' field!
-=To Ignore use --ignore=missingfield.
+=To ignore use --ignore=missingfield.
 -v0*=There have been errors!
 returns 255
 EOF
@@ -2111,7 +2112,8 @@ stderr
 -v0*=There have been errors!
 returns 255
 stdout
--v0*=Deleting files just added to the pool but not used (to avoid use --keepunusednewfiles next time)
+-v0*=Deleting files just added to the pool but not used.
+-v0*=(to avoid use --keepunusednewfiles next time)
 -v1*=deleting and forgetting pool/stupid/n/nowhere/filename_version.tar.gz
 -d1*=db: 'pool/stupid/n/nowhere/filename_version.tar.gz' removed from checksums.db(pool).
 -v1*=deleting and forgetting pool/stupid/n/nowhere/nowhere_old.dsc
@@ -2265,7 +2267,8 @@ stdout
 -d1*=db: 'pool/stupid/d/differently/4test_b.1-1.tar.gz' added to checksums.db(pool).
 -d1*=db: 'pool/stupid/d/differently/4test_b.1-1_${FAKEARCHITECTURE}.deb' added to checksums.db(pool).
 -d1*=db: 'pool/stupid/d/differently/differently_0another.dsc' added to checksums.db(pool).
--v0*=Deleting files just added to the pool but not used (to avoid use --keepunusednewfiles next time)
+-v0*=Deleting files just added to the pool but not used.
+-v0*=(to avoid use --keepunusednewfiles next time)
 -v1*=deleting and forgetting pool/stupid/d/differently/4test_b.1-1.tar.gz
 -d1*=db: 'pool/stupid/d/differently/4test_b.1-1.tar.gz' removed from checksums.db(pool).
 -v1*=deleting and forgetting pool/stupid/d/differently/4test_b.1-1_${FAKEARCHITECTURE}.deb
@@ -2290,7 +2293,8 @@ stdout
 -d1*=db: 'pool/stupid/d/differently/4test_b.1-1.tar.gz' added to checksums.db(pool).
 -d1*=db: 'pool/stupid/d/differently/4test_b.1-1_${FAKEARCHITECTURE}.deb' added to checksums.db(pool).
 -d1*=db: 'pool/stupid/d/differently/differently_0another.dsc' added to checksums.db(pool).
--v0*=Deleting files just added to the pool but not used (to avoid use --keepunusednewfiles next time)
+-v0*=Deleting files just added to the pool but not used.
+-v0*=(to avoid use --keepunusednewfiles next time)
 -v1*=deleting and forgetting pool/stupid/d/differently/4test_b.1-1.tar.gz
 -d1*=db: 'pool/stupid/d/differently/4test_b.1-1.tar.gz' removed from checksums.db(pool).
 -v1*=deleting and forgetting pool/stupid/d/differently/4test_b.1-1_${FAKEARCHITECTURE}.deb
@@ -2327,7 +2331,8 @@ testrun - -b . include test2 broken.changes 3<<EOF
 -v0*=There have been errors!
 stdout
 -d1*=db: 'pool/stupid/4/4test/4test_0orso.dsc' added to checksums.db(pool).
--v0*=Deleting files just added to the pool but not used (to avoid use --keepunusednewfiles next time)
+-v0*=Deleting files just added to the pool but not used.
+-v0*=(to avoid use --keepunusednewfiles next time)
 -v1*=deleting and forgetting pool/stupid/4/4test/4test_0orso.dsc
 -d1*=db: 'pool/stupid/4/4test/4test_0orso.dsc' removed from checksums.db(pool).
 returns 255
@@ -2341,7 +2346,8 @@ testrun - -b . --ignore=wrongsourceversion include test2 broken.changes 3<<EOF
 -v0*=There have been errors!
 stdout
 -d1*=db: 'pool/stupid/4/4test/4test_0orso.dsc' added to checksums.db(pool).
--v0*=Deleting files just added to the pool but not used (to avoid use --keepunusednewfiles next time)
+-v0*=Deleting files just added to the pool but not used.
+-v0*=(to avoid use --keepunusednewfiles next time)
 -v1*=deleting and forgetting pool/stupid/4/4test/4test_0orso.dsc
 -d1*=db: 'pool/stupid/4/4test/4test_0orso.dsc' removed from checksums.db(pool).
 returns 255

@@ -24,7 +24,7 @@ struct database {
 	} capabilities ;
 };
 
-retvalue database_listsubtables(struct database *,const char *,/*@out@*/struct strlist *);
-retvalue database_dropsubtable(struct database *, const char *table, const char *subtable);
+retvalue database_listsubtables(struct database *, const char *, /*@out@*/struct strlist *);
+retvalue database_dropsubtable(struct database *, const char *, const char *);
 
 #endif

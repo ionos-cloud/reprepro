@@ -55,9 +55,9 @@ things to do with .dsc's checkin by hand: (by comparison with apt-ftparchive)
   before the pgp-end-block.(in case someone
   missed the newline there))
 
-* check to have source,version,maintainer,
+* check to have source, version, maintainer,
   standards-version, files. And also look
-  at binary,architecture and build*, as
+  at binary, architecture and build*, as
   described in policy 5.4
 
 * Get overwrite information, ecspecially
@@ -84,13 +84,13 @@ struct dscpackage {
 	/* things to be set by dsc_read: */
 	struct dsc_headers dsc;
 	/* things that will still be NULL then: */
-	component_t component_atom;
+	component_t component;
 	/* Things that may be calculated by dsc_calclocations: */
 	struct strlist filekeys;
 };
 
 static void dsc_free(/*@only@*/struct dscpackage *pkg) {
-	if( pkg != NULL ) {
+	if (pkg != NULL) {
 		sources_done(&pkg->dsc);
 		strlist_done(&pkg->filekeys);
 		free(pkg);
@@ -103,25 +103,27 @@ static retvalue dsc_read(/*@out@*/struct dscpackage **pkg, const char *filename)
 	bool broken;
 
 
-	dsc = calloc(1,sizeof(struct dscpackage));
+	dsc = zNEW(struct dscpackage);
+	if (FAILEDTOALLOC(dsc))
+		return RET_ERROR_OOM;
 
 	r = sources_readdsc(&dsc->dsc, filename, filename, &broken);
-	if( RET_IS_OK(r) && broken && !IGNORING_(brokensignatures,
+	if (RET_IS_OK(r) && broken && !IGNORING(brokensignatures,
 "'%s' contains only broken signatures.\n"
 "This most likely means the file was damaged or edited improperly\n",
-				filename) )
+				filename))
 		r = RET_ERROR;
-	if( RET_IS_OK(r) )
+	if (RET_IS_OK(r))
 		r = propersourcename(dsc->dsc.name);
-	if( RET_IS_OK(r) )
+	if (RET_IS_OK(r))
 		r = properversion(dsc->dsc.version);
-	if( RET_IS_OK(r) )
+	if (RET_IS_OK(r))
 		r = properfilenames(&dsc->dsc.files.names);
-	if( RET_WAS_ERROR(r) ) {
+	if (RET_WAS_ERROR(r)) {
 		dsc_free(dsc);
 		return r;
 	}
-	dsc->component_atom = atom_unknown;
+	dsc->component = atom_unknown;
 	*pkg = dsc;
 
 	return RET_OK;
@@ -132,13 +134,13 @@ retvalue dsc_addprepared(struct database *database, const struct dsc_headers *ds
 	struct target *t = distribution_getpart(distribution,
 			component, architecture_source, pt_dsc);
 
-	assert( logger_isprepared(distribution->logger) );
+	assert (logger_isprepared(distribution->logger));
 
 	/* finally put it into the source distribution */
 	r = target_initpackagesdb(t, database, READWRITE);
-	if( !RET_WAS_ERROR(r) ) {
+	if (!RET_WAS_ERROR(r)) {
 		retvalue r2;
-		if( interrupted() )
+		if (interrupted())
 			r = RET_ERROR_INTERRUPTED;
 		else
 			r = target_addpackage(t, distribution->logger, database,
@@ -148,7 +150,7 @@ retvalue dsc_addprepared(struct database *database, const struct dsc_headers *ds
 					architecture_source,
 					NULL, NULL);
 		r2 = target_closepackagesdb(t);
-		RET_ENDUPDATE(r,r2);
+		RET_ENDUPDATE(r, r2);
 	}
 	RET_UPDATE(distribution->status, r);
 	return r;
@@ -172,7 +174,7 @@ retvalue dsc_add(struct database *database, component_t forcecomponent, const ch
 
 	/* First make sure this distribution has a source section at all,
 	 * for which it has to be listed in the "Architectures:"-field ;-) */
-	if( !atomlist_in(&distribution->architectures, architecture_source) ) {
+	if (!atomlist_in(&distribution->architectures, architecture_source)) {
 		fprintf(stderr,
 "Cannot put a source package into Distribution '%s' not having 'source' in its 'Architectures:'-field!\n",
 			distribution->codename);
@@ -182,59 +184,59 @@ retvalue dsc_add(struct database *database, component_t forcecomponent, const ch
 	}
 
 	r = dsc_read(&pkg, dscfilename);
-	if( RET_WAS_ERROR(r) ) {
+	if (RET_WAS_ERROR(r)) {
 		return r;
 	}
 
-	oinfo = override_search(distribution->overrides.dsc,pkg->dsc.name);
-	if( forcesection == NULL ) {
-		forcesection = override_get(oinfo,SECTION_FIELDNAME);
+	oinfo = override_search(distribution->overrides.dsc, pkg->dsc.name);
+	if (forcesection == NULL) {
+		forcesection = override_get(oinfo, SECTION_FIELDNAME);
 	}
-	if( forcepriority == NULL ) {
-		forcepriority = override_get(oinfo,PRIORITY_FIELDNAME);
+	if (forcepriority == NULL) {
+		forcepriority = override_get(oinfo, PRIORITY_FIELDNAME);
 	}
 
-	if( forcesection != NULL ) {
+	if (forcesection != NULL) {
 		free(pkg->dsc.section);
 		pkg->dsc.section = strdup(forcesection);
-		if( pkg->dsc.section == NULL ) {
+		if (FAILEDTOALLOC(pkg->dsc.section)) {
 			dsc_free(pkg);
 			return RET_ERROR_OOM;
 		}
 	}
-	if( forcepriority != NULL ) {
+	if (forcepriority != NULL) {
 		free(pkg->dsc.priority);
 		pkg->dsc.priority = strdup(forcepriority);
-		if( pkg->dsc.priority == NULL ) {
+		if (FAILEDTOALLOC(pkg->dsc.priority)) {
 			dsc_free(pkg);
 			return RET_ERROR_OOM;
 		}
 	}
 
 	r = dirs_getdirectory(dscfilename, &origdirectory);
-	if( RET_WAS_ERROR(r) ) {
+	if (RET_WAS_ERROR(r)) {
 		dsc_free(pkg);
 		return r;
 	}
 
-	if( pkg->dsc.section == NULL || pkg->dsc.priority == NULL ) {
+	if (pkg->dsc.section == NULL || pkg->dsc.priority == NULL) {
 		struct sourceextraction *extraction;
 
 		extraction = sourceextraction_init(
 			(pkg->dsc.section == NULL)?&pkg->dsc.section:NULL,
 			(pkg->dsc.priority == NULL)?&pkg->dsc.priority:NULL);
-		if( FAILEDTOALLOC(extraction) ) {
+		if (FAILEDTOALLOC(extraction)) {
 			free(origdirectory);
 			dsc_free(pkg);
 			return RET_ERROR_OOM;
 		}
-		for( i = 0 ; i < pkg->dsc.files.names.count ; i ++ )
+		for (i = 0 ; i < pkg->dsc.files.names.count ; i ++)
 			sourceextraction_setpart(extraction, i,
 					pkg->dsc.files.names.values[i]);
-		while( sourceextraction_needs(extraction, &i) ) {
+		while (sourceextraction_needs(extraction, &i)) {
 			char *fullfilename = calc_dirconcat(origdirectory,
 					pkg->dsc.files.names.values[i]);
-			if( FAILEDTOALLOC(fullfilename) ) {
+			if (FAILEDTOALLOC(fullfilename)) {
 				free(origdirectory);
 				dsc_free(pkg);
 				return RET_ERROR_OOM;
@@ -246,7 +248,7 @@ retvalue dsc_add(struct database *database, component_t forcecomponent, const ch
 			// TODO: but if forcecomponent is set it might be possible.
 			r = sourceextraction_analyse(extraction, fullfilename);
 			free(fullfilename);
-			if( RET_WAS_ERROR(r) ) {
+			if (RET_WAS_ERROR(r)) {
 				free(origdirectory);
 				dsc_free(pkg);
 				sourceextraction_abort(extraction);
@@ -254,39 +256,42 @@ retvalue dsc_add(struct database *database, component_t forcecomponent, const ch
 			}
 		}
 		r = sourceextraction_finish(extraction);
-		if( RET_WAS_ERROR(r) ) {
+		if (RET_WAS_ERROR(r)) {
 			free(origdirectory);
 			dsc_free(pkg);
 			return r;
 		}
 	}
 
-	if( pkg->dsc.section == NULL && pkg->dsc.priority == NULL ) {
-		fprintf(stderr, "No section and no priority for '%s', skipping.\n",
+	if (pkg->dsc.section == NULL && pkg->dsc.priority == NULL) {
+		fprintf(stderr,
+"No section and no priority for '%s', skipping.\n",
 				pkg->dsc.name);
 		free(origdirectory);
 		dsc_free(pkg);
 		return RET_ERROR;
 	}
-	if( pkg->dsc.section == NULL ) {
-		fprintf(stderr, "No section for '%s', skipping.\n", pkg->dsc.name);
+	if (pkg->dsc.section == NULL) {
+		fprintf(stderr, "No section for '%s', skipping.\n",
+				pkg->dsc.name);
 		free(origdirectory);
 		dsc_free(pkg);
 		return RET_ERROR;
 	}
-	if( pkg->dsc.priority == NULL ) {
-		fprintf(stderr, "No priority for '%s', skipping.\n", pkg->dsc.name);
+	if (pkg->dsc.priority == NULL) {
+		fprintf(stderr, "No priority for '%s', skipping.\n",
+				pkg->dsc.name);
 		free(origdirectory);
 		dsc_free(pkg);
 		return RET_ERROR;
 	}
-	if( !atom_defined(forcecomponent) ) {
+	if (!atom_defined(forcecomponent)) {
 		const char *fc;
 
 		fc = override_get(oinfo, "$Component");
-		if( fc != NULL ) {
+		if (fc != NULL) {
 			forcecomponent = component_find(fc);
-			if( !atom_defined(forcecomponent) ) {
+			if (!atom_defined(forcecomponent)) {
 				fprintf(stderr,
 "Unparseable component '%s' in $Component override of '%s'\n",
 					fc, pkg->dsc.name);
@@ -299,28 +304,28 @@ retvalue dsc_add(struct database *database, component_t forcecomponent, const ch
 
 	r = guess_component(distribution->codename, &distribution->components,
 			pkg->dsc.name, pkg->dsc.section, forcecomponent,
-			&pkg->component_atom);
-	if( RET_WAS_ERROR(r) ) {
+			&pkg->component);
+	if (RET_WAS_ERROR(r)) {
 		free(origdirectory);
 		dsc_free(pkg);
 		return r;
 	}
-	if( verbose > 0 && !atom_defined(forcecomponent) ) {
+	if (verbose > 0 && !atom_defined(forcecomponent)) {
 		fprintf(stderr, "%s: component guessed as '%s'\n", dscfilename,
-				atoms_components[pkg->component_atom]);
+				atoms_components[pkg->component]);
 	}
 
 	{	char *dscbasename, *dscfilekey;
 		struct checksums *dscchecksums;
 
 		dscbasename = calc_source_basename(pkg->dsc.name, pkg->dsc.version);
-		destdirectory = calc_sourcedir(pkg->component_atom, pkg->dsc.name);
+		destdirectory = calc_sourcedir(pkg->component, pkg->dsc.name);
 		/* Calculate the filekeys: */
-		if( destdirectory != NULL )
+		if (destdirectory != NULL)
 			r = calc_dirconcats(destdirectory,
 					&pkg->dsc.files.names,
 					&pkg->filekeys);
-		if( dscbasename == NULL || destdirectory == NULL || RET_WAS_ERROR(r) ) {
+		if (dscbasename == NULL || destdirectory == NULL || RET_WAS_ERROR(r)) {
 			free(dscbasename);
 			free(destdirectory); free(origdirectory);
 			dsc_free(pkg);
@@ -328,7 +333,7 @@ retvalue dsc_add(struct database *database, component_t forcecomponent, const ch
 		}
 		dscfilekey = calc_dirconcat(destdirectory, dscbasename);
 		dscchecksums = NULL;
-		if( dscfilename == NULL )
+		if (FAILEDTOALLOC(dscfilename))
 			r = RET_ERROR_OOM;
 		else
 			/* then look if we already have this, or copy it in */
@@ -336,13 +341,13 @@ retvalue dsc_add(struct database *database, component_t forcecomponent, const ch
 					dscfilename, dscfilekey,
 					&dscchecksums);
 
-		if( !RET_WAS_ERROR(r) ) {
-			/* Add the dsc-file to basenames,filekeys and md5sums,
+		if (!RET_WAS_ERROR(r)) {
+			/* Add the dsc-file to basenames, filekeys and md5sums,
 			 * so that it will be listed in the Sources.gz */
 
 			r = checksumsarray_include(&pkg->dsc.files,
 					dscbasename, dscchecksums);
-			if( RET_IS_OK(r) )
+			if (RET_IS_OK(r))
 				r = strlist_include(&pkg->filekeys, dscfilekey);
 			else
 				free(dscfilekey);
@@ -353,9 +358,9 @@ retvalue dsc_add(struct database *database, component_t forcecomponent, const ch
 		checksums_free(dscchecksums);
 	}
 
-	assert( pkg->dsc.files.names.count == pkg->filekeys.count );
-	for( i = 1 ; i < pkg->dsc.files.names.count ; i ++ ) {
-		if( !RET_WAS_ERROR(r) ) {
+	assert (pkg->dsc.files.names.count == pkg->filekeys.count);
+	for (i = 1 ; i < pkg->dsc.files.names.count ; i ++) {
+		if (!RET_WAS_ERROR(r)) {
 			r = files_checkincludefile(database, origdirectory,
 					pkg->dsc.files.names.values[i],
 					pkg->filekeys.values[i],
@@ -365,11 +370,11 @@ retvalue dsc_add(struct database *database, component_t forcecomponent, const ch
 
 	/* Calculate the chunk to include: */
 
-	if( !RET_WAS_ERROR(r) )
+	if (!RET_WAS_ERROR(r))
 		r = sources_complete(&pkg->dsc, destdirectory, oinfo,
 				pkg->dsc.section, pkg->dsc.priority, &control);
 	free(destdirectory);
-	if( RET_IS_OK(r) ) {
+	if (RET_IS_OK(r)) {
 		free(pkg->dsc.control);
 		pkg->dsc.control = control;
 	} else {
@@ -378,38 +383,39 @@ retvalue dsc_add(struct database *database, component_t forcecomponent, const ch
 		return r;
 	}
 
-	if( interrupted() ) {
+	if (interrupted()) {
 		dsc_free(pkg);
 		free(origdirectory);
 		return RET_ERROR_INTERRUPTED;
 	}
 
-	if( tracks != NULL ) {
-		r = trackingdata_summon(tracks,pkg->dsc.name,pkg->dsc.version,&trackingdata);
-		if( RET_WAS_ERROR(r) ) {
+	if (tracks != NULL) {
+		r = trackingdata_summon(tracks, pkg->dsc.name,
+				pkg->dsc.version, &trackingdata);
+		if (RET_WAS_ERROR(r)) {
 			free(origdirectory);
 			dsc_free(pkg);
 			return r;
 		}
 	}
 
-	r = dsc_addprepared(database, &pkg->dsc, pkg->component_atom,
+	r = dsc_addprepared(database, &pkg->dsc, pkg->component,
 			&pkg->filekeys, distribution,
 			(tracks!=NULL)?&trackingdata:NULL);
 
 	/* delete source files, if they are to be */
-	if( ( RET_IS_OK(r) && delete >= D_MOVE ) ||
-			( r == RET_NOTHING && delete >= D_DELETE ) ) {
+	if ((RET_IS_OK(r) && delete >= D_MOVE) ||
+			(r == RET_NOTHING && delete >= D_DELETE)) {
 		char *fullfilename;
 
-		for( i = 0 ; i < pkg->dsc.files.names.count ; i++ ) {
+		for (i = 0 ; i < pkg->dsc.files.names.count ; i++) {
 			fullfilename = calc_dirconcat(origdirectory,
 					pkg->dsc.files.names.values[i]);
-			if( fullfilename == NULL ) {
+			if (FAILEDTOALLOC(fullfilename)) {
 				r = RET_ERROR_OOM;
 				break;
 			}
-			if( isregularfile(fullfilename) )
+			if (isregularfile(fullfilename))
 				deletefile(fullfilename);
 			free(fullfilename);
 		}
@@ -417,10 +423,10 @@ retvalue dsc_add(struct database *database, component_t forcecomponent, const ch
 	free(origdirectory);
 	dsc_free(pkg);
 
-	if( tracks != NULL ) {
+	if (tracks != NULL) {
 		retvalue r2;
 		r2 = trackingdata_finish(tracks, &trackingdata, database);
-		RET_ENDUPDATE(r,r2);
+		RET_ENDUPDATE(r, r2);
 	}
 	return r;
 }

@@ -47,22 +47,22 @@ static inline char *donefilename(const char *codename) {
 retvalue markdone_create(const char *codename, struct markdonefile **done_p) {
 	struct markdonefile *done;
 
-	done = malloc(sizeof(struct markdonefile));
-	if( FAILEDTOALLOC(done) )
+	done = NEW(struct markdonefile);
+	if (FAILEDTOALLOC(done))
 		return RET_ERROR_OOM;
 	done->finalfilename = donefilename(codename);
-	if( FAILEDTOALLOC(done->finalfilename) ) {
+	if (FAILEDTOALLOC(done->finalfilename)) {
 		free(done);
 		return RET_ERROR_OOM;
 	}
 	done->tempfilename = calc_addsuffix(done->finalfilename, "new");
-	if( FAILEDTOALLOC(done->tempfilename) ) {
+	if (FAILEDTOALLOC(done->tempfilename)) {
 		free(done->finalfilename);
 		free(done);
 		return RET_ERROR_OOM;
 	}
 	done->file = fopen(done->tempfilename, "w+");
-	if( done->file == NULL ) {
+	if (done->file == NULL) {
 		int e = errno;
 		fprintf(stderr, "Error %d creating '%s': %s\n",
 				e, done->tempfilename, strerror(e));
@@ -79,31 +79,32 @@ retvalue markdone_create(const char *codename, struct markdonefile **done_p) {
 void markdone_finish(struct markdonefile *done) {
 	bool error = false;
 
-	if( done == NULL )
+	if (done == NULL)
 		return;
-	if( done->file == NULL )
+	if (done->file == NULL)
 		error = true;
 	else {
-		if( ferror(done->file) != 0 ) {
+		if (ferror(done->file) != 0) {
 			fprintf(stderr, "An error occured writing to '%s'!\n",
 					done->tempfilename);
 			(void)fclose(done->file);
 			error = true;
-		} else if( fclose(done->file) != 0 ) {
+		} else if (fclose(done->file) != 0) {
 			int e = errno;
-			fprintf(stderr, "Error %d occured writing to '%s': %s!\n",
+			fprintf(stderr,
+"Error %d occured writing to '%s': %s!\n",
 					e, done->tempfilename, strerror(e));
 			error = true;
 		}
 		done->file = NULL;
 	}
-	if( error )
+	if (error)
 		(void)unlink(done->tempfilename);
 	else {
 		int i;
 
 		i = rename(done->tempfilename, done->finalfilename);
-		if( i != 0 ) {
+		if (i != 0) {
 			int e = errno;
 			fprintf(stderr, "Error %d moving '%s' to '%s': %s!\n",
 					e, done->tempfilename,
@@ -125,7 +126,7 @@ void markdone_index(struct markdonefile *done, const char *file, const struct ch
 	const char *data;
 
 	r = checksums_getcombined(checksums, &data, &s);
-	if( !RET_IS_OK(r) )
+	if (!RET_IS_OK(r))
 		return;
 	fprintf(done->file, "Index %s %s\n", file, data);
 }
@@ -147,23 +148,23 @@ retvalue donefile_open(const char *codename, struct donefile **done_p) {
 	struct donefile *done;
 	ssize_t s;
 
-	done = calloc(1, sizeof(struct donefile));
-	if( FAILEDTOALLOC(done) )
+	done = zNEW(struct donefile);
+	if (FAILEDTOALLOC(done))
 		return RET_ERROR_OOM;
 
 	done->filename = donefilename(codename);
-	if( FAILEDTOALLOC(done->filename) ) {
+	if (FAILEDTOALLOC(done->filename)) {
 		free(done);
 		return RET_ERROR_OOM;
 	}
 
 	done->file = fopen(done->filename, "r");
-	if( done->file == NULL ) {
+	if (done->file == NULL) {
 		donefile_close(done);
 		return RET_NOTHING;
 	}
 	s = getline(&done->linebuffer, &done->linebuffer_size, done->file);
-	if( s <= 0 || done->linebuffer[s-1] != '\n' ) {
+	if (s <= 0 || done->linebuffer[s-1] != '\n') {
 		/* if it cannot be read or is empty or not a text file,
 		 * delete it, and do as if it never existed... */
 		unlink(done->filename);
@@ -177,11 +178,11 @@ retvalue donefile_open(const char *codename, struct donefile **done_p) {
 }
 
 void donefile_close(struct donefile *done) {
-	if( done == NULL )
+	if (done == NULL)
 		return;
 	// TODO: check return, only print a warning, though,
 	// no need to interrupt anything.
-	if( done->file != NULL )
+	if (done->file != NULL)
 		fclose(done->file);
 	free(done->linebuffer);
 	free(done->filename);
@@ -191,9 +192,10 @@ void donefile_close(struct donefile *done) {
 retvalue donefile_nexttarget(struct donefile *done, const char **identifier_p) {
 	ssize_t s;
 
-	while( strncmp(done->linebuffer, "Target ", 7) != 0 ) {
-		s = getline(&done->linebuffer, &done->linebuffer_size, done->file);
-		if( s <= 0 || done->linebuffer[s-1] != '\n' )
+	while (strncmp(done->linebuffer, "Target ", 7) != 0) {
+		s = getline(&done->linebuffer, &done->linebuffer_size,
+				done->file);
+		if (s <= 0 || done->linebuffer[s-1] != '\n')
 			/* Malformed line, ignore the rest... */
 			return RET_NOTHING;
 		done->linebuffer[s-1] = '\0';
@@ -211,17 +213,17 @@ bool donefile_nextindex(struct donefile *done, const char **filename_p, struct c
 	retvalue r;
 
 	s = getline(&done->linebuffer, &done->linebuffer_size, done->file);
-	if( s <= 0 || done->linebuffer[s-1] != '\n' ) {
+	if (s <= 0 || done->linebuffer[s-1] != '\n') {
 		done->linebuffer[0] = '\0';
 		return false;
 	}
 	done->linebuffer[s-1] = '\0';
-	if( strncmp(done->linebuffer, "Index ", 6) != 0 )
+	if (strncmp(done->linebuffer, "Index ", 6) != 0)
 		return false;
 	p = done->linebuffer + 6;
 	*filename_p = p;
 	p = strchr(p, ' ');
-	if( p == NULL )
+	if (p == NULL)
 		return false;
 	*(p++) = '\0';
 	r = checksums_parse(checksums_p, p);
@@ -232,7 +234,7 @@ bool donefile_iscleaner(struct donefile *done) {
 	ssize_t s;
 
 	s = getline(&done->linebuffer, &done->linebuffer_size, done->file);
-	if( s <= 0 || done->linebuffer[s-1] != '\n' ) {
+	if (s <= 0 || done->linebuffer[s-1] != '\n') {
 		done->linebuffer[0] = '\0';
 		return false;
 	}

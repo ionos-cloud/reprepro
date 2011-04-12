@@ -49,7 +49,7 @@ struct s_tracking {
 retvalue tracking_done(trackingdb db) {
 	retvalue r;
 
-	if( db == NULL )
+	if (db == NULL)
 		return RET_OK;
 
 	r = table_close(db->table);
@@ -62,20 +62,19 @@ retvalue tracking_initialize(/*@out@*/trackingdb *db, struct database *database,
 	struct s_tracking *t;
 	retvalue r;
 
-	t = calloc(1,sizeof(struct s_tracking));
-	if( t == NULL ) {
+	t = zNEW(struct s_tracking);
+	if (FAILEDTOALLOC(t))
 		return RET_ERROR_OOM;
-	}
 	t->codename = strdup(distribution->codename);
-	if( t->codename == NULL ) {
+	if (FAILEDTOALLOC(t->codename)) {
 		free(t);
 		return RET_ERROR_OOM;
 	}
-	assert( distribution->tracking != dt_NONE || readonly );
+	assert (distribution->tracking != dt_NONE || readonly);
 	t->type = distribution->tracking;
 	t->options = distribution->trackingoptions;
 	r = database_opentracking(database, t->codename, readonly, &t->table);
-	if( !RET_IS_OK(r) ) {
+	if (!RET_IS_OK(r)) {
 		free(t->codename);
 		free(t);
 		return r;
@@ -85,7 +84,7 @@ retvalue tracking_initialize(/*@out@*/trackingdb *db, struct database *database,
 }
 
 static inline enum filetype filetypechar(enum filetype filetype) {
-	switch( filetype ) {
+	switch (filetype) {
 		case ft_LOG:
 		case ft_CHANGES:
 		case ft_ALL_BINARY:
@@ -105,56 +104,62 @@ retvalue trackedpackage_addfilekey(trackingdb tracks, struct trackedpackage *pkg
 	enum filetype *newfiletypes;
 	retvalue r;
 
-	if( filekey == NULL )
+	if (FAILEDTOALLOC(filekey))
 		return RET_ERROR_OOM;
 
-	for( i = 0 ; i < pkg->filekeys.count ; i++ ) {
-		if( strcmp(pkg->filekeys.values[i],filekey) == 0 ) {
-			if( pkg->filetypes[i] != ft ) {
+	for (i = 0 ; i < pkg->filekeys.count ; i++) {
+		if (strcmp(pkg->filekeys.values[i], filekey) == 0) {
+			if (pkg->filetypes[i] != ft) {
 				/* if old file has refcount 0, just repair: */
-				if( pkg->refcounts[i] <= 0 ) {
+				if (pkg->refcounts[i] <= 0) {
 					free(filekey);
 					pkg->filetypes[i] = ft;
-					if( used )
+					if (used)
 						pkg->refcounts[i] = 1;
 					return RET_OK;
 				}
-				fprintf(stderr,"Filekey '%s' already registered for '%s_%s' as type '%c' is tried to be reregistered as type '%c'!\n",filekey,pkg->sourcename,pkg->sourceversion,pkg->filetypes[i],ft);
+				fprintf(stderr,
+"Filekey '%s' already registered for '%s_%s' as type '%c' is tried to be reregistered as type '%c'!\n",
+						filekey, pkg->sourcename,
+						pkg->sourceversion,
+						pkg->filetypes[i], ft);
 				free(filekey);
 				return RET_ERROR;
 			}
 			free(filekey);
-			if( used )
+			if (used)
 				pkg->refcounts[i]++;
 			return RET_OK;
 		}
 	}
 
-	newrefcounts = realloc(pkg->refcounts,sizeof(int)*(pkg->filekeys.count+1));
-	if( newrefcounts == NULL ) {
+	newrefcounts = realloc(pkg->refcounts,
+			(pkg->filekeys.count + 1) * sizeof(int));
+	if (FAILEDTOALLOC(newrefcounts)) {
 		free(filekey);
 		return RET_ERROR_OOM;
 	}
-	if( used )
+	if (used)
 		newrefcounts[pkg->filekeys.count]=1;
 	else
 		newrefcounts[pkg->filekeys.count]=0;
 	pkg->refcounts = newrefcounts;
-	newfiletypes = realloc(pkg->filetypes,sizeof(enum filetype)*(pkg->filekeys.count+1));
-	if( newfiletypes == NULL ) {
+	newfiletypes = realloc(pkg->filetypes,
+			(pkg->filekeys.count + 1) * sizeof(enum filetype));
+	if (FAILEDTOALLOC(newfiletypes)) {
 		free(filekey);
 		return RET_ERROR_OOM;
 	}
 	newfiletypes[pkg->filekeys.count] = filetype;
 	pkg->filetypes = newfiletypes;
 
-	r = strlist_add(&pkg->filekeys,filekey);
-	if( RET_WAS_ERROR(r) )
+	r = strlist_add(&pkg->filekeys, filekey);
+	if (RET_WAS_ERROR(r))
 		return r;
 
 	id = calc_trackreferee(tracks->codename,
 			pkg->sourcename, pkg->sourceversion);
-	if( id == NULL )
+	if (FAILEDTOALLOC(id))
 		return RET_ERROR_OOM;
 	r = references_increment(database, filekey, id);
 	free(id);
@@ -163,53 +168,59 @@ retvalue trackedpackage_addfilekey(trackingdb tracks, struct trackedpackage *pkg
 
 retvalue trackedpackage_adddupfilekeys(trackingdb tracks, struct trackedpackage *pkg, enum filetype filetype, const struct strlist *filekeys, bool used, struct database *database) {
 	int i;
-	retvalue result,r;
-	assert( filekeys != NULL );
+	retvalue result, r;
+	assert (filekeys != NULL);
 
 	result = RET_OK;
-	for( i = 0 ; i < filekeys->count ; i++ ) {
+	for (i = 0 ; i < filekeys->count ; i++) {
 		char *filekey = strdup(filekeys->values[i]);
 		r = trackedpackage_addfilekey(tracks, pkg, filetype,
 				filekey, used, database);
-		RET_UPDATE(result,r);
+		RET_UPDATE(result, r);
 	}
 	return result;
 }
 
-static inline retvalue trackedpackage_removefilekey(trackingdb tracks,struct trackedpackage *pkg,const char *filekey) {
+static inline retvalue trackedpackage_removefilekey(trackingdb tracks, struct trackedpackage *pkg, const char *filekey) {
 	int i;
 
-	for( i = 0 ; i < pkg->filekeys.count ; i++ ) {
-		if( strcmp(pkg->filekeys.values[i],filekey) == 0 ) {
-			if( pkg->refcounts[i] > 0 ) {
+	for (i = 0 ; i < pkg->filekeys.count ; i++) {
+		if (strcmp(pkg->filekeys.values[i], filekey) == 0) {
+			if (pkg->refcounts[i] > 0) {
 				pkg->refcounts[i]--;
 			} else
-				fprintf(stderr,"Warning: tracking database of %s has inconsistent refcounts of %s_%s.\n",tracks->codename,pkg->sourcename,pkg->sourceversion);
+				fprintf(stderr,
+"Warning: tracking database of %s has inconsistent refcounts of %s_%s.\n",
+						tracks->codename,
+						pkg->sourcename,
+						pkg->sourceversion);
 
 			return RET_OK;
 		}
 	}
-	fprintf(stderr,"Warning: tracking database of %s missed files for %s_%s.\n",tracks->codename,pkg->sourcename,pkg->sourceversion);
+	fprintf(stderr,
+"Warning: tracking database of %s missed files for %s_%s.\n",
+		tracks->codename, pkg->sourcename, pkg->sourceversion);
 	return RET_OK;
 
 }
 
-retvalue trackedpackage_removefilekeys(trackingdb tracks,struct trackedpackage *pkg,const struct strlist *filekeys) {
+retvalue trackedpackage_removefilekeys(trackingdb tracks, struct trackedpackage *pkg, const struct strlist *filekeys) {
 	int i;
-	retvalue result,r;
-	assert( filekeys != NULL );
+	retvalue result, r;
+	assert (filekeys != NULL);
 
 	result = RET_OK;
-	for( i = 0 ; i < filekeys->count ; i++ ) {
+	for (i = 0 ; i < filekeys->count ; i++) {
 		const char *filekey = filekeys->values[i];
-		r = trackedpackage_removefilekey(tracks,pkg,filekey);
-		RET_UPDATE(result,r);
+		r = trackedpackage_removefilekey(tracks, pkg, filekey);
+		RET_UPDATE(result, r);
 	}
 	return result;
 }
 
 void trackedpackage_free(struct trackedpackage *pkg) {
-	if( pkg != NULL ) {
+	if (pkg != NULL) {
 		free(pkg->sourcename);
 		free(pkg->sourceversion);
 		strlist_done(&pkg->filekeys);
@@ -219,35 +230,35 @@ void trackedpackage_free(struct trackedpackage *pkg) {
 	}
 }
 
-static inline int parsenumber(const char **d,size_t *s) {
+static inline int parsenumber(const char **d, size_t *s) {
 	int count;
 
 	count = 0;
 	do {
-		if( **d < '0' || **d > '7' )
+		if (**d < '0' || **d > '7')
 			return -1;
 		count = (count*8) + (**d-'0');
 		(*d)++;
 		(*s)--;
-		if( *s == 0 )
+		if (*s == 0)
 			return -1;
-	} while( **d != '\0' );
+	} while (**d != '\0');
 	(*d)++;
 	(*s)--;
 	return count;
 }
 
-static retvalue tracking_new(const char *sourcename,const char *version,/*@out@*/struct trackedpackage **pkg) {
+static retvalue tracking_new(const char *sourcename, const char *version, /*@out@*/struct trackedpackage **pkg) {
 	struct trackedpackage *p;
-	assert( pkg != NULL && sourcename != NULL && version != NULL );
+	assert (pkg != NULL && sourcename != NULL && version != NULL);
 
-	p = calloc(1,sizeof(struct trackedpackage));
-	if( p == NULL )
+	p = zNEW(struct trackedpackage);
+	if (FAILEDTOALLOC(p))
 		return RET_ERROR_OOM;
 	p->sourcename = strdup(sourcename);
 	p->sourceversion = strdup(version);
 	p->flags.isnew = true;
-	if( p->sourcename == NULL || p->sourceversion == NULL ) {
+	if (FAILEDTOALLOC(p->sourcename) || FAILEDTOALLOC(p->sourceversion)) {
 		trackedpackage_free(p);
 		return RET_ERROR_OOM;
 	}
@@ -259,26 +270,27 @@ static inline retvalue parse_data(const char *name, const char *version, const c
 	struct trackedpackage *p;
 	int i;
 
-	p = calloc(1,sizeof(struct trackedpackage));
-	if( p == NULL )
+	p = zNEW(struct trackedpackage);
+	if (FAILEDTOALLOC(p))
 		return RET_ERROR_OOM;
 	p->sourcename = strdup(name);
 	p->sourceversion = strdup(version);
-	if( p->sourcename == NULL || p->sourceversion == NULL /*||
-				     p->sourcedir == NULL */ ) {
+	if (FAILEDTOALLOC(p->sourcename)
+			|| FAILEDTOALLOC(p->sourceversion)
+		/*	|| FAILEDTOALLOC(p->sourcedir) */) {
 		trackedpackage_free(p);
 		return RET_ERROR_OOM;
 	}
-	while( datalen > 0 && *data != '\0' ) {
+	while (datalen > 0 && *data != '\0') {
 		char *filekey;
 		const char *separator;
 		size_t filekeylen;
 		retvalue r;
 
-		if( ((p->filekeys.count)&31) == 0 ) {
+		if (((p->filekeys.count)&31) == 0) {
 			enum filetype *n = realloc(p->filetypes,
 				(p->filekeys.count+32)*sizeof(enum filetype));
-			if( n == NULL ) {
+			if (FAILEDTOALLOC(n)) {
 				trackedpackage_free(p);
 				return RET_ERROR_OOM;
 			}
@@ -287,19 +299,21 @@ static inline retvalue parse_data(const char *name, const char *version, const c
 		p->filetypes[p->filekeys.count] = *data;
 		data++; datalen--;
 		separator = memchr(data, '\0', datalen);
-		if( separator == NULL ) {
-			fprintf(stderr,"Internal Error: Corrupt tracking data for %s %s\n",name,version);
+		if (separator == NULL) {
+			fprintf(stderr,
+"Internal Error: Corrupt tracking data for %s %s\n",
+					name, version);
 			trackedpackage_free(p);
 			return RET_ERROR;
 		}
 		filekeylen = separator - data;
 		filekey = strndup(data, filekeylen);
-		if( filekey == NULL ) {
+		if (FAILEDTOALLOC(filekey)) {
 			trackedpackage_free(p);
 			return RET_ERROR_OOM;
 		}
 		r = strlist_add(&p->filekeys, filekey);
-		if( RET_WAS_ERROR(r) ) {
+		if (RET_WAS_ERROR(r)) {
 			trackedpackage_free(p);
 			return r;
 		}
@@ -307,19 +321,21 @@ static inline retvalue parse_data(const char *name, const char *version, const c
 		datalen -= filekeylen + 1;
 	}
 	data++; datalen--;
-	p->refcounts = calloc(p->filekeys.count,sizeof(int));
-	if( p->refcounts == NULL ) {
+	p->refcounts = nzNEW(p->filekeys.count, int);
+	if (FAILEDTOALLOC(p->refcounts)) {
 		trackedpackage_free(p);
 		return RET_ERROR_OOM;
 	}
-	for( i = 0 ; i < p->filekeys.count ; i++ ) {
-		if( (p->refcounts[i] = parsenumber(&data, &datalen)) < 0 ) {
-			fprintf(stderr,"Internal Error: Corrupt tracking data for %s %s\n",name,version);
+	for (i = 0 ; i < p->filekeys.count ; i++) {
+		if ((p->refcounts[i] = parsenumber(&data, &datalen)) < 0) {
+			fprintf(stderr,
+"Internal Error: Corrupt tracking data for %s %s\n",
+					name, version);
 			trackedpackage_free(p);
 			return RET_ERROR;
 		}
 	}
-	if( datalen > 0 ) {
+	if (datalen > 0) {
 		fprintf(stderr,
 "Internal Error: Trailing garbage in tracking data for %s %s\n (%ld bytes)",
 					name, version, (long)datalen);
@@ -338,81 +354,81 @@ retvalue tracking_get(trackingdb t, const char *sourcename, const char *version,
 	size_t datalen;
 	retvalue r;
 
-	assert( pkg != NULL && sourcename != NULL && version != NULL );
+	assert (pkg != NULL && sourcename != NULL && version != NULL);
 
 	versionlen = strlen(version);
 	r = table_getpair(t->table, sourcename, version, &data, &datalen);
-	if( !RET_IS_OK(r) )
+	if (!RET_IS_OK(r))
 		return r;
 	return parse_data(sourcename, version, data, datalen, pkg);
 }
 
-retvalue tracking_getornew(trackingdb tracks,const char *name,const char *version,/*@out@*/struct trackedpackage **pkg) {
+retvalue tracking_getornew(trackingdb tracks, const char *name, const char *version, /*@out@*/struct trackedpackage **pkg) {
 	retvalue r;
 	r = tracking_get(tracks, name, version, pkg);
-	if( r == RET_NOTHING )
+	if (r == RET_NOTHING)
 		r = tracking_new(name, version, pkg);
 	return r;
 }
 
 static retvalue gen_data(struct trackedpackage *pkg, /*@out@*/char **newdata_p, /*@out@*/size_t *newdatalen_p) {
-	size_t 	versionsize = strlen(pkg->sourceversion)+1;
+	size_t versionsize = strlen(pkg->sourceversion)+1;
 	int i;
 	char *d, *data;
 	size_t datalen;
 
 	datalen = versionsize + 1;
-	for( i = 0 ; i < pkg->filekeys.count ; i++ ) {
+	for (i = 0 ; i < pkg->filekeys.count ; i++) {
 		size_t l;
 		l = strlen(pkg->filekeys.values[i]);
-		if( l > 0 )
+		if (l > 0)
 			datalen += l+9;
 	}
 	data = malloc(datalen + 1);
-	if( data == NULL )
+	if (FAILEDTOALLOC(data))
 		return RET_ERROR_OOM;
 	memcpy(data, pkg->sourceversion, versionsize);
 	d = data + versionsize;
-	for( i = 0 ; i < pkg->filekeys.count ; i++ ) {
+	for (i = 0 ; i < pkg->filekeys.count ; i++) {
 		size_t l;
 		l = strlen(pkg->filekeys.values[i]);
-		if( l > 0 ) {
+		if (l > 0) {
 			*d = pkg->filetypes[i];
 			d++;
-			memcpy(d,pkg->filekeys.values[i],l+1);
+			memcpy(d, pkg->filekeys.values[i], l + 1);
 			d+=l+1;
 		}
 	}
-	*d ='\0';d++;
-	for( i = 0 ; i < pkg->filekeys.count ; i++ ) {
+	*d ='\0'; d++;
+	for (i = 0 ; i < pkg->filekeys.count ; i++) {
 		int j;
 #define MAXREFCOUNTOCTETS 7
 		char countstring[MAXREFCOUNTOCTETS];
 		size_t count = pkg->refcounts[i];
 
 		countstring[MAXREFCOUNTOCTETS-1] = '\0';
-		for( j = MAXREFCOUNTOCTETS-2 ; j >= 0 ; j-- ) {
+		for (j = MAXREFCOUNTOCTETS-2 ; j >= 0 ; j--) {
 			countstring[j] = '0' + (count & 7);
 			count >>= 3;
-			if( count == 0 )
+			if (count == 0)
 				break;
 		}
 #undef MAXREFCOUNTOCTETS
-		assert( count == 0 );
+		assert (count == 0);
 
-		memcpy(d,countstring+j,7-j);
+		memcpy(d, countstring+j, 7 - j);
 		d+=7-j;
 		datalen -= j;
 	}
 	*d ='\0';
-	assert( (size_t)(d-data) == datalen );
+	assert ((size_t)(d-data) == datalen);
 	*newdata_p = data;
 	*newdatalen_p = datalen;
 	return RET_OK;
 }
 
 static retvalue tracking_saveatcursor(trackingdb t, struct cursor *cursor, struct trackedpackage *pkg) {
-	if( pkg->flags.deleted ) {
+	if (pkg->flags.deleted) {
 		/* delete if delete is requested
 		 * (all unreferencing has to be done before) */
 		return cursor_delete(t->table, cursor,
@@ -423,8 +439,9 @@ static retvalue tracking_saveatcursor(trackingdb t, struct cursor *cursor, struc
 		retvalue r;
 
 		r = gen_data(pkg, &newdata, &newdatalen);
-		if( RET_IS_OK(r) ) {
-			r = cursor_replace(t->table, cursor, newdata, newdatalen);
+		if (RET_IS_OK(r)) {
+			r = cursor_replace(t->table, cursor,
+					newdata, newdatalen);
 			free(newdata);
 		}
 		return r;
@@ -436,18 +453,21 @@ static retvalue tracking_saveonly(trackingdb t, struct trackedpackage *pkg) {
 	char *newdata;
 	size_t newdatalen;
 
-	assert( pkg != NULL );
+	assert (pkg != NULL);
 
-	if( !pkg->flags.isnew ) {
+	if (!pkg->flags.isnew) {
 		struct cursor *cursor;
 
 		r = table_newpairedcursor(t->table,
 				pkg->sourcename, pkg->sourceversion, &cursor,
 				NULL, NULL);
-		if( RET_WAS_ERROR(r) )
+		if (RET_WAS_ERROR(r))
 			return r;
-		if( r == RET_NOTHING ) {
-			fprintf(stderr, "Internal error: tracking_save with isnew=false called but could not find %s_%s in %s!\n", pkg->sourcename, pkg->sourceversion, t->codename);
+		if (r == RET_NOTHING) {
+			fprintf(stderr,
+"Internal error: tracking_save with isnew=false called but could not find %s_%s in %s!\n",
+					pkg->sourcename, pkg->sourceversion,
+					t->codename);
 			pkg->flags.isnew = true;
 		} else {
 			r = tracking_saveatcursor(t, cursor, pkg);
@@ -457,25 +477,25 @@ static retvalue tracking_saveonly(trackingdb t, struct trackedpackage *pkg) {
 		}
 	}
 
-	if( pkg->flags.deleted )
+	if (pkg->flags.deleted)
 		return RET_OK;
 
 	r = gen_data(pkg, &newdata, &newdatalen);
-	assert( r != RET_NOTHING );
-	if( !RET_IS_OK(r) )
+	assert (r != RET_NOTHING);
+	if (!RET_IS_OK(r))
 		return r;
 
 	r = table_addrecord(t->table, pkg->sourcename, newdata, newdatalen, false);
 	free(newdata);
-	if( verbose > 18 )
-		fprintf(stderr,"Adding tracked package '%s'_'%s' to '%s'\n",
+	if (verbose > 18)
+		fprintf(stderr, "Adding tracked package '%s'_'%s' to '%s'\n",
 				pkg->sourcename, pkg->sourceversion,
 				t->codename);
 	return r;
 }
 
 retvalue tracking_save(trackingdb t, struct trackedpackage *pkg) {
-	retvalue r = tracking_saveonly(t,pkg);
+	retvalue r = tracking_saveonly(t, pkg);
 	trackedpackage_free(pkg);
 	return r;
 }
@@ -504,26 +524,26 @@ static retvalue tracking_recreatereferences(trackingdb t, struct database *datab
 	size_t datalen;
 
 	r = table_newglobalcursor(t->table, &cursor);
-	if( !RET_IS_OK(r) )
+	if (!RET_IS_OK(r))
 		return r;
 
 	result = RET_NOTHING;
 
-	while( cursor_nextpair(t->table, cursor,
-				&key, &value, &data, &datalen) ) {
+	while (cursor_nextpair(t->table, cursor,
+				&key, &value, &data, &datalen)) {
 		r = parse_data(key, value, data, datalen, &pkg);
-		if( RET_WAS_ERROR(r) ) {
+		if (RET_WAS_ERROR(r)) {
 			(void)cursor_close(t->table, cursor);
 			return r;
 		}
 		id = calc_trackreferee(t->codename, pkg->sourcename,
 				                    pkg->sourceversion);
-		if( id == NULL ) {
+		if (FAILEDTOALLOC(id)) {
 			trackedpackage_free(pkg);
 			(void)cursor_close(t->table, cursor);
 			return RET_ERROR_OOM;
 		}
-		for( i = 0 ; i < pkg->filekeys.count ; i++ ) {
+		for (i = 0 ; i < pkg->filekeys.count ; i++) {
 			const char *filekey = pkg->filekeys.values[i];
 			r = references_increment(database, filekey, id);
 			RET_UPDATE(result, r);
@@ -541,11 +561,11 @@ retvalue tracking_rereference(struct database *database, struct distribution *di
 	trackingdb tracks;
 
 	result = references_remove(database, distribution->codename);
-	if( distribution->tracking == dt_NONE )
+	if (distribution->tracking == dt_NONE)
 		return result;
 	r = tracking_initialize(&tracks, database, distribution, true);
 	RET_UPDATE(result, r);
-	if( !RET_IS_OK(r) )
+	if (!RET_IS_OK(r))
 		return result;
 	r = tracking_recreatereferences(tracks, database);
 	RET_UPDATE(result, r);
@@ -564,17 +584,17 @@ retvalue tracking_remove(trackingdb t, const char *sourcename, const char *versi
 
 	r = table_newpairedcursor(t->table, sourcename, version, &cursor,
 			&data, &datalen);
-	if( !RET_IS_OK(r) )
+	if (!RET_IS_OK(r))
 		return r;
 
 	id = calc_trackreferee(t->codename, sourcename, version);
-	if( id == NULL ) {
+	if (FAILEDTOALLOC(id)) {
 		(void)cursor_close(t->table, cursor);
 		return RET_ERROR_OOM;
 	}
 
 	result = parse_data(sourcename, version, data, datalen, &pkg);
-	if( RET_IS_OK(r) ) {
+	if (RET_IS_OK(r)) {
 		r = references_delete(database, id, &pkg->filekeys, NULL);
 		RET_UPDATE(result, r);
 		trackedpackage_free(pkg);
@@ -587,7 +607,7 @@ retvalue tracking_remove(trackingdb t, const char *sourcename, const char *versi
 	}
 	free(id);
 	r = cursor_delete(t->table, cursor, sourcename, version);
-	if( RET_IS_OK(r) )
+	if (RET_IS_OK(r))
 		fprintf(stderr, "Removed %s_%s from %s.\n",
 				sourcename, version, t->codename);
 	RET_UPDATE(result, r);
@@ -596,20 +616,20 @@ retvalue tracking_remove(trackingdb t, const char *sourcename, const char *versi
 	return result;
 }
 
-static void print(const char *codename,const struct trackedpackage *pkg){
+static void print(const char *codename, const struct trackedpackage *pkg){
 	int i;
 
-	printf("Distribution: %s\n",codename);
-	printf("Source: %s\n",pkg->sourcename);
-	printf("Version: %s\n",pkg->sourceversion);
+	printf("Distribution: %s\n", codename);
+	printf("Source: %s\n", pkg->sourcename);
+	printf("Version: %s\n", pkg->sourceversion);
 	printf("Files:\n");
-	for( i = 0 ; i < pkg->filekeys.count ; i++ ) {
+	for (i = 0 ; i < pkg->filekeys.count ; i++) {
 		const char *filekey = pkg->filekeys.values[i];
 
-		printf(" %s %c %d\n",filekey,
-				pkg->filetypes[i],pkg->refcounts[i]);
+		printf(" %s %c %d\n", filekey,
+				pkg->filetypes[i], pkg->refcounts[i]);
 	}
-	(void)fputs("\n",stdout);
+	(void)fputs("\n", stdout);
 }
 
 retvalue tracking_printall(trackingdb t) {
@@ -620,15 +640,15 @@ retvalue tracking_printall(trackingdb t) {
 	size_t datalen;
 
 	r = table_newglobalcursor(t->table, &cursor);
-	if( !RET_IS_OK(r) )
+	if (!RET_IS_OK(r))
 		return r;
 
 	result = RET_NOTHING;
 
-	while( cursor_nextpair(t->table, cursor,
-				&key, &value, &data, &datalen) ) {
+	while (cursor_nextpair(t->table, cursor,
+				&key, &value, &data, &datalen)) {
 		r = parse_data(key, value, data, datalen, &pkg);
-		if( RET_IS_OK(r) ) {
+		if (RET_IS_OK(r)) {
 			print(t->codename, pkg);
 			trackedpackage_free(pkg);
 		}
@@ -648,25 +668,25 @@ retvalue tracking_foreach_ro(struct database *db, struct distribution *d, tracki
 	size_t datalen;
 
 	r = tracking_initialize(&t, db, d, true);
-	if( !RET_IS_OK(r) )
+	if (!RET_IS_OK(r))
 		return r;
 
 	r = table_newglobalcursor(t->table, &cursor);
-	if( !RET_IS_OK(r) ) {
+	if (!RET_IS_OK(r)) {
 		(void)tracking_done(t);
 		return r;
 	}
 
 	result = RET_NOTHING;
-	while( cursor_nextpair(t->table, cursor,
-				&key, &value, &data, &datalen) ) {
+	while (cursor_nextpair(t->table, cursor,
+				&key, &value, &data, &datalen)) {
 		r = parse_data(key, value, data, datalen, &pkg);
-		if( RET_IS_OK(r) ) {
+		if (RET_IS_OK(r)) {
 			r = action(d, pkg);
 			trackedpackage_free(pkg);
 		}
 		RET_UPDATE(result, r);
-		if( RET_WAS_ERROR(r) )
+		if (RET_WAS_ERROR(r))
 			break;
 	}
 	r = cursor_close(t->table, cursor);
@@ -699,31 +719,32 @@ retvalue tracking_parse(struct distribution *d, struct configiterator *iter) {
 	retvalue r;
 	int modecount;
 
-	assert( d->tracking == dt_NONE );
+	assert (d->tracking == dt_NONE);
 	memset(flags, 0, sizeof(flags));
 	r = config_getflags(iter, "Tracking", trackingflags, flags,
 			IGNORABLE(unknownfield), "");
-	assert( r != RET_NOTHING );
-	if( RET_WAS_ERROR(r) )
+	assert (r != RET_NOTHING);
+	if (RET_WAS_ERROR(r))
 		return r;
 	modecount = flags[tf_keep]?1:0 + flags[tf_minimal]?1:0 + flags[tf_all]?1:0;
-	if( modecount > 1 ) {
+	if (modecount > 1) {
 		fprintf(stderr,
 "Error parsing config file %s, line %u:\n"
 "Only one of 'keep','all' or 'minimal' can be in one Tracking header.\n",
 			config_filename(iter), config_line(iter));
 		return RET_ERROR;
 	}
-	if( modecount < 1 ) {
+	if (modecount < 1) {
 		fprintf(stderr,
 "Error parsing config file %s, line %u, column %u:\n"
 "Tracking mode ('keep','all' or 'minimal') expected.\n",
-			config_filename(iter), config_line(iter), config_column(iter));
+			config_filename(iter), config_line(iter),
+			config_column(iter));
 		return RET_ERROR;
 	}
-	if( flags[tf_keep] )
+	if (flags[tf_keep])
 		d->tracking = dt_KEEP;
-	else if( flags[tf_minimal] )
+	else if (flags[tf_minimal])
 		d->tracking = dt_MINIMAL;
 	else
 		d->tracking = dt_ALL;
@@ -733,13 +754,13 @@ retvalue tracking_parse(struct distribution *d, struct configiterator *iter) {
 	d->trackingoptions.includelogs = flags[tf_includelogs];
 	d->trackingoptions.keepsources = flags[tf_keepsources];
 	d->trackingoptions.needsources = flags[tf_needsources];
-	if( flags[tf_needsources] )
+	if (flags[tf_needsources])
 		fprintf(stderr,
 "Warning parsing config file %s, line %u:\n"
 "'needsources' ignored as not yet supported.\n",
 			config_filename(iter), config_line(iter));
 	d->trackingoptions.embargoalls = flags[tf_embargoalls];
-	if( flags[tf_embargoalls] )
+	if (flags[tf_embargoalls])
 		fprintf(stderr,
 "Warning parsing config file %s, line %u:\n"
 "'embargoall' ignored as not yet supported.\n",
@@ -747,11 +768,11 @@ retvalue tracking_parse(struct distribution *d, struct configiterator *iter) {
 	return RET_OK;
 }
 
-static retvalue trackingdata_remember(struct trackingdata *td,/*@only@*/char*name,/*@only@*/char*version) {
+static retvalue trackingdata_remember(struct trackingdata *td, /*@only@*/char*name, /*@only@*/char*version) {
 	struct trackingdata_remember *r;
 
-	r = malloc(sizeof(*r));
-	if( r == NULL )
+	r = NEW(struct trackingdata_remember);
+	if (FAILEDTOALLOC(r))
 		return RET_ERROR_OOM;
 	r->name = name;
 	r->version = version;
@@ -760,13 +781,13 @@ static retvalue trackingdata_remember(struct trackingdata *td,/*@only@*/char*nam
 	return RET_OK;
 }
 
-retvalue trackingdata_summon(trackingdb tracks,const char *name,const char *version,struct trackingdata *data) {
+retvalue trackingdata_summon(trackingdb tracks, const char *name, const char *version, struct trackingdata *data) {
 	struct trackedpackage *pkg;
 	retvalue r;
 
-	r = tracking_getornew(tracks,name,version,&pkg);
-	assert( r != RET_NOTHING );
-	if( RET_IS_OK(r) ) {
+	r = tracking_getornew(tracks, name, version, &pkg);
+	assert (r != RET_NOTHING);
+	if (RET_IS_OK(r)) {
 		data->tracks = tracks;
 		data->pkg = pkg;
 		data->remembered = NULL;
@@ -775,7 +796,7 @@ retvalue trackingdata_summon(trackingdb tracks,const char *name,const char *vers
 	return r;
 }
 
-retvalue trackingdata_new(trackingdb tracks,struct trackingdata *data) {
+retvalue trackingdata_new(trackingdb tracks, struct trackingdata *data) {
 
 	data->tracks = tracks;
 	data->pkg = NULL;
@@ -786,12 +807,12 @@ retvalue trackingdata_new(trackingdb tracks,struct trackingdata *data) {
 retvalue trackingdata_switch(struct trackingdata *data, const char *source, const char *version) {
 	retvalue r;
 
-	if( data->pkg != NULL ) {
-		if( strcmp(data->pkg->sourcename, source) == 0 &&
-				strcmp(data->pkg->sourceversion, version) == 0 )
+	if (data->pkg != NULL) {
+		if (strcmp(data->pkg->sourcename, source) == 0 &&
+				strcmp(data->pkg->sourceversion, version) == 0)
 			return RET_OK;
 		r = tracking_saveonly(data->tracks, data->pkg);
-		if( RET_WAS_ERROR(r) )
+		if (RET_WAS_ERROR(r))
 			return r;
 		r = trackingdata_remember(data, data->pkg->sourcename,
 				data->pkg->sourceversion);
@@ -800,21 +821,21 @@ retvalue trackingdata_switch(struct trackingdata *data, const char *source, cons
 		free(data->pkg->filetypes);
 		free(data->pkg);
 		data->pkg = NULL;
-		if( RET_WAS_ERROR(r) )
+		if (RET_WAS_ERROR(r))
 			return r;
 	}
 	r = tracking_getornew(data->tracks, source, version, &data->pkg);
-	assert( r != RET_NOTHING );
-	if( RET_WAS_ERROR(r) )
+	assert (r != RET_NOTHING);
+	if (RET_WAS_ERROR(r))
 		return r;
 	return RET_OK;
 }
 
-retvalue trackingdata_insert(struct trackingdata *data,enum filetype filetype,const struct strlist *filekeys,/*@null@*//*@only@*/char*oldsource,/*@null@*//*@only@*/char*oldversion,/*@null@*/const struct strlist *oldfilekeys,struct database *database) {
-	retvalue result,r;
+retvalue trackingdata_insert(struct trackingdata *data, enum filetype filetype, const struct strlist *filekeys, /*@null@*//*@only@*/char*oldsource, /*@null@*//*@only@*/char*oldversion, /*@null@*/const struct strlist *oldfilekeys, struct database *database) {
+	retvalue result, r;
 	struct trackedpackage *pkg;
 
-	if( data == NULL) {
+	if (data == NULL) {
 		assert(oldversion == NULL && oldsource == NULL);
 		free(oldversion);
 		free(oldsource);
@@ -823,70 +844,76 @@ retvalue trackingdata_insert(struct trackingdata *data,enum filetype filetype,co
 	assert(data->pkg != NULL);
 	result = trackedpackage_adddupfilekeys(data->tracks, data->pkg,
 			filetype, filekeys, true, database);
-	if( RET_WAS_ERROR(result) ) {
-		free(oldsource);free(oldversion);
+	if (RET_WAS_ERROR(result)) {
+		free(oldsource); free(oldversion);
 		return result;
 	}
-	if( oldsource == NULL || oldversion == NULL || oldfilekeys == NULL ) {
+	if (oldsource == NULL || oldversion == NULL || oldfilekeys == NULL) {
 		assert(oldsource==NULL&&oldversion==NULL&&oldfilekeys==NULL);
 		return RET_OK;
 	}
-	if( strcmp(oldversion,data->pkg->sourceversion) == 0 &&
-			strcmp(oldsource,data->pkg->sourcename) == 0 ) {
+	if (strcmp(oldversion, data->pkg->sourceversion) == 0 &&
+			strcmp(oldsource, data->pkg->sourcename) == 0) {
 		/* Unlikely, but it may also be the same source version as
 		 * the package we are currently adding */
-		free(oldsource);free(oldversion);
-		return trackedpackage_removefilekeys(data->tracks,data->pkg,oldfilekeys);
+		free(oldsource); free(oldversion);
+		return trackedpackage_removefilekeys(data->tracks, data->pkg,
+				oldfilekeys);
 	}
-	r = tracking_get(data->tracks,oldsource,oldversion,&pkg);
-	if( RET_WAS_ERROR(r) ) {
-		free(oldsource);free(oldversion);
+	r = tracking_get(data->tracks, oldsource, oldversion, &pkg);
+	if (RET_WAS_ERROR(r)) {
+		free(oldsource); free(oldversion);
 		return r;
 	}
-	if( r == RET_NOTHING) {
-		fprintf(stderr,"Could not found tracking data for %s_%s in %s to remove old files from it.\n",oldsource,oldversion,data->tracks->codename);
-		free(oldsource);free(oldversion);
+	if (r == RET_NOTHING) {
+		fprintf(stderr,
+"Could not found tracking data for %s_%s in %s to remove old files from it.\n",
+			oldsource, oldversion, data->tracks->codename);
+		free(oldsource); free(oldversion);
 		return result;
 	}
-	r = trackedpackage_removefilekeys(data->tracks,pkg,oldfilekeys);
-	RET_UPDATE(result,r);
-	r = tracking_save(data->tracks,pkg);
-	RET_UPDATE(result,r);
-	r = trackingdata_remember(data,oldsource,oldversion);
-	RET_UPDATE(result,r);
+	r = trackedpackage_removefilekeys(data->tracks, pkg, oldfilekeys);
+	RET_UPDATE(result, r);
+	r = tracking_save(data->tracks, pkg);
+	RET_UPDATE(result, r);
+	r = trackingdata_remember(data, oldsource, oldversion);
+	RET_UPDATE(result, r);
 
 	return result;
 }
 
-retvalue trackingdata_remove(struct trackingdata *data,/*@only@*/char*oldsource,/*@only@*/char*oldversion,const struct strlist *oldfilekeys) {
-	retvalue result,r;
+retvalue trackingdata_remove(struct trackingdata *data, /*@only@*/char*oldsource, /*@only@*/char*oldversion, const struct strlist *oldfilekeys) {
+	retvalue result, r;
 	struct trackedpackage *pkg;
 
 	assert(oldsource != NULL && oldversion != NULL && oldfilekeys != NULL);
-	if( data->pkg != NULL &&
-			strcmp(oldversion,data->pkg->sourceversion) == 0 &&
-			strcmp(oldsource,data->pkg->sourcename) == 0 ) {
+	if (data->pkg != NULL &&
+			strcmp(oldversion, data->pkg->sourceversion) == 0 &&
+			strcmp(oldsource, data->pkg->sourcename) == 0) {
 		/* Unlikely, but it may also be the same source version as
 		 * the package we are currently adding */
-		free(oldsource);free(oldversion);
-		return trackedpackage_removefilekeys(data->tracks,data->pkg,oldfilekeys);
+		free(oldsource); free(oldversion);
+		return trackedpackage_removefilekeys(data->tracks,
+				data->pkg, oldfilekeys);
 	}
-	result = tracking_get(data->tracks,oldsource,oldversion,&pkg);
-	if( RET_WAS_ERROR(result) ) {
-		free(oldsource);free(oldversion);
+	result = tracking_get(data->tracks, oldsource, oldversion, &pkg);
+	if (RET_WAS_ERROR(result)) {
+		free(oldsource); free(oldversion);
 		return result;
 	}
-	if( result == RET_NOTHING) {
-		fprintf(stderr,"Could not found tracking data for %s_%s in %s to remove old files from it.\n",oldsource,oldversion,data->tracks->codename);
-		free(oldsource);free(oldversion);
+	if (result == RET_NOTHING) {
+		fprintf(stderr,
+"Could not found tracking data for %s_%s in %s to remove old files from it.\n",
+			oldsource, oldversion, data->tracks->codename);
+		free(oldsource); free(oldversion);
 		return RET_OK;
 	}
-	r = trackedpackage_removefilekeys(data->tracks,pkg,oldfilekeys);
-	RET_UPDATE(result,r);
-	r = tracking_save(data->tracks,pkg);
-	RET_UPDATE(result,r);
-	r = trackingdata_remember(data,oldsource,oldversion);
-	RET_UPDATE(result,r);
+	r = trackedpackage_removefilekeys(data->tracks, pkg, oldfilekeys);
+	RET_UPDATE(result, r);
+	r = tracking_save(data->tracks, pkg);
+	RET_UPDATE(result, r);
+	r = trackingdata_remember(data, oldsource, oldversion);
+	RET_UPDATE(result, r);
 
 	return result;
 }
@@ -895,7 +922,7 @@ void trackingdata_done(struct trackingdata *d) {
 	trackedpackage_free(d->pkg);
 	d->pkg = NULL;
 	d->tracks = NULL;
-	while( d->remembered != NULL ) {
+	while (d->remembered != NULL) {
 		struct trackingdata_remember *h = d->remembered;
 		d->remembered = h->next;
 		free(h->name);
@@ -906,12 +933,13 @@ void trackingdata_done(struct trackingdata *d) {
 }
 
 static inline retvalue trackedpackage_removeall(trackingdb tracks, struct trackedpackage *pkg, struct database *database) {
-	retvalue result = RET_OK,r;
+	retvalue result = RET_OK, r;
 	char *id;
 
-//	printf("[trackedpackage_removeall %s %s %s]\n",tracks->codename,pkg->sourcename,pkg->sourceversion);
-	id = calc_trackreferee(tracks->codename, pkg->sourcename, pkg->sourceversion);
-	if( id == NULL )
+//	printf("[trackedpackage_removeall %s %s %s]\n", tracks->codename, pkg->sourcename, pkg->sourceversion);
+	id = calc_trackreferee(tracks->codename, pkg->sourcename,
+			pkg->sourceversion);
+	if (FAILEDTOALLOC(id))
 		return RET_ERROR_OOM;
 
 	pkg->flags.deleted = true;
@@ -919,39 +947,39 @@ static inline retvalue trackedpackage_removeall(trackingdb tracks, struct tracke
 	free(id);
 	strlist_done(&pkg->filekeys);
 	strlist_init(&pkg->filekeys);
-	free(pkg->refcounts);pkg->refcounts = NULL;
+	free(pkg->refcounts); pkg->refcounts = NULL;
 	return result;
 }
 
 static inline bool tracking_needed(trackingdb tracks, struct trackedpackage *pkg, int ofs) {
-	if( pkg->refcounts[ofs] > 0 )
+	if (pkg->refcounts[ofs] > 0)
 		return true;
 	// TODO: add checks so that only .changes and .log files belonging
 	// to still existing binaries are kept in minimal mode
-	if( pkg->filetypes[ofs] == ft_LOG && tracks->options.includelogs )
+	if (pkg->filetypes[ofs] == ft_LOG && tracks->options.includelogs)
 		return true;
-	if( pkg->filetypes[ofs] == ft_CHANGES && tracks->options.includechanges )
+	if (pkg->filetypes[ofs] == ft_CHANGES && tracks->options.includechanges)
 		return true;
-	if( pkg->filetypes[ofs] == ft_XTRA_DATA )
+	if (pkg->filetypes[ofs] == ft_XTRA_DATA)
 		return true;
-	if( pkg->filetypes[ofs] == ft_SOURCE && tracks->options.keepsources )
+	if (pkg->filetypes[ofs] == ft_SOURCE && tracks->options.keepsources)
 		return true;
 	return false;
 
 }
 
 static inline retvalue trackedpackage_removeunneeded(trackingdb tracks, struct trackedpackage *pkg, struct database *database) {
-	retvalue result = RET_OK,r;
+	retvalue result = RET_OK, r;
 	char *id = NULL;
-	int i,j, count;
+	int i, j, count;
 
 	assert(tracks->type == dt_MINIMAL);
 
 	count = pkg->filekeys.count;
 	j = 0;
-	for( i = 0 ; i < count ; i++ ) {
-		if( tracking_needed(tracks, pkg, i) ) {
-			if( j < i ) {
+	for (i = 0 ; i < count ; i++) {
+		if (tracking_needed(tracks, pkg, i)) {
+			if (j < i) {
 				pkg->filekeys.values[j] = pkg->filekeys.values[i];
 				pkg->refcounts[j] = pkg->refcounts[i];
 				pkg->filetypes[j] = pkg->filetypes[i];
@@ -960,21 +988,21 @@ static inline retvalue trackedpackage_removeunneeded(trackingdb tracks, struct t
 		} else {
 			char *filekey = pkg->filekeys.values[i];
 			pkg->filekeys.values[i] = NULL;
-			if( id == NULL ) {
+			if (FAILEDTOALLOC(id)) {
 				id = calc_trackreferee(tracks->codename,
 					pkg->sourcename, pkg->sourceversion);
-				if( id == NULL )
+				if (id == NULL)
 					result = RET_ERROR_OOM;
 			}
-			if( id != NULL ) {
-//				printf("[trackedpackage_removeunneeded %s %s %s: '%s']\n",tracks->codename,pkg->sourcename,pkg->sourceversion, filekey);
+			if (id != NULL) {
+//				printf("[trackedpackage_removeunneeded %s %s %s: '%s']\n", tracks->codename, pkg->sourcename, pkg->sourceversion, filekey);
 				r = references_decrement(database, filekey, id);
-				RET_UPDATE(result,r);
+				RET_UPDATE(result, r);
 			}
 			free(filekey);
 		}
 	}
-	assert( j <= pkg->filekeys.count );
+	assert (j <= pkg->filekeys.count);
 	pkg->filekeys.count = j;
 	free(id);
 	return result;
@@ -983,19 +1011,19 @@ static inline retvalue trackedpackage_removeunneeded(trackingdb tracks, struct t
 static inline retvalue trackedpackage_tidy(trackingdb tracks, struct trackedpackage *pkg, struct database *database) {
 	int i;
 
-	if( tracks->type == dt_KEEP )
+	if (tracks->type == dt_KEEP)
 		return RET_OK;
 	/* look if anything clings to this package */
-	for( i = 0 ; i < pkg->filekeys.count ; i++ ) {
-		if( pkg->refcounts[i] > 0 )
+	for (i = 0 ; i < pkg->filekeys.count ; i++) {
+		if (pkg->refcounts[i] > 0)
 			break;
 	}
-	if( i >= pkg->filekeys.count )
+	if (i >= pkg->filekeys.count)
 
 		/* nothing left, remove it all */
 		return trackedpackage_removeall(tracks, pkg, database);
 
-	else if( tracks->type == dt_MINIMAL )
+	else if (tracks->type == dt_MINIMAL)
 
 		/* remove all files no longer needed */
 		return trackedpackage_removeunneeded(tracks, pkg, database);
@@ -1005,15 +1033,15 @@ static inline retvalue trackedpackage_tidy(trackingdb tracks, struct trackedpack
 
 retvalue trackingdata_finish(trackingdb tracks, struct trackingdata *d, struct database *database) {
 	retvalue r;
-	assert( d->tracks == tracks );
-	if( d->pkg != NULL ) {
+	assert (d->tracks == tracks);
+	if (d->pkg != NULL) {
 		r = trackedpackage_tidy(tracks, d->pkg, database);
 		r = tracking_save(tracks, d->pkg);
 	} else
 		r = RET_OK;
 	d->pkg = NULL;
 	/* call for all remembered actions... */
-	while( d->remembered != NULL ) {
+	while (d->remembered != NULL) {
 		struct trackingdata_remember *h = d->remembered;
 		struct trackedpackage *pkg;
 		d->remembered = h->next;
@@ -1021,7 +1049,7 @@ retvalue trackingdata_finish(trackingdb tracks, struct trackingdata *d, struct d
 		free(h->name);
 		free(h->version);
 		free(h);
-		if( RET_IS_OK(r) ) {
+		if (RET_IS_OK(r)) {
 			r = trackedpackage_tidy(tracks, pkg, database);
 			r = tracking_save(tracks, pkg);
 		}
@@ -1039,15 +1067,15 @@ retvalue tracking_tidyall(trackingdb t, struct database *database) {
 	size_t datalen;
 
 	r = table_newglobalcursor(t->table, &cursor);
-	if( !RET_IS_OK(r) )
+	if (!RET_IS_OK(r))
 		return r;
 
 	result = RET_NOTHING;
 
-	while( cursor_nextpair(t->table, cursor,
-				&key, &value, &data, &datalen) ) {
+	while (cursor_nextpair(t->table, cursor,
+				&key, &value, &data, &datalen)) {
 		r = parse_data(key, value, data, datalen, &pkg);
-		if( RET_WAS_ERROR(r) ) {
+		if (RET_WAS_ERROR(r)) {
 			result = r;
 			break;
 		}
@@ -1072,28 +1100,28 @@ retvalue tracking_reset(trackingdb t) {
 	int i;
 
 	r = table_newglobalcursor(t->table, &cursor);
-	if( !RET_IS_OK(r) )
+	if (!RET_IS_OK(r))
 		return r;
 
 	result = RET_NOTHING;
 
-	while( cursor_nextpair(t->table, cursor,
-				&key, &value, &data, &datalen) ) {
+	while (cursor_nextpair(t->table, cursor,
+				&key, &value, &data, &datalen)) {
 		// this would perhaps be more stable if it just replaced
 		// everything within the string just received...
 		result = parse_data(key, value, data, datalen, &pkg);
-		if( RET_WAS_ERROR(result) )
+		if (RET_WAS_ERROR(result))
 			break;
-		for( i = 0 ; i < pkg->filekeys.count ; i++ ) {
+		for (i = 0 ; i < pkg->filekeys.count ; i++) {
 			pkg->refcounts[i] = 0;
 		}
 		result = gen_data(pkg, &newdata, &newdatalen);
 		trackedpackage_free(pkg);
-		if( RET_IS_OK(result) )
+		if (RET_IS_OK(result))
 			result = cursor_replace(t->table, cursor,
 					newdata, newdatalen);
 		free(newdata);
-		if( RET_WAS_ERROR(result) )
+		if (RET_WAS_ERROR(result))
 			break;
 	}
 	r = cursor_close(t->table, cursor);
@@ -1101,7 +1129,7 @@ retvalue tracking_reset(trackingdb t) {
 	return result;
 }
 
-static retvalue tracking_foreachversion(trackingdb t, struct database *db, struct distribution *distribution,  const char *sourcename, retvalue (action)(trackingdb t,struct trackedpackage *,struct database *,struct distribution *)) {
+static retvalue tracking_foreachversion(trackingdb t, struct database *db, struct distribution *distribution,  const char *sourcename, retvalue (action)(trackingdb t, struct trackedpackage *, struct database *, struct distribution *)) {
 	struct cursor *cursor;
 	retvalue result, r;
 	struct trackedpackage *pkg IFSTUPIDCC(=NULL);
@@ -1110,23 +1138,23 @@ static retvalue tracking_foreachversion(trackingdb t, struct database *db, struc
 
 	r = table_newduplicatecursor(t->table, sourcename, &cursor,
 			&value, &data, &datalen);
-	if( !RET_IS_OK(r) )
+	if (!RET_IS_OK(r))
 		return r;
 
 	result = RET_NOTHING;
 
 	do {
 		r = parse_data(sourcename, value, data, datalen, &pkg);
-		if( RET_WAS_ERROR(r) ) {
+		if (RET_WAS_ERROR(r)) {
 			result = r;
 			break;
 		}
-		if( verbose > 10 )
+		if (verbose > 10)
 			printf("Processing track of '%s' version '%s'\n",
 					pkg->sourcename, pkg->sourceversion);
 		r = action(t, pkg, db, distribution);
 		RET_UPDATE(result, r);
-		if( RET_WAS_ERROR(r) ) {
+		if (RET_WAS_ERROR(r)) {
 			(void)cursor_close(t->table, cursor);
 			trackedpackage_free(pkg);
 			return r;
@@ -1136,8 +1164,8 @@ static retvalue tracking_foreachversion(trackingdb t, struct database *db, struc
 		r = tracking_saveatcursor(t, cursor, pkg);
 		RET_UPDATE(result, r);
 		trackedpackage_free(pkg);
-	} while( cursor_nextpair(t->table, cursor, NULL,
-				&value, &data, &datalen) );
+	} while (cursor_nextpair(t->table, cursor, NULL,
+				&value, &data, &datalen));
 	r = cursor_close(t->table, cursor);
 	RET_UPDATE(result, r);
 	return result;
@@ -1148,75 +1176,78 @@ static retvalue targetremovesourcepackage(trackingdb t, struct trackedpackage *p
 	size_t component_len, arch_len;
 	retvalue result, r;
 	int i;
+	const char *packagetype = atoms_packagetypes[target->packagetype];
+	const char *architecture = atoms_architectures[target->architecture];
+	const char *component = atoms_components[target->component];
 
 	result = RET_NOTHING;
 
-	component_len = strlen(atoms_components[target->component_atom]);
-	arch_len = strlen(atoms_architectures[target->architecture_atom]);
-	for( i = 0 ; i < pkg->filekeys.count ; i++) {
+	component_len = strlen(component);
+	arch_len = strlen(architecture);
+	for (i = 0 ; i < pkg->filekeys.count ; i++) {
 		const char *s, *basefilename, *filekey = pkg->filekeys.values[i];
 		char *package, *control, *source, *version;
 		struct strlist filekeys;
 		bool savedstaletracking;
 
-		if( pkg->refcounts[i] <= 0 )
+		if (pkg->refcounts[i] <= 0)
 			continue;
-		if( strncmp(filekey, "pool/", 5) != 0 )
+		if (strncmp(filekey, "pool/", 5) != 0)
 			continue;
-		if( strncmp(filekey+5, atoms_components[target->component_atom],
-					component_len) != 0 )
+		if (strncmp(filekey+5, component,
+					component_len) != 0)
 			continue;
-		if( filekey[5+component_len] != '/' )
+		if (filekey[5+component_len] != '/')
 			continue;
 		/* check this file could actuall be in this target */
-		if( pkg->filetypes[i] == ft_ALL_BINARY ) {
-			if( target->packagetype_atom == pt_dsc )
+		if (pkg->filetypes[i] == ft_ALL_BINARY) {
+			if (target->packagetype == pt_dsc)
 				continue;
 			s = strrchr(filekey, '.');
-			if( s == NULL )
+			if (s == NULL)
 				continue;
-			if( strcmp(s+1, atoms_packagetypes[target->packagetype_atom]) != 0)
+			if (strcmp(s+1, packagetype) != 0)
 				continue;
-		} else if( pkg->filetypes[i] == ft_SOURCE ) {
-			if( target->packagetype_atom != pt_dsc )
+		} else if (pkg->filetypes[i] == ft_SOURCE) {
+			if (target->packagetype != pt_dsc)
 				continue;
 			s = strrchr(filekey, '.');
-			if( s == NULL )
+			if (s == NULL)
 				continue;
-			if( strcmp(s+1, "dsc") != 0)
+			if (strcmp(s+1, "dsc") != 0)
 				continue;
-		} else if( pkg->filetypes[i] == ft_ARCH_BINARY ) {
-			if( target->packagetype_atom == pt_dsc )
+		} else if (pkg->filetypes[i] == ft_ARCH_BINARY) {
+			if (target->packagetype == pt_dsc)
 				continue;
 			s = strrchr(filekey, '_');
-			if( s == NULL )
+			if (s == NULL)
 				continue;
 			s++;
-			if( strncmp(s, atoms_architectures[target->architecture_atom], arch_len) != 0
+			if (strncmp(s, architecture, arch_len) != 0
 			    || s[arch_len] != '.'
-			    || strcmp(s+arch_len+1, atoms_packagetypes[target->packagetype_atom]) != 0)
+			    || strcmp(s+arch_len+1, packagetype) != 0)
 				continue;
 		} else
 			continue;
 		/* get this package, check it has the right source and version,
 		 * and if yes, remove... */
 		basefilename = strrchr(filekey, '/');
-		if( basefilename == NULL )
+		if (basefilename == NULL)
 			basefilename = filekey;
 		else
 			basefilename++;
 		s = strchr(basefilename, '_');
 		package = strndup(basefilename, s - basefilename);
-		if( package == NULL )
-				return RET_ERROR_OOM;
+		if (FAILEDTOALLOC(package))
+			return RET_ERROR_OOM;
 		r = table_getrecord(target->packages, package, &control);
-		if( RET_WAS_ERROR(r) ) {
+		if (RET_WAS_ERROR(r)) {
 			free(package);
 			return r;
 		}
-		if( r == RET_NOTHING ) {
-			if( pkg->filetypes[i] != ft_ALL_BINARY
-			    && verbose >= -1 ) {
+		if (r == RET_NOTHING) {
+			if (pkg->filetypes[i] != ft_ALL_BINARY
+			    && verbose >= -1) {
 				fprintf(stderr,
 "Warning: tracking data might be incosistent:\n"
 "cannot find '%s' in '%s', but '%s' should be there.\n",
@@ -1228,15 +1259,15 @@ static retvalue targetremovesourcepackage(trackingdb t, struct trackedpackage *p
 		}
 		r = target->getsourceandversion(control, package,
 				&source, &version);
-		assert( r != RET_NOTHING );
-		if( RET_WAS_ERROR(r) ) {
+		assert (r != RET_NOTHING);
+		if (RET_WAS_ERROR(r)) {
 			free(package);
 			free(control);
 			return r;
 		}
-		if( strcmp(source, pkg->sourcename) != 0 ) {
-			if( pkg->filetypes[i] != ft_ALL_BINARY
-			    && verbose >= -1 ) {
+		if (strcmp(source, pkg->sourcename) != 0) {
+			if (pkg->filetypes[i] != ft_ALL_BINARY
+			    && verbose >= -1) {
 				fprintf(stderr,
 "Warning: tracking data might be incosistent:\n"
 "'%s' has '%s' of source '%s', but source '%s' contains '%s'.\n",
@@ -1251,9 +1282,9 @@ static retvalue targetremovesourcepackage(trackingdb t, struct trackedpackage *p
 			continue;
 		}
 		free(source);
-		if( strcmp(version, pkg->sourceversion) != 0 ) {
-			if( pkg->filetypes[i] != ft_ALL_BINARY
-			    && verbose >= -1 ) {
+		if (strcmp(version, pkg->sourceversion) != 0) {
+			if (pkg->filetypes[i] != ft_ALL_BINARY
+			    && verbose >= -1) {
 				fprintf(stderr,
 "Warning: tracking data might be incosistent:\n"
 "'%s' has '%s' of source version '%s', but version '%s' contains '%s'.\n",
@@ -1268,8 +1299,8 @@ static retvalue targetremovesourcepackage(trackingdb t, struct trackedpackage *p
 		}
 		free(version);
 		r = target->getfilekeys(control, &filekeys);
-		assert( r != RET_NOTHING );
-		if( RET_WAS_ERROR(r) ) {
+		assert (r != RET_NOTHING);
+		if (RET_WAS_ERROR(r)) {
 			free(package);
 			free(control);
 			return r;
@@ -1287,8 +1318,8 @@ static retvalue targetremovesourcepackage(trackingdb t, struct trackedpackage *p
 		target->staletracking = savedstaletracking;
 		free(control);
 		free(package);
-		assert( r != RET_NOTHING );
-		if( RET_WAS_ERROR(r) ) {
+		assert (r != RET_NOTHING);
+		if (RET_WAS_ERROR(r)) {
 			strlist_done(&filekeys);
 			return r;
 		}
@@ -1306,10 +1337,11 @@ static retvalue removesourcepackage(trackingdb t, struct trackedpackage *pkg, st
 	int i;
 
 	result = RET_NOTHING;
-	for( target = distribution->targets ; target != NULL ; target = target->next ) {
+	for (target = distribution->targets ; target != NULL ;
+	                                      target = target->next) {
 		r = target_initpackagesdb(target, database, READWRITE);
 		RET_ENDUPDATE(result, r);
-		if( RET_IS_OK(r) ) {
+		if (RET_IS_OK(r)) {
 			r = targetremovesourcepackage(t, pkg, database,
 					distribution, target);
 			RET_UPDATE(result, r);
@@ -1317,18 +1349,18 @@ static retvalue removesourcepackage(trackingdb t, struct trackedpackage *pkg, st
 			r = target_closepackagesdb(target);
 			RET_ENDUPDATE(result, r);
 			RET_ENDUPDATE(distribution->status, r);
-			if( RET_WAS_ERROR(result) )
+			if (RET_WAS_ERROR(result))
 				return result;
 		}
 	}
-	for( i = 0 ; i < pkg->filekeys.count ; i++) {
+	for (i = 0 ; i < pkg->filekeys.count ; i++) {
 		const char *filekey = pkg->filekeys.values[i];
 
-		if( pkg->refcounts[i] <= 0 )
+		if (pkg->refcounts[i] <= 0)
 			continue;
-		if( pkg->filetypes[i] != ft_ALL_BINARY &&
+		if (pkg->filetypes[i] != ft_ALL_BINARY &&
 		    pkg->filetypes[i] != ft_SOURCE &&
-		    pkg->filetypes[i] != ft_ARCH_BINARY )
+		    pkg->filetypes[i] != ft_ARCH_BINARY)
 			continue;
 		fprintf(stderr,
 "There was an inconsistency in the tracking data of '%s':\n"
@@ -1344,13 +1376,13 @@ retvalue tracking_removepackages(trackingdb t, struct database *database, struct
 	struct trackedpackage *pkg;
 	retvalue result, r;
 
-	if( version == NULL )
+	if (version == NULL)
 		return tracking_foreachversion(t, database, distribution,
 				sourcename, removesourcepackage);
 	result = tracking_get(t, sourcename, version, &pkg);
-	if( RET_IS_OK(result) ) {
+	if (RET_IS_OK(result)) {
 		result = removesourcepackage(t, pkg, database, distribution);
-		if( RET_IS_OK(result) ) {
+		if (RET_IS_OK(result)) {
 			r = trackedpackage_tidy(t, pkg, database);
 			RET_ENDUPDATE(result, r);
 			r = tracking_save(t, pkg);
@@ -1373,36 +1405,36 @@ retvalue tracking_retrack(struct database *database, struct distribution *d, boo
 	trackingdb tracks;
 	retvalue r, rr;
 
-	if( d->tracking == dt_NONE )
+	if (d->tracking == dt_NONE)
 		return RET_NOTHING;
 
-	for( t = d->targets ; !needsretrack && t != NULL ; t = t->next ) {
-		if( t->staletracking )
+	for (t = d->targets ; !needsretrack && t != NULL ; t = t->next) {
+		if (t->staletracking)
 			needsretrack = true;
 	}
-	if( !needsretrack )
+	if (!needsretrack)
 		return RET_NOTHING;
 
-	if( verbose > 0 )
+	if (verbose > 0)
 		printf("Retracking %s...\n", d->codename);
 
 	r = tracking_initialize(&tracks, database, d, false);
-	if( !RET_IS_OK(r) )
+	if (!RET_IS_OK(r))
 		return r;
 	/* first forget that any package is there*/
 	r = tracking_reset(tracks);
-	if( !RET_WAS_ERROR(r) ) {
+	if (!RET_WAS_ERROR(r)) {
 		/* add back information about actually used files */
 		r = distribution_foreach_package(d, database,
 				atom_unknown, atom_unknown, atom_unknown,
 				package_retrack, NULL, tracks);
 	}
-	if( RET_IS_OK(r) ) {
-		for( t = d->targets ; t != NULL ; t = t->next ) {
+	if (RET_IS_OK(r)) {
+		for (t = d->targets ; t != NULL ; t = t->next) {
 			t->staletracking = false;
 		}
 	}
-	if( !RET_WAS_ERROR(r) ) {
+	if (!RET_WAS_ERROR(r)) {
 		/* now remove everything no longer needed */
 		r = tracking_tidyall(tracks, database);
 	}

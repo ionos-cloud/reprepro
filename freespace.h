@@ -8,10 +8,10 @@
 struct devices;
 enum spacecheckmode { scm_NONE, /* scm_ASSUMESINGLEFS, */ scm_FULL };
 
-retvalue space_prepare(/*@out@*/struct devices **,enum spacecheckmode,off_t reservedfordb,off_t reservedforothers);
+retvalue space_prepare(/*@out@*/struct devices **, enum spacecheckmode, off_t /*reservedfordb*/, off_t /*reservedforothers*/);
 
 struct checksums;
-retvalue space_needed(/*@null@*/struct devices *, const char *filename, const struct checksums *);
+retvalue space_needed(/*@null@*/struct devices *, const char * /*filename*/, const struct checksums *);
 
 retvalue space_check(/*@null@*/struct devices *);
 

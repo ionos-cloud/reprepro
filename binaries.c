@@ -43,9 +43,12 @@ static const char * const deb_checksum_headers[cs_COUNT] = {
 
 static char *calc_binary_basename(const char *name, const char *version, architecture_t arch, packagetype_t packagetype) {
 	const char *v;
-	assert( name != NULL && version != NULL && atom_defined(arch) && atom_defined(packagetype) );
+	assert (name != NULL);
+	assert (version != NULL);
+	assert (atom_defined(arch));
+	assert (atom_defined(packagetype));
 	v = strchr(version, ':');
-	if( v != NULL )
+	if (v != NULL)
 		v++;
 	else
 		v = version;
@@ -62,24 +65,26 @@ static retvalue binaries_parse_checksums(const char *chunk, /*@out@*/struct chec
 
 	result = RET_NOTHING;
 
-	for( type = 0 ; type < cs_COUNT ; type++ ) {
+	for (type = 0 ; type < cs_COUNT ; type++) {
 		checksums[type] = NULL;
 		r = chunk_getvalue(chunk, deb_checksum_headers[type],
 				&checksums[type]);
 		RET_UPDATE(result, r);
 	}
-	if( checksums[cs_md5sum] == NULL ) {
-		fprintf(stderr, "Missing 'MD5sum' line in binary control chunk:\n '%s'\n",
+	if (checksums[cs_md5sum] == NULL) {
+		fprintf(stderr,
+"Missing 'MD5sum' line in binary control chunk:\n '%s'\n",
 				chunk);
 		RET_UPDATE(result, RET_ERROR_MISSING);
 	}
-	if( checksums[cs_length] == NULL ) {
-		fprintf(stderr, "Missing 'Size' line in binary control chunk:\n '%s'\n",
+	if (checksums[cs_length] == NULL) {
+		fprintf(stderr,
+"Missing 'Size' line in binary control chunk:\n '%s'\n",
 				chunk);
 		RET_UPDATE(result, RET_ERROR_MISSING);
 	}
-	if( RET_WAS_ERROR(result) ) {
-		for( type = 0 ; type < cs_COUNT ; type++ )
+	if (RET_WAS_ERROR(result)) {
+		for (type = 0 ; type < cs_COUNT ; type++)
 			free(checksums[type]);
 		return result;
 	}
@@ -91,52 +96,55 @@ retvalue binaries_getarchitecture(const char *chunk, architecture_t *architectur
 	retvalue r;
 
 	r = chunk_getvalue(chunk, "Architecture", &parch);
-	if( r == RET_NOTHING ) {
-		fprintf(stderr, "Internal Error: Missing Architecture: header in '%s'!\n",
+	if (r == RET_NOTHING) {
+		fprintf(stderr,
+"Internal Error: Missing Architecture: header in '%s'!\n",
 				chunk);
 		return RET_ERROR;
 	}
-	if( RET_WAS_ERROR(r) )
+	if (RET_WAS_ERROR(r))
 		return r;
 	*architecture_p = architecture_find(parch);
 	free(parch);
 
-	if( !atom_defined(*architecture_p) ) {
-		fprintf(stderr, "Internal Error: Unexpected Architecture: header in '%s'!\n",
+	if (!atom_defined(*architecture_p)) {
+		fprintf(stderr,
+"Internal Error: Unexpected Architecture: header in '%s'!\n",
 				chunk);
 		return RET_ERROR;
 	}
 	return RET_OK;
 }
 
-/* get somefields out of a "Packages.gz"-chunk. returns RET_OK on success, RET_NOTHING if incomplete, error otherwise */
-static retvalue binaries_parse_chunk(const char *chunk, const char *packagename, packagetype_t packagetype_atom, architecture_t package_architecture, const char *version, /*@out@*/char **sourcename_p, /*@out@*/char **basename_p) {
+/* get somefields out of a "Packages.gz"-chunk.
+ * returns RET_OK on success, RET_NOTHING if incomplete, error otherwise */
+static retvalue binaries_parse_chunk(const char *chunk, const char *packagename, packagetype_t packagetype, architecture_t package_architecture, const char *version, /*@out@*/char **sourcename_p, /*@out@*/char **basename_p) {
 	retvalue r;
-	char *mysourcename,*mybasename;
+	char *mysourcename, *mybasename;
 
 	assert(packagename!=NULL);
 
 	/* get the sourcename */
 	r = chunk_getname(chunk, "Source", &mysourcename, true);
-	if( r == RET_NOTHING ) {
+	if (r == RET_NOTHING) {
 		mysourcename = strdup(packagename);
-		if( mysourcename == NULL )
+		if (FAILEDTOALLOC(mysourcename))
 			r = RET_ERROR_OOM;
 	}
-	if( RET_WAS_ERROR(r) ) {
+	if (RET_WAS_ERROR(r)) {
 		return r;
 	}
 
 	r = properpackagename(packagename);
-	if( !RET_WAS_ERROR(r) )
+	if (!RET_WAS_ERROR(r))
 		r = properversion(version);
-	if( RET_WAS_ERROR(r) ) {
+	if (RET_WAS_ERROR(r)) {
 		free(mysourcename);
 		return r;
 	}
 	mybasename = calc_binary_basename(packagename, version,
-			package_architecture, packagetype_atom);
-	if( mybasename == NULL ) {
+			package_architecture, packagetype);
+	if (FAILEDTOALLOC(mybasename)) {
 		free(mysourcename);
 		return RET_ERROR_OOM;
 	}
@@ -152,45 +160,46 @@ retvalue binaries_getfilekeys(const char *chunk, struct strlist *files) {
 	char *filename;
 
 	/* Read the filename given there */
-	r = chunk_getvalue(chunk,"Filename",&filename);
-	if( !RET_IS_OK(r) ) {
-		if( r == RET_NOTHING ) {
-			fprintf(stderr, "Data does not look like binary control: '%s'\n",
+	r = chunk_getvalue(chunk, "Filename", &filename);
+	if (!RET_IS_OK(r)) {
+		if (r == RET_NOTHING) {
+			fprintf(stderr,
+"Data does not look like binary control: '%s'\n",
 					chunk);
 			r = RET_ERROR;
 		}
 		return r;
 	}
-	r = strlist_init_singleton(filename,files);
+	r = strlist_init_singleton(filename, files);
 	return r;
 }
 
-static retvalue calcfilekeys(component_t component_atom, const char *sourcename, const char *basefilename, struct strlist *filekeys) {
+static retvalue calcfilekeys(component_t component, const char *sourcename, const char *basefilename, struct strlist *filekeys) {
 	char *filekey;
 	retvalue r;
 
 	r = propersourcename(sourcename);
-	if( RET_WAS_ERROR(r) ) {
+	if (RET_WAS_ERROR(r)) {
 		return r;
 	}
-	filekey = calc_filekey(component_atom, sourcename, basefilename);
-	if( filekey == NULL )
+	filekey = calc_filekey(component, sourcename, basefilename);
+	if (FAILEDTOALLOC(filekey))
 		return RET_ERROR_OOM;
-	r = strlist_init_singleton(filekey,filekeys);
+	r = strlist_init_singleton(filekey, filekeys);
 	return r;
 }
 
-static inline retvalue calcnewcontrol(const char *chunk, const char *sourcename, const char *basefilename, component_t component_atom, struct strlist *filekeys, char **newchunk) {
+static inline retvalue calcnewcontrol(const char *chunk, const char *sourcename, const char *basefilename, component_t component, struct strlist *filekeys, char **newchunk) {
 	retvalue r;
 
-	r = calcfilekeys(component_atom, sourcename, basefilename, filekeys);
-	if( RET_WAS_ERROR(r) )
+	r = calcfilekeys(component, sourcename, basefilename, filekeys);
+	if (RET_WAS_ERROR(r))
 		return r;
 
-	assert( filekeys->count == 1 );
+	assert (filekeys->count == 1);
 	*newchunk = chunk_replacefield(chunk, "Filename",
 			filekeys->values[0], false);
-	if( *newchunk == NULL ) {
+	if (FAILEDTOALLOC(*newchunk)) {
 		strlist_done(filekeys);
 		return RET_ERROR_OOM;
 	}
@@ -200,11 +209,13 @@ static inline retvalue calcnewcontrol(const char *chunk, const char *sourcename,
 retvalue binaries_getversion(const char *control, char **version) {
 	retvalue r;
 
-	r = chunk_getvalue(control,"Version",version);
-	if( RET_WAS_ERROR(r) )
+	r = chunk_getvalue(control, "Version", version);
+	if (RET_WAS_ERROR(r))
 		return r;
-	if( r == RET_NOTHING ) {
-		fprintf(stderr, "Missing 'Version' field in chunk:'%s'\n", control);
+	if (r == RET_NOTHING) {
+		fprintf(stderr,
+"Missing 'Version' field in chunk:'%s'\n",
+				control);
 		return RET_ERROR;
 	}
 	return r;
@@ -216,26 +227,27 @@ retvalue binaries_getinstalldata(const struct target *t, const char *packagename
 	retvalue r;
 
 	r = binaries_parse_chunk(chunk, packagename,
-			t->packagetype_atom, package_architecture,
+			t->packagetype, package_architecture,
 			version, &sourcename, &basefilename);
-	if( RET_WAS_ERROR(r) ) {
+	if (RET_WAS_ERROR(r)) {
 		return r;
-	} else if( r == RET_NOTHING ) {
-		fprintf(stderr, "Does not look like a binary package: '%s'!\n", chunk);
+	} else if (r == RET_NOTHING) {
+		fprintf(stderr, "Does not look like a binary package: '%s'!\n",
+				chunk);
 		return RET_ERROR;
 	}
 	r = binaries_getchecksums(chunk, &origfilekeys);
-	if( RET_WAS_ERROR(r) ) {
+	if (RET_WAS_ERROR(r)) {
 		free(sourcename); free(basefilename);
 		return r;
 	}
 
 	r = calcnewcontrol(chunk, sourcename, basefilename,
-			t->component_atom, filekeys, control);
-	if( RET_WAS_ERROR(r) ) {
+			t->component, filekeys, control);
+	if (RET_WAS_ERROR(r)) {
 		checksumsarray_done(&origfilekeys);
 	} else {
-		assert( r != RET_NOTHING );
+		assert (r != RET_NOTHING);
 		checksumsarray_move(origfiles, &origfilekeys);
 	}
 	free(sourcename); free(basefilename);
@@ -247,17 +259,17 @@ retvalue binaries_getchecksums(const char *chunk, struct checksumsarray *filekey
 	struct checksumsarray a;
 
 	r = binaries_getfilekeys(chunk, &a.names);
-	if( RET_WAS_ERROR(r) )
+	if (RET_WAS_ERROR(r))
 		return r;
-	assert( a.names.count == 1 );
-	a.checksums = malloc(sizeof(struct checksums *));
-	if( a.checksums == NULL ) {
+	assert (a.names.count == 1);
+	a.checksums = NEW(struct checksums *);
+	if (FAILEDTOALLOC(a.checksums)) {
 		strlist_done(&a.names);
 		return RET_ERROR_OOM;
 	}
 	r = binaries_parse_checksums(chunk, a.checksums);
-	assert( r != RET_NOTHING );
-	if( RET_WAS_ERROR(r) ) {
+	assert (r != RET_NOTHING);
+	if (RET_WAS_ERROR(r)) {
 		free(a.checksums);
 		strlist_done(&a.names);
 		return r;
@@ -272,19 +284,19 @@ retvalue binaries_doreoverride(const struct target *target, const char *packagen
 	char *newchunk;
 	retvalue r;
 
-	if( interrupted() )
+	if (interrupted())
 		return RET_ERROR_INTERRUPTED;
 
 	o = override_search(target->distribution->overrides.deb, packagename);
-	if( o == NULL )
+	if (o == NULL)
 		return RET_NOTHING;
 
 	r = override_allreplacefields(o, &fields);
-	if( !RET_IS_OK(r) )
+	if (!RET_IS_OK(r))
 		return r;
 	newchunk = chunk_replacefields(controlchunk, fields, "Filename", false);
 	addfield_free(fields);
-	if( newchunk == NULL )
+	if (FAILEDTOALLOC(newchunk))
 		return RET_ERROR_OOM;
 	*newcontrolchunk = newchunk;
 	return RET_OK;
@@ -295,20 +307,20 @@ retvalue ubinaries_doreoverride(const struct target *target, const char *package
 	struct fieldtoadd *fields;
 	char *newchunk;
 
-	if( interrupted() )
+	if (interrupted())
 		return RET_ERROR_INTERRUPTED;
 
 	o = override_search(target->distribution->overrides.udeb, packagename);
-	if( o == NULL )
+	if (o == NULL)
 		return RET_NOTHING;
 
-	fields = override_addreplacefields(o,NULL);
-	if( fields == NULL )
+	fields = override_addreplacefields(o, NULL);
+	if (FAILEDTOALLOC(fields))
 		return RET_ERROR_OOM;
 	newchunk = chunk_replacefields(controlchunk, fields, "Description",
 			true);
 	addfield_free(fields);
-	if( newchunk == NULL )
+	if (FAILEDTOALLOC(newchunk))
 		return RET_ERROR_OOM;
 	*newcontrolchunk = newchunk;
 	return RET_OK;
@@ -317,63 +329,65 @@ retvalue ubinaries_doreoverride(const struct target *target, const char *package
 retvalue binaries_retrack(const char *packagename, const char *chunk, trackingdb tracks, struct database *database) {
 	retvalue r;
 	const char *sourcename;
-	char *fsourcename,*sourceversion,*arch,*filekey;
+	char *fsourcename, *sourceversion, *arch, *filekey;
 	enum filetype filetype;
 	struct trackedpackage *pkg;
 
 	//TODO: elliminate duplicate code!
 	assert(packagename!=NULL);
 
-	if( interrupted() )
+	if (interrupted())
 		return RET_ERROR_INTERRUPTED;
 
 	/* is there a sourcename */
-	r = chunk_getnameandversion(chunk,"Source",&fsourcename,&sourceversion);
-	if( RET_WAS_ERROR(r) )
+	r = chunk_getnameandversion(chunk, "Source",
+			&fsourcename, &sourceversion);
+	if (RET_WAS_ERROR(r))
 		return r;
-	if( r == RET_NOTHING ) {
+	if (r == RET_NOTHING) {
 		sourceversion = NULL;
 		sourcename = packagename;
 		fsourcename = NULL;
 	} else {
 		sourcename = fsourcename;
 	}
-	if( sourceversion == NULL ) {
+	if (sourceversion == NULL) {
 		// Think about binNMUs, can something be done here?
-		r = chunk_getvalue(chunk,"Version",&sourceversion);
-		if( RET_WAS_ERROR(r) ) {
+		r = chunk_getvalue(chunk, "Version", &sourceversion);
+		if (RET_WAS_ERROR(r)) {
 			free(fsourcename);
 			return r;
 		}
-		if( r == RET_NOTHING ) {
+		if (r == RET_NOTHING) {
 			free(fsourcename);
-			fprintf(stderr, "Missing 'Version' field in chunk:'%s'\n",
+			fprintf(stderr,
+"Missing 'Version' field in chunk:'%s'\n",
 					chunk);
 			return RET_ERROR;
 		}
 	}
 
-	r = chunk_getvalue(chunk,"Architecture",&arch);
-	if( r == RET_NOTHING ) {
+	r = chunk_getvalue(chunk, "Architecture", &arch);
+	if (r == RET_NOTHING) {
 		fprintf(stderr, "No Architecture field in chunk:'%s'\n",
 				chunk);
 		r = RET_ERROR;
 	}
-	if( RET_WAS_ERROR(r) ) {
+	if (RET_WAS_ERROR(r)) {
 		free(sourceversion);
 		free(fsourcename);
 		return r;
 	}
-	if( strcmp(arch,"all") == 0 ) {
+	if (strcmp(arch, "all") == 0) {
 		filetype = ft_ALL_BINARY;
 	} else {
 		filetype = ft_ARCH_BINARY;
 	}
 	free(arch);
 
-	r = chunk_getvalue(chunk,"Filename",&filekey);
-	if( !RET_IS_OK(r) ) {
-		if( r == RET_NOTHING ) {
+	r = chunk_getvalue(chunk, "Filename", &filekey);
+	if (!RET_IS_OK(r)) {
+		if (r == RET_NOTHING) {
 			fprintf(stderr, "No Filename field in chunk: '%s'\n",
 					chunk);
 			r = RET_ERROR;
@@ -382,17 +396,17 @@ retvalue binaries_retrack(const char *packagename, const char *chunk, trackingdb
 		free(fsourcename);
 		return r;
 	}
-	r = tracking_getornew(tracks,sourcename,sourceversion,&pkg);
+	r = tracking_getornew(tracks, sourcename, sourceversion, &pkg);
 	free(fsourcename);
 	free(sourceversion);
-	if( RET_WAS_ERROR(r) ) {
+	if (RET_WAS_ERROR(r)) {
 		free(filekey);
 		return r;
 	}
-	assert( r != RET_NOTHING );
+	assert (r != RET_NOTHING);
 	r = trackedpackage_addfilekey(tracks, pkg, filetype, filekey, true,
 			database);
-	if( RET_WAS_ERROR(r) ) {
+	if (RET_WAS_ERROR(r)) {
 		trackedpackage_free(pkg);
 		return r;
 	}
@@ -401,30 +415,32 @@ retvalue binaries_retrack(const char *packagename, const char *chunk, trackingdb
 
 retvalue binaries_getsourceandversion(const char *chunk, const char *packagename, char **source, char **version) {
 	retvalue r;
-	char *sourcename,*sourceversion;
+	char *sourcename, *sourceversion;
 
 	//TODO: elliminate duplicate code!
 	assert(packagename!=NULL);
 
 	/* is there a sourcename */
-	r = chunk_getnameandversion(chunk,"Source",&sourcename,&sourceversion);
-	if( RET_WAS_ERROR(r) )
+	r = chunk_getnameandversion(chunk, "Source",
+			&sourcename, &sourceversion);
+	if (RET_WAS_ERROR(r))
 		return r;
-	if( r == RET_NOTHING ) {
+	if (r == RET_NOTHING) {
 		sourceversion = NULL;
 		sourcename = strdup(packagename);
-		if( sourcename == NULL )
+		if (FAILEDTOALLOC(sourcename))
 			return RET_ERROR_OOM;
 	}
-	if( sourceversion == NULL ) {
-		r = chunk_getvalue(chunk,"Version",&sourceversion);
-		if( RET_WAS_ERROR(r) ) {
+	if (sourceversion == NULL) {
+		r = chunk_getvalue(chunk, "Version", &sourceversion);
+		if (RET_WAS_ERROR(r)) {
 			free(sourcename);
 			return r;
 		}
-		if( r == RET_NOTHING ) {
+		if (r == RET_NOTHING) {
 			free(sourcename);
-			fprintf(stderr, "No Version field in chunk:'%s'\n", chunk);
+			fprintf(stderr, "No Version field in chunk:'%s'\n",
+					chunk);
 			return RET_ERROR;
 		}
 	}
@@ -433,11 +449,11 @@ retvalue binaries_getsourceandversion(const char *chunk, const char *packagename
 	return RET_OK;
 }
 
-static inline retvalue getvalue(const char *filename,const char *chunk,const char *field,char **value) {
+static inline retvalue getvalue(const char *filename, const char *chunk, const char *field, char **value) {
 	retvalue r;
 
-	r = chunk_getvalue(chunk,field,value);
-	if( r == RET_NOTHING ) {
+	r = chunk_getvalue(chunk, field, value);
+	if (r == RET_NOTHING) {
 		fprintf(stderr, "No %s field in %s's control file!\n",
 				field, filename);
 		r = RET_ERROR;
@@ -445,11 +461,11 @@ static inline retvalue getvalue(const char *filename,const char *chunk,const cha
 	return r;
 }
 
-static inline retvalue checkvalue(const char *filename,const char *chunk,const char *field) {
+static inline retvalue checkvalue(const char *filename, const char *chunk, const char *field) {
 	retvalue r;
 
-	r = chunk_checkfield(chunk,field);
-	if( r == RET_NOTHING ) {
+	r = chunk_checkfield(chunk, field);
+	if (r == RET_NOTHING) {
 		fprintf(stderr, "No %s field in %s's control file!\n",
 				field, filename);
 		r = RET_ERROR;
@@ -457,11 +473,11 @@ static inline retvalue checkvalue(const char *filename,const char *chunk,const c
 	return r;
 }
 
-static inline retvalue getvalue_n(const char *chunk,const char *field,char **value) {
+static inline retvalue getvalue_n(const char *chunk, const char *field, char **value) {
 	retvalue r;
 
-	r = chunk_getvalue(chunk,field,value);
-	if( r == RET_NOTHING ) {
+	r = chunk_getvalue(chunk, field, value);
+	if (r == RET_NOTHING) {
 		*value = NULL;
 	}
 	return r;
@@ -479,64 +495,65 @@ retvalue binaries_readdeb(struct deb_headers *deb, const char *filename, bool ne
 	retvalue r;
 	char *architecture;
 
-	r = extractcontrol(&deb->control,filename);
-	if( RET_WAS_ERROR(r) )
+	r = extractcontrol(&deb->control, filename);
+	if (RET_WAS_ERROR(r))
 		return r;
 	/* first look for fields that should be there */
 
 	r = chunk_getname(deb->control, "Package", &deb->name, false);
-	if( r == RET_NOTHING ) {
+	if (r == RET_NOTHING) {
 		fprintf(stderr, "Missing 'Package' field in %s!\n", filename);
 		r = RET_ERROR;
 	}
-	if( RET_WAS_ERROR(r) )
+	if (RET_WAS_ERROR(r))
 		return r;
-	r = checkvalue(filename,deb->control,"Maintainer");
-	if( RET_WAS_ERROR(r) )
+	r = checkvalue(filename, deb->control, "Maintainer");
+	if (RET_WAS_ERROR(r))
 		return r;
-	r = checkvalue(filename,deb->control,"Description");
-	if( RET_WAS_ERROR(r) )
+	r = checkvalue(filename, deb->control, "Description");
+	if (RET_WAS_ERROR(r))
 		return r;
-	r = getvalue(filename,deb->control,"Version",&deb->version);
-	if( RET_WAS_ERROR(r) )
+	r = getvalue(filename, deb->control, "Version", &deb->version);
+	if (RET_WAS_ERROR(r))
 		return r;
 	r = getvalue(filename, deb->control, "Architecture", &architecture);
-	if( RET_WAS_ERROR(r) )
+	if (RET_WAS_ERROR(r))
 		return r;
 	r = properfilenamepart(architecture);
-	if( RET_WAS_ERROR(r) ) {
+	if (RET_WAS_ERROR(r)) {
 		free(architecture);
 		return r;
 	}
-	r = architecture_intern(architecture, &deb->architecture_atom);
+	r = architecture_intern(architecture, &deb->architecture);
 	free(architecture);
-	if( RET_WAS_ERROR(r) )
+	if (RET_WAS_ERROR(r))
 		return r;
 	/* can be there, otherwise we also know what it is */
-	if( needssourceversion )
-		r = chunk_getnameandversion(deb->control,"Source",&deb->source,&deb->sourceversion);
+	if (needssourceversion)
+		r = chunk_getnameandversion(deb->control, "Source",
+				&deb->source, &deb->sourceversion);
 	else
 		r = chunk_getname(deb->control, "Source", &deb->source, true);
-	if( r == RET_NOTHING ) {
+	if (r == RET_NOTHING) {
 		deb->source = strdup(deb->name);
-		if( deb->source == NULL )
+		if (FAILEDTOALLOC(deb->source))
 			r = RET_ERROR_OOM;
 	}
-	if( RET_WAS_ERROR(r) )
+	if (RET_WAS_ERROR(r))
 		return r;
-	if( needssourceversion && deb->sourceversion == NULL ) {
+	if (needssourceversion && deb->sourceversion == NULL) {
 		deb->sourceversion = strdup(deb->version);
-		if( deb->sourceversion == NULL )
+		if (FAILEDTOALLOC(deb->sourceversion))
 			return RET_ERROR_OOM;
 	}
 
 	/* normaly there, but optional: */
 
-	r = getvalue_n(deb->control,PRIORITY_FIELDNAME,&deb->priority);
-	if( RET_WAS_ERROR(r) )
+	r = getvalue_n(deb->control, PRIORITY_FIELDNAME, &deb->priority);
+	if (RET_WAS_ERROR(r))
 		return r;
-	r = getvalue_n(deb->control,SECTION_FIELDNAME,&deb->section);
-	if( RET_WAS_ERROR(r) )
+	r = getvalue_n(deb->control, SECTION_FIELDNAME, &deb->section);
+	if (RET_WAS_ERROR(r))
 		return r;
 	return RET_OK;
 }
@@ -547,38 +564,38 @@ retvalue binaries_complete(const struct deb_headers *pkg, const char *filekey, c
 	char *newchunk;
 	enum checksumtype type;
 
-	assert( section != NULL && priority != NULL);
-	assert( filekey != NULL && checksums != NULL);
+	assert (section != NULL && priority != NULL);
+	assert (filekey != NULL && checksums != NULL);
 
 	replace = NULL;
-	for( type = 0 ; type < cs_COUNT ; type++ ) {
+	for (type = 0 ; type < cs_COUNT ; type++) {
 		const char *start;
 		size_t len;
-		if( checksums_getpart(checksums, type, &start, &len) ) {
+		if (checksums_getpart(checksums, type, &start, &len)) {
 			replace = addfield_newn(deb_checksum_headers[type],
 					start, len, replace);
-			if( replace == NULL )
+			if (FAILEDTOALLOC(replace))
 				return RET_ERROR_OOM;
 		}
 	}
 	replace = addfield_new("Filename", filekey, replace);
-	if( replace == NULL )
+	if (FAILEDTOALLOC(replace))
 		return RET_ERROR_OOM;
 	replace = addfield_new(SECTION_FIELDNAME, section, replace);
-	if( replace == NULL )
+	if (FAILEDTOALLOC(replace))
 		return RET_ERROR_OOM;
 	replace = addfield_new(PRIORITY_FIELDNAME, priority, replace);
-	if( replace == NULL )
+	if (FAILEDTOALLOC(replace))
 		return RET_ERROR_OOM;
 
-	replace = override_addreplacefields(override,replace);
-	if( replace == NULL )
+	replace = override_addreplacefields(override, replace);
+	if (FAILEDTOALLOC(replace))
 		return RET_ERROR_OOM;
 
-	newchunk  = chunk_replacefields(pkg->control, replace,
+	newchunk = chunk_replacefields(pkg->control, replace,
 			"Description", true);
 	addfield_free(replace);
-	if( newchunk == NULL ) {
+	if (FAILEDTOALLOC(newchunk)) {
 		return RET_ERROR_OOM;
 	}
 
@@ -598,43 +615,43 @@ retvalue binaries_complete_checksums(const char *chunk, const struct strlist *fi
 	checksums = c[0];
 
 	replace = NULL;
-	for( type = 0 ; type < cs_COUNT ; type++ ) {
+	for (type = 0 ; type < cs_COUNT ; type++) {
 		const char *start;
 		size_t len;
-		if( checksums_getpart(checksums, type, &start, &len) ) {
+		if (checksums_getpart(checksums, type, &start, &len)) {
 			replace = addfield_newn(deb_checksum_headers[type],
 					start, len, replace);
-			if( replace == NULL )
+			if (FAILEDTOALLOC(replace))
 				return RET_ERROR_OOM;
 		}
 	}
 	newchunk = chunk_replacefields(chunk, replace,
 			"Description", true);
 	addfield_free(replace);
-	if( newchunk == NULL )
+	if (FAILEDTOALLOC(newchunk))
 		return RET_ERROR_OOM;
 	*out = newchunk;
 	return RET_OK;
 }
 
 retvalue binaries_adddeb(const struct deb_headers *deb, struct database *database, const struct atomlist *forcearchitectures, packagetype_t packagetype, struct distribution *distribution, struct trackingdata *trackingdata, component_t component, const struct strlist *filekeys, const char *control) {
-	retvalue r,result;
+	retvalue r, result;
 	int i;
 
-	assert( logger_isprepared(distribution->logger) );
+	assert (logger_isprepared(distribution->logger));
 
 	/* finally put it into one or more architectures of the distribution */
 
 	result = RET_NOTHING;
 
-	if( deb->architecture_atom != architecture_all ) {
+	if (deb->architecture != architecture_all) {
 		struct target *t = distribution_getpart(distribution,
-				component, deb->architecture_atom,
+				component, deb->architecture,
 				packagetype);
 		r = target_initpackagesdb(t, database, READWRITE);
-		if( !RET_WAS_ERROR(r) ) {
+		if (!RET_WAS_ERROR(r)) {
 			retvalue r2;
-			if( interrupted() )
+			if (interrupted())
 				r = RET_ERROR_INTERRUPTED;
 			else
 				r = target_addpackage(t, distribution->logger,
@@ -644,12 +661,12 @@ retvalue binaries_adddeb(const struct deb_headers *deb, struct database *databas
 						filekeys,
 						false,
 						trackingdata,
-						deb->architecture_atom,
+						deb->architecture,
 						NULL, NULL);
 			r2 = target_closepackagesdb(t);
-			RET_ENDUPDATE(r,r2);
+			RET_ENDUPDATE(r, r2);
 		}
-		RET_UPDATE(result,r);
+		RET_UPDATE(result, r);
 		RET_UPDATE(distribution->status, result);
 		return result;
 	}
@@ -659,25 +676,25 @@ retvalue binaries_adddeb(const struct deb_headers *deb, struct database *databas
 	 * given. (as it behaved this way when there was only one -A possible,
 	 * and to allow incoming to force it into architecture 'all' )
 	 * */
-       	if( forcearchitectures != NULL &&
-			atomlist_in(forcearchitectures, architecture_all) )
+	if (forcearchitectures != NULL &&
+			atomlist_in(forcearchitectures, architecture_all))
 		forcearchitectures = NULL;
 
-	for( i = 0 ; i < distribution->architectures.count ; i++ ) {
+	for (i = 0 ; i < distribution->architectures.count ; i++) {
 		/*@dependent@*/struct target *t;
 		architecture_t a = distribution->architectures.atoms[i];
 
-		if( a == architecture_source )
+		if (a == architecture_source)
 			continue;
-		if( forcearchitectures != NULL &&
-				!atomlist_in(forcearchitectures, a) )
+		if (forcearchitectures != NULL &&
+				!atomlist_in(forcearchitectures, a))
 			continue;
 		t = distribution_getpart(distribution,
 				component, a, packagetype);
 		r = target_initpackagesdb(t, database, READWRITE);
-		if( !RET_WAS_ERROR(r) ) {
+		if (!RET_WAS_ERROR(r)) {
 			retvalue r2;
-			if( interrupted() )
+			if (interrupted())
 				r = RET_ERROR_INTERRUPTED;
 			else
 				r = target_addpackage(t, distribution->logger,
@@ -687,12 +704,12 @@ retvalue binaries_adddeb(const struct deb_headers *deb, struct database *databas
 						filekeys,
 						false,
 						trackingdata,
-						deb->architecture_atom,
+						deb->architecture,
 						NULL, NULL);
 			r2 = target_closepackagesdb(t);
-			RET_ENDUPDATE(r,r2);
+			RET_ENDUPDATE(r, r2);
 		}
-		RET_UPDATE(result,r);
+		RET_UPDATE(result, r);
 	}
 	RET_UPDATE(distribution->status, result);
 	return result;
@@ -704,11 +721,11 @@ static inline retvalue checkadddeb(struct database *database, struct distributio
 
 	t = distribution_getpart(distribution,
 			component, architecture, packagetype);
-	assert( t != NULL );
+	assert (t != NULL);
 	r = target_initpackagesdb(t, database, READONLY);
-	if( !RET_WAS_ERROR(r) ) {
+	if (!RET_WAS_ERROR(r)) {
 		retvalue r2;
-		if( interrupted() )
+		if (interrupted())
 			r = RET_ERROR_INTERRUPTED;
 		else
 			r = target_checkaddpackage(t,
@@ -716,39 +733,40 @@ static inline retvalue checkadddeb(struct database *database, struct distributio
 					tracking,
 					permitnewerold);
 		r2 = target_closepackagesdb(t);
-		RET_ENDUPDATE(r,r2);
+		RET_ENDUPDATE(r, r2);
 	}
 	return r;
 }
 
 retvalue binaries_checkadddeb(const struct deb_headers *deb, struct database *database, architecture_t forcearchitecture, packagetype_t packagetype, struct distribution *distribution, bool tracking, component_t component, bool permitnewerold) {
-	retvalue r,result;
+	retvalue r, result;
 	int i;
 
 	/* finally put it into one or more architectures of the distribution */
 	result = RET_NOTHING;
 
-	if( deb->architecture_atom != architecture_all ) {
+	if (deb->architecture != architecture_all) {
 		r = checkadddeb(database, distribution,
-				component, deb->architecture_atom, packagetype,
+				component, deb->architecture, packagetype,
 				tracking, deb,
 				permitnewerold);
-		RET_UPDATE(result,r);
-	} else if( atom_defined(forcearchitecture) && forcearchitecture != architecture_all ) {
+		RET_UPDATE(result, r);
+	} else if (atom_defined(forcearchitecture)
+			&& forcearchitecture != architecture_all) {
 		r = checkadddeb(database, distribution,
 				component, forcearchitecture, packagetype,
 				tracking, deb,
 				permitnewerold);
-		RET_UPDATE(result,r);
-	} else for( i = 0 ; i < distribution->architectures.count ; i++ ) {
+		RET_UPDATE(result, r);
+	} else for (i = 0 ; i < distribution->architectures.count ; i++) {
 		architecture_t a = distribution->architectures.atoms[i];
-		if( a == architecture_source )
+		if (a == architecture_source)
 			continue;
 		r = checkadddeb(database, distribution,
 				component, a, packagetype,
 				tracking, deb,
 				permitnewerold);
-		RET_UPDATE(result,r);
+		RET_UPDATE(result, r);
 	}
 	return result;
 }
@@ -758,8 +776,8 @@ retvalue binaries_calcfilekeys(component_t component, const struct deb_headers *
 	char *basefilename;
 
 	basefilename = calc_binary_basename(deb->name, deb->version,
-			deb->architecture_atom, packagetype);
-	if( FAILEDTOALLOC(basefilename) )
+			deb->architecture, packagetype);
+	if (FAILEDTOALLOC(basefilename))
 		return RET_ERROR_OOM;
 
 	r = calcfilekeys(component, deb->source, basefilename, filekeys);

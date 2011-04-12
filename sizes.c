@@ -128,13 +128,14 @@ static retvalue count_sizes(struct database *database, struct cursor *cursor, bo
 				const char *p;
 
 				p = data;
-				while (*p != '\0' && *p != ' ' && *p != '|' && *p != '=')
+				while (*p != '\0' && *p != ' ' && *p != '|'
+						&& *p != '=')
 					p++;
 				if (*p == '\0')
 					continue;
 				while (*s_p != NULL)
 					s_p = &(*s_p)->next;
-				s = calloc(1, sizeof(struct distribution_sizes));
+				s = zNEW(struct distribution_sizes);
 				if (FAILEDTOALLOC(s)) {
 					free(last_file);
 					return RET_ERROR_OOM;
@@ -176,7 +177,8 @@ static retvalue count_sizes(struct database *database, struct cursor *cursor, bo
 			}
 			assert (filesize != 0);
 		} else {
-			/* and this is the first time we are interested in the file */
+			/* and this is the first time
+			 * we are interested in the file */
 			filesize = files_getsize(database, key);
 			assert (filesize != 0);
 			if (onlyone)
@@ -212,7 +214,7 @@ retvalue sizes_distributions(struct database *database, struct distribution *all
 	for (d = alldistributions ; d != NULL ; d = d->next) {
 		if (!d->selected)
 			continue;
-		s = calloc(1, sizeof(struct distribution_sizes));
+		s = zNEW(struct distribution_sizes);
 		if (FAILEDTOALLOC(s)) {
 			distribution_sizes_freelist(ds);
 			return RET_ERROR_OOM;
@@ -233,7 +235,9 @@ retvalue sizes_distributions(struct database *database, struct distribution *all
 	r = cursor_close(database->references, cursor);
 	RET_ENDUPDATE(result, r);
 	if (RET_IS_OK(result)) {
-		printf("%-15s %13s %13s %13s %13s\n", "Codename", "Size", "Only", "Size(+s)", "Only(+s)");
+		printf("%-15s %13s %13s %13s %13s\n",
+				"Codename", "Size", "Only", "Size(+s)",
+				"Only(+s)");
 		for (s = ds ; s != NULL ; s = s->next) {
 			printf("%-15s %13llu %13llu %13llu %13llu\n",
 					s->codename,

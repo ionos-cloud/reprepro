@@ -56,19 +56,19 @@ const char *parseversion(struct versionrevision *rversion, const char *string) {
   if (!*string) return _("version string is empty");
 
   /* trim leading and trailing space */
-  while (*string && (*string == ' ' || *string == '\t') ) string++;
+  while (*string && (*string == ' ' || *string == '\t')) string++;
   /* string now points to the first non-whitespace char */
   end = string;
   /* find either the end of the string, or a whitespace char */
-  while (*end && *end != ' ' && *end != '\t' ) end++;
+  while (*end && *end != ' ' && *end != '\t') end++;
   /* check for extra chars after trailing space */
   ptr = end;
-  while (*ptr && ( *ptr == ' ' || *ptr == '\t' ) ) ptr++;
+  while (*ptr && (*ptr == ' ' || *ptr == '\t')) ptr++;
   if (*ptr) return _("version string has embedded spaces");
 
-  colon= strchr(string,':');
+  colon= strchr(string, ':');
   if (colon) {
-    epoch= strtoul(string,&eepochcolon,10);
+    epoch= strtoul(string, &eepochcolon, 10);
     if (colon != eepochcolon) return _("epoch in version is not number");
     if (!*++colon) return _("nothing after colon in version number");
     string= colon;
@@ -76,7 +76,7 @@ const char *parseversion(struct versionrevision *rversion, const char *string) {
   } else {
     rversion->epoch= 0;
   }
-  rversion->version= strndup(string,end-string);
+  rversion->version= strndup(string, end - string);
   hyphen= strrchr(rversion->version,'-');
   if (hyphen) *hyphen++= 0;
   rversion->revision= hyphen ? hyphen : "";
@@ -100,14 +100,14 @@ static int verrevcmp(const char *val, const char *ref) {
   while (*val || *ref) {
     int first_diff= 0;
 
-    while ( (*val && !cisdigit(*val)) || (*ref && !cisdigit(*ref)) ) {
+    while ((*val && !cisdigit(*val)) || (*ref && !cisdigit(*ref))) {
       int vc= order(*val), rc= order(*ref);
       if (vc != rc) return vc - rc;
       val++; ref++;
     }
 
-    while ( *val == '0' ) val++;
-    while ( *ref == '0' ) ref++;
+    while (*val == '0') val++;
+    while (*ref == '0') ref++;
     while (cisdigit(*val) && cisdigit(*ref)) {
       if (!first_diff) first_diff= *val - *ref;
       val++; ref++;
@@ -136,11 +136,11 @@ retvalue dpkgversions_cmp(const char *first,const char *second,int *result) {
 	struct versionrevision v1,v2;
 	const char *m;
 
-	if( (m = parseversion(&v1,first)) != NULL ) {
+	if ((m = parseversion(&v1,first)) != NULL) {
 	   fprintf(stderr,"Error while parsing '%s' as version: %s\n",first,m);
 	   return RET_ERROR;
 	}
-	if( (m = parseversion(&v2,second)) != NULL ) {
+	if ((m = parseversion(&v2,second)) != NULL) {
 	   fprintf(stderr,"Error while parsing '%s' as version: %s\n",second,m);
 	   return RET_ERROR;
 	}

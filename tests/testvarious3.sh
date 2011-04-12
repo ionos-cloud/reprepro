@@ -596,7 +596,8 @@ testrun - -b . --delete --delete include a broken.changes 3<<EOF
 stdout
 -d1*=db: 'pool/all/a/ab/ab_3-1.dsc' added to checksums.db(pool).
 -d1*=db: 'pool/all/a/ab/ab_3-1.diff.gz' added to checksums.db(pool).
--v0*=Deleting files just added to the pool but not used (to avoid use --keepunusednewfiles next time)
+-v0*=Deleting files just added to the pool but not used.
+-v0*=(to avoid use --keepunusednewfiles next time)
 -v1*=deleting and forgetting pool/all/a/ab/ab_3-1.diff.gz
 -d1*=db: 'pool/all/a/ab/ab_3-1.diff.gz' removed from checksums.db(pool).
 -v1*=deleting and forgetting pool/all/a/ab/ab_3-1.dsc
@@ -625,7 +626,8 @@ stdout
 -d1*=db: 'ab' removed from packages.db(a|all|source).
 -d1*=db: 'ab' added to packages.db(a|all|source).
 -t1*=db: 'ab' '2-1' removed from tracking.db(a).
--v0*=Deleting files just added to the pool but not used (to avoid use --keepunusednewfiles next time)
+-v0*=Deleting files just added to the pool but not used.
+-v0*=(to avoid use --keepunusednewfiles next time)
 -v1*=deleting and forgetting pool/all/a/ab/ab_3-1.diff.gz
 -d1*=db: 'pool/all/a/ab/ab_3-1.diff.gz' removed from checksums.db(pool).
 -v5*=Deleting 'broken.changes'.

@@ -27,13 +27,19 @@ struct signatures {
 		   all may be false due to non-signing keys used for
 		   signing or things like that */
 		enum signature_state {
-			sist_error=0, /* internal error */
-			sist_missing, /* key missing, can not be checked */
-			sist_bad,     /* broken signature, content may be corrupt */
-			sist_invalid, /* good signature, but may not sign or al */
-			sist_mostly,  /* good signature, but check expire bits */
-			sist_valid    /* good signature, no objections */
-	       	} state;
+			/* internal error: */
+			sist_error=0,
+			/* key missing, can not be checked: */
+			sist_missing,
+			/* broken signature, content may be corrupt: */
+			sist_bad,
+			/* good signature, but may not sign or al: */
+			sist_invalid,
+			/* good signature, but check expire bits: */
+			sist_mostly,
+			/* good signature, no objections: */
+			sist_valid
+		} state;
 		/* subkey or primary key are expired */
 		bool expired_key;
 		/* signature is expired */

@@ -13,7 +13,7 @@ typedef struct term_atom {
 	/* the next atom to look at if this is true, resp. false,
 	 * nextiftrue  == NULL means total result is true,
 	 * nextiffalse == NULL means total result is false. */
-	/*@dependent@*/struct term_atom *nextiftrue,*nextiffalse;
+	/*@dependent@*/struct term_atom *nextiftrue, *nextiffalse;
 	bool negated, isspecial;
 	/* architecture requirements */
 	bool architectures_negated;
@@ -59,7 +59,7 @@ struct term_special {
 /* (% <globpattern>) and (!% globpattern) are allowed */
 #define T_GLOBMATCH	0x80
 
-retvalue term_compile(/*@out@*/term **term, const char *formula, int options, /*@null@*/const struct term_special *specials);
-void term_free(/*@null@*//*@only@*/term *term);
+retvalue term_compile(/*@out@*/term **, const char * /*formula*/, int /*options*/, /*@null@*/const struct term_special *specials);
+void term_free(/*@null@*//*@only@*/term *);
 
 #endif

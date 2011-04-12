@@ -5,17 +5,17 @@
 #include "strlist.h"
 #endif
 
-retvalue copy_by_name(struct database *, struct distribution *into, struct distribution *from, int, const char **, const struct atomlist *, const struct atomlist *, const struct atomlist *);
-retvalue copy_by_source(struct database *, struct distribution *into, struct distribution *from, int, const char **, const struct atomlist *, const struct atomlist *, const struct atomlist *);
-retvalue copy_by_formula(struct database *, struct distribution *into, struct distribution *from, const char *formula, const struct atomlist *, const struct atomlist *, const struct atomlist *);
-retvalue copy_by_glob(struct database *, struct distribution *into, struct distribution *from, const char *glob, const struct atomlist *, const struct atomlist *, const struct atomlist *);
+retvalue copy_by_name(struct database *, struct distribution * /*into*/, struct distribution * /*from*/, int, const char **, const struct atomlist *, const struct atomlist *, const struct atomlist *);
+retvalue copy_by_source(struct database *, struct distribution * /*into*/, struct distribution * /*from*/, int, const char **, const struct atomlist *, const struct atomlist *, const struct atomlist *);
+retvalue copy_by_formula(struct database *, struct distribution * /*into*/, struct distribution * /*from*/, const char *formula, const struct atomlist *, const struct atomlist *, const struct atomlist *);
+retvalue copy_by_glob(struct database *, struct distribution * /*into*/, struct distribution * /*from*/, const char * /*glob*/, const struct atomlist *, const struct atomlist *, const struct atomlist *);
 
-retvalue copy_from_file(struct database *, struct distribution *into, component_t, architecture_t, packagetype_t, const char *filename, int, const char **);
+retvalue copy_from_file(struct database *, struct distribution * /*into*/, component_t, architecture_t, packagetype_t, const char * /*filename*/ , int, const char **);
 
 /* note that snapshotname must live till logger_wait has run */
-retvalue restore_by_name(struct database *, struct distribution *, const struct atomlist *, const struct atomlist *, const struct atomlist *, const char *snapshotname, int, const char **);
-retvalue restore_by_source(struct database *, struct distribution *, const struct atomlist *, const struct atomlist *, const struct atomlist *, const char *snapshotname, int, const char **);
-retvalue restore_by_formula(struct database *, struct distribution *, const struct atomlist *, const struct atomlist *, const struct atomlist *, const char *snapshotname, const char *filter);
-retvalue restore_by_glob(struct database *, struct distribution *, const struct atomlist *, const struct atomlist *, const struct atomlist *, const char *snapshotname, const char *glob);
+retvalue restore_by_name(struct database *, struct distribution *, const struct atomlist *, const struct atomlist *, const struct atomlist *, const char * /*snapshotname*/, int, const char **);
+retvalue restore_by_source(struct database *, struct distribution *, const struct atomlist *, const struct atomlist *, const struct atomlist *, const char * /*snapshotname*/, int, const char **);
+retvalue restore_by_formula(struct database *, struct distribution *, const struct atomlist *, const struct atomlist *, const struct atomlist *, const char * /*snapshotname*/, const char *filter);
+retvalue restore_by_glob(struct database *, struct distribution *, const struct atomlist *, const struct atomlist *, const struct atomlist *, const char * /*snapshotname*/, const char * /*glob*/);
 
 #endif

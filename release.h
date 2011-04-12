@@ -25,41 +25,41 @@ typedef unsigned int compressionset; /* 1 << indexcompression */
 #define IC_FLAG(a) (1<<(a))
 
 /* Initialize Release generation */
-retvalue release_init(struct release **release, struct database *database, const char *codename, /*@null@*/const char *suite, /*@null@*/const char *fakeprefix);
+retvalue release_init(struct release **, struct database *, const char * /*codename*/, /*@null@*/const char * /*suite*/, /*@null@*/const char * /*fakeprefix*/);
 /* same but for a snapshot */
-retvalue release_initsnapshot(const char *codename, const char *name, struct release **release);
+retvalue release_initsnapshot(const char *codename, const char *name, struct release **);
 
-retvalue release_mkdir(struct release *release, const char *relativedirectory);
+retvalue release_mkdir(struct release *, const char * /*relativedirectory*/);
 
-const char *release_dirofdist(struct release *release);
+const char *release_dirofdist(struct release *);
 
-retvalue release_addnew(struct release *release,/*@only@*/char *reltmpfile,/*@only@*/char *relfilename);
-retvalue release_addsilentnew(struct release *release,/*@only@*/char *reltmpfile,/*@only@*/char *relfilename);
-retvalue release_adddel(struct release *release,/*@only@*/char *reltmpfile);
-retvalue release_addold(struct release *release,/*@only@*/char *relfilename);
+retvalue release_addnew(struct release *, /*@only@*/char *, /*@only@*/char *);
+retvalue release_addsilentnew(struct release *, /*@only@*/char *, /*@only@*/char *);
+retvalue release_adddel(struct release *, /*@only@*/char *);
+retvalue release_addold(struct release *, /*@only@*/char *);
 
 struct filetorelease;
 
-retvalue release_startfile2(struct release *release, const char *relative_dir, const char *filename, compressionset compressions, bool usecache, struct filetorelease **file);
+retvalue release_startfile2(struct release *, const char * /*relative_dir*/, const char */*filename*/, compressionset, bool /*usecache*/, struct filetorelease **);
 
-retvalue release_startfile(struct release *release, const char *filename, compressionset compressions, bool usecache, struct filetorelease **file);
+retvalue release_startfile(struct release *, const char * /*filename*/, compressionset, bool /*usecache*/, struct filetorelease **);
 
 /* return true if an old file is already there */
-bool release_oldexists(struct filetorelease *file);
+bool release_oldexists(struct filetorelease *);
 
 /* errors will be cached for release_finishfile */
-retvalue release_writedata(struct filetorelease *file, const char *data, size_t len);
-#define release_writestring(file,data) release_writedata(file,data,strlen(data))
+retvalue release_writedata(struct filetorelease *, const char *, size_t);
+#define release_writestring(file, data) release_writedata(file, data, strlen(data))
 
-void release_abortfile(/*@only@*/struct filetorelease *file);
-retvalue release_finishfile(struct release *release, /*@only@*/struct filetorelease *file);
+void release_abortfile(/*@only@*/struct filetorelease *);
+retvalue release_finishfile(struct release *, /*@only@*/struct filetorelease *);
 
 struct distribution;
 struct target;
-retvalue release_directorydescription(struct release *release, const struct distribution *distribution, const struct target *target, const char *filename, bool onlyifneeded);
+retvalue release_directorydescription(struct release *, const struct distribution *, const struct target *, const char * /*filename*/, bool /*onlyifneeded*/);
 
-void release_free(/*@only@*/struct release *release);
-retvalue release_prepare(struct release *release, struct distribution *distribution, bool onlyneeded);
-retvalue release_finish(/*@only@*/struct release *release, struct distribution *distribution);
+void release_free(/*@only@*/struct release *);
+retvalue release_prepare(struct release *, struct distribution *, bool /*onlyneeded*/);
+retvalue release_finish(/*@only@*/struct release *, struct distribution *);
 
 #endif

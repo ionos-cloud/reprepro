@@ -27,15 +27,15 @@ void closefrom(int lowfd) {
 	int fd;
 
 # ifdef F_CLOSEM
-	if( fcntl(lowfd, F_CLOSEM, NULL) == 0 )
+	if (fcntl(lowfd, F_CLOSEM, NULL) == 0)
 		return;
 # endif
 	maxopen = sysconf(_SC_OPEN_MAX);
-	if( maxopen > INT_MAX )
+	if (maxopen > INT_MAX)
 		maxopen = INT_MAX;
-	if( maxopen < 0 )
+	if (maxopen < 0)
 		maxopen = 1024;
-	for( fd = lowfd ; fd <= maxopen ; fd++ )
+	for (fd = lowfd ; fd <= maxopen ; fd++)
 		(void)close(fd);
 }
 #endif
@@ -43,7 +43,7 @@ void closefrom(int lowfd) {
 void markcloseonexec(int fd) {
 	long l;
 	l = fcntl(fd, F_GETFD, 0);
-	if( l >= 0 ) {
+	if (l >= 0) {
 		(void)fcntl(fd, F_SETFD, l|FD_CLOEXEC);
 	}
 }
@@ -52,13 +52,13 @@ int deletefile(const char *fullfilename) {
 	int ret, e;
 
 	ret = unlink(fullfilename);
-	if( ret != 0 ) {
+	if (ret != 0) {
 		e = errno;
 		fprintf(stderr, "error %d unlinking %s: %s\n",
 				e, fullfilename, strerror(e));
 		return (e != 0)?e:EINVAL;
 	}
-	return 0;;
+	return 0;
 }
 
 bool isregularfile(const char *fullfilename) {
@@ -66,7 +66,7 @@ bool isregularfile(const char *fullfilename) {
 	int i;
 
 	assert(fullfilename != NULL);
-	i = stat(fullfilename,&s);
+	i = stat(fullfilename, &s);
 	return i == 0 && S_ISREG(s.st_mode);
 }
 
@@ -75,6 +75,6 @@ bool isdirectory(const char *fullfilename) {
 	int i;
 
 	assert(fullfilename != NULL);
-	i = stat(fullfilename,&s);
+	i = stat(fullfilename, &s);
 	return i == 0 && S_ISDIR(s.st_mode);
 }

@@ -32,13 +32,13 @@ bool strlist_in(const struct strlist *strlist, const char *element) {
 
 	c = strlist->count;
 	t = strlist->values;
-	while( c-- != 0 ) {
-		if( strcmp(*(t++),element) == 0 )
+	while (c-- != 0) {
+		if (strcmp(*(t++), element) == 0)
 			return true;
 	}
 	return false;
 }
-int strlist_ofs(const struct strlist *strlist,const char *element) {
+int strlist_ofs(const struct strlist *strlist, const char *element) {
 	int c;
 	char **t;
 
@@ -46,8 +46,8 @@ int strlist_ofs(const struct strlist *strlist,const char *element) {
 
 	c = strlist->count;
 	t = strlist->values;
-	while( c-- != 0 ) {
-		if( strcmp(*(t++),element) == 0 )
+	while (c-- != 0) {
+		if (strcmp(*(t++), element) == 0)
 			return (t-strlist->values)-1;
 	}
 	return -1;
@@ -61,9 +61,9 @@ bool strlist_subset(const struct strlist *strlist, const struct strlist *subset,
 
 	c = subset->count;
 	t = subset->values;
-	while( c-- != 0 ) {
-		if( !strlist_in(strlist,*(t++)) ) {
-			if( missing != NULL )
+	while (c-- != 0) {
+		if (!strlist_in(strlist, *(t++))) {
+			if (missing != NULL)
 				*missing = *(t-1);
 			return false;
 		}
@@ -72,26 +72,30 @@ bool strlist_subset(const struct strlist *strlist, const struct strlist *subset,
 
 }
 
-retvalue strlist_init_n(int startsize,struct strlist *strlist) {
+retvalue strlist_init_n(int startsize, struct strlist *strlist) {
 	assert(strlist != NULL && startsize >= 0);
 
-	if( startsize == 0 )
+	if (startsize == 0)
 		startsize = 1;
 	strlist->count = 0;
 	strlist->size = startsize;
-	strlist->values = malloc(startsize*sizeof(char *));
-	if( startsize > 0 && strlist->values == NULL )
-		return RET_ERROR_OOM;
+	if (startsize > 0) {
+		strlist->values = malloc(startsize*sizeof(char *));
+		if (FAILEDTOALLOC(strlist->values))
+			return RET_ERROR_OOM;
+	} else {
+		strlist->values = NULL;
+	}
 	return RET_OK;
 }
 
-retvalue strlist_init_singleton(char *value,struct strlist *strlist) {
+retvalue strlist_init_singleton(char *value, struct strlist *strlist) {
 	assert(strlist != NULL);
 
 	strlist->count = 1;
 	strlist->size = 1;
-	strlist->values = malloc(sizeof(char *));
-	if( strlist->values == NULL ) {
+	strlist->values = NEW(char *);
+	if (FAILEDTOALLOC(strlist->values)) {
 		free(value);
 		return RET_ERROR_OOM;
 	}
@@ -116,7 +120,7 @@ void strlist_done(struct strlist *strlist) {
 
 	c = strlist->count;
 	t = strlist->values;
-	while( c-- != 0 ) {
+	while (c-- != 0) {
 		free(*t);
 		t++;
 	}
@@ -129,10 +133,10 @@ retvalue strlist_add(struct strlist *strlist, char *element) {
 
 	assert(strlist != NULL && element != NULL);
 
-	if( strlist->count >= strlist->size ) {
+	if (strlist->count >= strlist->size) {
 		strlist->size += 8;
 		v = realloc(strlist->values, strlist->size*sizeof(char *));
-		if( v == NULL ) {
+		if (FAILEDTOALLOC(v)) {
 			free(element);
 			return RET_ERROR_OOM;
 		}
@@ -146,7 +150,7 @@ retvalue strlist_add(struct strlist *strlist, char *element) {
 retvalue strlist_add_dup(struct strlist *strlist, const char *todup) {
 	char *element = strdup(todup);
 
-	if( element == NULL )
+	if (FAILEDTOALLOC(element))
 		return RET_ERROR_OOM;
 	return strlist_add(strlist, element);
 }
@@ -156,22 +160,23 @@ retvalue strlist_include(struct strlist *strlist, char *element) {
 
 	assert(strlist != NULL && element != NULL);
 
-	if( strlist->count >= strlist->size ) {
+	if (strlist->count >= strlist->size) {
 		strlist->size += 1;
 		v = realloc(strlist->values, strlist->size*sizeof(char *));
-		if( v == NULL ) {
+		if (FAILEDTOALLOC(v)) {
 			free(element);
 			return RET_ERROR_OOM;
 		}
 		strlist->values = v;
 	}
-	memmove(strlist->values+1,strlist->values,strlist->count*sizeof(char *));
+	memmove(strlist->values+1, strlist->values,
+			strlist->count*sizeof(char *));
 	strlist->count++;
 	strlist->values[0] = element;
 	return RET_OK;
 }
 
-retvalue strlist_fprint(FILE *file,const struct strlist *strlist) {
+retvalue strlist_fprint(FILE *file, const struct strlist *strlist) {
 	int c;
 	char **p;
 	retvalue result;
@@ -182,27 +187,28 @@ retvalue strlist_fprint(FILE *file,const struct strlist *strlist) {
 	c = strlist->count;
 	p = strlist->values;
 	result = RET_OK;
-	while( c > 0 ) {
-		if( fputs(*(p++),file) == EOF )
+	while (c > 0) {
+		if (fputs(*(p++), file) == EOF)
 			result = RET_ERROR;
-		if( --c > 0 && fputc(' ',file) == EOF )
+		if (--c > 0 && fputc(' ', file) == EOF)
 			result = RET_ERROR;
 	}
 	return result;
 }
 
 /* duplicate with content */
-retvalue strlist_dup(struct strlist *dest,const struct strlist *orig) {
+retvalue strlist_dup(struct strlist *dest, const struct strlist *orig) {
 	int i;
 
 	assert(dest != NULL && orig != NULL);
 
 	dest->size = dest->count = orig->count;
-	dest->values = calloc(dest->count,sizeof(char*));;
-	if( dest->values == NULL )
+	dest->values = nzNEW(dest->count, char *);
+	if (FAILEDTOALLOC(dest->values))
 		return RET_ERROR_OOM;
-	for( i = 0 ; i < dest->count ; i++ ) {
-		if( (dest->values[i] = strdup(orig->values[i])) == NULL ) {
+	for (i = 0 ; i < dest->count ; i++) {
+		dest->values[i] = strdup(orig->values[i]);
+		if (FAILEDTOALLOC(dest->values[i])) {
 			strlist_done(dest);
 			return RET_ERROR_OOM;
 		}
@@ -211,11 +217,11 @@ retvalue strlist_dup(struct strlist *dest,const struct strlist *orig) {
 }
 
 /* replace the contents of dest with those from orig, which get emptied */
-void strlist_move(struct strlist *dest,struct strlist *orig) {
+void strlist_move(struct strlist *dest, struct strlist *orig) {
 
 	assert(dest != NULL && orig != NULL);
 
-	if( dest == orig )
+	if (dest == orig)
 		return;
 
 	dest->size = orig->size;
@@ -226,22 +232,22 @@ void strlist_move(struct strlist *dest,struct strlist *orig) {
 }
 /* empty orig and add everything to the end of dest, in case of error, nothing
  * was done. */
-retvalue strlist_mvadd(struct strlist *dest,struct strlist *orig) {
+retvalue strlist_mvadd(struct strlist *dest, struct strlist *orig) {
 	int i;
 
 	assert(dest != NULL && orig != NULL && dest != orig);
 
-	if( dest->count+orig->count >= dest->size ) {
+	if (dest->count+orig->count >= dest->size) {
 		int newsize = dest->count+orig->count+8;
 		char **v = realloc(dest->values, newsize*sizeof(char *));
-		if( v == NULL ) {
+		if (FAILEDTOALLOC(v)) {
 			return RET_ERROR_OOM;
 		}
 		dest->size = newsize;
 		dest->values = v;
 	}
 
-	for( i = 0 ; i < orig->count ; i++ )
+	for (i = 0 ; i < orig->count ; i++)
 		dest->values[dest->count+i] = orig->values[i];
 	dest->count += orig->count;
 	free(orig->values);
@@ -251,21 +257,21 @@ retvalue strlist_mvadd(struct strlist *dest,struct strlist *orig) {
 	return RET_OK;
 }
 
-retvalue strlist_adduniq(struct strlist *strlist,char *element) {
+retvalue strlist_adduniq(struct strlist *strlist, char *element) {
 	// TODO: is there something better feasible?
-	if( strlist_in(strlist,element) ) {
+	if (strlist_in(strlist, element)) {
 		free(element);
 		return RET_OK;
 	} else
-		return strlist_add(strlist,element);
+		return strlist_add(strlist, element);
 
 }
 
 bool strlist_intersects(const struct strlist *a, const struct strlist *b) {
 	int i;
 
-	for( i = 0 ; i < a->count ; i++ )
-		if( strlist_in(b, a->values[i]) )
+	for (i = 0 ; i < a->count ; i++)
+		if (strlist_in(b, a->values[i]))
 			return true;
 	return false;
 }
@@ -280,20 +286,20 @@ char *strlist_concat(const struct strlist *list, const char *prefix, const char 
 	suffix_len = strlen(suffix);
 
 	l = prefix_len + suffix_len;
-	for( i = 0 ; i < list->count ; i++ )
+	for (i = 0 ; i < list->count ; i++)
 		l += strlen(list->values[i]);
-	if( list->count > 0 )
+	if (list->count > 0)
 		l += (list->count-1)*infix_len;
 	c = malloc(l + 1);
-	if( c == NULL )
+	if (FAILEDTOALLOC(c))
 		return c;
 	memcpy(c, prefix, prefix_len);
 	n = c + prefix_len;
-	for( i = 0 ; i < list->count ; i++ ) {
+	for (i = 0 ; i < list->count ; i++) {
 		line_len = strlen(list->values[i]);
 		memcpy(n, list->values[i], line_len);
 		n += line_len;
-		if( i+1 < list->count ) {
+		if (i+1 < list->count) {
 			memcpy(n, infix, infix_len);
 			n += infix_len;
 		} else {
@@ -301,7 +307,7 @@ char *strlist_concat(const struct strlist *list, const char *prefix, const char 
 			n += suffix_len;
 		}
 	}
-	assert( (size_t)(n-c) == l );
+	assert ((size_t)(n-c) == l);
 	*n = '\0';
 	return c;
 }
@@ -313,9 +319,9 @@ void strlist_remove(struct strlist *strlist, const char *element) {
 	assert(element != NULL);
 
 	j = 0;
-	for( i = 0 ; i < strlist->count ; i++ ) {
-		if( strcmp(strlist->values[i], element) != 0 ) {
-			if( i != j )
+	for (i = 0 ; i < strlist->count ; i++) {
+		if (strcmp(strlist->values[i], element) != 0) {
+			if (i != j)
 				strlist->values[j] = strlist->values[i];
 			j++;
 		} else

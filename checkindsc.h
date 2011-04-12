@@ -17,7 +17,7 @@
 
 /* insert the given .dsc into the mirror in <component> in the <distribution>
  * if component is NULL, guess it from the section. */
-retvalue dsc_add(struct database *, component_t, /*@null@*/const char *forcesection, /*@null@*/const char *forcepriority, struct distribution *, const char *dscfilename, int delete, /*@null@*/trackingdb tracks);
+retvalue dsc_add(struct database *, component_t, /*@null@*/const char * /*forcesection*/, /*@null@*/const char * /*forcepriority*/, struct distribution *, const char * /*dscfilename*/, int /*delete*/, /*@null@*/trackingdb);
 
 /* in two steps:
  * If basename, filekey and directory are != NULL, then they are used instead
@@ -26,6 +26,6 @@ retvalue dsc_add(struct database *, component_t, /*@null@*/const char *forcesect
  * delete should be D_INPLACE then
  */
 
-retvalue dsc_addprepared(struct database *, const struct dsc_headers *, component_t , const struct strlist *filekeys, struct distribution *distribution, /*@null@*/struct trackingdata *trackingdata);
+retvalue dsc_addprepared(struct database *, const struct dsc_headers *, component_t, const struct strlist * /*filekeys*/, struct distribution *, /*@null@*/struct trackingdata *);
 
 #endif

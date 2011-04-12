@@ -8,7 +8,7 @@ struct SHA256_Context
 
   uint64_t total;
   uint32_t buflen;
-  char buffer[128];	/* NB: always correctly aligned for uint32_t.  */
+  char buffer[128]; /* NB: always correctly aligned for uint32_t.  */
 };
 
 #define SHA256_DIGEST_SIZE 32

@@ -43,8 +43,8 @@ struct sourceextraction {
 struct sourceextraction *sourceextraction_init(char **section_p, char **priority_p) {
 	struct sourceextraction *n;
 
-	n = calloc(1, sizeof(struct sourceextraction));
-	if( FAILEDTOALLOC(n) )
+	n = zNEW(struct sourceextraction);
+	if (FAILEDTOALLOC(n))
 		return n;
 	n->difffile = -1;
 	n->tarfile = -1;
@@ -59,29 +59,29 @@ void sourceextraction_abort(struct sourceextraction *e) {
 }
 
 /* with must be a string constant, no pointer! */
-#define endswith(name, len, with) (len >= sizeof(with) && memcmp(name+(len+1-sizeof(with)), with, sizeof(with)-1) == 0 )
+#define endswith(name, len, with) (len >= sizeof(with) && memcmp(name+(len+1-sizeof(with)), with, sizeof(with)-1) == 0)
 
 /* register a file part of this source */
 void sourceextraction_setpart(struct sourceextraction *e, int i, const char *basefilename) {
 	size_t bl = strlen(basefilename);
 	enum compression c;
 
-	if( e->failed )
+	if (e->failed)
 		return;
 
 	c = compression_by_suffix(basefilename, &bl);
 
-	if( endswith(basefilename, bl, ".dsc" ) )
+	if (endswith(basefilename, bl, ".dsc"))
 		return;
-	else if( endswith(basefilename, bl, ".diff" ) ) {
+	else if (endswith(basefilename, bl, ".diff")) {
 		e->difffile = i;
 		e->diffcompression = c;
 		return;
-	} else if( endswith(basefilename, bl, ".debian.tar" ) ) {
+	} else if (endswith(basefilename, bl, ".debian.tar")) {
 		e->debiantarfile = i;
 		e->debiancompression = c;
 		return;
-	} else if( endswith(basefilename, bl, ".tar" ) ) {
+	} else if (endswith(basefilename, bl, ".tar")) {
 		e->tarfile = i;
 		e->tarcompression = c;
 		return;
@@ -93,26 +93,26 @@ void sourceextraction_setpart(struct sourceextraction *e, int i, const char *bas
 
 /* return the next needed file */
 bool sourceextraction_needs(struct sourceextraction *e, int *ofs_p) {
-	if( e->failed || e->completed )
+	if (e->failed || e->completed)
 		return false;
-	if( e->difffile >= 0 ) {
-		if( !uncompression_supported(e->diffcompression) )
+	if (e->difffile >= 0) {
+		if (!uncompression_supported(e->diffcompression))
 			// TODO: errormessage
 			return false;
 		*ofs_p = e->difffile;
 		return true;
-	} else if( e->debiantarfile >= 0 ) {
+	} else if (e->debiantarfile >= 0) {
 #ifdef HAVE_LIBARCHIVE
-		if( !uncompression_supported(e->debiancompression) )
+		if (!uncompression_supported(e->debiancompression))
 			return false;
 		*ofs_p = e->debiantarfile;
 		return true;
 #else
 		return false;
 #endif
-	} else if( e->tarfile >= 0 ) {
+	} else if (e->tarfile >= 0) {
 #ifdef HAVE_LIBARCHIVE
-		if( !uncompression_supported(e->tarcompression) )
+		if (!uncompression_supported(e->tarcompression))
 			return false;
 		*ofs_p = e->tarfile;
 		return true;
@@ -133,59 +133,60 @@ static retvalue parsediff(struct compressedfile *f, /*@null@*/char **section_p, 
 	auto inline bool u_getline(void);
 	inline bool u_getline(void) {
 		do {
-		if( filled - used > 0 ) {
+		if (filled - used > 0) {
 			char *n;
 
 			p = buffer + used;
 			n = memchr(p, '\n', filled - used);
-			if( n != NULL ) {
+			if (n != NULL) {
 				used += 1 + (n - p);
 				*n = '\0';
-				while( --n >= p && *n == '\r' )
+				while (--n >= p && *n == '\r')
 					*n = '\0';
 				return true;
 			}
-		} else { assert( filled == used );
+		} else { assert (filled == used);
 			filled = 0;
 			used = 0;
 		}
-		if( filled == BUFSIZE ) {
-			if( used == 0 )
+		if (filled == BUFSIZE) {
+			if (used == 0)
 				/* overlong line */
 				return false;
 			memmove(buffer, buffer + used, filled - used);
 			filled -= used;
 			used = 0;
 		}
-		bytes_read = uncompress_read(f, buffer + filled, BUFSIZE - filled);
-		if( bytes_read <= 0 )
+		bytes_read = uncompress_read(f, buffer + filled,
+				BUFSIZE - filled);
+		if (bytes_read <= 0)
 			return false;
 		filled += bytes_read;
-		} while( true );
+		} while (true);
 	}
 	auto inline char u_overlinegetchar(void);
 	inline char u_overlinegetchar(void) {
 		const char *n;
 		char ch;
 
-		if( filled - used > 0 ) {
+		if (filled - used > 0) {
 			ch = buffer[used];
-		} else { assert( filled == used );
+		} else { assert (filled == used);
 			used = 0;
 			bytes_read = uncompress_read(f, buffer, BUFSIZE);
-			if( bytes_read <= 0 ) {
+			if (bytes_read <= 0) {
 				filled = 0;
 				return '\0';
 			}
 			filled = bytes_read;
 			ch = buffer[0];
 		}
-		if( ch == '\n' )
+		if (ch == '\n')
 			return '\0';
 
 		/* over rest of the line */
 		n = memchr(buffer + used, '\n', filled - used);
-		if( n != NULL ) {
+		if (n != NULL) {
 			used = 1 + (n - buffer);
 			return ch;
 		}
@@ -194,10 +195,10 @@ static retvalue parsediff(struct compressedfile *f, /*@null@*/char **section_p, 
 		/* need to read more to get to the end of the line */
 		do { /* these lines can be long */
 			bytes_read = uncompress_read(f, buffer, BUFSIZE);
-			if( bytes_read <= 0 )
+			if (bytes_read <= 0)
 				return false;
 			n = memchr(buffer, '\n', bytes_read);
-		} while( n == NULL );
+		} while (n == NULL);
 		used = 1 + (n - buffer);
 		filled = bytes_read;
 		return ch;
@@ -205,102 +206,102 @@ static retvalue parsediff(struct compressedfile *f, /*@null@*/char **section_p, 
 
 	/* we are assuming the exact format dpkg-source generates here... */
 
-	if( !u_getline() ) {
+	if (!u_getline()) {
 		/* empty or strange file */
 		*found_p = false;
 		return RET_OK;
 	}
-	if( memcmp(p, "diff ", 4) == 0 ) {
+	if (memcmp(p, "diff ", 4) == 0) {
 		/* one exception is allowing diff lines,
 		 * as diff -ru adds them ... */
-		if( !u_getline() ) {
+		if (!u_getline()) {
 			/* strange file */
 			*found_p = false;
 			return RET_OK;
 		}
 	}
-	if( unlikely(memcmp(p, "--- ", 4) != 0) )
+	if (unlikely(memcmp(p, "--- ", 4) != 0))
 		return RET_NOTHING;
-	if( !u_getline() )
+	if (!u_getline())
 		/* so short a file? */
 		return RET_NOTHING;
-	if( unlikely(memcmp(p, "+++ ", 4) != 0) )
+	if (unlikely(memcmp(p, "+++ ", 4) != 0))
 		return RET_NOTHING;
 	p += 4;
 	s = strchr(p, '/');
-	if( unlikely(s == NULL) )
+	if (unlikely(s == NULL))
 		return RET_NOTHING;
 	s++;
 	/* another exception to allow diff output directly:
 	 * +++ lines might have garbage after a tab... */
 	garbage = strchr(s, '\t');
-	if( garbage != NULL )
+	if (garbage != NULL)
 		*garbage = '\0';
 	destlength = s - p;
 	/* ignore all files that are not x/debian/control */
-	while( strcmp(s, "debian/control") != 0 ) {
-		if( unlikely(interrupted()) )
+	while (strcmp(s, "debian/control") != 0) {
+		if (unlikely(interrupted()))
 			return RET_ERROR_INTERRUPTED;
-		if( !u_getline() )
+		if (!u_getline())
 			return RET_NOTHING;
-		while( memcmp(p, "@@ -", 4) == 0) {
-			if( unlikely(interrupted()) )
+		while (memcmp(p, "@@ -", 4) == 0) {
+			if (unlikely(interrupted()))
 				return RET_ERROR_INTERRUPTED;
 			p += 4;
-			while( *p != ',' && *p != ' ' ) {
-				if( unlikely(*p == '\0') )
+			while (*p != ',' && *p != ' ') {
+				if (unlikely(*p == '\0'))
 					return RET_NOTHING;
 				p++;
 			}
-			if( *p == ' ' )
+			if (*p == ' ')
 				lines_in = 1;
 			else {
 				p++;
 				lines_in = 0;
-				while( *p >= '0' && *p <= '9' ) {
+				while (*p >= '0' && *p <= '9') {
 					lines_in = 10*lines_in + (*p-'0');
 					p++;
 				}
 			}
-			while( *p == ' ' )
+			while (*p == ' ')
 				p++;
-			if( unlikely(*(p++) != '+') )
+			if (unlikely(*(p++) != '+'))
 				return RET_NOTHING;
-			while( *p >= '0' && *p <= '9' )
+			while (*p >= '0' && *p <= '9')
 				p++;
-			if( *p == ',' ) {
+			if (*p == ',') {
 				p++;
 				lines_out = 0;
-				while( *p >= '0' && *p <= '9' ) {
+				while (*p >= '0' && *p <= '9') {
 					lines_out = 10*lines_out + (*p-'0');
 					p++;
 				}
-			} else if( *p == ' ' )
+			} else if (*p == ' ')
 				lines_out = 1;
 			else
 				return RET_NOTHING;
-			while( *p == ' ' )
+			while (*p == ' ')
 				p++;
-			if( unlikely(*p != '@') )
+			if (unlikely(*p != '@'))
 				return RET_NOTHING;
 
-			while( lines_in > 0 || lines_out > 0 ) {
+			while (lines_in > 0 || lines_out > 0) {
 				char ch;
 
 				ch = u_overlinegetchar();
-				switch( ch ) {
+				switch (ch) {
 					case '+':
-						if( unlikely(lines_out == 0) )
+						if (unlikely(lines_out == 0))
 							return RET_NOTHING;
 						lines_out--;
 						break;
 					case ' ':
-						if( unlikely(lines_out == 0) )
+						if (unlikely(lines_out == 0))
 							return RET_NOTHING;
 						lines_out--;
 						/* no break */
 					case '-':
-						if( unlikely(lines_in == 0) )
+						if (unlikely(lines_in == 0))
 							return RET_NOTHING;
 						lines_in--;
 						break;
@@ -308,135 +309,135 @@ static retvalue parsediff(struct compressedfile *f, /*@null@*/char **section_p, 
 						return RET_NOTHING;
 				}
 			}
-			if( !u_getline() ) {
+			if (!u_getline()) {
 				*found_p = false;
 				/* nothing found successfully */
 				return RET_OK;
 			}
 		}
-		if( memcmp(p, "diff ", 4) == 0 ) {
-			if( !u_getline() ) {
+		if (memcmp(p, "diff ", 4) == 0) {
+			if (!u_getline()) {
 				/* strange file, but nothing explicitly wrong */
 				*found_p = false;
 				return RET_OK;
 			}
 		}
-		if( unlikely(memcmp(p, "--- ", 4) != 0) )
+		if (unlikely(memcmp(p, "--- ", 4) != 0))
 			return RET_NOTHING;
-		if( !u_getline() )
+		if (!u_getline())
 			return RET_NOTHING;
-		if( unlikely(memcmp(p, "+++ ", 4) != 0) )
+		if (unlikely(memcmp(p, "+++ ", 4) != 0))
 			return RET_NOTHING;
 		p += 4;
 		s = strchr(p, '/');
-		if( unlikely(s == NULL) )
+		if (unlikely(s == NULL))
 			return RET_NOTHING;
 		/* another exception to allow diff output directly:
 		 * +++ lines might have garbage after a tab... */
 		garbage = strchr(s, '\t');
-		if( garbage != NULL )
+		if (garbage != NULL)
 			*garbage = '\0';
 		/* if it does not always have the same directory, then
 		 * we cannot be sure it has no debian/control, so we
 		 * have to fail... */
 		s++;
-		if( s != p + destlength )
+		if (s != p + destlength)
 			return RET_NOTHING;
 	}
 	/* found debian/control */
-	if( !u_getline() )
+	if (!u_getline())
 		return RET_NOTHING;
-	if( unlikely(memcmp(p, "@@ -", 4) != 0) )
+	if (unlikely(memcmp(p, "@@ -", 4) != 0))
 		return RET_NOTHING;
 	p += 4;
 	p++;
-	while( *p != ',' && *p != ' ' ) {
-		if( unlikely(*p == '\0') )
+	while (*p != ',' && *p != ' ') {
+		if (unlikely(*p == '\0'))
 			return RET_NOTHING;
 		p++;
 	}
-	if( *p == ',' ) {
+	if (*p == ',') {
 		p++;
-		while( *p >= '0' && *p <= '9' )
+		while (*p >= '0' && *p <= '9')
 			p++;
 	}
-	while( *p == ' ' )
+	while (*p == ' ')
 		p++;
-	if( unlikely(*(p++) != '+') )
+	if (unlikely(*(p++) != '+'))
 		return RET_NOTHING;
-	if( *(p++) != '1' || *(p++) != ',' ) {
+	if (*(p++) != '1' || *(p++) != ',') {
 		/* a diff not starting at the first line (or not being
 		 * more than one line) is not yet supported */
 		return RET_NOTHING;
 	}
 	lines_out = 0;
-	while( *p >= '0' && *p <= '9' ) {
+	while (*p >= '0' && *p <= '9') {
 		lines_out = 10*lines_out + (*p-'0');
 		p++;
 	}
-	while( *p == ' ' )
+	while (*p == ' ')
 		p++;
-	if( unlikely(*p != '@') )
+	if (unlikely(*p != '@'))
 		return RET_NOTHING;
-	while( lines_out > 0 ) {
-		if( unlikely(interrupted()) )
+	while (lines_out > 0) {
+		if (unlikely(interrupted()))
 			return RET_ERROR_INTERRUPTED;
-		if( !u_getline() )
+		if (!u_getline())
 			return RET_NOTHING;
 
-		switch( *(p++) ) {
+		switch (*(p++)) {
 			case '-':
 				break;
 			default:
 				return RET_NOTHING;
 			case ' ':
 			case '+':
-				if( unlikely(lines_out == 0) )
+				if (unlikely(lines_out == 0))
 					return RET_NOTHING;
 				lines_out--;
-				if( section_p != NULL &&
-				    strncasecmp(p, "Section:", 8) == 0 ) {
+				if (section_p != NULL &&
+				    strncasecmp(p, "Section:", 8) == 0) {
 					p += 8;
-					while( *p == ' ' || *p == '\t' )
+					while (*p == ' ' || *p == '\t')
 						p++;
 					s = p;
-					while( *s != ' ' && *s != '\t' &&
-					       *s != '\0' && *s != '\r' )
+					while (*s != ' ' && *s != '\t' &&
+					       *s != '\0' && *s != '\r')
 						s++;
-					if( s == p )
+					if (s == p)
 						return RET_NOTHING;
 					*section_p = strndup(p, s-p);
-					if( FAILEDTOALLOC(*section_p) )
+					if (FAILEDTOALLOC(*section_p))
 						return RET_ERROR_OOM;
-					while( *s == ' ' || *s == '\t' ||
-					       *s == '\r' )
+					while (*s == ' ' || *s == '\t' ||
+					       *s == '\r')
 						s++;
-					if( *s != '\0' )
+					if (*s != '\0')
 						return RET_NOTHING;
 					continue;
 				}
-				if( priority_p != NULL &&
-				    strncasecmp(p, "Priority:", 9) == 0 ) {
+				if (priority_p != NULL &&
+				    strncasecmp(p, "Priority:", 9) == 0) {
 					p += 9;
-					while( *p == ' ' || *p == '\t' )
+					while (*p == ' ' || *p == '\t')
 						p++;
 					s = p;
-					while( *s != ' ' && *s != '\t' &&
-					       *s != '\0' && *s != '\r' )
+					while (*s != ' ' && *s != '\t' &&
+					       *s != '\0' && *s != '\r')
 						s++;
-					if( s == p )
+					if (s == p)
 						return RET_NOTHING;
 					*priority_p = strndup(p, s-p);
-					if( FAILEDTOALLOC(*priority_p) )
+					if (FAILEDTOALLOC(*priority_p))
 						return RET_ERROR_OOM;
-					while( *s == ' ' || *s == '\t' ||
-					       *s == '\r' )
+					while (*s == ' ' || *s == '\t' ||
+					       *s == '\r')
 						s++;
-					if( *s != '\0' )
+					if (*s != '\0')
 						return RET_NOTHING;
 					continue;
 				}
-				if( *p == '\0' ) {
+				if (*p == '\0') {
 					/* end of control data, we are
 					 * finished */
 					*found_p = true;
@@ -457,27 +458,27 @@ static retvalue read_source_control_file(struct sourceextraction *e, struct arch
 	char *buffer, *aftercontrol;
 
 	size = archive_entry_size(entry);
-	if( size <= 0 )
+	if (size <= 0)
 		return RET_NOTHING;
-	if( size > 10*1024*1024 )
+	if (size > 10*1024*1024)
 		return RET_NOTHING;
 	buffer = malloc(size+2);
-	if( FAILEDTOALLOC(buffer) )
+	if (FAILEDTOALLOC(buffer))
 		return RET_ERROR_OOM;
 	len = 0;
-	while( (got = archive_read_data(tar, buffer+len, ((size_t)size+1)-len)) > 0
-			&& !interrupted() ) {
+	while ((got = archive_read_data(tar, buffer+len, ((size_t)size+1)-len)) > 0
+			&& !interrupted()) {
 		len += got;
-		if( len > size ) {
+		if (len > size) {
 			free(buffer);
 			return RET_NOTHING;
 		}
 	}
-	if( unlikely(interrupted()) ) {
+	if (unlikely(interrupted())) {
 		free(buffer);
 		return RET_ERROR_INTERRUPTED;
 	}
-	if( got < 0 ) {
+	if (got < 0) {
 		free(buffer);
 		return RET_NOTHING;
 	}
@@ -486,9 +487,9 @@ static retvalue read_source_control_file(struct sourceextraction *e, struct arch
 
 	controllen = chunk_extract(buffer, buffer, &aftercontrol);
 
-	if( e->section_p != NULL )
+	if (e->section_p != NULL)
 		(void)chunk_getvalue(buffer, "Section", e->section_p);
-	if( e->priority_p != NULL )
+	if (e->priority_p != NULL)
 		(void)chunk_getvalue(buffer, "Priority", e->priority_p);
 	free(buffer);
 	return RET_OK;
@@ -518,59 +519,59 @@ static retvalue parse_tarfile(struct sourceextraction *e, const char *filename, 
 	int a;
 	retvalue r, r2;
 
-	/* While an .tar, especially an .orig.tar can be very ugly (they should be
-	 * pristine upstream tars, so dpkg-source works around a lot of ugliness),
+	/* While an .tar, especially an .orig.tar can be very ugly
+	 * (they should be pristine upstream tars, so dpkg-source works around
+	 * a lot of ugliness),
 	 * we are looking for debian/control. This is unlikely to be in an ugly
 	 * upstream tar verbatimly. */
 
-	if( !isregularfile(filename) )
+	if (!isregularfile(filename))
 		return RET_NOTHING;
 
 	tar = archive_read_new();
-	if( FAILEDTOALLOC(tar) ) {
+	if (FAILEDTOALLOC(tar))
 		return RET_ERROR_OOM;
-	}
 	archive_read_support_format_tar(tar);
 	archive_read_support_format_gnutar(tar);
 
 	r = uncompress_open(&file, filename, c);
-	if( !RET_IS_OK(r) ) {
+	if (!RET_IS_OK(r)) {
 		archive_read_finish(tar);
 		return r;
 	}
 
 	a = archive_read_open(tar, file, compressedfile_open,
 			compressedfile_read, compressedfile_close);
-	if( a != ARCHIVE_OK ) {
+	if (a != ARCHIVE_OK) {
 		int err = archive_errno(tar);
-		if( err != -EINVAL && err != 0 )
+		if (err != -EINVAL && err != 0)
 			fprintf(stderr,
-"Error %d trying to extract control information from %s:\n"
-"%s\n",			err, filename, archive_error_string(tar));
+"Error %d trying to extract control information from %s:\n" "%s\n",
+				err, filename, archive_error_string(tar));
 		else
 			fprintf(stderr,
-"Error trying to extract control information from %s:\n"
-"%s\n",			filename, archive_error_string(tar));
+"Error trying to extract control information from %s:\n" "%s\n",
+				filename, archive_error_string(tar));
 		archive_read_finish(tar);
 		uncompress_abort(file);
 		return RET_ERROR;
 	}
-	while( (a=archive_read_next_header(tar, &entry)) == ARCHIVE_OK ) {
+	while ((a=archive_read_next_header(tar, &entry)) == ARCHIVE_OK) {
 		const char *name = archive_entry_pathname(entry);
 		const char *s;
 		bool iscontrol;
 
-		if( name[0] == '.' && name[1] == '/' )
+		if (name[0] == '.' && name[1] == '/')
 			name += 2;
 		s = strchr(name, '/');
-		if( s == NULL )
+		if (s == NULL)
 			// TODO: is this already enough to give up totally?
 			iscontrol = false;
 		else
 			iscontrol = strcmp(s+1, "debian/control") == 0 ||
 				    strcmp(name, "debian/control") == 0;
 
-		if( iscontrol ) {
+		if (iscontrol) {
 			r = read_source_control_file(e, tar, entry);
 			archive_read_finish(tar);
 			r2 = uncompress_error(file);
@@ -580,13 +581,13 @@ static retvalue parse_tarfile(struct sourceextraction *e, const char *filename, 
 			return r;
 		}
 		a = archive_read_data_skip(tar);
-		if( a != ARCHIVE_OK ) {
+		if (a != ARCHIVE_OK) {
 			int err = archive_errno(tar);
 			printf("Error %d skipping %s within %s: %s\n",
 					err, name, filename,
 					archive_error_string(tar));
 			archive_read_finish(tar);
-			if( err == 0 || err == -EINVAL )
+			if (err == 0 || err == -EINVAL)
 				r = RET_ERROR;
 			else
 				r =  RET_ERRNO(err);
@@ -595,15 +596,15 @@ static retvalue parse_tarfile(struct sourceextraction *e, const char *filename, 
 			uncompress_abort(file);
 			return r;
 		}
-		if( interrupted() )
+		if (interrupted())
 			return RET_ERROR_INTERRUPTED;
 	}
-	if( a != ARCHIVE_EOF ) {
+	if (a != ARCHIVE_EOF) {
 		int err = archive_errno(tar);
 		fprintf(stderr, "Error %d reading %s: %s\n",
 				err, filename, archive_error_string(tar));
 		archive_read_finish(tar);
-		if( err == 0 || err == -EINVAL )
+		if (err == 0 || err == -EINVAL)
 			r = RET_ERROR;
 		else
 			r =  RET_ERRNO(err);
@@ -624,23 +625,23 @@ retvalue sourceextraction_analyse(struct sourceextraction *e, const char *fullfi
 	bool found IFSTUPIDCC(= false);
 
 #ifndef HAVE_LIBARCHIVE
-	assert( e->difffile >= 0 );
+	assert (e->difffile >= 0);
 #endif
-	if( e->difffile >= 0 ) {
+	if (e->difffile >= 0) {
 		struct compressedfile *f;
 
-		assert( uncompression_supported(e->diffcompression) );
+		assert (uncompression_supported(e->diffcompression));
 		e->difffile = -1;
 
 		r = uncompress_open(&f, fullfilename, e->diffcompression);
-		if( !RET_IS_OK(r) ) {
+		if (!RET_IS_OK(r)) {
 			e->failed = true;
 			/* being unable to read a file is no hard error... */
 			return RET_NOTHING;
 		}
 		r = parsediff(f, e->section_p, e->priority_p, &found);
-		if( RET_IS_OK(r) )  {
-			if( !found )
+		if (RET_IS_OK(r))  {
+			if (!found)
 				r = uncompress_close(f);
 			else {
 				r = uncompress_error(f);
@@ -649,21 +650,22 @@ retvalue sourceextraction_analyse(struct sourceextraction *e, const char *fullfi
 		} else {
 			uncompress_abort(f);
 		}
-		if( !RET_IS_OK(r) )
+		if (!RET_IS_OK(r))
 			e->failed = true;
-		else if( found )
+		else if (found)
 			/* do not look in the tar, we found debian/control */
 			e->completed = true;
 		return r;
 	}
 
 #ifdef HAVE_LIBARCHIVE
-	if( e->debiantarfile >= 0 ) {
+	if (e->debiantarfile >= 0) {
 		e->debiantarfile = -1;
-		r = parse_tarfile(e, fullfilename, e->debiancompression, &found);
-		if( !RET_IS_OK(r) )
+		r = parse_tarfile(e, fullfilename, e->debiancompression,
+				&found);
+		if (!RET_IS_OK(r))
 			e->failed = true;
-		else if( found )
+		else if (found)
 			/* do not look in the tar, we found debian/control */
 			e->completed = true;
 		return r;
@@ -671,14 +673,14 @@ retvalue sourceextraction_analyse(struct sourceextraction *e, const char *fullfi
 #endif
 
 	/* if it's not the diff nor the .debian.tar, look into the .tar file: */
-	assert( e->tarfile >= 0 );
+	assert (e->tarfile >= 0);
 	e->tarfile = -1;
 
 #ifdef HAVE_LIBARCHIVE
 	r = parse_tarfile(e, fullfilename, e->tarcompression, &found);
-	if( !RET_IS_OK(r) )
+	if (!RET_IS_OK(r))
 		e->failed = true;
-	else if( found )
+	else if (found)
 		/* do not look in the tar, we found debian/control */
 		e->completed = true;
 	return r;
@@ -688,7 +690,7 @@ retvalue sourceextraction_analyse(struct sourceextraction *e, const char *fullfi
 }
 
 retvalue sourceextraction_finish(struct sourceextraction *e) {
-	if( e->completed ) {
+	if (e->completed) {
 		free(e);
 		return RET_OK;
 	}

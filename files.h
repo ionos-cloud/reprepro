@@ -57,7 +57,7 @@ retvalue files_checkincludefile(struct database *, const char *directory, const 
 typedef retvalue per_file_action(void *data, const char *filekey);
 
 /* callback for each registered file */
-retvalue files_foreach(struct database *,per_file_action action,void *data);
+retvalue files_foreach(struct database *, per_file_action, void *);
 
 /* check if all files are corect. (skip md5sum if fast is true) */
 retvalue files_checkpool(struct database *, bool fast);
@@ -69,15 +69,16 @@ retvalue files_printmd5sums(struct database *);
 retvalue files_printchecksums(struct database *);
 
 /* look for the given filekey and add it into the filesdatabase */
-retvalue files_detect(struct database *,const char *filekey);
+retvalue files_detect(struct database *, const char *);
 
 retvalue files_regenerate_filelist(struct database *, bool redo);
 
 /* hardlink file with known checksums and add it to database */
-retvalue files_hardlinkandadd(struct database *, const char *tempfile, const char *filekey, const struct checksums *);
+retvalue files_hardlinkandadd(struct database *, const char * /*tempfile*/, const char * /*filekey*/, const struct checksums *);
 
-/* check if file is already there (RET_NOTHING) or could be added (RET_OK)
- * or RET_ERROR_WRONG_MD5SUM if filekey is already there with different md5sum */
+/* RET_NOTHING: file is already there
+ * RET_OK : could be added
+ * RET_ERROR_WRONG_MD5SUM: filekey is already there with different md5sum */
 retvalue files_canadd(struct database *, const char *filekey, const struct checksums *);
 
 /* make a filekey to a fullfilename. return NULL if OutOfMemory */

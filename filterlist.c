@@ -54,7 +54,7 @@ struct filterlistitem {
 };
 
 static void filterlistitems_free(/*@null@*//*@only@*/struct filterlistitem *list) {
-	while( list != NULL ) {
+	while (list != NULL) {
 		struct filterlistitem *next = list->next;
 		free(list->packagename);
 		free(list);
@@ -63,19 +63,19 @@ static void filterlistitems_free(/*@null@*//*@only@*/struct filterlistitem *list
 }
 
 static void filterlistfile_unlock(struct filterlistfile *list) {
-	assert( list != NULL );
+	assert (list != NULL);
 
-	if( list->reference_count <= 1 ) {
+	if (list->reference_count <= 1) {
 		struct filterlistfile **p = &listfiles;
 
-		assert( list->reference_count == 1 );
-		if( list->reference_count == 0 )
+		assert (list->reference_count == 1);
+		if (list->reference_count == 0)
 			return;
 
-		while( *p != NULL && *p != list )
+		while (*p != NULL && *p != list)
 			p = &(*p)->next;
-		assert( p != NULL );
-		if( *p == list ) {
+		assert (p != NULL);
+		if (*p == list) {
 			*p = list->next;
 			filterlistitems_free(list->root);
 			free(list->filename);
@@ -94,93 +94,101 @@ static inline retvalue filterlistfile_parse(struct filterlistfile *n, const char
 	int lineno = 0;
 	struct filterlistitem **last = &n->root;
 
-	while( fgets(line,1000,f) != NULL ) {
+	while (fgets(line, 1000, f) != NULL) {
 		lineno++;
-		lineend = strchr(line,'\n');
-		if( lineend == NULL ) {
-			fprintf(stderr,"Overlong line in '%s'!\n",filename);
+		lineend = strchr(line, '\n');
+		if (lineend == NULL) {
+			fprintf(stderr, "Overlong line in '%s'!\n", filename);
 			return RET_ERROR;
 		}
-		while( lineend >= line && xisspace(*lineend) )
+		while (lineend >= line && xisspace(*lineend))
 			*(lineend--) = '\0';
 		/* Ignore line only containing whitespace */
-		if( line[0] == '\0' )
+		if (line[0] == '\0')
 			continue;
 		namestart = line;
-		while( *namestart != '\0' && xisspace(*namestart) )
+		while (*namestart != '\0' && xisspace(*namestart))
 			namestart++;
 		nameend=namestart;
-		while( *nameend != '\0' && !xisspace(*nameend) )
+		while (*nameend != '\0' && !xisspace(*nameend))
 			nameend++;
 		what = nameend;
-		while( *what != '\0' && xisspace(*what) )
+		while (*what != '\0' && xisspace(*what))
 			*(what++)='\0';
-		if( *what == '\0' ) {
-			fprintf(stderr,"Malformed line in '%s': %d!\n",filename,lineno);
+		if (*what == '\0') {
+			fprintf(stderr,
+"Malformed line in '%s': %d!\n", filename, lineno);
 			return RET_ERROR;
 		}
 		version = NULL;
-		if( strcmp(what,"install") == 0 ) {
+		if (strcmp(what, "install") == 0) {
 			type = flt_install;
-		} else if( strcmp(what,"deinstall") == 0 ) {
+		} else if (strcmp(what, "deinstall") == 0) {
 			type = flt_deinstall;
-		} else if( strcmp(what,"purge") == 0 ) {
+		} else if (strcmp(what, "purge") == 0) {
 			type = flt_purge;
-		} else if( strcmp(what,"hold") == 0 ) {
+		} else if (strcmp(what, "hold") == 0) {
 			type = flt_hold;
-		} else if( strcmp(what, "upgradeonly") == 0 ) {
+		} else if (strcmp(what, "upgradeonly") == 0) {
 			type = flt_upgradeonly;
-		} else if( strcmp(what, "warning") == 0 ) {
+		} else if (strcmp(what, "warning") == 0) {
 			type = flt_warning;
-		} else if( strcmp(what,"error") == 0 ) {
+		} else if (strcmp(what, "error") == 0) {
 			type = flt_error;
-		} else if( what[0] == '=' ) {
+		} else if (what[0] == '=') {
 			what++;
-			while( *what != '\0' && xisspace(*what) )
+			while (*what != '\0' && xisspace(*what))
 				what++;
 			version = what;
 			if (*version == '\0') {
-				fprintf(stderr, "Malformed line %d in '%s': missing version after '='!\n", lineno, filename);
+				fprintf(stderr,
+"Malformed line %d in '%s': missing version after '='!\n",
+						lineno, filename);
 				return RET_ERROR;
 			}
-			while( *what != '\0' && !xisspace(*what) )
+			while (*what != '\0' && !xisspace(*what))
 				what++;
-			while( *what != '\0' && xisspace(*what) )
+			while (*what != '\0' && xisspace(*what))
 				*(what++) = '\0';
 			if (*what != '\0') {
-				fprintf(stderr, "Malformed line %d in '%s': space in version!\n", lineno, filename);
+				fprintf(stderr,
+"Malformed line %d in '%s': space in version!\n",
+						lineno, filename);
 				return RET_ERROR;
 			}
 			type = flt_install;
 		} else {
-			fprintf(stderr,"Unknown status in '%s':%d: '%s'!\n",filename,lineno,what);
+			fprintf(stderr,
+"Unknown status in '%s':%d: '%s'!\n", filename, lineno, what);
 			return RET_ERROR;
 		}
-		if( *last == NULL || strcmp(namestart,(*last)->packagename) < 0 )
+		if (*last == NULL || strcmp(namestart, (*last)->packagename) < 0)
 			last = &n->root;
 		cmp = -1;
-		while( *last != NULL && (cmp=strcmp(namestart,(*last)->packagename)) > 0 )
+		while (*last != NULL &&
+				(cmp=strcmp(namestart, (*last)->packagename)) > 0)
 			last = &((*last)->next);
-		if( cmp == 0 ) {
-			fprintf(stderr,"Two lines describing '%s' in '%s'!\n",namestart,filename);
+		if (cmp == 0) {
+			fprintf(stderr,
+"Two lines describing '%s' in '%s'!\n", namestart, filename);
 			return RET_ERROR;
 		}
-		h = calloc(1,sizeof(*h));
-		if( h == NULL ) {
+		h = zNEW(struct filterlistitem);
+		if (FAILEDTOALLOC(h)) {
 			return RET_ERROR_OOM;
 		}
 		h->next = *last;
 		*last = h;
 		h->what = type;
 		h->packagename = strdup(namestart);
-		if( h->packagename == NULL ) {
+		if (FAILEDTOALLOC(h->packagename)) {
 			return RET_ERROR_OOM;
 		}
-		if( version == NULL )
+		if (version == NULL)
 			h->version = NULL;
 		else {
 			h->version = strdup(version);
-			if( FAILEDTOALLOC(h->version) )
+			if (FAILEDTOALLOC(h->version))
 				return RET_ERROR_OOM;
 		}
 	}
@@ -193,8 +201,8 @@ static inline retvalue filterlistfile_read(struct filterlistfile *n, const char 
 	FILE *f;
 	retvalue r;
 
-	f = fopen(filename,"r");
-	if( f == NULL ) {
+	f = fopen(filename, "r");
+	if (f == NULL) {
 		fprintf(stderr, "Cannot open %s for reading: %s!\n",
 				filename, strerror(errno));
 		return RET_ERROR;
@@ -210,27 +218,27 @@ static inline retvalue filterlistfile_getl(const char *filename, size_t len, str
 	struct filterlistfile *p;
 	retvalue r;
 
-	for( p = listfiles ; p != NULL ; p = p->next ) {
-		if( p->filename_len == len &&
-				strncmp(p->filename, filename, len) == 0 ) {
+	for (p = listfiles ; p != NULL ; p = p->next) {
+		if (p->filename_len == len &&
+				strncmp(p->filename, filename, len) == 0) {
 			p->reference_count++;
 			*list = p;
 			return RET_OK;
 		}
 	}
-	p = calloc(1,sizeof(struct filterlistfile));
-	if( p == NULL )
+	p = zNEW(struct filterlistfile);
+	if (FAILEDTOALLOC(p))
 		return RET_ERROR_OOM;
 	p->reference_count = 1;
 	p->filename = strndup(filename, len);
 	p->filename_len = len;
-	if( p->filename == NULL ) {
+	if (FAILEDTOALLOC(p->filename)) {
 		free(p);
 		return RET_ERROR_OOM;
 	}
-	if( p->filename[0] != '/' ) {
+	if (p->filename[0] != '/') {
 		char *fullfilename = calc_conffile(p->filename);
-		if( fullfilename == NULL )
+		if (FAILEDTOALLOC(fullfilename))
 			r = RET_ERROR_OOM;
 		else {
 			r = filterlistfile_read(p, fullfilename);
@@ -239,7 +247,7 @@ static inline retvalue filterlistfile_getl(const char *filename, size_t len, str
 	} else
 		r = filterlistfile_read(p, p->filename);
 
-	if( RET_IS_OK(r) ) {
+	if (RET_IS_OK(r)) {
 		p->next = listfiles;
 		listfiles = p;
 		*list = p;
@@ -256,30 +264,30 @@ static inline retvalue filterlistfile_get(/*@only@*/char *filename, /*@out@*/str
 	retvalue r;
 	size_t len = strlen(filename);
 
-	for( p = listfiles ; p != NULL ; p = p->next ) {
-		if( p->filename_len == len &&
-				strncmp(p->filename, filename, len) == 0 ) {
+	for (p = listfiles ; p != NULL ; p = p->next) {
+		if (p->filename_len == len &&
+				strncmp(p->filename, filename, len) == 0) {
 			p->reference_count++;
 			*list = p;
 			free(filename);
 			return RET_OK;
 		}
 	}
-	p = calloc(1,sizeof(struct filterlistfile));
-	if( p == NULL ) {
+	p = zNEW(struct filterlistfile);
+	if (FAILEDTOALLOC(p)) {
 		free(filename);
 		return RET_ERROR_OOM;
 	}
 	p->reference_count = 1;
 	p->filename = filename;
 	p->filename_len = len;
-	if( p->filename == NULL ) {
+	if (FAILEDTOALLOC(p->filename)) {
 		free(p);
 		return RET_ERROR_OOM;
 	}
-	if( p->filename[0] != '/' ) {
+	if (p->filename[0] != '/') {
 		char *fullfilename = calc_conffile(p->filename);
-		if( fullfilename == NULL )
+		if (FAILEDTOALLOC(fullfilename))
 			r = RET_ERROR_OOM;
 		else {
 			r = filterlistfile_read(p, fullfilename);
@@ -288,7 +296,7 @@ static inline retvalue filterlistfile_get(/*@only@*/char *filename, /*@out@*/str
 	} else
 		r = filterlistfile_read(p, p->filename);
 
-	if( RET_IS_OK(r) ) {
+	if (RET_IS_OK(r)) {
 		p->next = listfiles;
 		listfiles = p;
 		*list = p;
@@ -305,13 +313,13 @@ void filterlist_release(struct filterlist *list) {
 
 	assert(list != NULL);
 
-	if( list->files != NULL ) {
-		for( i = 0 ; i < list->count ; i++ )
+	if (list->files != NULL) {
+		for (i = 0 ; i < list->count ; i++)
 			filterlistfile_unlock(list->files[i]);
 		free(list->files);
 		list->files = NULL;
 	} else {
-		assert( list->count == 0 );
+		assert (list->count == 0);
 	}
 }
 
@@ -334,7 +342,7 @@ retvalue filterlist_load(struct filterlist *list, struct configiterator *iter) {
 	char *filename;
 
 	r = config_getenum(iter, filterlisttype, listtypes, &defaulttype);
-	if( r == RET_NOTHING || r == RET_ERROR_UNKNOWNFIELD ) {
+	if (r == RET_NOTHING || r == RET_ERROR_UNKNOWNFIELD) {
 		fprintf(stderr,
 "Error parsing %s, line %u, column %u: Expected default action as first argument to FilterList: (one of install, purge, hold, ...)\n",
 				config_filename(iter),
@@ -342,17 +350,17 @@ retvalue filterlist_load(struct filterlist *list, struct configiterator *iter) {
 				config_markercolumn(iter));
 		return RET_ERROR;
 	}
-	if( RET_WAS_ERROR(r) )
+	if (RET_WAS_ERROR(r))
 		return r;
 
 	count = 0;
 	files = NULL;
-	while( (r = config_getword(iter, &filename)) != RET_NOTHING ) {
+	while ((r = config_getword(iter, &filename)) != RET_NOTHING) {
 		struct filterlistfile **n;
 
 		n = realloc(files, (count+1)*
 				sizeof(struct filterlistfile *));
-		if( n == NULL ) {
+		if (FAILEDTOALLOC(n)) {
 			free(filename);
 			r = RET_ERROR_OOM;
 		} else {
@@ -360,11 +368,11 @@ retvalue filterlist_load(struct filterlist *list, struct configiterator *iter) {
 			files = n;
 			// TODO: make filename only
 			r = filterlistfile_get(filename, &files[count]);
-			if( RET_IS_OK(r) )
+			if (RET_IS_OK(r))
 				count++;
 		}
-		if( RET_WAS_ERROR(r) ) {
-			while( count > 0 ) {
+		if (RET_WAS_ERROR(r)) {
+			while (count > 0) {
 				count--;
 				filterlistfile_unlock(files[count]);
 			}
@@ -383,37 +391,37 @@ static inline bool find(const char *name, /*@null@*/struct filterlistfile *list)
 	int cmp;
 	/*@dependent@*/const struct filterlistitem *last = list->last;
 
-	assert( last != NULL );
+	assert (last != NULL);
 
-	if( last->next != NULL ) {
-		cmp = strcmp(name,last->next->packagename);
-		if( cmp == 0 ) {
+	if (last->next != NULL) {
+		cmp = strcmp(name, last->next->packagename);
+		if (cmp == 0) {
 			list->last = last->next;
 			return true;
 		}
 	}
-	if( last->next == NULL || cmp < 0 ) {
-		cmp = strcmp(name,last->packagename);
-		if( cmp == 0 ) {
+	if (last->next == NULL || cmp < 0) {
+		cmp = strcmp(name, last->packagename);
+		if (cmp == 0) {
 			return true;
-		} else if( cmp > 0 )
+		} else if (cmp > 0)
 			return false;
 		last = list->root;
-		cmp = strcmp(name,last->packagename);
-		if( cmp == 0 ) {
+		cmp = strcmp(name, last->packagename);
+		if (cmp == 0) {
 			list->last = list->root;
 			return true;
-		} else if( cmp < 0 )
+		} else if (cmp < 0)
 			return false;
 	}
 	/* now we are after last */
-	while( last->next != NULL ) {
-		cmp = strcmp(name,last->next->packagename);
-		if( cmp == 0 ) {
+	while (last->next != NULL) {
+		cmp = strcmp(name, last->next->packagename);
+		if (cmp == 0) {
 			list->last = last->next;
 			return true;
 		}
-		if( cmp < 0 ) {
+		if (cmp < 0) {
 			list->last = last;
 			return false;
 		}
@@ -425,14 +433,14 @@ static inline bool find(const char *name, /*@null@*/struct filterlistfile *list)
 
 enum filterlisttype filterlist_find(const char *name, const char *version, const struct filterlist *list) {
 	size_t i;
-	for( i = 0 ; i < list->count ; i++ ) {
-		if( list->files[i]->root == NULL )
+	for (i = 0 ; i < list->count ; i++) {
+		if (list->files[i]->root == NULL)
 			continue;
-		if( !find(name,list->files[i]) )
+		if (!find(name, list->files[i]))
 			continue;
-		if( list->files[i]->last->version == NULL )
+		if (list->files[i]->last->version == NULL)
 			return list->files[i]->last->what;
-		if( strcmp(list->files[i]->last->version, version) == 0 )
+		if (strcmp(list->files[i]->last->version, version) == 0)
 			return list->files[i]->last->what;
 	}
 	return list->defaulttype;

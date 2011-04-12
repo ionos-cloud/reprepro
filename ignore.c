@@ -29,7 +29,7 @@ enum config_option_owner owner_ignore[IGN_COUNT];
 
 void init_ignores(void) {
 	int i;
-	for( i = 0 ; i < IGN_COUNT ; i++ ) {
+	for (i = 0 ; i < IGN_COUNT ; i++) {
 		ignored[i] = 0;
 		ignore[i] = false;
 		owner_ignore[i] = CONFIG_OWNER_DEFAULT;
@@ -46,18 +46,20 @@ static retvalue set(const char *given, size_t len, bool newvalue, enum config_op
 
 	//TODO: allow multiple values sperated by some sign here...
 
-	for( i = 0 ; i < IGN_COUNT ; i++) {
-		if( strncmp(given,ignores[i],len) == 0 && ignores[i][len] == '\0' ) {
-			if( owner_ignore[i] <= newowner  ) {
+	for (i = 0 ; i < IGN_COUNT ; i++) {
+		if (strncmp(given, ignores[i], len) == 0 &&
+				ignores[i][len] == '\0') {
+			if (owner_ignore[i] <= newowner) {
 				ignore[i] = newvalue;
 				owner_ignore[i] = newowner;
 			}
 			break;
 		}
 	}
-	if( i == IGN_COUNT ) {
-		char *str = strndup(given,len);
-		if( IGNORING("Ignoring","To Ignore",ignore,"Unknown --ignore value: '%s'!\n",(str!=NULL)?str:given)) {
+	if (i == IGN_COUNT) {
+		char *str = strndup(given, len);
+		if (IGNORING(ignore,
+"Unknown --ignore value: '%s'!\n", (str!=NULL)?str:given)) {
 			free(str);
 			return RET_NOTHING;
 		} else {
@@ -69,25 +71,27 @@ static retvalue set(const char *given, size_t len, bool newvalue, enum config_op
 }
 
 retvalue set_ignore(const char *given, bool newvalue, enum config_option_owner newowner) {
-	const char *g,*p;
+	const char *g, *p;
 	retvalue r;
 
-	assert( given != NULL);
+	assert (given != NULL);
 
 	g = given;
 
-	while( true ) {
+	while (true) {
 		p = g;
-		while( *p != '\0' && *p !=',' )
+		while (*p != '\0' && *p != ',')
 			p++;
-		if( p == g ) {
-			fprintf(stderr,"Empty ignore option in --ignore='%s'!\n",given);
+		if (p == g) {
+			fprintf(stderr,
+"Empty ignore option in --ignore='%s'!\n",
+					given);
 			return RET_ERROR_MISSING;
 		}
-		r = set(g,p-g,newvalue,newowner);
-		if( RET_WAS_ERROR(r) )
+		r = set(g, p - g, newvalue, newowner);
+		if (RET_WAS_ERROR(r))
 			return r;
-		if( *p == '\0' )
+		if (*p == '\0')
 			return RET_OK;
 		g = p+1;
 	}
