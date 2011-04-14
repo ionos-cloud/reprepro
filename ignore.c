@@ -27,22 +27,26 @@ int ignored[IGN_COUNT];
 bool ignore[IGN_COUNT];
 enum config_option_owner owner_ignore[IGN_COUNT];
 
-void init_ignores(void) {
-	int i;
-	for (i = 0 ; i < IGN_COUNT ; i++) {
-		ignored[i] = 0;
-		ignore[i] = false;
-		owner_ignore[i] = CONFIG_OWNER_DEFAULT;
-	}
+static const char * const ignores[] = {
+#define IGN(what) #what ,
+	VALID_IGNORES
+#undef IGN
+};
+
+bool print_ignore_type_message(bool i, enum ignore what) {
+	ignored[what]++;
+	if (ignore[what])
+		fprintf(stderr, "%s as --ignore=%s given.\n",
+				i ? "Ignoring" : "Not rejecting",
+				ignores[what]);
+	else
+		fprintf(stderr, "To ignore use --ignore=%s.\n",
+				ignores[what]);
+	return ignore[what];
 }
 
 static retvalue set(const char *given, size_t len, bool newvalue, enum config_option_owner newowner) {
 	int i;
-	static const char * const ignores[] = {
-#define IGN(what) #what ,
-	VALID_IGNORES
-#undef IGN
-	};
 
 	//TODO: allow multiple values sperated by some sign here...
 

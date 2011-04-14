@@ -48,26 +48,16 @@ enum ignore {
 extern int ignored[IGN_COUNT];
 extern bool ignore[IGN_COUNT];
 
-#define IGNORING__(ignoring, what, ...) \
-	({ 	fprintf(stderr, ## __VA_ARGS__); \
-		ignored[IGN_ ## what] ++; \
-		if (ignore[IGN_ ## what]) { \
-			fputs(ignoring " as --ignore=" #what " given.\n", \
-				stderr); \
-		} else { \
-			fputs("To ignore use --ignore=" #what ".\n", stderr); \
-		} \
-		ignore[IGN_ ## what]; \
-	})
-#define IGNORING(what, ...) IGNORING__("Ignoring", what, __VA_ARGS__)
-#define IGNORING_(what, ...) IGNORING__("Not rejecting", what, __VA_ARGS__)
+/* Having that as function avoids those strings to be duplacated everywhere */
+bool print_ignore_type_message(bool, enum ignore);
+
+#define IGNORING__(ignoring, what, ...) ({ \
+ 	fprintf(stderr, ## __VA_ARGS__); \
+ 	print_ignore_type_message(ignoring, IGN_ ## what ); \
+})
+#define IGNORING(what, ...) IGNORING__(true, what, __VA_ARGS__)
+#define IGNORING_(what, ...) IGNORING__(false, what, __VA_ARGS__)
 #define IGNORABLE(what) ignore[IGN_ ## what]
-
-#define RETURN_IF_ERROR_UNLESS_IGNORED(r, what, msg_fmt, ...) \
-	if (RET_WAS_ERROR(r) && !ISIGNORED(what, msg_fmt, ## __VA_ARGS__)) \
-		return r;
-
-void init_ignores(void);
 
 retvalue set_ignore(const char *, bool, enum config_option_owner);
 

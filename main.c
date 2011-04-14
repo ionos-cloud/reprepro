@@ -4755,8 +4755,6 @@ int main(int argc, char *argv[]) {
 
 	programname = argv[0];
 
-	init_ignores();
-
 	config_state = CONFIG_OWNER_DEFAULT;
 	CONFIGDUP(x_basedir, STD_BASE_DIR);
 	CONFIGDUP(x_confdir, "+b/conf");
