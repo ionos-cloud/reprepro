@@ -7,9 +7,6 @@
 
 extern /*@null@*/ struct table *rdb_checksums, *rdb_contents;
 extern /*@null@*/ struct table *rdb_references;
-extern struct reprepro_database_capabilities {
-	bool createnewtables;
-} rdb_capabilities;
 
 retvalue database_listsubtables(const char *, /*@out@*/struct strlist *);
 retvalue database_dropsubtable(const char *, const char *);

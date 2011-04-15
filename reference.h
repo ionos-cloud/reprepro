@@ -44,4 +44,7 @@ retvalue references_isused(const char *);
 /* check if a reference is found as expected */
 retvalue references_check(const char * /*referee*/, const struct strlist */*what*/);
 
+/* output all references to stdout */
+retvalue references_dump(void);
+
 #endif

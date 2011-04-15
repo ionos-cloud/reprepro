@@ -62,7 +62,9 @@ static /*@null@*/ char *rdb_version, *rdb_lastsupportedversion,
 
 struct table *rdb_checksums, *rdb_contents;
 struct table *rdb_references;
-struct reprepro_database_capabilities rdb_capabilities;
+static struct {
+	bool createnewtables;
+} rdb_capabilities;
 
 static void database_free(void) {
 	if (!rdb_initialized)
@@ -2291,4 +2293,8 @@ retvalue database_translate_legacy_checksums(bool verbosedb) {
 	releaselock();
 	database_free();
 	return r;
+}
+
+bool database_allcreated(void) {
+	return rdb_capabilities.createnewtables;
 }

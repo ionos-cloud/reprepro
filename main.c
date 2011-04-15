@@ -39,7 +39,6 @@
 #include "filecntl.h"
 #include "files.h"
 #include "filelist.h"
-#include "database_p.h"
 #include "target.h"
 #include "reference.h"
 #include "binaries.h"
@@ -523,32 +522,7 @@ ACTION_R(n, n, n, y, removereferences) {
 
 
 ACTION_R(n, n, n, n, dumpreferences) {
-	struct cursor *cursor;
-	retvalue result, r;
-	const char *found_to, *found_by;
-
-	r = table_newglobalcursor(rdb_references, &cursor);
-	if (!RET_IS_OK(r))
-		return r;
-
-	result = RET_OK;
-	while (cursor_nexttemp(rdb_references, cursor,
-	                               &found_to, &found_by)) {
-		if (fputs(found_by, stdout) == EOF ||
-		    putchar(' ') == EOF ||
-		    puts(found_to) == EOF) {
-			result = RET_ERROR;
-			break;
-		}
-		result = RET_OK;
-		if (interrupted()) {
-			result = RET_ERROR_INTERRUPTED;
-			break;
-		}
-	}
-	r = cursor_close(rdb_references, cursor);
-	RET_ENDUPDATE(result, r);
-	return result;
+	return references_dump();
 }
 
 static retvalue checkifreferenced(UNUSED(void *data), const char *filekey) {
@@ -3276,10 +3250,9 @@ ACTION_D(n, n, n, clearvanished) {
 				if (verbose > 6)
 					printf(
 "Marking '%s' as used.\n", t->identifier);
-			} else if (verbose > 3 && rdb_capabilities.createnewtables){
+			} else if (verbose > 3 && database_allcreated()){
 				fprintf(stderr,
 "Strange, '%s' does not appear in packages.db yet.\n", t->identifier);
-
 			}
 		}
 	}

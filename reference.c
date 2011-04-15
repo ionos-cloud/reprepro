@@ -183,3 +183,32 @@ retvalue references_remove(const char *neededby) {
 	return result;
 }
 
+/* dump all references to stdout */
+retvalue references_dump(void) {
+	struct cursor *cursor;
+	retvalue result, r;
+	const char *found_to, *found_by;
+
+	r = table_newglobalcursor(rdb_references, &cursor);
+	if (!RET_IS_OK(r))
+		return r;
+
+	result = RET_OK;
+	while (cursor_nexttemp(rdb_references, cursor,
+	                               &found_to, &found_by)) {
+		if (fputs(found_by, stdout) == EOF ||
+		    putchar(' ') == EOF ||
+		    puts(found_to) == EOF) {
+			result = RET_ERROR;
+			break;
+		}
+		result = RET_OK;
+		if (interrupted()) {
+			result = RET_ERROR_INTERRUPTED;
+			break;
+		}
+	}
+	r = cursor_close(rdb_references, cursor);
+	RET_ENDUPDATE(result, r);
+	return result;
+}

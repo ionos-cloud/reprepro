@@ -27,6 +27,7 @@ retvalue database_openreleasecache(const char *, /*@out@*/struct table **);
 retvalue database_opentracking(const char *, bool /*readonly*/, /*@out@*/struct table **);
 retvalue database_translate_filelists(void);
 retvalue database_translate_legacy_checksums(bool /*verbosedb*/);
+bool database_allcreated(void);
 
 retvalue table_close(/*@only@*/struct table *);
 
