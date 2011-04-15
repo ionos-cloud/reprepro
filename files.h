@@ -31,9 +31,6 @@ retvalue files_expectfiles(const struct strlist *, struct checksums **);
 /* check for several files in the database and update information */
 retvalue files_checkorimprove(const struct strlist *, struct checksums **);
 
-/* print missing files */
-retvalue files_printmissing(const struct strlist *filekeys, const struct checksumsarray *);
-
 /* what to do with files */
 /* file should already be there, just make sure it is in the database */
 #define D_INPLACE      -1

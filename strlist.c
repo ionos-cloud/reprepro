@@ -196,26 +196,6 @@ retvalue strlist_fprint(FILE *file, const struct strlist *strlist) {
 	return result;
 }
 
-/* duplicate with content */
-retvalue strlist_dup(struct strlist *dest, const struct strlist *orig) {
-	int i;
-
-	assert(dest != NULL && orig != NULL);
-
-	dest->size = dest->count = orig->count;
-	dest->values = nzNEW(dest->count, char *);
-	if (FAILEDTOALLOC(dest->values))
-		return RET_ERROR_OOM;
-	for (i = 0 ; i < dest->count ; i++) {
-		dest->values[i] = strdup(orig->values[i]);
-		if (FAILEDTOALLOC(dest->values[i])) {
-			strlist_done(dest);
-			return RET_ERROR_OOM;
-		}
-	}
-	return RET_OK;
-}
-
 /* replace the contents of dest with those from orig, which get emptied */
 void strlist_move(struct strlist *dest, struct strlist *orig) {
 
@@ -229,32 +209,6 @@ void strlist_move(struct strlist *dest, struct strlist *orig) {
 	dest->values = orig->values;
 	orig->size = orig->count = 0;
 	orig->values = NULL;
-}
-/* empty orig and add everything to the end of dest, in case of error, nothing
- * was done. */
-retvalue strlist_mvadd(struct strlist *dest, struct strlist *orig) {
-	int i;
-
-	assert(dest != NULL && orig != NULL && dest != orig);
-
-	if (dest->count+orig->count >= dest->size) {
-		int newsize = dest->count+orig->count+8;
-		char **v = realloc(dest->values, newsize*sizeof(char *));
-		if (FAILEDTOALLOC(v)) {
-			return RET_ERROR_OOM;
-		}
-		dest->size = newsize;
-		dest->values = v;
-	}
-
-	for (i = 0 ; i < orig->count ; i++)
-		dest->values[dest->count+i] = orig->values[i];
-	dest->count += orig->count;
-	free(orig->values);
-	orig->size = orig->count = 0;
-	orig->values = NULL;
-
-	return RET_OK;
 }
 
 retvalue strlist_adduniq(struct strlist *strlist, char *element) {

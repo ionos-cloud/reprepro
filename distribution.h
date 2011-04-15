@@ -114,8 +114,6 @@ retvalue distribution_get(struct distribution * /*all*/, const char *, bool /*lo
 /* set lookedat, start logger, ... */
 retvalue distribution_prepareforwriting(struct distribution *);
 
-typedef retvalue distribution_each_action(void *, struct target *, struct distribution *);
-
 typedef retvalue each_target_action(struct distribution *, struct target *, void *);
 typedef retvalue each_package_action(struct distribution *, struct target *, const char *, const char *, void *);
 
@@ -148,7 +146,6 @@ retvalue distribution_match(struct distribution * /*alldistributions*/, int /*ar
 struct distribution *distribution_find(struct distribution *, const char *);
 
 retvalue distribution_freelist(/*@only@*/struct distribution *distributions);
-retvalue distribution_exportandfreelist(enum exportwhen when, /*@only@*/struct distribution *distributions);
 retvalue distribution_exportlist(enum exportwhen when, /*@only@*/struct distribution *distributions);
 
 retvalue distribution_loadalloverrides(struct distribution *);

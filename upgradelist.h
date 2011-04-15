@@ -7,8 +7,6 @@ typedef enum { UD_ERROR, UD_LOUDNO, UD_NO, UD_UPGRADE, UD_HOLD } upgrade_decisio
 
 typedef upgrade_decision upgrade_decide_function(void *privdata, const struct target *, const char *package, const char *old_version, const char *new_version, const char *newcontrolchunk);
 
-upgrade_decision ud_always(void *, const struct target *, const char *, const char *, const char *, const char *);
-
 /* The main part: */
 
 struct target;
@@ -21,7 +19,6 @@ void upgradelist_free(/*@only@*/struct upgradelist *);
 typedef void dumpaction(const char */*packagename*/, /*@null@*/const char */*oldversion*/, /*@null@*/const char */*newversion*/, /*@null@*/const char */*bestcandidate*/, /*@null@*/const struct strlist */*newfilekeys*/, /*@null@*/const char */*newcontrol*/, void *);
 
 void upgradelist_dump(struct upgradelist *, dumpaction *);
-retvalue upgradelist_listmissing(struct upgradelist *);
 
 /* Take all items in 'filename' into account, and remember them coming from 'method' */
 retvalue upgradelist_update(struct upgradelist *, /*@dependent@*/void *, const char * /*filename*/, upgrade_decide_function *, void *, bool /*ignorewrongarchitecture*/);

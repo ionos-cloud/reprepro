@@ -6,7 +6,6 @@
 #endif
 
 struct checksums;
-retvalue donefile_isold(const char *filename, const struct checksums *expected);
 
 struct markdonefile;
 retvalue markdone_create(const char *, /*@out@*/struct markdonefile **);

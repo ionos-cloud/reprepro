@@ -266,37 +266,6 @@ retvalue files_checkorimprove(const struct strlist *filekeys, struct checksums *
 	return RET_OK;
 }
 
-/* print missing files */
-retvalue files_printmissing(const struct strlist *filekeys, const struct checksumsarray *origfiles) {
-	int i;
-	retvalue ret, r;
-
-	ret = RET_NOTHING;
-	assert (filekeys->count == origfiles->names.count);
-	for (i = 0 ; i < filekeys->count ; i++) {
-		const char *filekey = filekeys->values[i];
-		const char *origfile = origfiles->names.values[i];
-		const struct checksums *checksums = origfiles->checksums[i];
-
-		r = files_expect(filekey, checksums, false);
-		if (RET_WAS_ERROR(r)) {
-			return r;
-		}
-		if (r == RET_NOTHING) {
-			/* File missing */
-			(void)fputs(origfile, stdout);
-			(void)putchar(' ');
-			(void)fputs(global.outdir, stdout);
-			(void)putchar('/');
-			(void)fputs(filekey, stdout);
-			(void)putchar('\n');
-			RET_UPDATE(ret, RET_OK);
-		} else
-			RET_UPDATE(ret, r);
-	}
-	return ret;
-}
-
 /* dump out all information */
 retvalue files_printmd5sums(void) {
 	retvalue result, r;

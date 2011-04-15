@@ -121,29 +121,6 @@ retvalue chunk_getvalue(const char *chunk, const char *name, char **value) {
 	return RET_OK;
 }
 
-retvalue chunk_getfirstword(const char *chunk, const char *name, char **value) {
-	const char *field;
-	char *val;
-	const char *b, *e;
-
-	assert(value != NULL);
-	field = chunk_getfield(name, chunk);
-	if (field == NULL)
-		return RET_NOTHING;
-
-	b = field;
-	if (xisspace(*b))
-		b++;
-	e = b;
-	while (!xisspace(*e) && *e != '\n' && *e != '\0')
-		e++;
-	val = strndup(b, e - b);
-	if (FAILEDTOALLOC(val))
-		return RET_ERROR_OOM;
-	*value = val;
-	return RET_OK;
-}
-
 retvalue chunk_getextralinelist(const char *chunk, const char *name, struct strlist *strlist) {
 	retvalue r;
 	const char *f, *b, *e;

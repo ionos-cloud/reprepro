@@ -11,7 +11,6 @@
 
 /* look for name in chunk. returns RET_NOTHING if not found */
 retvalue chunk_getvalue(const char *, const char *, /*@out@*/char **);
-retvalue chunk_getfirstword(const char *, const char *, /*@out@*/char **);
 retvalue chunk_getextralinelist(const char *, const char *, /*@out@*/struct strlist *);
 retvalue chunk_getwordlist(const char *, const char *, /*@out@*/struct strlist *);
 retvalue chunk_getuniqwordlist(const char *, const char *, /*@out@*/struct strlist *);
@@ -50,9 +49,6 @@ void addfield_free(/*@only@*//*@null@*/struct fieldtoadd *);
 
 /* that is chunk_replacefields(chunk,{fieldname,strlen,data,strlen},fieldname); */
 /*@null@*/char *chunk_replacefield(const char *, const char *, const char *, bool /*maybemissing*/);
-
-/* check if all field names  are in allowedfieldnames */
-retvalue chunk_checkfields(const char *, const char * const * /*allowedfieldnames*/, bool /*commentsallowed*/);
 
 /* reformat control data, removing leading spaces and CRs */
 size_t chunk_extract(char * /*buffer*/, const char */*start*/, /*@out@*/char ** /*next*/);

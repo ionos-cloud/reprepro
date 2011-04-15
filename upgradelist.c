@@ -598,24 +598,6 @@ retvalue upgradelist_deleteall(struct upgradelist *upgrade) {
 	return RET_OK;
 }
 
-retvalue upgradelist_listmissing(struct upgradelist *upgrade){
-	struct package_data *pkg;
-
-	for (pkg = upgrade->list ; pkg != NULL ; pkg = pkg->next) {
-		if (pkg->version == pkg->new_version) {
-			retvalue r;
-			r = files_printmissing(&pkg->new_filekeys,
-					&pkg->new_origfiles);
-			if (RET_WAS_ERROR(r))
-				return r;
-
-		}
-
-	}
-	return RET_OK;
-}
-
-
 /* request all wanted files in the downloadlists given before */
 retvalue upgradelist_enqueue(struct upgradelist *upgrade, enqueueaction *action, void *calldata) {
 	struct package_data *pkg;
@@ -773,9 +755,4 @@ void upgradelist_dump(struct upgradelist *upgrade, dumpaction action){
 					&pkg->new_filekeys, pkg->new_control,
 					pkg->privdata);
 	}
-}
-
-/* standard answer function */
-upgrade_decision ud_always(UNUSED(void *privdata), UNUSED(const struct target *target), UNUSED(const char *package), UNUSED(const char *old_version), UNUSED(const char *new_version), UNUSED(const char *new_controlchunk)) {
-	return UD_UPGRADE;
 }

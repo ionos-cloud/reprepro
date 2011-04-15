@@ -114,7 +114,6 @@ void checksumsarray_resetunsupported(const struct checksumsarray *, bool[cs_hash
 retvalue hashline_parse(const char * /*filenametoshow*/, const char * /*line*/, enum checksumtype, /*@out@*/const char ** /*basename_p*/, /*@out@*/struct hash_data *, /*@out@*/struct hash_data *);
 
 struct configiterator;
-retvalue checksums_parseignorelist(bool ignorelist[cs_hashCOUNT], const char *, struct configiterator *);
 
 #ifdef CHECKSUMS_CONTEXT
 #ifndef MD5_H

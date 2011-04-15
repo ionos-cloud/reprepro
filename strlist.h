@@ -32,12 +32,8 @@ retvalue strlist_add_dup(struct strlist *strlist, const char *todup);
 /* print a space separated list of elements */
 retvalue strlist_fprint(FILE *, const struct strlist *);
 
-/* duplicate with content */
-retvalue strlist_dup(struct strlist * /*dest*/, const struct strlist * /*orig*/);
 /* replace the contents of dest with those from orig, which get emptied */
 void strlist_move(/*@out@*/struct strlist *dest, /*@special@*/struct strlist *orig) /*@releases orig->values @*/;
-/* empty orig and add everything to the end of dest, on error nothing is freed */
-retvalue strlist_mvadd(struct strlist *dest, /*@special@*/struct strlist *orig) /*@releases orig->values @*/;
 
 bool strlist_in(const struct strlist *, const char *);
 int strlist_ofs(const struct strlist *, const char *);
