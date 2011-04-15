@@ -66,7 +66,7 @@ static void free_source_info(struct info_source *s) {
 	}
 }
 
-static retvalue collect_source_versions(struct database *database, struct distribution *d, struct info_source **out) {
+static retvalue collect_source_versions(struct distribution *d, struct info_source **out) {
 	struct info_source *root = NULL, *last = NULL;
 	struct target *t;
 	struct target_cursor target_cursor = TARGET_CURSOR_ZERO;
@@ -76,7 +76,7 @@ static retvalue collect_source_versions(struct database *database, struct distri
 	for (t = d->targets ; t != NULL ; t = t->next) {
 		if (t->architecture != architecture_source)
 			continue;
-		r = target_openiterator(t, database, true, &target_cursor);
+		r = target_openiterator(t, true, &target_cursor);
 		if (RET_WAS_ERROR(r)) {
 			RET_UPDATE(result, r);
 			break;
@@ -182,7 +182,7 @@ static retvalue collect_source_versions(struct database *database, struct distri
 	return result;
 }
 
-static retvalue process_binaries(struct database *db, struct distribution *d, struct info_source *sources, retvalue (*action)(struct distribution *, struct target *, const char *, const char *, const char *, const char *, void *), void *privdata) {
+static retvalue process_binaries(struct distribution *d, struct info_source *sources, retvalue (*action)(struct distribution *, struct target *, const char *, const char *, const char *, const char *, void *), void *privdata) {
 	struct target *t;
 	struct target_cursor target_cursor = TARGET_CURSOR_ZERO;
 	const char *name, *chunk;
@@ -191,7 +191,7 @@ static retvalue process_binaries(struct database *db, struct distribution *d, st
 	for (t = d->targets ; t != NULL ; t = t->next) {
 		if (t->architecture == architecture_source)
 			continue;
-		r = target_openiterator(t, db, true, &target_cursor);
+		r = target_openiterator(t, true, &target_cursor);
 		if (RET_WAS_ERROR(r)) {
 			RET_UPDATE(result, r);
 			break;
@@ -258,7 +258,7 @@ static retvalue listunusedsources(struct distribution *d, const struct trackedpa
 	return RET_NOTHING;
 }
 
-retvalue unusedsources(struct database *database, struct distribution *alldistributions) {
+retvalue unusedsources(struct distribution *alldistributions) {
 	struct distribution *d;
 	retvalue result = RET_NOTHING, r;
 
@@ -268,7 +268,7 @@ retvalue unusedsources(struct database *database, struct distribution *alldistri
 		if (!atomlist_in(&d->architectures, architecture_source))
 			continue;
 		if (d->tracking != dt_NONE) {
-			r = tracking_foreach_ro(database, d, listunusedsources);
+			r = tracking_foreach_ro(d, listunusedsources);
 			RET_UPDATE(result, r);
 			if (RET_WAS_ERROR(r))
 				return r;
@@ -278,11 +278,11 @@ retvalue unusedsources(struct database *database, struct distribution *alldistri
 		const struct info_source *s;
 		const struct info_source_version *v;
 
-		r = collect_source_versions(database, d, &sources);
+		r = collect_source_versions(d, &sources);
 		if (!RET_IS_OK(r))
 			continue;
 
-		r = process_binaries(database, d, sources, NULL, NULL);
+		r = process_binaries(d, sources, NULL, NULL);
 		RET_UPDATE(result, r);
 		for (s = sources ; s != NULL ; s = s->next) {
 			for (v = &s->version ; v != NULL ; v = v->next) {
@@ -339,7 +339,7 @@ static retvalue listmissing(struct distribution *d, struct target *t, UNUSED(con
 	return RET_OK;
 }
 
-retvalue sourcemissing(struct database *database, struct distribution *alldistributions) {
+retvalue sourcemissing(struct distribution *alldistributions) {
 	struct distribution *d;
 	retvalue result = RET_NOTHING, r;
 
@@ -354,19 +354,18 @@ retvalue sourcemissing(struct database *database, struct distribution *alldistri
 			continue;
 		}
 		if (d->tracking != dt_NONE) {
-			r = tracking_foreach_ro(database, d, listsourcemissing);
+			r = tracking_foreach_ro(d, listsourcemissing);
 			RET_UPDATE(result, r);
 			if (RET_WAS_ERROR(r))
 				return r;
 		} else {
 			struct info_source *sources = NULL;
 
-			r = collect_source_versions(database, d, &sources);
+			r = collect_source_versions(d, &sources);
 			if (!RET_IS_OK(r))
 				continue;
 
-			r = process_binaries(database, d, sources,
-					listmissing, NULL);
+			r = process_binaries(d, sources, listmissing, NULL);
 			RET_UPDATE(result, r);
 			free_source_info(sources);
 		}
@@ -430,7 +429,7 @@ static retvalue listmissingonce(struct distribution *d, UNUSED(struct target *t)
 	return RET_OK;
 }
 
-retvalue reportcruft(struct database *database, struct distribution *alldistributions) {
+retvalue reportcruft(struct distribution *alldistributions) {
 	struct distribution *d;
 	retvalue result = RET_NOTHING, r;
 
@@ -445,7 +444,7 @@ retvalue reportcruft(struct database *database, struct distribution *alldistribu
 			continue;
 		}
 		if (d->tracking != dt_NONE) {
-			r = tracking_foreach_ro(database, d, listcruft);
+			r = tracking_foreach_ro(d, listcruft);
 			RET_UPDATE(result, r);
 			if (RET_WAS_ERROR(r))
 				return r;
@@ -456,11 +455,11 @@ retvalue reportcruft(struct database *database, struct distribution *alldistribu
 		const struct info_source *s;
 		const struct info_source_version *v;
 
-		r = collect_source_versions(database, d, &sources);
+		r = collect_source_versions( d, &sources);
 		if (!RET_IS_OK(r))
 			continue;
 
-		r = process_binaries(database, d, sources,
+		r = process_binaries( d, sources,
 				listmissingonce, &list);
 		RET_UPDATE(result, r);
 		for (s = sources ; s != NULL ; s = s->next) {

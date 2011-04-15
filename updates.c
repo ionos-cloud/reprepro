@@ -1644,7 +1644,7 @@ static upgrade_decision ud_decide_by_pattern(void *privdata, const struct target
 }
 
 
-static inline retvalue searchformissing(/*@null@*/FILE *out, struct database *database, struct update_target *u) {
+static inline retvalue searchformissing(/*@null@*/FILE *out, struct update_target *u) {
 	struct update_index_connector *uindex;
 	retvalue result, r;
 
@@ -1662,7 +1662,7 @@ static inline retvalue searchformissing(/*@null@*/FILE *out, struct database *da
 	if (verbose > 2 && out != NULL)
 		fprintf(out, "  processing updates for '%s'\n",
 				u->target->identifier);
-	r = upgradelist_initialize(&u->upgradelist, u->target, database);
+	r = upgradelist_initialize(&u->upgradelist, u->target);
 	if (RET_WAS_ERROR(r))
 		return r;
 
@@ -1718,13 +1718,13 @@ static inline retvalue searchformissing(/*@null@*/FILE *out, struct database *da
 	return result;
 }
 
-static retvalue updates_readindices(/*@null@*/FILE *out, struct database *database, struct update_distribution *d) {
+static retvalue updates_readindices(/*@null@*/FILE *out, struct update_distribution *d) {
 	retvalue result, r;
 	struct update_target *u;
 
 	result = RET_NOTHING;
 	for (u=d->targets ; u != NULL ; u=u->next) {
-		r = searchformissing(out, database, u);
+		r = searchformissing(out, u);
 		if (RET_WAS_ERROR(r))
 			u->incomplete = true;
 		RET_UPDATE(result, r);
@@ -1738,7 +1738,7 @@ static retvalue updates_readindices(/*@null@*/FILE *out, struct database *databa
  * Step 10: enqueue downloading of missing packages                         *
  ****************************************************************************/
 
-static retvalue enqueue_upgrade_package(void *calldata, struct database *database, const struct checksumsarray *origfiles, const struct strlist *filekeys, void *privdata) {
+static retvalue enqueue_upgrade_package(void *calldata, const struct checksumsarray *origfiles, const struct strlist *filekeys, void *privdata) {
 	struct update_index_connector *uindex = privdata;
 	struct aptmethod *aptmethod;
 	struct downloadcache *cache = calldata;
@@ -1746,11 +1746,10 @@ static retvalue enqueue_upgrade_package(void *calldata, struct database *databas
 	assert(privdata != NULL);
 	aptmethod = remote_aptmethod(uindex->origin->from);
 	assert(aptmethod != NULL);
-	return downloadcache_addfiles(cache, database, aptmethod,
-			origfiles, filekeys);
+	return downloadcache_addfiles(cache, aptmethod, origfiles, filekeys);
 }
 
-static retvalue updates_enqueue(struct downloadcache *cache, struct database *database, struct update_distribution *distribution) {
+static retvalue updates_enqueue(struct downloadcache *cache, struct update_distribution *distribution) {
 	retvalue result, r;
 	struct update_target *u;
 
@@ -1759,7 +1758,7 @@ static retvalue updates_enqueue(struct downloadcache *cache, struct database *da
 		if (u->nothingnew)
 			continue;
 		r = upgradelist_enqueue(u->upgradelist, enqueue_upgrade_package,
-				cache, database);
+				cache);
 		if (RET_WAS_ERROR(r))
 			u->incomplete = true;
 		RET_UPDATE(result, r);
@@ -1798,7 +1797,7 @@ static void updates_from_callback(void *privdata, const char **rule_p, const cha
 	*rule_p = uindex->origin->pattern->name;
 }
 
-static retvalue updates_install(struct database *database, struct update_distribution *distribution) {
+static retvalue updates_install(struct update_distribution *distribution) {
 	retvalue result, r;
 	struct update_target *u;
 	struct distribution *d = distribution->distribution;
@@ -1809,7 +1808,7 @@ static retvalue updates_install(struct database *database, struct update_distrib
 	for (u=distribution->targets ; u != NULL ; u=u->next) {
 		if (u->nothingnew)
 			continue;
-		r = upgradelist_install(u->upgradelist, d->logger, database,
+		r = upgradelist_install(u->upgradelist, d->logger,
 				u->ignoredelete, updates_from_callback);
 		RET_UPDATE(d->status, r);
 		if (RET_WAS_ERROR(r))
@@ -1821,7 +1820,7 @@ static retvalue updates_install(struct database *database, struct update_distrib
 			break;
 	}
 	if (RET_IS_OK(result) && d->tracking != dt_NONE) {
-		r = tracking_retrack(database, d, false);
+		r = tracking_retrack(d, false);
 		RET_ENDUPDATE(result, r);
 	}
 	return result;
@@ -1999,7 +1998,7 @@ static retvalue updates_prepare(struct update_distribution *distributions, bool 
 }
 
 
-retvalue updates_update(struct database *database, struct update_distribution *distributions, bool nolistsdownload, bool skipold, enum spacecheckmode mode, off_t reserveddb, off_t reservedother) {
+retvalue updates_update(struct update_distribution *distributions, bool nolistsdownload, bool skipold, enum spacecheckmode mode, off_t reserveddb, off_t reservedother) {
 	retvalue result, r;
 	struct update_distribution *d;
 	struct downloadcache *cache;
@@ -2025,7 +2024,7 @@ retvalue updates_update(struct database *database, struct update_distribution *d
 
 	todo = false;
 	for (d=distributions ; d != NULL ; d=d->next) {
-		r = updates_readindices(stdout, database, d);
+		r = updates_readindices(stdout, d);
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(r))
 			break;
@@ -2033,7 +2032,7 @@ retvalue updates_update(struct database *database, struct update_distribution *d
 			if (isbigdelete(d))
 				continue;
 		}
-		r = updates_enqueue(cache, database, d);
+		r = updates_enqueue(cache, d);
 		if (RET_IS_OK(r))
 			todo = true;
 		RET_UPDATE(result, r);
@@ -2091,7 +2090,7 @@ retvalue updates_update(struct database *database, struct update_distribution *d
 	for (d=distributions ; d != NULL ; d=d->next) {
 		if (d->distribution->omitted)
 			continue;
-		r = updates_install(database, d);
+		r = updates_install(d);
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(r))
 			break;
@@ -2222,7 +2221,7 @@ static void updates_dumplist(struct update_distribution *distribution) {
 	}
 }
 
-retvalue updates_checkupdate(struct database *database, struct update_distribution *distributions, bool nolistsdownload, bool skipold) {
+retvalue updates_checkupdate(struct update_distribution *distributions, bool nolistsdownload, bool skipold) {
 	struct update_distribution *d;
 	retvalue result, r;
 	struct aptmethodrun *run IFSTUPIDCC(=NULL);
@@ -2245,7 +2244,7 @@ retvalue updates_checkupdate(struct database *database, struct update_distributi
 		fprintf(stderr, "Calculating packages to get...\n");
 
 	for (d=distributions ; d != NULL ; d=d->next) {
-		r = updates_readindices(stderr, database, d);
+		r = updates_readindices(stderr, d);
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(r))
 			break;
@@ -2255,7 +2254,7 @@ retvalue updates_checkupdate(struct database *database, struct update_distributi
 	return result;
 }
 
-retvalue updates_dumpupdate(struct database *database, struct update_distribution *distributions, bool nolistsdownload, bool skipold) {
+retvalue updates_dumpupdate(struct update_distribution *distributions, bool nolistsdownload, bool skipold) {
 	struct update_distribution *d;
 	retvalue result, r;
 	struct aptmethodrun *run IFSTUPIDCC(=NULL);
@@ -2272,7 +2271,7 @@ retvalue updates_dumpupdate(struct database *database, struct update_distributio
 	}
 
 	for (d=distributions ; d != NULL ; d=d->next) {
-		r = updates_readindices(NULL, database, d);
+		r = updates_readindices(NULL, d);
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(r))
 			break;
@@ -2287,7 +2286,7 @@ retvalue updates_dumpupdate(struct database *database, struct update_distributio
  * delete. (Assuming no unexpected errors occur, like a file missing upstream.*
  *****************************************************************************/
 
-retvalue updates_predelete(struct database *database, struct update_distribution *distributions, bool nolistsdownload, bool skipold) {
+retvalue updates_predelete(struct update_distribution *distributions, bool nolistsdownload, bool skipold) {
 	retvalue result, r;
 	struct update_distribution *d;
 	struct aptmethodrun *run IFSTUPIDCC(= NULL);
@@ -2314,7 +2313,7 @@ retvalue updates_predelete(struct database *database, struct update_distribution
 		struct update_target *u;
 
 		for (u=d->targets ; u != NULL ; u=u->next) {
-			r = searchformissing(stdout, database, u);
+			r = searchformissing(stdout, u);
 			RET_UPDATE(result, r);
 			if (RET_WAS_ERROR(r)) {
 				u->incomplete = true;
@@ -2325,8 +2324,7 @@ retvalue updates_predelete(struct database *database, struct update_distribution
 				u->upgradelist = NULL;
 				continue;
 			}
-			r = upgradelist_predelete(u->upgradelist,
-					dd->logger, database);
+			r = upgradelist_predelete(u->upgradelist, dd->logger);
 			RET_UPDATE(dd->status, r);
 			if (RET_WAS_ERROR(r))
 				u->incomplete = true;
@@ -2336,7 +2334,7 @@ retvalue updates_predelete(struct database *database, struct update_distribution
 			if (RET_WAS_ERROR(r))
 				return r;
 			if (RET_IS_OK(result) && dd->tracking != dt_NONE) {
-				r = tracking_retrack(database, dd, false);
+				r = tracking_retrack(dd, false);
 				RET_ENDUPDATE(result, r);
 			}
 		}

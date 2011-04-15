@@ -79,7 +79,6 @@ retvalue downloadcache_free(struct downloadcache *download) {
 static retvalue downloaditem_callback(enum queue_action action, void *privdata, void *privdata2, const char *uri, const char *gotfilename, const char *wantedfilename, /*@null@*/const struct checksums *checksums, const char *method) {
 	struct downloaditem *d = privdata;
 	struct downloadcache *cache = privdata2;
-	struct database *database = cache->database;
 	struct checksums *read_checksums = NULL;
 	retvalue r;
 	bool improves;
@@ -187,7 +186,7 @@ static retvalue downloaditem_callback(enum queue_action action, void *privdata, 
 			puts("bytes");
 		}
 	}
-	r = files_add_checksums(database, d->filekey, d->checksums);
+	r = files_add_checksums(d->filekey, d->checksums);
 	if (RET_WAS_ERROR(r))
 		return r;
 	d->done = true;
@@ -223,7 +222,7 @@ static retvalue downloaditem_callback(enum queue_action action, void *privdata, 
 /* queue a new file to be downloaded:
  * results in RET_ERROR_WRONG_MD5, if someone else already asked
  * for the same destination with other md5sum created. */
-retvalue downloadcache_add(struct downloadcache *cache, struct database *database, struct aptmethod *method, const char *orig, const char *filekey, const struct checksums *checksums) {
+retvalue downloadcache_add(struct downloadcache *cache, struct aptmethod *method, const char *orig, const char *filekey, const struct checksums *checksums) {
 
 	struct downloaditem *i;
 	struct downloaditem *item, **h, *parent;
@@ -231,7 +230,7 @@ retvalue downloadcache_add(struct downloadcache *cache, struct database *databas
 	retvalue r;
 
 	assert (cache != NULL && method != NULL);
-	r = files_expect(database, filekey, checksums, false);
+	r = files_expect(filekey, checksums, false);
 	if (r != RET_NOTHING)
 		return r;
 
@@ -279,7 +278,6 @@ retvalue downloadcache_add(struct downloadcache *cache, struct database *databas
 		freeitem(item);
 		return r;
 	}
-	cache->database = database;
 	r = aptmethod_enqueue(method, orig, fullfilename,
 			downloaditem_callback, item, cache);
 	if (RET_WAS_ERROR(r)) {
@@ -297,11 +295,7 @@ retvalue downloadcache_add(struct downloadcache *cache, struct database *databas
 }
 
 /* some as above, only for more files... */
-retvalue downloadcache_addfiles(struct downloadcache *cache,
-		struct database *database,
-		struct aptmethod *method,
-		const struct checksumsarray *origfiles,
-		const struct strlist *filekeys) {
+retvalue downloadcache_addfiles(struct downloadcache *cache, struct aptmethod *method, const struct checksumsarray *origfiles, const struct strlist *filekeys) {
 	retvalue result, r;
 	int i;
 
@@ -311,7 +305,7 @@ retvalue downloadcache_addfiles(struct downloadcache *cache,
 	result = RET_NOTHING;
 
 	for (i = 0 ; i < filekeys->count ; i++) {
-		r = downloadcache_add(cache, database, method,
+		r = downloadcache_add(cache, method,
 			origfiles->names.values[i],
 			filekeys->values[i],
 			origfiles->checksums[i]);

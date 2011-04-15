@@ -459,7 +459,7 @@ static retvalue callexporthook(/*@null@*/const char *hook, const char *relfilena
 	}
 }
 
-retvalue export_target(const char *relativedir, struct target *target, struct database *database,  const struct exportmode *exportmode, struct release *release, bool onlyifmissing, bool snapshot) {
+retvalue export_target(const char *relativedir, struct target *target,  const struct exportmode *exportmode, struct release *release, bool onlyifmissing, bool snapshot) {
 	retvalue r;
 	struct filetorelease *file;
 	const char *status;
@@ -493,7 +493,7 @@ retvalue export_target(const char *relativedir, struct target *target, struct da
 					exportdescription(exportmode, buffer, 100));
 			status = "new";
 		}
-		r = target_openiterator(target, database, READONLY, &iterator);
+		r = target_openiterator(target, READONLY, &iterator);
 		if (RET_WAS_ERROR(r)) {
 			release_abortfile(file);
 			free(relfilename);

@@ -18,30 +18,30 @@
 struct references;
 
 /* remove all references from a given identifier */
-retvalue references_remove(struct database *, const char *neededby);
+retvalue references_remove(const char *neededby);
 
 /* Add an reference by <identifer> for the given <files>,
  * excluding <exclude>, if it is nonNULL. */
-retvalue references_insert(struct database *, const char *, const struct strlist *, const struct strlist * /*exclude*/);
+retvalue references_insert(const char *, const struct strlist *, const struct strlist * /*exclude*/);
 
 /* Add an reference by <identifer> for the given <files>,
  * do not error out if reference already exists */
-retvalue references_add(struct database *, const char *, const struct strlist *);
+retvalue references_add(const char *, const struct strlist *);
 
 /* Remove reference by <identifer> for the given <oldfiles>,
  * excluding <exclude>, if it is nonNULL. */
-retvalue references_delete(struct database *, const char *, struct strlist *, /*@null@*/const struct strlist * /*exclude*/);
+retvalue references_delete(const char *, struct strlist *, /*@null@*/const struct strlist * /*exclude*/);
 
 /* add an reference to a file for an identifier. */
-retvalue references_increment(struct database *, const char * /*needed*/, const char * /*needey*/);
+retvalue references_increment(const char * /*needed*/, const char * /*needey*/);
 
 /* delete reference to a file for an identifier */
-retvalue references_decrement(struct database *, const char * /*needed*/, const char * /*needey*/);
+retvalue references_decrement(const char * /*needed*/, const char * /*needey*/);
 
 /* check if an item is needed, returns RET_NOTHING if not */
-retvalue references_isused(struct database *, const char *);
+retvalue references_isused(const char *);
 
 /* check if a reference is found as expected */
-retvalue references_check(struct database *, const char * /*referee*/, const struct strlist */*what*/);
+retvalue references_check(const char * /*referee*/, const struct strlist */*what*/);
 
 #endif

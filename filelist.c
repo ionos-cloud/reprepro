@@ -428,7 +428,7 @@ static retvalue filelist_addfiles(struct filelist_list *list, const struct filel
 	return RET_OK;
 }
 
-retvalue filelist_addpackage(struct filelist_list *list, struct database *database, const char *packagename, const char *section, const char *filekey) {
+retvalue filelist_addpackage(struct filelist_list *list, const char *packagename, const char *section, const char *filekey) {
 	const struct filelist_package *package IFSTUPIDCC(=NULL);
 	char *debfilename, *contents = NULL;
 	retvalue r;
@@ -440,7 +440,7 @@ retvalue filelist_addpackage(struct filelist_list *list, struct database *databa
 	if (RET_WAS_ERROR(r))
 		return r;
 
-	r = table_gettemprecord(database->contents, filekey, &c, &len);
+	r = table_gettemprecord(rdb_contents, filekey, &c, &len);
 	if (r == RET_NOTHING) {
 		if (verbose > 3)
 			printf("Reading filelist for %s\n", filekey);
@@ -455,16 +455,15 @@ retvalue filelist_addpackage(struct filelist_list *list, struct database *databa
 	if (RET_IS_OK(r)) {
 		r = filelist_addfiles(list, package, filekey, c, len + 1);
 		if (contents != NULL)
-			r = table_adduniqsizedrecord(database->contents,
-					filekey,
+			r = table_adduniqsizedrecord(rdb_contents, filekey,
 					contents, len + 1, true, false);
 	}
 	free(contents);
 	return r;
 }
 
-retvalue fakefilelist(struct database *database, const char *filekey) {
-	return table_adduniqsizedrecord(database->contents, filekey,
+retvalue fakefilelist(const char *filekey) {
+	return table_adduniqsizedrecord(rdb_contents, filekey,
 			"", 1, true, false);
 }
 

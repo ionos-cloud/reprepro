@@ -354,7 +354,7 @@ retvalue sources_doreoverride(const struct target *target, const char *packagena
 	return RET_OK;
 }
 
-retvalue sources_retrack(const char *sourcename, const char *chunk, trackingdb tracks, struct database *database) {
+retvalue sources_retrack(const char *sourcename, const char *chunk, trackingdb tracks) {
 	retvalue r;
 	char *sourceversion;
 	struct trackedpackage *pkg;
@@ -399,8 +399,7 @@ retvalue sources_retrack(const char *sourcename, const char *chunk, trackingdb t
 	//  where something fails?
 	for (i = 0 ; i < filekeys.count ; i++) {
 		r = trackedpackage_addfilekey(tracks, pkg,
-				ft_SOURCE, filekeys.values[i],
-				true, database);
+				ft_SOURCE, filekeys.values[i], true);
 		filekeys.values[i] = NULL;
 		if (RET_WAS_ERROR(r)) {
 			strlist_done(&filekeys);

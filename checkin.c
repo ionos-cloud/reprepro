@@ -878,7 +878,7 @@ static retvalue changes_check(const struct distribution *distribution, const cha
 	return r;
 }
 
-static retvalue changes_checkfiles(struct database *database, const char *filename, struct changes *changes) {
+static retvalue changes_checkfiles(const char *filename, struct changes *changes) {
 	struct fileentry *e;
 	retvalue r;
 
@@ -916,7 +916,7 @@ static retvalue changes_checkfiles(struct database *database, const char *filena
 		if (FAILEDTOALLOC(e->filekey))
 			return RET_ERROR_OOM;
 		/* do not copy yet, but only check if it could be included */
-		r = files_canadd(database, e->filekey, e->checksums);
+		r = files_canadd(e->filekey, e->checksums);
 		if (RET_WAS_ERROR(r))
 			return r;
 		/* If is was already there, remember that */
@@ -947,7 +947,7 @@ static retvalue changes_checkfiles(struct database *database, const char *filena
 	return RET_OK;
 }
 
-static retvalue changes_includefiles(struct database *database, struct changes *changes) {
+static retvalue changes_includefiles(struct changes *changes) {
 	struct fileentry *e;
 	retvalue r;
 
@@ -959,9 +959,8 @@ static retvalue changes_includefiles(struct database *database, struct changes *
 		if (e->wasalreadythere && checksums_iscomplete(e->checksums))
 			continue;
 
-		r = files_checkincludefile(database,
-				changes->incomingdirectory, e->basename,
-				e->filekey, &e->checksums);
+		r = files_checkincludefile(changes->incomingdirectory,
+				e->basename, e->filekey, &e->checksums);
 		if (RET_WAS_ERROR(r))
 			return r;
 	}
@@ -1003,10 +1002,10 @@ static retvalue changes_deleteleftoverfiles(struct changes *changes, int delete)
 	return result;
 }
 
-static retvalue changes_check_sourcefile(struct changes *changes, struct fileentry *dsc, struct database *database, const char *basefilename, const char *filekey, struct checksums **checksums_p) {
+static retvalue changes_check_sourcefile(struct changes *changes, struct fileentry *dsc,  const char *basefilename, const char *filekey, struct checksums **checksums_p) {
 	retvalue r;
 
-	r = files_expect(database, filekey, *checksums_p, false);
+	r = files_expect(filekey, *checksums_p, false);
 	if (RET_WAS_ERROR(r))
 		return r;
 	// TODO: get additionals checksum out of database, as future
@@ -1026,11 +1025,11 @@ static retvalue changes_check_sourcefile(struct changes *changes, struct fileent
 "Perhaps you forgot to give dpkg-buildpackage the -sa option.\n"
 "--ignore=missingfile was given, searching for file...\n", filekey);
 
-	return files_checkincludefile(database, changes->incomingdirectory,
+	return files_checkincludefile(changes->incomingdirectory,
 			basefilename, filekey, checksums_p);
 }
 
-static retvalue dsc_prepare(struct changes *changes, struct fileentry *dsc, struct database *database, struct distribution *distribution, const char *dscfilename){
+static retvalue dsc_prepare(struct changes *changes, struct fileentry *dsc,  struct distribution *distribution, const char *dscfilename){
 	retvalue r;
 	const struct overridedata *oinfo;
 	char *dscbasename;
@@ -1124,7 +1123,7 @@ static retvalue dsc_prepare(struct changes *changes, struct fileentry *dsc, stru
 	for (i = 1 ; i < dsc->pkg.dsc.files.names.count ; i ++) {
 		if (!RET_WAS_ERROR(r)) {
 			r = changes_check_sourcefile(
-				changes, dsc, database,
+				changes, dsc,
 				dsc->pkg.dsc.files.names.values[i],
 				dsc->needed_filekeys.values[i],
 				&dsc->pkg.dsc.files.checksums[i]);
@@ -1144,7 +1143,7 @@ static retvalue dsc_prepare(struct changes *changes, struct fileentry *dsc, stru
 }
 
 
-static retvalue changes_checkpkgs(struct database *database, struct distribution *distribution, struct changes *changes) {
+static retvalue changes_checkpkgs(struct distribution *distribution, struct changes *changes) {
 	struct fileentry *e;
 	retvalue r;
 
@@ -1188,7 +1187,7 @@ static retvalue changes_checkpkgs(struct database *database, struct distribution
 
 				assert (atom_defined(changes->srccomponent));
 				assert (changes->srcdirectory!=NULL);
-				r = dsc_prepare(changes, e, database,
+				r = dsc_prepare(changes, e,
 						distribution, fullfilename);
 			} else
 				r = RET_ERROR;
@@ -1203,7 +1202,7 @@ static retvalue changes_checkpkgs(struct database *database, struct distribution
 	return r;
 }
 
-static retvalue changes_includepkgs(struct database *database, struct distribution *distribution, struct changes *changes, /*@null@*/struct trackingdata *trackingdata, const struct atomlist *forcearchitectures, bool *missed_p) {
+static retvalue changes_includepkgs(struct distribution *distribution, struct changes *changes, /*@null@*/struct trackingdata *trackingdata, const struct atomlist *forcearchitectures, bool *missed_p) {
 	struct fileentry *e;
 	retvalue result, r;
 
@@ -1225,7 +1224,7 @@ static retvalue changes_includepkgs(struct database *database, struct distributi
 		if (interrupted())
 			return RET_ERROR_INTERRUPTED;
 		if (e->type == fe_DEB) {
-			r = deb_addprepared(e->pkg.deb, database,
+			r = deb_addprepared(e->pkg.deb,
 				/* architecture all needs this, the rest is
 				 * already filtered out */
 				(e->architecture_into == architecture_all)?
@@ -1234,7 +1233,7 @@ static retvalue changes_includepkgs(struct database *database, struct distributi
 			if (r == RET_NOTHING)
 				*missed_p = true;
 		} else if (e->type == fe_UDEB) {
-			r = deb_addprepared(e->pkg.deb, database,
+			r = deb_addprepared(e->pkg.deb,
 				/* architecture all needs this, the rest is
 				 * already filtered out */
 				(e->architecture_into == architecture_all)?
@@ -1243,7 +1242,7 @@ static retvalue changes_includepkgs(struct database *database, struct distributi
 			if (r == RET_NOTHING)
 				*missed_p = true;
 		} else if (e->type == fe_DSC) {
-			r = dsc_addprepared(database, &e->pkg.dsc,
+			r = dsc_addprepared(&e->pkg.dsc,
 					changes->srccomponent,
 					&e->needed_filekeys,
 					distribution, trackingdata);
@@ -1252,14 +1251,12 @@ static retvalue changes_includepkgs(struct database *database, struct distributi
 		} else if (e->type == fe_LOG && trackingdata != NULL) {
 			r = trackedpackage_addfilekey(trackingdata->tracks,
 					trackingdata->pkg,
-					ft_LOG, e->filekey, false,
-					database);
+					ft_LOG, e->filekey, false);
 			e->filekey = NULL;
 		} else if (e->type == fe_BYHAND && trackingdata != NULL) {
 			r = trackedpackage_addfilekey(trackingdata->tracks,
 					trackingdata->pkg,
-					ft_XTRA_DATA, e->filekey, false,
-					database);
+					ft_XTRA_DATA, e->filekey, false);
 			e->filekey = NULL;
 		}
 		RET_UPDATE(result, r);
@@ -1356,7 +1353,7 @@ static bool permissionssuffice(struct changes *changes, const struct distributio
 /* insert the given .changes into the mirror in the <distribution>
  * if forcecomponent, forcesection or forcepriority is NULL
  * get it from the files or try to guess it. */
-retvalue changes_add(struct database *database, trackingdb const tracks, const struct atomlist *packagetypes, component_t forcecomponent, const struct atomlist *forcearchitectures, const char *forcesection, const char *forcepriority, struct distribution *distribution, const char *changesfilename, int delete) {
+retvalue changes_add(trackingdb const tracks, const struct atomlist *packagetypes, component_t forcecomponent, const struct atomlist *forcearchitectures, const char *forcesection, const char *forcepriority, struct distribution *distribution, const char *changesfilename, int delete) {
 	retvalue result, r;
 	struct changes *changes;
 	struct trackingdata trackingdata;
@@ -1420,17 +1417,17 @@ retvalue changes_add(struct database *database, trackingdb const tracks, const s
 		RET_UPDATE(r, RET_ERROR_INTERRUPTED);
 
 	if (!RET_WAS_ERROR(r))
-		r = changes_checkfiles(database, changesfilename, changes);
+		r = changes_checkfiles(changesfilename, changes);
 
 	if (interrupted())
 		RET_UPDATE(r, RET_ERROR_INTERRUPTED);
 
 	/* add files in the pool */
 	if (!RET_WAS_ERROR(r))
-		r = changes_includefiles(database, changes);
+		r = changes_includefiles(changes);
 
 	if (!RET_WAS_ERROR(r))
-		r = changes_checkpkgs(database, distribution, changes);
+		r = changes_checkpkgs(distribution, changes);
 
 	if (RET_WAS_ERROR(r)) {
 		changes_free(changes);
@@ -1463,8 +1460,7 @@ retvalue changes_add(struct database *database, trackingdb const tracks, const s
 			if (interrupted())
 				r = RET_ERROR_INTERRUPTED;
 			else
-				r = files_preinclude(database,
-					changesfilename,
+				r = files_preinclude(changesfilename,
 					changes->changesfilekey,
 					NULL);
 			if (RET_WAS_ERROR(r)) {
@@ -1482,7 +1478,7 @@ retvalue changes_add(struct database *database, trackingdb const tracks, const s
 	}
 
 	/* add the source and binary packages in the given distribution */
-	result = changes_includepkgs(database, distribution, changes,
+	result = changes_includepkgs(distribution, changes,
 		(tracks!=NULL)?&trackingdata:NULL, forcearchitectures,
 		&somethingwasmissed);
 
@@ -1505,11 +1501,10 @@ retvalue changes_add(struct database *database, trackingdb const tracks, const s
 			}
 
 			r = trackedpackage_addfilekey(tracks, trackingdata.pkg,
-					ft_CHANGES, changesfilekey, false,
-					database);
+					ft_CHANGES, changesfilekey, false);
 			RET_ENDUPDATE(result, r);
 		}
-		r = trackingdata_finish(tracks, &trackingdata, database);
+		r = trackingdata_finish(tracks, &trackingdata);
 		RET_ENDUPDATE(result, r);
 		if (RET_WAS_ERROR(result)) {
 			changes_free(changes);

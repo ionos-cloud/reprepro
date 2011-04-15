@@ -1,8 +1,8 @@
 #ifndef REPREPRO_SOURCECHECK_H
 #define REPREPRO_SOURCECHECK_H
 
-retvalue unusedsources(struct database *, struct distribution *);
-retvalue sourcemissing(struct database *, struct distribution *);
-retvalue reportcruft(struct database *, struct distribution *);
+retvalue unusedsources(struct distribution *);
+retvalue sourcemissing(struct distribution *);
+retvalue reportcruft(struct distribution *);
 
 #endif

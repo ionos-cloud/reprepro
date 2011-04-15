@@ -136,7 +136,7 @@ static retvalue save_package_version(struct upgradelist *upgrade, const char *pa
 	return RET_OK;
 }
 
-retvalue upgradelist_initialize(struct upgradelist **ul, struct target *t, struct database *database) {
+retvalue upgradelist_initialize(struct upgradelist **ul, struct target *t) {
 	struct upgradelist *upgrade;
 	retvalue r, r2;
 	const char *packagename, *controlchunk;
@@ -150,7 +150,7 @@ retvalue upgradelist_initialize(struct upgradelist **ul, struct target *t, struc
 
 	/* Beginn with the packages currently in the archive */
 
-	r = target_openiterator(t, database, READONLY, &iterator);
+	r = target_openiterator(t, READONLY, &iterator);
 	if (RET_WAS_ERROR(r)) {
 		upgradelist_free(upgrade);
 		return r;
@@ -518,13 +518,13 @@ retvalue upgradelist_update(struct upgradelist *upgrade, void *privdata, const c
 	return result;
 }
 
-retvalue upgradelist_pull(struct upgradelist *upgrade, struct target *source, upgrade_decide_function *predecide, void *decide_data, struct database *database, void *privdata) {
+retvalue upgradelist_pull(struct upgradelist *upgrade, struct target *source, upgrade_decide_function *predecide, void *decide_data, void *privdata) {
 	retvalue result, r;
 	const char *package, *control;
 	struct target_cursor iterator;
 
 	upgrade->last = NULL;
-	r = target_openiterator(source, database, READONLY, &iterator);
+	r = target_openiterator(source, READONLY, &iterator);
 	if (RET_WAS_ERROR(r))
 		return r;
 	result = RET_NOTHING;
@@ -598,14 +598,13 @@ retvalue upgradelist_deleteall(struct upgradelist *upgrade) {
 	return RET_OK;
 }
 
-retvalue upgradelist_listmissing(struct upgradelist *upgrade, struct database *database){
+retvalue upgradelist_listmissing(struct upgradelist *upgrade){
 	struct package_data *pkg;
 
 	for (pkg = upgrade->list ; pkg != NULL ; pkg = pkg->next) {
 		if (pkg->version == pkg->new_version) {
 			retvalue r;
-			r = files_printmissing(database,
-					&pkg->new_filekeys,
+			r = files_printmissing(&pkg->new_filekeys,
 					&pkg->new_origfiles);
 			if (RET_WAS_ERROR(r))
 				return r;
@@ -618,15 +617,14 @@ retvalue upgradelist_listmissing(struct upgradelist *upgrade, struct database *d
 
 
 /* request all wanted files in the downloadlists given before */
-retvalue upgradelist_enqueue(struct upgradelist *upgrade, enqueueaction *action, void *calldata, struct database *database) {
+retvalue upgradelist_enqueue(struct upgradelist *upgrade, enqueueaction *action, void *calldata) {
 	struct package_data *pkg;
 	retvalue result, r;
 	result = RET_NOTHING;
 	assert(upgrade != NULL);
 	for (pkg = upgrade->list ; pkg != NULL ; pkg = pkg->next) {
 		if (pkg->version == pkg->new_version && !pkg->deleted) {
-			r = action(calldata, database,
-					&pkg->new_origfiles,
+			r = action(calldata, &pkg->new_origfiles,
 					&pkg->new_filekeys, pkg->privdata);
 			RET_UPDATE(result, r);
 			if (RET_WAS_ERROR(r))
@@ -637,13 +635,13 @@ retvalue upgradelist_enqueue(struct upgradelist *upgrade, enqueueaction *action,
 }
 
 /* delete all packages that will not be kept (i.e. either deleted or upgraded) */
-retvalue upgradelist_predelete(struct upgradelist *upgrade, struct logger *logger, struct database *database) {
+retvalue upgradelist_predelete(struct upgradelist *upgrade, struct logger *logger) {
 	struct package_data *pkg;
 	retvalue result, r;
 	result = RET_NOTHING;
 	assert(upgrade != NULL);
 
-	result = target_initpackagesdb(upgrade->target, database, READWRITE);
+	result = target_initpackagesdb(upgrade->target, READWRITE);
 	if (RET_WAS_ERROR(result))
 		return result;
 	for (pkg = upgrade->list ; pkg != NULL ; pkg = pkg->next) {
@@ -654,8 +652,7 @@ retvalue upgradelist_predelete(struct upgradelist *upgrade, struct logger *logge
 				r = RET_ERROR_INTERRUPTED;
 			else
 				r = target_removepackage(upgrade->target,
-						logger, database,
-						pkg->name, NULL);
+						logger, pkg->name, NULL);
 			RET_UPDATE(result, r);
 			if (RET_WAS_ERROR(r))
 				break;
@@ -682,14 +679,14 @@ bool upgradelist_isbigdelete(const struct upgradelist *upgrade) {
 	return deleted >= 10 && all/deleted < 5;
 }
 
-retvalue upgradelist_install(struct upgradelist *upgrade, struct logger *logger, struct database *database, bool ignoredelete, void (*callback)(void *, const char **, const char **)){
+retvalue upgradelist_install(struct upgradelist *upgrade, struct logger *logger, bool ignoredelete, void (*callback)(void *, const char **, const char **)){
 	struct package_data *pkg;
 	retvalue result, r;
 
 	if (upgrade->list == NULL)
 		return RET_NOTHING;
 
-	result = target_initpackagesdb(upgrade->target, database, READWRITE);
+	result = target_initpackagesdb(upgrade->target, READWRITE);
 	if (RET_WAS_ERROR(result))
 		return result;
 	result = RET_NOTHING;
@@ -702,8 +699,7 @@ retvalue upgradelist_install(struct upgradelist *upgrade, struct logger *logger,
 				|| pkg->architecture ==
 					upgrade->target->architecture);
 
-			r = files_checkorimprove(database,
-					&pkg->new_filekeys,
+			r = files_checkorimprove(&pkg->new_filekeys,
 					pkg->new_origfiles.checksums);
 			if (! RET_WAS_ERROR(r)) {
 
@@ -727,8 +723,7 @@ retvalue upgradelist_install(struct upgradelist *upgrade, struct logger *logger,
 					r = RET_ERROR_INTERRUPTED;
 				else
 					r = target_addpackage(upgrade->target,
-						logger, database,
-						pkg->name,
+						logger, pkg->name,
 						pkg->new_version,
 						pkg->new_control,
 						&pkg->new_filekeys, true,
@@ -745,8 +740,7 @@ retvalue upgradelist_install(struct upgradelist *upgrade, struct logger *logger,
 				r = RET_ERROR_INTERRUPTED;
 			else
 				r = target_removepackage(upgrade->target,
-						logger, database,
-						pkg->name, NULL);
+						logger, pkg->name, NULL);
 			RET_UPDATE(result, r);
 			if (RET_WAS_ERROR(r))
 				break;

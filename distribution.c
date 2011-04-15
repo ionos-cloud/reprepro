@@ -510,7 +510,7 @@ retvalue distribution_readall(struct distribution **distributions) {
 }
 
 /* call <action> for each package */
-retvalue distribution_foreach_package(struct distribution *distribution, struct database *database, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes, each_package_action action, each_target_action target_action, void *data) {
+retvalue distribution_foreach_package(struct distribution *distribution, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes, each_package_action action, each_target_action target_action, void *data) {
 	retvalue result, r;
 	struct target *t;
 	struct target_cursor iterator IFSTUPIDCC(=TARGET_CURSOR_ZERO);
@@ -521,19 +521,18 @@ retvalue distribution_foreach_package(struct distribution *distribution, struct 
 		if (!target_matches(t, components, architectures, packagetypes))
 			continue;
 		if (target_action != NULL) {
-			r = target_action(database, distribution, t, data);
+			r = target_action(distribution, t, data);
 			if (RET_WAS_ERROR(r))
 				return result;
 			if (r == RET_NOTHING)
 				continue;
 		}
-		r = target_openiterator(t, database, READONLY, &iterator);
+		r = target_openiterator(t, READONLY, &iterator);
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(r))
 			return result;
 		while (target_nextpackage(&iterator, &package, &control)) {
-			r = action(database, distribution, t,
-					package, control, data);
+			r = action(distribution, t, package, control, data);
 			RET_UPDATE(result, r);
 			if (RET_WAS_ERROR(r))
 				break;
@@ -546,7 +545,7 @@ retvalue distribution_foreach_package(struct distribution *distribution, struct 
 	return result;
 }
 
-retvalue distribution_foreach_package_c(struct distribution *distribution, struct database *database, const struct atomlist *components, architecture_t architecture, packagetype_t packagetype, each_package_action action, void *data) {
+retvalue distribution_foreach_package_c(struct distribution *distribution, const struct atomlist *components, architecture_t architecture, packagetype_t packagetype, each_package_action action, void *data) {
 	retvalue result, r;
 	struct target *t;
 	const char *package, *control;
@@ -561,13 +560,12 @@ retvalue distribution_foreach_package_c(struct distribution *distribution, struc
 			continue;
 		if (limitation_missed(packagetype, t->packagetype))
 			continue;
-		r = target_openiterator(t, database, READONLY, &iterator);
+		r = target_openiterator(t, READONLY, &iterator);
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(r))
 			return result;
 		while (target_nextpackage(&iterator, &package, &control)) {
-			r = action(database, distribution, t,
-					package, control, data);
+			r = action(distribution, t, package, control, data);
 			RET_UPDATE(result, r);
 			if (RET_WAS_ERROR(r))
 				break;
@@ -728,7 +726,7 @@ retvalue distribution_get(struct distribution *alldistributions, const char *nam
 	return RET_OK;
 }
 
-retvalue distribution_snapshot(struct distribution *distribution, struct database *database, const char *name) {
+retvalue distribution_snapshot(struct distribution *distribution, const char *name) {
 	struct target *target;
 	retvalue result, r;
 	struct release *release;
@@ -747,7 +745,7 @@ retvalue distribution_snapshot(struct distribution *distribution, struct databas
 		RET_ENDUPDATE(result, r);
 		if (RET_WAS_ERROR(r))
 			break;
-		r = target_export(target, database, false, true, release);
+		r = target_export(target, false, true, release);
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(r))
 			break;
@@ -774,7 +772,7 @@ retvalue distribution_snapshot(struct distribution *distribution, struct databas
 	id = mprintf("s=%s=%s", distribution->codename, name);
 	if (FAILEDTOALLOC(id))
 		return RET_ERROR_OOM;
-	r = distribution_foreach_package(distribution, database,
+	r = distribution_foreach_package(distribution,
 			atom_unknown, atom_unknown, atom_unknown,
 			package_referenceforsnapshot, NULL, id);
 	free(id);
@@ -782,7 +780,7 @@ retvalue distribution_snapshot(struct distribution *distribution, struct databas
 	return result;
 }
 
-static retvalue export(struct distribution *distribution, struct database *database, bool onlyneeded) {
+static retvalue export(struct distribution *distribution, bool onlyneeded) {
 	struct target *target;
 	retvalue result, r;
 	struct release *release;
@@ -796,8 +794,7 @@ static retvalue export(struct distribution *distribution, struct database *datab
 		return RET_ERROR;
 	}
 
-	r = release_init(&release, database,
-			distribution->codename, distribution->suite,
+	r = release_init(&release, distribution->codename, distribution->suite,
 			distribution->fakecomponentprefix);
 	if (RET_WAS_ERROR(r))
 		return r;
@@ -809,7 +806,7 @@ static retvalue export(struct distribution *distribution, struct database *datab
 		RET_ENDUPDATE(result, r);
 		if (RET_WAS_ERROR(r))
 			break;
-		r = target_export(target, database, onlyneeded, false, release);
+		r = target_export(target, onlyneeded, false, release);
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(r))
 			break;
@@ -823,8 +820,7 @@ static retvalue export(struct distribution *distribution, struct database *datab
 		}
 	}
 	if (!RET_WAS_ERROR(result) && distribution->contents.flags.enabled) {
-		r = contents_generate(database, distribution,
-				release, onlyneeded);
+		r = contents_generate(distribution, release, onlyneeded);
 	}
 	if (!RET_WAS_ERROR(result)) {
 		result = release_prepare(release, distribution, onlyneeded);
@@ -861,8 +857,8 @@ static retvalue export(struct distribution *distribution, struct database *datab
 	return result;
 }
 
-retvalue distribution_fullexport(struct distribution *distribution, struct database *database) {
-	return export(distribution, database, false);
+retvalue distribution_fullexport(struct distribution *distribution) {
+	return export(distribution, false);
 }
 
 retvalue distribution_freelist(struct distribution *distributions) {
@@ -878,7 +874,7 @@ retvalue distribution_freelist(struct distribution *distributions) {
 	return result;
 }
 
-retvalue distribution_exportlist(enum exportwhen when, struct distribution *distributions, struct database *database) {
+retvalue distribution_exportlist(enum exportwhen when, struct distribution *distributions) {
 	retvalue result, r;
 	bool todo = false;
 	struct distribution *d;
@@ -935,7 +931,7 @@ retvalue distribution_exportlist(enum exportwhen when, struct distribution *dist
 "Please report this and how you got this message as bugreport. Thanks.\n"
 "Doing a export despite --export=changed....\n",
 						d->codename);
-					r = export(d, database, true);
+					r = export(d, true);
 					RET_UPDATE(result, r);
 					break;
 				}
@@ -945,14 +941,14 @@ retvalue distribution_exportlist(enum exportwhen when, struct distribution *dist
 					(d->status == RET_NOTHING &&
 					  when != EXPORT_CHANGED) ||
 					when == EXPORT_FORCE);
-			r = export(d, database, true);
+			r = export(d, true);
 			RET_UPDATE(result, r);
 		}
 	}
 	return result;
 }
 
-retvalue distribution_export(enum exportwhen when, struct distribution *distribution, struct database *database) {
+retvalue distribution_export(enum exportwhen when, struct distribution *distribution) {
 	if (when == EXPORT_NEVER) {
 		if (verbose >= 10)
 			fprintf(stderr,
@@ -986,7 +982,7 @@ retvalue distribution_export(enum exportwhen when, struct distribution *distribu
 "Please report this and how you got this message as bugreport. Thanks.\n"
 "Doing a export despite --export=changed....\n",
 						distribution->codename);
-				return export(distribution, database, true);
+				return export(distribution, true);
 				break;
 			}
 		}
@@ -995,7 +991,7 @@ retvalue distribution_export(enum exportwhen when, struct distribution *distribu
 	}
 	if (verbose >= 0)
 		printf("Exporting indices...\n");
-	return export(distribution, database, true);
+	return export(distribution, true);
 }
 
 /* get a pointer to the apropiate part of the linked list */
@@ -1115,7 +1111,7 @@ retvalue distribution_prepareforwriting(struct distribution *distribution) {
 }
 
 /* delete every package decider returns RET_OK for */
-retvalue distribution_remove_packages(struct distribution *distribution, struct database *database, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes, each_package_action decider, struct trackingdata *trackingdata, void *data) {
+retvalue distribution_remove_packages(struct distribution *distribution, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes, each_package_action decider, struct trackingdata *trackingdata, void *data) {
 	retvalue result, r;
 	struct target *t;
 	struct target_cursor iterator;
@@ -1132,20 +1128,19 @@ retvalue distribution_remove_packages(struct distribution *distribution, struct 
 	for (t = distribution->targets ; t != NULL ; t = t->next) {
 		if (!target_matches(t, components, architectures, packagetypes))
 			continue;
-		r = target_openiterator(t, database, READWRITE, &iterator);
+		r = target_openiterator(t, READWRITE, &iterator);
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(r))
 			return result;
 		while (target_nextpackage(&iterator, &package, &control)) {
-			r = decider(database, distribution, t,
+			r = decider(distribution, t,
 					package, control, data);
 			RET_UPDATE(result, r);
 			if (RET_WAS_ERROR(r))
 				break;
 			if (RET_IS_OK(r)) {
 				r = target_removepackage_by_cursor(&iterator,
-					distribution->logger, database,
-					trackingdata);
+					distribution->logger, trackingdata);
 				RET_UPDATE(result, r);
 				RET_UPDATE(distribution->status, r);
 			}

@@ -116,27 +116,27 @@ retvalue distribution_prepareforwriting(struct distribution *);
 
 typedef retvalue distribution_each_action(void *, struct target *, struct distribution *);
 
-typedef retvalue each_target_action(struct database *, struct distribution *, struct target *, void *);
-typedef retvalue each_package_action(struct database *, struct distribution *, struct target *, const char *, const char *, void *);
+typedef retvalue each_target_action(struct distribution *, struct target *, void *);
+typedef retvalue each_package_action(struct distribution *, struct target *, const char *, const char *, void *);
 
 /* call <action> for each package of <distribution> */
-retvalue distribution_foreach_package(struct distribution *, struct database *, /*@null@*/const struct atomlist *, /*@null@*/const struct atomlist *, /*@null@*/const struct atomlist *, each_package_action, /*@null@*/each_target_action, void *);
-retvalue distribution_foreach_package_c(struct distribution *, struct database *, /*@null@*/const struct atomlist *, architecture_t, packagetype_t, each_package_action, void *);
+retvalue distribution_foreach_package(struct distribution *, /*@null@*/const struct atomlist *, /*@null@*/const struct atomlist *, /*@null@*/const struct atomlist *, each_package_action, /*@null@*/each_target_action, void *);
+retvalue distribution_foreach_package_c(struct distribution *, /*@null@*/const struct atomlist *, architecture_t, packagetype_t, each_package_action, void *);
 
 /* delete every package decider returns RET_OK for */
-retvalue distribution_remove_packages(struct distribution *, struct database *, const struct atomlist *, const struct atomlist *, const struct atomlist *, each_package_action decider, struct trackingdata *, void *);
+retvalue distribution_remove_packages(struct distribution *, const struct atomlist *, const struct atomlist *, const struct atomlist *, each_package_action decider, struct trackingdata *, void *);
 
 /*@dependent@*/struct target *distribution_getpart(const struct distribution *distribution, component_t, architecture_t, packagetype_t);
 
 /* like distribtion_getpart, but returns NULL if there is no such target */
 /*@null@*//*@dependent@*/struct target *distribution_gettarget(const struct distribution *distribution, component_t, architecture_t, packagetype_t);
 
-retvalue distribution_fullexport(struct distribution *distribution, struct database *);
+retvalue distribution_fullexport(struct distribution *distribution);
 
 enum exportwhen {EXPORT_NEVER, EXPORT_CHANGED, EXPORT_NORMAL, EXPORT_FORCE };
-retvalue distribution_export(enum exportwhen, struct distribution *, struct database *);
+retvalue distribution_export(enum exportwhen, struct distribution *);
 
-retvalue distribution_snapshot(struct distribution *distribution, struct database *, const char *name);
+retvalue distribution_snapshot(struct distribution *distribution, const char *name);
 
 /* read the configuration from all distributions */
 retvalue distribution_readall(/*@out@*/struct distribution **distributions);
@@ -148,8 +148,8 @@ retvalue distribution_match(struct distribution * /*alldistributions*/, int /*ar
 struct distribution *distribution_find(struct distribution *, const char *);
 
 retvalue distribution_freelist(/*@only@*/struct distribution *distributions);
-retvalue distribution_exportandfreelist(enum exportwhen when, /*@only@*/struct distribution *distributions, struct database *);
-retvalue distribution_exportlist(enum exportwhen when, /*@only@*/struct distribution *distributions, struct database *);
+retvalue distribution_exportandfreelist(enum exportwhen when, /*@only@*/struct distribution *distributions);
+retvalue distribution_exportlist(enum exportwhen when, /*@only@*/struct distribution *distributions);
 
 retvalue distribution_loadalloverrides(struct distribution *);
 void distribution_unloadoverrides(struct distribution *distribution);

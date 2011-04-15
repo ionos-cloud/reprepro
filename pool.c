@@ -484,7 +484,7 @@ static retvalue deletepoolfile(const char *filekey, bool new) {
 }
 
 
-retvalue pool_delete(struct database *database, const char *filekey) {
+retvalue pool_delete(const char *filekey) {
 	retvalue r;
 
 	if (verbose >= 1)
@@ -494,7 +494,7 @@ retvalue pool_delete(struct database *database, const char *filekey) {
 	if (RET_WAS_ERROR(r))
 		return r;
 
-	return files_remove(database, filekey);
+	return files_remove(filekey);
 }
 
 /* called from files_remove: */
@@ -505,7 +505,6 @@ retvalue pool_markdeleted(const char *filekey) {
 
 /* libc's twalk misses a callback_data pointer, so we need some temporary
  * global variables: */
-static struct database *d;
 static retvalue result;
 static bool first, onlycount;
 static long woulddelete_count;
@@ -526,7 +525,7 @@ static void removeifunreferenced(const void *nodep, const VISIT which, UNUSED(co
 	filekey = node + 1;
 	if ((*node & pl_UNREFERENCED) == 0)
 		return;
-	r = references_isused(d, filekey);
+	r = references_isused(filekey);
 	if (r != RET_NOTHING)
 		return;
 
@@ -544,7 +543,7 @@ static void removeifunreferenced(const void *nodep, const VISIT which, UNUSED(co
 	r = deletepoolfile(filekey, (*node & pl_ADDED) != 0);
 	RET_UPDATE(result, r);
 	if (!RET_WAS_ERROR(r)) {
-		r = files_removesilent(d, filekey);
+		r = files_removesilent(filekey);
 		RET_UPDATE(result, r);
 		if (!RET_WAS_ERROR(r))
 			*node &= ~pl_UNREFERENCED;
@@ -569,7 +568,7 @@ static void removeifunreferenced2(const void *nodep, const VISIT which, UNUSED(c
 	if ((*node & pl_UNREFERENCED) == 0)
 		return;
 	filekey = calc_filekey(current_component, sourcename, node + 1);
-	r = references_isused(d, filekey);
+	r = references_isused(filekey);
 	if (r != RET_NOTHING) {
 		free(filekey);
 		return;
@@ -588,7 +587,7 @@ static void removeifunreferenced2(const void *nodep, const VISIT which, UNUSED(c
 	r = deletepoolfile(filekey, (*node & pl_ADDED) != 0);
 	RET_UPDATE(result, r);
 	if (!RET_WAS_ERROR(r)) {
-		r = files_removesilent(d, filekey);
+		r = files_removesilent(filekey);
 		RET_UPDATE(result, r);
 		if (!RET_WAS_ERROR(r))
 			*node &= ~pl_UNREFERENCED;
@@ -613,13 +612,12 @@ static void removeunreferenced_from_component(const void *nodep, const VISIT whi
 	twalk(node->file_changes, removeifunreferenced2);
 }
 
-retvalue pool_removeunreferenced(struct database *database, bool delete) {
+retvalue pool_removeunreferenced(bool delete) {
 	component_t c;
 
 	if (!delete && verbose <= 0)
 		return RET_NOTHING;
 
-	d = database;
 	result = RET_NOTHING;
 	first = true;
 	onlycount = !delete;
@@ -631,7 +629,6 @@ retvalue pool_removeunreferenced(struct database *database, bool delete) {
 				removeunreferenced_from_component);
 	}
 	twalk(legacy_file_changes, removeifunreferenced);
-	d = NULL;
 	if (interrupted())
 		result = RET_ERROR_INTERRUPTED;
 	if (!delete && woulddelete_count > 0) {
@@ -658,7 +655,7 @@ static void removeunusednew(const void *nodep, const VISIT which, UNUSED(const i
 	/* only look at newly added and not already deleted */
 	if ((*node & (pl_ADDED|pl_DELETED)) != pl_ADDED)
 		return;
-	r = references_isused(d, filekey);
+	r = references_isused(filekey);
 	if (r != RET_NOTHING)
 		return;
 
@@ -678,7 +675,7 @@ static void removeunusednew(const void *nodep, const VISIT which, UNUSED(const i
 	r = deletepoolfile(filekey, true);
 	RET_UPDATE(result, r);
 	if (!RET_WAS_ERROR(r)) {
-		r = files_removesilent(d, filekey);
+		r = files_removesilent(filekey);
 		RET_UPDATE(result, r);
 		/* don't remove pl_ADDED here, otherwise the hook
 		 * script will be told to remove something not added */
@@ -706,7 +703,7 @@ static void removeunusednew2(const void *nodep, const VISIT which, UNUSED(const 
 	if ((*node & (pl_ADDED|pl_DELETED)) != pl_ADDED)
 		return;
 	filekey = calc_filekey(current_component, sourcename, node + 1);
-	r = references_isused(d, filekey);
+	r = references_isused(filekey);
 	if (r != RET_NOTHING) {
 		free(filekey);
 		return;
@@ -727,7 +724,7 @@ static void removeunusednew2(const void *nodep, const VISIT which, UNUSED(const 
 	r = deletepoolfile(filekey, true);
 	RET_UPDATE(result, r);
 	if (!RET_WAS_ERROR(r)) {
-		r = files_removesilent(d, filekey);
+		r = files_removesilent(filekey);
 		RET_UPDATE(result, r);
 		/* don't remove pl_ADDED here, otherwise the hook
 		 * script will be told to remove something not added */
@@ -754,13 +751,12 @@ static void removeunusednew_from_component(const void *nodep, const VISIT which,
 	twalk(node->file_changes, removeunusednew2);
 }
 
-void pool_tidyadded(struct database *database, bool delete) {
+void pool_tidyadded(bool delete) {
 	component_t c;
 
 	if (!delete && verbose < 0)
 		return;
 
-	d = database;
 	result = RET_NOTHING;
 	first = true;
 	onlycount = !delete;
@@ -773,7 +769,6 @@ void pool_tidyadded(struct database *database, bool delete) {
 	}
 	// this should not really happen at all, but better safe then sorry:
 	twalk(legacy_file_changes, removeunusednew);
-	d = NULL;
 	if (!delete && woulddelete_count > 0) {
 		printf(
 "%lu files were added but not used.\n"

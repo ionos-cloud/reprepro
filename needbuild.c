@@ -138,7 +138,7 @@ struct needbuild_data { architecture_t architecture;
 	/*@null@*/ const char *glob;
 };
 
-static retvalue check_source_needs_build(UNUSED(struct database *database), struct distribution *distribution, struct target *target, const char *sourcename, const char *control, void *data) {
+static retvalue check_source_needs_build(struct distribution *distribution, struct target *target, const char *sourcename, const char *control, void *data) {
 	struct needbuild_data *d = data;
 	char *sourceversion;
 	struct strlist binary, architectures, filekeys;
@@ -235,7 +235,7 @@ static retvalue check_source_needs_build(UNUSED(struct database *database), stru
 }
 
 
-retvalue find_needs_build(struct database *database, struct distribution *distribution, architecture_t architecture, const struct atomlist *onlycomponents, const char *glob) {
+retvalue find_needs_build(struct distribution *distribution, architecture_t architecture, const struct atomlist *onlycomponents, const char *glob) {
 	retvalue result, r;
 	struct needbuild_data d;
 
@@ -254,7 +254,7 @@ retvalue find_needs_build(struct database *database, struct distribution *distri
 	}
 
 	if (distribution->tracking != dt_NONE) {
-		r = tracking_initialize(&d.tracks, database, distribution, true);
+		r = tracking_initialize(&d.tracks, distribution, true);
 		if (RET_WAS_ERROR(r))
 			return r;
 		if (r == RET_NOTHING)
@@ -262,7 +262,7 @@ retvalue find_needs_build(struct database *database, struct distribution *distri
 	} else
 			d.tracks = NULL;
 
-	result = distribution_foreach_package_c(distribution, database,
+	result = distribution_foreach_package_c(distribution,
 			onlycomponents, architecture_source, pt_dsc,
 			check_source_needs_build, &d);
 

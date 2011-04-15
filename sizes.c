@@ -64,7 +64,7 @@ static bool fromdist(struct distribution_sizes *dist, const char *data, size_t l
 	return memcmp(data, dist->codename, dist->codename_len) == 0;
 }
 
-static retvalue count_sizes(struct database *database, struct cursor *cursor, bool specific, struct distribution_sizes *ds, unsigned long long *all_p, unsigned long long *onlyall_p) {
+static retvalue count_sizes(struct cursor *cursor, bool specific, struct distribution_sizes *ds, unsigned long long *all_p, unsigned long long *onlyall_p) {
 	const char *key, *data;
 	size_t len;
 	char *last_file = NULL;
@@ -75,7 +75,7 @@ static retvalue count_sizes(struct database *database, struct cursor *cursor, bo
 	bool snapshot;
 	unsigned long long all = 0, onlyall = 0;
 
-	while (cursor_nexttempdata(database->references, cursor,
+	while (cursor_nexttempdata(rdb_references, cursor,
 				&key, &data, &len)) {
 		if (last_file == NULL || strcmp(last_file, key) != 0) {
 			if (last_file != NULL) {
@@ -179,7 +179,7 @@ static retvalue count_sizes(struct database *database, struct cursor *cursor, bo
 		} else {
 			/* and this is the first time
 			 * we are interested in the file */
-			filesize = files_getsize(database, key);
+			filesize = files_getsize(key);
 			assert (filesize != 0);
 			if (onlyone)
 				onlyall += filesize;
@@ -204,7 +204,7 @@ static retvalue count_sizes(struct database *database, struct cursor *cursor, bo
 	return RET_OK;
 }
 
-retvalue sizes_distributions(struct database *database, struct distribution *alldistributions, bool specific) {
+retvalue sizes_distributions(struct distribution *alldistributions, bool specific) {
 	struct cursor *cursor;
 	retvalue result, r;
 	struct distribution_sizes *ds = NULL, **lds = &ds, *s;
@@ -226,13 +226,13 @@ retvalue sizes_distributions(struct database *database, struct distribution *all
 	}
 	if (ds == NULL)
 		return RET_NOTHING;
-	r = table_newglobalcursor(database->references, &cursor);
+	r = table_newglobalcursor(rdb_references, &cursor);
 	if (!RET_IS_OK(r)) {
 		distribution_sizes_freelist(ds);
 		return r;
 	}
-	result = count_sizes(database, cursor, specific, ds, &all, &onlyall);
-	r = cursor_close(database->references, cursor);
+	result = count_sizes(cursor, specific, ds, &all, &onlyall);
+	r = cursor_close(rdb_references, cursor);
 	RET_ENDUPDATE(result, r);
 	if (RET_IS_OK(result)) {
 		printf("%-15s %13s %13s %13s %13s\n",

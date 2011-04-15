@@ -11,22 +11,21 @@
 #include "strlist.h"
 #endif
 
-struct database;
 struct distribution;
 struct table;
 struct cursor;
 
-retvalue database_create(/*@out@*/struct database **, struct distribution *, bool fast, bool /*nopackages*/, bool /*allowunused*/, bool /*readonly*/, size_t /*waitforlock*/, bool /*verbosedb*/);
-retvalue database_close(/*@only@*/struct database *);
+retvalue database_create(struct distribution *, bool fast, bool /*nopackages*/, bool /*allowunused*/, bool /*readonly*/, size_t /*waitforlock*/, bool /*verbosedb*/);
+retvalue database_close(void);
 
-retvalue database_openfiles(struct database *);
-retvalue database_openreferences(struct database *);
-retvalue database_listpackages(struct database *, /*@out@*/struct strlist *);
-retvalue database_droppackages(struct database *, const char *);
-retvalue database_openpackages(struct database *, const char *, bool /*readonly*/, /*@out@*/struct table **);
-retvalue database_openreleasecache(struct database *, const char *, /*@out@*/struct table **);
-retvalue database_opentracking(struct database *, const char *, bool /*readonly*/, /*@out@*/struct table **);
-retvalue database_translate_filelists(struct database *);
+retvalue database_openfiles(void);
+retvalue database_openreferences(void);
+retvalue database_listpackages(/*@out@*/struct strlist *);
+retvalue database_droppackages(const char *);
+retvalue database_openpackages(const char *, bool /*readonly*/, /*@out@*/struct table **);
+retvalue database_openreleasecache(const char *, /*@out@*/struct table **);
+retvalue database_opentracking(const char *, bool /*readonly*/, /*@out@*/struct table **);
+retvalue database_translate_filelists(void);
 retvalue database_translate_legacy_checksums(bool /*verbosedb*/);
 
 retvalue table_close(/*@only@*/struct table *);

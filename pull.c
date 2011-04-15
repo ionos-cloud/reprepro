@@ -684,14 +684,14 @@ static upgrade_decision ud_decide_by_rule(void *privdata, const struct target *t
 	return decision;
 }
 
-static inline retvalue pull_searchformissing(/*@null@*/FILE *out, struct database *database, struct pull_target *p) {
+static inline retvalue pull_searchformissing(/*@null@*/FILE *out, struct pull_target *p) {
 	struct pull_source *source;
 	retvalue result, r;
 
 	if (verbose > 2 && out != NULL)
 		fprintf(out, "  pulling into '%s'\n", p->target->identifier);
 	assert(p->upgradelist == NULL);
-	r = upgradelist_initialize(&p->upgradelist, p->target, database);
+	r = upgradelist_initialize(&p->upgradelist, p->target);
 	if (RET_WAS_ERROR(r))
 		return r;
 
@@ -713,10 +713,8 @@ static inline retvalue pull_searchformissing(/*@null@*/FILE *out, struct databas
 		if (verbose > 4 && out != NULL)
 			fprintf(out, "  looking what to get from '%s'\n",
 					source->source->identifier);
-		r = upgradelist_pull(p->upgradelist,
-				source->source,
-				ud_decide_by_rule, source->rule,
-				database, source);
+		r = upgradelist_pull(p->upgradelist, source->source,
+				ud_decide_by_rule, source->rule, source);
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(r))
 			return result;
@@ -725,13 +723,13 @@ static inline retvalue pull_searchformissing(/*@null@*/FILE *out, struct databas
 	return result;
 }
 
-static retvalue pull_search(/*@null@*/FILE *out, struct database *database, struct pull_distribution *d) {
+static retvalue pull_search(/*@null@*/FILE *out, struct pull_distribution *d) {
 	retvalue result, r;
 	struct pull_target *u;
 
 	result = RET_NOTHING;
 	for (u=d->targets ; u != NULL ; u=u->next) {
-		r = pull_searchformissing(out, database, u);
+		r = pull_searchformissing(out, u);
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(r))
 			break;
@@ -763,7 +761,7 @@ static void pull_from_callback(void *privdata, const char **rule_p, const char *
 	*from_p = source->rule->from;
 }
 
-static retvalue pull_install(struct database *database, struct pull_distribution *distribution) {
+static retvalue pull_install(struct pull_distribution *distribution) {
 	retvalue result, r;
 	struct pull_target *u;
 	struct distribution *d = distribution->distribution;
@@ -773,8 +771,7 @@ static retvalue pull_install(struct database *database, struct pull_distribution
 	result = RET_NOTHING;
 	for (u=distribution->targets ; u != NULL ; u=u->next) {
 		r = upgradelist_install(u->upgradelist, d->logger,
-				database, false,
-				pull_from_callback);
+				false, pull_from_callback);
 		RET_UPDATE(d->status, r);
 		RET_UPDATE(result, r);
 		upgradelist_free(u->upgradelist);
@@ -783,7 +780,7 @@ static retvalue pull_install(struct database *database, struct pull_distribution
 			break;
 	}
 	if (RET_IS_OK(result) && d->tracking != dt_NONE) {
-		r = tracking_retrack(database, d, false);
+		r = tracking_retrack(d, false);
 		RET_ENDUPDATE(result, r);
 	}
 	return result;
@@ -896,7 +893,7 @@ static void pull_dumplist(struct pull_distribution *distribution) {
 	}
 }
 
-retvalue pull_update(struct database *database, struct pull_distribution *distributions) {
+retvalue pull_update(struct pull_distribution *distributions) {
 	retvalue result, r;
 	struct pull_distribution *d;
 
@@ -915,7 +912,7 @@ retvalue pull_update(struct database *database, struct pull_distribution *distri
 	result = RET_NOTHING;
 
 	for (d=distributions ; d != NULL ; d=d->next) {
-		r = pull_search(stdout, database, d);
+		r = pull_search(stdout, d);
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(r))
 			break;
@@ -943,7 +940,7 @@ retvalue pull_update(struct database *database, struct pull_distribution *distri
 				continue;
 			}
 		}
-		r = pull_install(database, d);
+		r = pull_install(d);
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(r))
 			break;
@@ -953,7 +950,7 @@ retvalue pull_update(struct database *database, struct pull_distribution *distri
 	return result;
 }
 
-retvalue pull_checkupdate(struct database *database, struct pull_distribution *distributions) {
+retvalue pull_checkupdate(struct pull_distribution *distributions) {
 	struct pull_distribution *d;
 	retvalue result, r;
 
@@ -969,7 +966,7 @@ retvalue pull_checkupdate(struct database *database, struct pull_distribution *d
 	result = RET_NOTHING;
 
 	for (d=distributions ; d != NULL ; d=d->next) {
-		r = pull_search(stderr, database, d);
+		r = pull_search(stderr, d);
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(r))
 			break;
@@ -979,7 +976,7 @@ retvalue pull_checkupdate(struct database *database, struct pull_distribution *d
 	return result;
 }
 
-retvalue pull_dumpupdate(struct database *database, struct pull_distribution *distributions) {
+retvalue pull_dumpupdate(struct pull_distribution *distributions) {
 	struct pull_distribution *d;
 	retvalue result, r;
 
@@ -992,7 +989,7 @@ retvalue pull_dumpupdate(struct database *database, struct pull_distribution *di
 	result = RET_NOTHING;
 
 	for (d=distributions ; d != NULL ; d=d->next) {
-		r = pull_search(NULL, database, d);
+		r = pull_search(NULL, d);
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(r))
 			break;

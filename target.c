@@ -183,7 +183,7 @@ retvalue target_free(struct target *target) {
 }
 
 /* This opens up the database, if db != NULL, *db will be set to it.. */
-retvalue target_initpackagesdb(struct target *target, struct database *database, bool readonly) {
+retvalue target_initpackagesdb(struct target *target, bool readonly) {
 	retvalue r;
 
 	if (!readonly && target->readonly) {
@@ -197,7 +197,7 @@ retvalue target_initpackagesdb(struct target *target, struct database *database,
 	assert (target->packages == NULL);
 	if (target->packages != NULL)
 		return RET_OK;
-	r = database_openpackages(database, target->identifier, readonly,
+	r = database_openpackages(target->identifier, readonly,
 			&target->packages);
 	assert (r != RET_NOTHING);
 	if (RET_WAS_ERROR(r)) {
@@ -222,7 +222,7 @@ retvalue target_closepackagesdb(struct target *target) {
 }
 
 /* Remove a package from the given target. */
-retvalue target_removereadpackage(struct target *target, struct logger *logger, struct database *database, const char *name, const char *oldcontrol, struct trackingdata *trackingdata) {
+retvalue target_removereadpackage(struct target *target, struct logger *logger, const char *name, const char *oldcontrol, struct trackingdata *trackingdata) {
 	char *oldpversion = NULL;
 	struct strlist files;
 	retvalue result, r;
@@ -270,8 +270,7 @@ retvalue target_removereadpackage(struct target *target, struct logger *logger, 
 					NULL, oldcontrol,
 					NULL, &files,
 					NULL, NULL);
-		r = references_delete(database, target->identifier, &files,
-				NULL);
+		r = references_delete(target->identifier, &files, NULL);
 		RET_UPDATE(result, r);
 	}
 	strlist_done(&files);
@@ -280,7 +279,7 @@ retvalue target_removereadpackage(struct target *target, struct logger *logger, 
 }
 
 /* Remove a package from the given target. */
-retvalue target_removepackage(struct target *target, struct logger *logger, struct database *database, const char *name, struct trackingdata *trackingdata) {
+retvalue target_removepackage(struct target *target, struct logger *logger, const char *name, struct trackingdata *trackingdata) {
 	char *oldchunk;
 	retvalue r;
 
@@ -296,7 +295,7 @@ retvalue target_removepackage(struct target *target, struct logger *logger, stru
 					name, target->identifier);
 		return RET_NOTHING;
 	}
-	r = target_removereadpackage(target, logger, database,
+	r = target_removereadpackage(target, logger,
 			name, oldchunk, trackingdata);
 	free(oldchunk);
 	return r;
@@ -304,7 +303,7 @@ retvalue target_removepackage(struct target *target, struct logger *logger, stru
 
 
 /* Like target_removepackage, but delete the package record by cursor */
-retvalue target_removepackage_by_cursor(struct target_cursor *tc, struct logger *logger, struct database *database, struct trackingdata *trackingdata) {
+retvalue target_removepackage_by_cursor(struct target_cursor *tc, struct logger *logger, struct trackingdata *trackingdata) {
 	struct target * const target = tc->target;
 	const char * const name = tc->lastname;
 	const char * const control = tc->lastcontrol;
@@ -355,8 +354,7 @@ retvalue target_removepackage_by_cursor(struct target_cursor *tc, struct logger 
 					NULL, control,
 					NULL, &files,
 					NULL, NULL);
-		r = references_delete(database, target->identifier, &files,
-				NULL);
+		r = references_delete(target->identifier, &files, NULL);
 		RET_UPDATE(result, r);
 	}
 	strlist_done(&files);
@@ -364,7 +362,7 @@ retvalue target_removepackage_by_cursor(struct target_cursor *tc, struct logger 
 	return result;
 }
 
-static retvalue addpackages(struct target *target, struct database *database, const char *packagename, const char *controlchunk, /*@null@*/const char *oldcontrolchunk, const char *version, /*@null@*/const char *oldversion, const struct strlist *files, /*@only@*//*@null@*/struct strlist *oldfiles, /*@null@*/struct logger *logger, /*@null@*/struct trackingdata *trackingdata, architecture_t architecture, /*@null@*//*@only@*/char *oldsource, /*@null@*//*@only@*/char *oldsversion, /*@null@*/const char *causingrule, /*@null@*/const char *suitefrom) {
+static retvalue addpackages(struct target *target, const char *packagename, const char *controlchunk, /*@null@*/const char *oldcontrolchunk, const char *version, /*@null@*/const char *oldversion, const struct strlist *files, /*@only@*//*@null@*/struct strlist *oldfiles, /*@null@*/struct logger *logger, /*@null@*/struct trackingdata *trackingdata, architecture_t architecture, /*@null@*//*@only@*/char *oldsource, /*@null@*//*@only@*/char *oldsversion, /*@null@*/const char *causingrule, /*@null@*/const char *suitefrom) {
 
 	retvalue result, r;
 	struct table *table = target->packages;
@@ -381,8 +379,7 @@ static retvalue addpackages(struct target *target, struct database *database, co
 
 	/* mark it as needed by this distribution */
 
-	r = references_insert(database, target->identifier,
-			files, oldfiles);
+	r = references_insert(target->identifier, files, oldfiles);
 
 	if (RET_WAS_ERROR(r)) {
 		if (oldfiles != NULL)
@@ -412,14 +409,13 @@ static retvalue addpackages(struct target *target, struct database *database, co
 				files, oldfiles, causingrule, suitefrom);
 
 	r = trackingdata_insert(trackingdata, filetype, files,
-			oldsource, oldsversion, oldfiles, database);
+			oldsource, oldsversion, oldfiles);
 	RET_UPDATE(result, r);
 
 	/* remove old references to files */
 
 	if (oldfiles != NULL) {
-		r = references_delete(database, target->identifier,
-				oldfiles, files);
+		r = references_delete(target->identifier, oldfiles, files);
 		RET_UPDATE(result, r);
 		strlist_done(oldfiles);
 	}
@@ -427,7 +423,7 @@ static retvalue addpackages(struct target *target, struct database *database, co
 	return result;
 }
 
-retvalue target_addpackage(struct target *target, struct logger *logger, struct database *database, const char *name, const char *version, const char *control, const struct strlist *filekeys, bool downgrade, struct trackingdata *trackingdata, enum filetype filetype, const char *causingrule, const char *suitefrom) {
+retvalue target_addpackage(struct target *target, struct logger *logger, const char *name, const char *version, const char *control, const struct strlist *filekeys, bool downgrade, struct trackingdata *trackingdata, enum filetype filetype, const char *causingrule, const char *suitefrom) {
 	struct strlist oldfilekeys, *ofk;
 	char *oldcontrol, *oldsource, *oldsversion;
 	char *oldpversion;
@@ -519,7 +515,7 @@ retvalue target_addpackage(struct target *target, struct logger *logger, struct 
 		}
 
 	}
-	r = addpackages(target, database, name, control, oldcontrol,
+	r = addpackages(target, name, control, oldcontrol,
 			version, oldpversion,
 			filekeys, ofk,
 			logger,
@@ -639,7 +635,7 @@ retvalue target_checkaddpackage(struct target *target, const char *name, const c
 	return RET_OK;
 }
 
-retvalue target_rereference(struct target *target, struct database *database) {
+retvalue target_rereference(struct target *target) {
 	retvalue result, r;
 	struct target_cursor iterator;
 	const char *package, *control;
@@ -653,11 +649,11 @@ retvalue target_rereference(struct target *target, struct database *database) {
 					target->identifier);
 	}
 
-	result = references_remove(database, target->identifier);
+	result = references_remove(target->identifier);
 	if (verbose > 2)
 		printf("Referencing %s...\n", target->identifier);
 
-	r = target_openiterator(target, database, READONLY, &iterator);
+	r = target_openiterator(target, READONLY, &iterator);
 	assert (r != RET_NOTHING);
 	if (RET_WAS_ERROR(r))
 		return r;
@@ -674,7 +670,7 @@ retvalue target_rereference(struct target *target, struct database *database) {
 			(void)strlist_fprint(stderr, &filekeys);
 			(void)putc('\n', stderr);
 		}
-		r = references_insert(database, target->identifier, &filekeys, NULL);
+		r = references_insert(target->identifier, &filekeys, NULL);
 		strlist_done(&filekeys);
 		RET_UPDATE(result, r);
 	}
@@ -683,7 +679,7 @@ retvalue target_rereference(struct target *target, struct database *database) {
 	return result;
 }
 
-retvalue package_referenceforsnapshot(struct database *database, UNUSED(struct distribution *di), struct target *target, const char *package, const char *chunk, void *data) {
+retvalue package_referenceforsnapshot(UNUSED(struct distribution *di), struct target *target, const char *package, const char *chunk, void *data) {
 	const char *identifier = data;
 	struct strlist filekeys;
 	retvalue r;
@@ -697,12 +693,12 @@ retvalue package_referenceforsnapshot(struct database *database, UNUSED(struct d
 		(void)strlist_fprint(stderr, &filekeys);
 		(void)putc('\n', stderr);
 	}
-	r = references_add(database, identifier, &filekeys);
+	r = references_add(identifier, &filekeys);
 	strlist_done(&filekeys);
 	return r;
 }
 
-retvalue package_check(struct database *database, UNUSED(struct distribution *di), struct target *target, const char *package, const char *chunk, UNUSED(void *pd)) {
+retvalue package_check(UNUSED(struct distribution *di), struct target *target, const char *package, const char *chunk, UNUSED(void *pd)) {
 	struct checksumsarray files;
 	struct strlist expectedfilekeys;
 	char *dummy, *version;
@@ -776,7 +772,7 @@ retvalue package_check(struct database *database, UNUSED(struct distribution *di
 	if (verbose > 10) {
 		fprintf(stderr, "checking files of '%s'\n", package);
 	}
-	r = files_expectfiles(database, &files.names, files.checksums);
+	r = files_expectfiles(&files.names, files.checksums);
 	if (RET_WAS_ERROR(r)) {
 		fprintf(stderr, "Files are missing for '%s'!\n", package);
 	}
@@ -787,7 +783,7 @@ retvalue package_check(struct database *database, UNUSED(struct distribution *di
 		(void)strlist_fprint(stderr, &files.names);
 		(void)putc('\n', stderr);
 	}
-	r = references_check(database, target->identifier, &files.names);
+	r = references_check(target->identifier, &files.names);
 	RET_UPDATE(result, r);
 	checksumsarray_done(&files);
 	return result;
@@ -795,7 +791,7 @@ retvalue package_check(struct database *database, UNUSED(struct distribution *di
 
 /* Reapply override information */
 
-retvalue target_reoverride(struct target *target, struct distribution *distribution, struct database *database) {
+retvalue target_reoverride(struct target *target, struct distribution *distribution) {
 	struct target_cursor iterator;
 	retvalue result, r;
 	const char *package, *controlchunk;
@@ -809,7 +805,7 @@ retvalue target_reoverride(struct target *target, struct distribution *distribut
 				target->identifier);
 	}
 
-	r = target_openiterator(target, database, READWRITE, &iterator);
+	r = target_openiterator(target, READWRITE, &iterator);
 	if (!RET_IS_OK(r))
 		return r;
 	result = RET_NOTHING;
@@ -844,7 +840,7 @@ retvalue target_reoverride(struct target *target, struct distribution *distribut
 
 /* export a database */
 
-retvalue target_export(struct target *target, struct database *database, bool onlyneeded, bool snapshot, struct release *release) {
+retvalue target_export(struct target *target, bool onlyneeded, bool snapshot, struct release *release) {
 	retvalue result;
 	bool onlymissing;
 
@@ -859,11 +855,8 @@ retvalue target_export(struct target *target, struct database *database, bool on
 	/* not exporting if file is already there? */
 	onlymissing = onlyneeded && !target->wasmodified;
 
-	result = export_target(target->relativedirectory,
-				target, database,
-				target->exportmode,
-				release,
-				onlymissing, snapshot);
+	result = export_target(target->relativedirectory, target,
+			target->exportmode, release, onlymissing, snapshot);
 
 	if (!RET_WAS_ERROR(result) && !snapshot) {
 		target->saved_wasmodified =
@@ -873,7 +866,7 @@ retvalue target_export(struct target *target, struct database *database, bool on
 	return result;
 }
 
-retvalue package_rerunnotifiers(UNUSED(struct database *da), struct distribution *distribution, struct target *target, const char *package, const char *chunk, UNUSED(void *data)) {
+retvalue package_rerunnotifiers(struct distribution *distribution, struct target *target, const char *package, const char *chunk, UNUSED(void *data)) {
 	struct logger *logger = distribution->logger;
 	struct strlist filekeys;
 	char *version;

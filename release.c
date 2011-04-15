@@ -129,7 +129,7 @@ static retvalue newreleaseentry(struct release *release, /*@only@*/ char *relati
 	return RET_OK;
 }
 
-retvalue release_init(struct release **release, struct database *database, const char *codename, const char *suite, const char *fakecomponentprefix) {
+retvalue release_init(struct release **release, const char *codename, const char *suite, const char *fakecomponentprefix) {
 	struct release *n;
 	size_t len, suitelen, codenamelen;
 	retvalue r;
@@ -174,7 +174,7 @@ retvalue release_init(struct release **release, struct database *database, const
 			}
 		}
 	}
-	r = database_openreleasecache(database, codename, &n->cachedb);
+	r = database_openreleasecache(codename, &n->cachedb);
 	assert (r != RET_NOTHING);
 	if (RET_WAS_ERROR(r)) {
 		n->cachedb = NULL;

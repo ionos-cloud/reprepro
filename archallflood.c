@@ -325,7 +325,7 @@ static retvalue save_package_version(struct floodlist *list, const char *package
 	return RET_OK;
 }
 
-static retvalue floodlist_initialize(struct floodlist **fl, struct target *t, struct database *database) {
+static retvalue floodlist_initialize(struct floodlist **fl, struct target *t) {
 	struct floodlist *list;
 	retvalue r, r2;
 	const char *packagename, *controlchunk;
@@ -339,7 +339,7 @@ static retvalue floodlist_initialize(struct floodlist **fl, struct target *t, st
 
 	/* Begin with the packages currently in the archive */
 
-	r = target_openiterator(t, database, READONLY, &iterator);
+	r = target_openiterator(t, READONLY, &iterator);
 	if (RET_WAS_ERROR(r)) {
 		floodlist_free(list);
 		return r;
@@ -569,13 +569,13 @@ static retvalue floodlist_trypackage(struct floodlist *list, const char *package
 	return RET_OK;
 }
 
-static retvalue floodlist_pull(struct floodlist *list, struct target *source, struct database *database) {
+static retvalue floodlist_pull(struct floodlist *list, struct target *source) {
 	retvalue result, r;
 	const char *package, *control;
 	struct target_cursor iterator;
 
 	list->last = NULL;
-	r = target_openiterator(source, database, READONLY, &iterator);
+	r = target_openiterator(source, READONLY, &iterator);
 	if (RET_WAS_ERROR(r))
 		return r;
 	result = RET_NOTHING;
@@ -615,21 +615,20 @@ static retvalue floodlist_pull(struct floodlist *list, struct target *source, st
 	return result;
 }
 
-static retvalue floodlist_install(struct floodlist *list, struct logger *logger, struct database *database, /*@NULL@*/struct trackingdata *td) {
+static retvalue floodlist_install(struct floodlist *list, struct logger *logger, /*@NULL@*/struct trackingdata *td) {
 	struct aa_package_data *pkg;
 	retvalue result, r;
 
 	if (list->list == NULL)
 		return RET_NOTHING;
 
-	result = target_initpackagesdb(list->target, database, READWRITE);
+	result = target_initpackagesdb(list->target, READWRITE);
 	if (RET_WAS_ERROR(result))
 		return result;
 	result = RET_NOTHING;
 	for (pkg = list->list ; pkg != NULL ; pkg = pkg->next) {
 		if (pkg->new_version != NULL) {
-			r = files_expectfiles(database,
-					&pkg->new_filekeys,
+			r = files_expectfiles(&pkg->new_filekeys,
 					pkg->new_origfiles.checksums);
 			RET_UPDATE(result, r);
 			if (RET_WAS_ERROR(r))
@@ -667,8 +666,7 @@ static retvalue floodlist_install(struct floodlist *list, struct logger *logger,
 				}
 			}
 			r = target_addpackage(list->target,
-					logger, database,
-					pkg->name, pkg->new_version,
+					logger, pkg->name, pkg->new_version,
 					pkg->new_control, &pkg->new_filekeys,
 					false, td, architecture_all,
 					NULL, NULL);
@@ -682,7 +680,7 @@ static retvalue floodlist_install(struct floodlist *list, struct logger *logger,
 	return result;
 }
 
-retvalue flood(struct distribution *d, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes, architecture_t architecture, struct database *database, trackingdb tracks) {
+retvalue flood(struct distribution *d, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes, architecture_t architecture, trackingdb tracks) {
 	struct target *t, *s;
 	retvalue result = RET_NOTHING, r;
 	struct trackingdata trackingdata;
@@ -709,7 +707,7 @@ retvalue flood(struct distribution *d, const struct atomlist *components, const 
 		if (t->packagetype != pt_deb && t->packagetype != pt_udeb)
 			continue;
 
-		r = floodlist_initialize(&fl, t, database);
+		r = floodlist_initialize(&fl, t);
 		if (RET_WAS_ERROR(r)) {
 			if (tracks != NULL)
 				trackingdata_done(&trackingdata);
@@ -727,7 +725,7 @@ retvalue flood(struct distribution *d, const struct atomlist *components, const 
 			if (limitations_missed(architectures,
 						s->architecture))
 				continue;
-			r = floodlist_pull(fl, s, database);
+			r = floodlist_pull(fl, s);
 			RET_UPDATE(d->status, r);
 			if (RET_WAS_ERROR(r)) {
 				if (tracks != NULL)
@@ -736,7 +734,7 @@ retvalue flood(struct distribution *d, const struct atomlist *components, const 
 				return r;
 			}
 		}
-		r = floodlist_install(fl, d->logger, database,
+		r = floodlist_install(fl, d->logger,
 				(tracks != NULL)?&trackingdata:NULL);
 		RET_UPDATE(result, r);
 		floodlist_free(fl);
@@ -747,7 +745,7 @@ retvalue flood(struct distribution *d, const struct atomlist *components, const 
 		}
 	}
 	if (tracks != NULL) {
-		r = trackingdata_finish(tracks, &trackingdata, database);
+		r = trackingdata_finish(tracks, &trackingdata);
 		RET_ENDUPDATE(result, r);
 	}
 	return result;

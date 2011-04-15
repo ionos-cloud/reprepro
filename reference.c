@@ -32,17 +32,17 @@
 #include "pool.h"
 #include "reference.h"
 
-retvalue references_isused(struct database *database, const char *what) {
-	return table_gettemprecord(database->references, what, NULL, NULL);
+retvalue references_isused( const char *what) {
+	return table_gettemprecord(rdb_references, what, NULL, NULL);
 }
 
-retvalue references_check(struct database *database, const char *referee, const struct strlist *filekeys) {
+retvalue references_check(const char *referee, const struct strlist *filekeys) {
 	int i;
 	retvalue result, r;
 
 	result = RET_NOTHING;
 	for (i = 0 ; i < filekeys->count ; i++) {
-		r = table_checkrecord(database->references,
+		r = table_checkrecord(rdb_references,
 				filekeys->values[i], referee);
 		if (r == RET_NOTHING) {
 			fprintf(stderr, "Missing reference to '%s' by '%s'\n",
@@ -55,10 +55,10 @@ retvalue references_check(struct database *database, const char *referee, const 
 }
 
 /* add an reference to a file for an identifier. multiple calls */
-retvalue references_increment(struct database *database, const char *needed, const char *neededby) {
+retvalue references_increment(const char *needed, const char *neededby) {
 	retvalue r;
 
-	r = table_addrecord(database->references, needed,
+	r = table_addrecord(rdb_references, needed,
 			neededby, strlen(neededby), false);
 	if (RET_IS_OK(r) && verbose > 8)
 		printf("Adding reference to '%s' by '%s'\n", needed, neededby);
@@ -66,10 +66,10 @@ retvalue references_increment(struct database *database, const char *needed, con
 }
 
 /* remove reference for a file from a given reference */
-retvalue references_decrement(struct database *database, const char *needed, const char *neededby) {
+retvalue references_decrement(const char *needed, const char *neededby) {
 	retvalue r;
 
-	r = table_removerecord(database->references, needed, neededby);
+	r = table_removerecord(rdb_references, needed, neededby);
 	if (r == RET_NOTHING)
 		return r;
 	if (RET_WAS_ERROR(r)) {
@@ -91,7 +91,7 @@ retvalue references_decrement(struct database *database, const char *needed, con
 
 /* Add an reference by <identifer> for the given <files>,
  * excluding <exclude>, if it is nonNULL. */
-retvalue references_insert(struct database *database, const char *identifier,
+retvalue references_insert(const char *identifier,
 		const struct strlist *files, const struct strlist *exclude) {
 	retvalue result, r;
 	int i;
@@ -102,7 +102,7 @@ retvalue references_insert(struct database *database, const char *identifier,
 		const char *filename = files->values[i];
 
 		if (exclude == NULL || !strlist_in(exclude, filename)) {
-			r = references_increment(database, filename, identifier);
+			r = references_increment(filename, identifier);
 			RET_UPDATE(result, r);
 		}
 	}
@@ -110,13 +110,13 @@ retvalue references_insert(struct database *database, const char *identifier,
 }
 
 /* add possible already existing references */
-retvalue references_add(struct database *database, const char *identifier, const struct strlist *files) {
+retvalue references_add(const char *identifier, const struct strlist *files) {
 	int i;
 	retvalue r;
 
 	for (i = 0 ; i < files->count ; i++) {
 		const char *filekey = files->values[i];
-		r = table_addrecord(database->references, filekey,
+		r = table_addrecord(rdb_references, filekey,
 				identifier, strlen(identifier), true);
 		if (RET_WAS_ERROR(r))
 			return r;
@@ -126,7 +126,7 @@ retvalue references_add(struct database *database, const char *identifier, const
 
 /* Remove reference by <identifer> for the given <oldfiles>,
  * excluding <exclude>, if it is nonNULL. */
-retvalue references_delete(struct database *database, const char *identifier, struct strlist *files, const struct strlist *exclude) {
+retvalue references_delete(const char *identifier, struct strlist *files, const struct strlist *exclude) {
 	retvalue result, r;
 	int i;
 
@@ -138,7 +138,7 @@ retvalue references_delete(struct database *database, const char *identifier, st
 		const char *filekey = files->values[i];
 
 		if (exclude == NULL || !strlist_in(exclude, filekey)) {
-			r = references_decrement(database, filekey, identifier);
+			r = references_decrement(filekey, identifier);
 			RET_UPDATE(result, r);
 		}
 	}
@@ -147,20 +147,20 @@ retvalue references_delete(struct database *database, const char *identifier, st
 }
 
 /* remove all references from a given identifier */
-retvalue references_remove(struct database *database, const char *neededby) {
+retvalue references_remove(const char *neededby) {
 	struct cursor *cursor;
 	retvalue result, r;
 	const char *found_to, *found_by;
 	size_t datalen, l;
 
-	r = table_newglobalcursor(database->references, &cursor);
+	r = table_newglobalcursor(rdb_references, &cursor);
 	if (!RET_IS_OK(r))
 		return r;
 
 	l = strlen(neededby);
 
 	result = RET_NOTHING;
-	while (cursor_nexttempdata(database->references, cursor,
+	while (cursor_nexttempdata(rdb_references, cursor,
 				&found_to, &found_by, &datalen)) {
 
 		if (datalen >= l && strncmp(found_by, neededby, l) == 0 &&
@@ -169,7 +169,7 @@ retvalue references_remove(struct database *database, const char *neededby) {
 				fprintf(stderr,
 "Removing reference to '%s' by '%s'\n",
 					found_to, neededby);
-			r = cursor_delete(database->references, cursor,
+			r = cursor_delete(rdb_references, cursor,
 					found_to, NULL);
 			RET_UPDATE(result, r);
 			if (RET_IS_OK(r)) {
@@ -178,7 +178,7 @@ retvalue references_remove(struct database *database, const char *neededby) {
 			}
 		}
 	}
-	r = cursor_close(database->references, cursor);
+	r = cursor_close(rdb_references, cursor);
 	RET_ENDUPDATE(result, r);
 	return result;
 }

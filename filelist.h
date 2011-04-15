@@ -9,13 +9,13 @@ struct filelist_list;
 
 retvalue filelist_init(struct filelist_list **list);
 
-retvalue filelist_addpackage(struct filelist_list *, struct database *, const char *package, const char *section, const char *filekey);
+retvalue filelist_addpackage(struct filelist_list *, const char *package, const char *section, const char *filekey);
 
 retvalue filelist_write(struct filelist_list *list, struct filetorelease *file);
 
 void filelist_free(/*@only@*/struct filelist_list *);
 
-retvalue fakefilelist(struct database *, const char *filekey);
+retvalue fakefilelist(const char *filekey);
 retvalue filelists_translate(struct table *, struct table *);
 
 /* for use in routines reading the data: */

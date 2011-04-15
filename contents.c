@@ -105,7 +105,7 @@ retvalue contentsoptions_parse(struct distribution *distribution, struct configi
 	return RET_OK;
 }
 
-static retvalue addpackagetocontents(struct database *database, UNUSED(struct distribution *di), UNUSED(struct target *ta), const char *packagename, const char *chunk, void *data) {
+static retvalue addpackagetocontents(UNUSED(struct distribution *di), UNUSED(struct target *ta), const char *packagename, const char *chunk, void *data) {
 	struct filelist_list *contents = data;
 	retvalue r;
 	char *section, *filekey;
@@ -120,15 +120,14 @@ static retvalue addpackagetocontents(struct database *database, UNUSED(struct di
 		free(section);
 		return r;
 	}
-	r = filelist_addpackage(contents, database,
-			packagename, section, filekey);
+	r = filelist_addpackage(contents, packagename, section, filekey);
 
 	free(filekey);
 	free(section);
 	return r;
 }
 
-static retvalue genarchcontents(struct database *database, struct distribution *distribution, architecture_t architecture, struct release *release, bool onlyneeded) {
+static retvalue genarchcontents(struct distribution *distribution, architecture_t architecture, struct release *release, bool onlyneeded) {
 	retvalue r;
 	char *contentsfilename;
 	struct filetorelease *file;
@@ -178,7 +177,7 @@ static retvalue genarchcontents(struct database *database, struct distribution *
 		release_abortfile(file);
 		return r;
 	}
-	r = distribution_foreach_package_c(distribution, database,
+	r = distribution_foreach_package_c(distribution,
 			components, architecture, pt_deb,
 			addpackagetocontents, contents);
 	if (!RET_WAS_ERROR(r))
@@ -191,7 +190,7 @@ static retvalue genarchcontents(struct database *database, struct distribution *
 	return r;
 }
 
-static retvalue genarchudebcontents(struct database *database, struct distribution *distribution, architecture_t architecture, struct release *release, bool onlyneeded) {
+static retvalue genarchudebcontents(struct distribution *distribution, architecture_t architecture, struct release *release, bool onlyneeded) {
 	retvalue r;
 	char *contentsfilename;
 	struct filetorelease *file;
@@ -238,7 +237,7 @@ static retvalue genarchudebcontents(struct database *database, struct distributi
 	r = filelist_init(&contents);
 	if (RET_WAS_ERROR(r))
 		return r;
-	r = distribution_foreach_package_c(distribution, database,
+	r = distribution_foreach_package_c(distribution,
 			components, architecture, pt_udeb,
 			addpackagetocontents, contents);
 	if (!RET_WAS_ERROR(r))
@@ -251,7 +250,7 @@ static retvalue genarchudebcontents(struct database *database, struct distributi
 	return r;
 }
 
-retvalue contents_generate(struct database *database, struct distribution *distribution, struct release *release, bool onlyneeded) {
+retvalue contents_generate(struct distribution *distribution, struct release *release, bool onlyneeded) {
 	retvalue result, r;
 	int i;
 	const struct atomlist *architectures;
@@ -272,12 +271,12 @@ retvalue contents_generate(struct database *database, struct distribution *distr
 			continue;
 
 		if (!distribution->contents.flags.nodebs) {
-			r = genarchcontents(database, distribution,
+			r = genarchcontents(distribution,
 					architecture, release, onlyneeded);
 			RET_UPDATE(result, r);
 		}
 		if (distribution->contents.flags.udebs) {
-			r = genarchudebcontents(database, distribution,
+			r = genarchudebcontents(distribution,
 					architecture, release, onlyneeded);
 			RET_UPDATE(result, r);
 		}

@@ -295,8 +295,8 @@ retvalue deb_prepare(/*@out@*/struct debpackage **deb, component_t forcecomponen
 	return RET_OK;
 }
 
-retvalue deb_addprepared(const struct debpackage *pkg, struct database *database, const struct atomlist *forcearchitectures, packagetype_t packagetype, struct distribution *distribution, struct trackingdata *trackingdata) {
-	return binaries_adddeb(&pkg->deb, database, forcearchitectures,
+retvalue deb_addprepared(const struct debpackage *pkg, const struct atomlist *forcearchitectures, packagetype_t packagetype, struct distribution *distribution, struct trackingdata *trackingdata) {
+	return binaries_adddeb(&pkg->deb, forcearchitectures,
 			packagetype, distribution, trackingdata,
 			pkg->component, &pkg->filekeys,
 			pkg->deb.control);
@@ -306,7 +306,7 @@ retvalue deb_addprepared(const struct debpackage *pkg, struct database *database
  * putting things with architecture of "all" into <d->architectures> (and also
  * causing error, if it is not one of them otherwise)
  * if component is NULL, guessing it from the section. */
-retvalue deb_add(struct database *database, component_t forcecomponent, const struct atomlist *forcearchitectures, const char *forcesection, const char *forcepriority, packagetype_t packagetype, struct distribution *distribution, const char *debfilename, int delete, /*@null@*/trackingdb tracks) {
+retvalue deb_add(component_t forcecomponent, const struct atomlist *forcearchitectures, const char *forcesection, const char *forcepriority, packagetype_t packagetype, struct distribution *distribution, const char *debfilename, int delete, /*@null@*/trackingdb tracks) {
 	struct debpackage *pkg;
 	retvalue r;
 	struct trackingdata trackingdata;
@@ -327,7 +327,7 @@ retvalue deb_add(struct database *database, component_t forcecomponent, const st
 		deb_free(pkg);
 		return r;
 	}
-	r = files_preinclude(database, debfilename, pkg->filekey, &checksums);
+	r = files_preinclude(debfilename, pkg->filekey, &checksums);
 	if (RET_WAS_ERROR(r)) {
 		deb_free(pkg);
 		return r;
@@ -353,7 +353,7 @@ retvalue deb_add(struct database *database, component_t forcecomponent, const st
 		}
 	}
 
-	r = binaries_adddeb(&pkg->deb, database, forcearchitectures,
+	r = binaries_adddeb(&pkg->deb, forcearchitectures,
 			packagetype, distribution,
 			(tracks!=NULL)?&trackingdata:NULL,
 			pkg->component, &pkg->filekeys,
@@ -363,7 +363,7 @@ retvalue deb_add(struct database *database, component_t forcecomponent, const st
 
 	if (tracks != NULL) {
 		retvalue r2;
-		r2 = trackingdata_finish(tracks, &trackingdata, database);
+		r2 = trackingdata_finish(tracks, &trackingdata);
 		RET_ENDUPDATE(r, r2);
 	}
 

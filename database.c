@@ -52,14 +52,30 @@
 #define SETDBT(dbt, datastr) {const char *my = datastr; memset(&dbt, 0, sizeof(dbt)); dbt.data = (void *)my; dbt.size = strlen(my) + 1;}
 #define SETDBTl(dbt, datastr, datasize) {const char *my = datastr; memset(&dbt, 0, sizeof(dbt)); dbt.data = (void *)my; dbt.size = datasize;}
 
-static void database_free(/*@only@*/ struct database *db) {
-	if (db == NULL)
+static bool rdb_initialized, rdb_used, rdb_locked, rdb_verbose;
+static int rdb_dircreationdepth;
+static bool rdb_nopackages, rdb_readonly;
+static bool rdb_packagesdatabaseopen;
+static bool rdb_trackingdatabaseopen;
+static /*@null@*/ char *rdb_version, *rdb_lastsupportedversion,
+	*rdb_dbversion, *rdb_lastsupporteddbversion;
+
+struct table *rdb_checksums, *rdb_contents;
+struct table *rdb_references;
+struct reprepro_database_capabilities rdb_capabilities;
+
+static void database_free(void) {
+	if (!rdb_initialized)
 		return;
-	free(db->version);
-	free(db->lastsupportedversion);
-	free(db->dbversion);
-	free(db->lastsupporteddbversion);
-	free(db);
+	free(rdb_version);
+	rdb_version = NULL;
+	free(rdb_lastsupportedversion);
+	rdb_lastsupportedversion = NULL;
+	free(rdb_dbversion);
+	rdb_dbversion = NULL;
+	free(rdb_lastsupporteddbversion);
+	rdb_lastsupporteddbversion = NULL;
+	rdb_initialized = false;
 }
 
 static inline char *dbfilename(const char *filename) {
@@ -70,15 +86,15 @@ static inline char *dbfilename(const char *filename) {
 /* lock file handling */
 /**********************/
 
-static retvalue database_lock(struct database *db, size_t waitforlock) {
+static retvalue database_lock(size_t waitforlock) {
 	char *lockfile;
 	int fd;
 	retvalue r;
 	size_t tries = 0;
 
-	assert (!db->locked);
-	db->dircreationdepth = 0;
-	r = dir_create_needed(global.dbdir, &db->dircreationdepth);
+	assert (!rdb_locked);
+	rdb_dircreationdepth = 0;
+	r = dir_create_needed(global.dbdir, &rdb_dircreationdepth);
 	if (RET_WAS_ERROR(r))
 		return r;
 
@@ -130,14 +146,14 @@ static retvalue database_lock(struct database *db, size_t waitforlock) {
 		return RET_ERRNO(e);
 	}
 	free(lockfile);
-	db->locked = true;
+	rdb_locked = true;
 	return RET_OK;
 }
 
-static void releaselock(struct database *db) {
+static void releaselock(void) {
 	char *lockfile;
 
-	assert (db->locked);
+	assert (rdb_locked);
 
 	lockfile = dbfilename("lockfile");
 	if (lockfile == NULL)
@@ -149,39 +165,39 @@ static void releaselock(struct database *db) {
 		(void)unlink(lockfile);
 	}
 	free(lockfile);
-	dir_remove_new(global.dbdir, db->dircreationdepth);
-	db->locked = false;
+	dir_remove_new(global.dbdir, rdb_dircreationdepth);
+	rdb_locked = false;
 }
 
-static retvalue writeversionfile(struct database *);
+static retvalue writeversionfile(void);
 
-retvalue database_close(struct database *db) {
+retvalue database_close(void) {
 	retvalue result = RET_OK, r;
 
-	if (db->references != NULL) {
-		r = table_close(db->references);
+	if (rdb_references != NULL) {
+		r = table_close(rdb_references);
 		RET_UPDATE(result, r);
-		db->references = NULL;
+		rdb_references = NULL;
 	}
-	if (db->checksums != NULL) {
-		r = table_close(db->checksums);
+	if (rdb_checksums != NULL) {
+		r = table_close(rdb_checksums);
 		RET_UPDATE(result, r);
-		db->checksums = NULL;
+		rdb_checksums = NULL;
 	}
-	if (db->contents != NULL) {
-		r = table_close(db->contents);
+	if (rdb_contents != NULL) {
+		r = table_close(rdb_contents);
 		RET_UPDATE(result, r);
-		db->contents = NULL;
+		rdb_contents = NULL;
 	}
-	r = writeversionfile(db);
+	r = writeversionfile();
 	RET_UPDATE(result, r);
-	if (db->locked)
-		releaselock(db);
-	database_free(db);
+	if (rdb_locked)
+		releaselock();
+	database_free();
 	return result;
 }
 
-static retvalue database_hasdatabasefile(UNUSED(const struct database *database), const char *filename, /*@out@*/bool *exists_p) {
+static retvalue database_hasdatabasefile(const char *filename, /*@out@*/bool *exists_p) {
 	char *fullfilename;
 
 	fullfilename = dbfilename(filename);
@@ -206,7 +222,7 @@ static const uint32_t types[dbt_COUNT] = {
 
 static int paireddatacompare(UNUSED(DB *db), const DBT *a, const DBT *b);
 
-static retvalue database_opentable(UNUSED(struct database *database), const char *filename, /*@null@*/const char *subtable, enum database_type type, uint32_t flags, /*@out@*/DB **result) {
+static retvalue database_opentable(const char *filename, /*@null@*/const char *subtable, enum database_type type, uint32_t flags, /*@out@*/DB **result) {
 	char *fullfilename;
 	DB *table;
 	int dbret;
@@ -278,7 +294,7 @@ static retvalue database_opentable(UNUSED(struct database *database), const char
 	return RET_OK;
 }
 
-retvalue database_listsubtables(struct database *database, const char *filename, struct strlist *result) {
+retvalue database_listsubtables(const char *filename, struct strlist *result) {
 	DB *table;
 	DBC *cursor;
 	DBT key, data;
@@ -286,7 +302,7 @@ retvalue database_listsubtables(struct database *database, const char *filename,
 	retvalue ret, r;
 	struct strlist ids;
 
-	r = database_opentable(database, filename, NULL,
+	r = database_opentable(filename, NULL,
 			dbt_QUERY, DB_RDONLY, &table);
 	if (!RET_IS_OK(r))
 		return r;
@@ -344,7 +360,7 @@ retvalue database_listsubtables(struct database *database, const char *filename,
 	}
 }
 
-retvalue database_dropsubtable(UNUSED(struct database *database), const char *table, const char *subtable) {
+retvalue database_dropsubtable(const char *table, const char *subtable) {
 	char *filename;
 	DB *db;
 	int dbret;
@@ -390,7 +406,7 @@ static inline bool targetisdefined(const char *identifier, struct distribution *
 	return false;
 }
 
-static retvalue warnidentifers(struct database *db, const struct strlist *identifiers, struct distribution *distributions, bool readonly) {
+static retvalue warnidentifers(const struct strlist *identifiers, struct distribution *distributions, bool readonly) {
 	struct distribution *d;
 	struct target *t;
 	const char *identifier;
@@ -474,7 +490,7 @@ static retvalue warnidentifers(struct database *db, const struct strlist *identi
 			/* create database now, to test it can be created
 			 * early, and to know when new architectures
 			 * arrive in the future. */
-			r = target_initpackagesdb(t, db, READWRITE);
+			r = target_initpackagesdb(t, READWRITE);
 			if (RET_WAS_ERROR(r))
 				return r;
 			r = target_closepackagesdb(t);
@@ -562,7 +578,7 @@ static retvalue readline(/*@out@*/char **result, FILE *f, const char *versionfil
 	return RET_OK;
 }
 
-static retvalue readversionfile(struct database *db, bool nopackagesyet) {
+static retvalue readversionfile(bool nopackagesyet) {
 	char *versionfilename;
 	FILE *f;
 	retvalue r;
@@ -584,19 +600,19 @@ static retvalue readversionfile(struct database *db, bool nopackagesyet) {
 		free(versionfilename);
 		if (nopackagesyet) {
 			/* set to default for new packages.db files: */
-			db->version = strdup(VERSION);
-			if (FAILEDTOALLOC(db->version))
+			rdb_version = strdup(VERSION);
+			if (FAILEDTOALLOC(rdb_version))
 				return RET_ERROR_OOM;
-			db->capabilities.createnewtables = true;
+			rdb_capabilities.createnewtables = true;
 		} else
-			db->version = NULL;
-		db->lastsupportedversion = NULL;
-		db->dbversion = NULL;
-		db->lastsupporteddbversion = NULL;
+			rdb_version = NULL;
+		rdb_lastsupportedversion = NULL;
+		rdb_dbversion = NULL;
+		rdb_lastsupporteddbversion = NULL;
 		return RET_NOTHING;
 	}
 	/* first line is the version creating this database */
-	r = readline(&db->version, f, versionfilename);
+	r = readline(&rdb_version, f, versionfilename);
 	if (RET_WAS_ERROR(r)) {
 		(void)fclose(f);
 		free(versionfilename);
@@ -604,21 +620,21 @@ static retvalue readversionfile(struct database *db, bool nopackagesyet) {
 	}
 	/* second line says which versions of reprepro will be able to cope
 	 * with this database */
-	r = readline(&db->lastsupportedversion, f, versionfilename);
+	r = readline(&rdb_lastsupportedversion, f, versionfilename);
 	if (RET_WAS_ERROR(r)) {
 		(void)fclose(f);
 		free(versionfilename);
 		return r;
 	}
 	/* next line is the version of the underlying database library */
-	r = readline(&db->dbversion, f, versionfilename);
+	r = readline(&rdb_dbversion, f, versionfilename);
 	if (RET_WAS_ERROR(r)) {
 		(void)fclose(f);
 		free(versionfilename);
 		return r;
 	}
 	/* and then the minimum version of this library needed. */
-	r = readline(&db->lastsupporteddbversion, f, versionfilename);
+	r = readline(&rdb_lastsupporteddbversion, f, versionfilename);
 	if (RET_WAS_ERROR(r)) {
 		(void)fclose(f);
 		free(versionfilename);
@@ -629,15 +645,15 @@ static retvalue readversionfile(struct database *db, bool nopackagesyet) {
 
 	/* check for enabled capabilities in the version */
 
-	r = dpkgversions_cmp(db->version, "3", &c);
+	r = dpkgversions_cmp(rdb_version, "3", &c);
 	if (RET_WAS_ERROR(r))
 		return r;
 	if (c >= 0)
-		db->capabilities.createnewtables = true;
+		rdb_capabilities.createnewtables = true;
 
 	/* ensure we can understand it */
 
-	r = dpkgversions_cmp(VERSION, db->lastsupportedversion, &c);
+	r = dpkgversions_cmp(VERSION, rdb_lastsupportedversion, &c);
 	if (RET_WAS_ERROR(r))
 		return r;
 	if (c < 0) {
@@ -650,22 +666,22 @@ static retvalue readversionfile(struct database *db, bool nopackagesyet) {
 
 	/* ensure it's a libdb database: */
 
-	if (strncmp(db->dbversion, "bdb", 3) != 0) {
+	if (strncmp(rdb_dbversion, "bdb", 3) != 0) {
 		fprintf(stderr,
 "According to %s/version this database was created with a yet unsupported\n"
 "database library. Aborting...\n",
 				global.dbdir);
 		return RET_ERROR;
 	}
-	if (strncmp(db->lastsupporteddbversion, "bdb", 3) != 0) {
+	if (strncmp(rdb_lastsupporteddbversion, "bdb", 3) != 0) {
 		fprintf(stderr,
 "According to %s/version this database was created with a yet unsupported\n"
 "database library. Aborting...\n",
 				global.dbdir);
 		return RET_ERROR;
 	}
-	r = dpkgversions_cmp(LIBDB_VERSION_STRING, db->lastsupporteddbversion,
-			&c);
+	r = dpkgversions_cmp(LIBDB_VERSION_STRING,
+			rdb_lastsupporteddbversion, &c);
 	if (RET_WAS_ERROR(r))
 		return r;
 	if (c < 0) {
@@ -673,13 +689,13 @@ static retvalue readversionfile(struct database *db, bool nopackagesyet) {
 "According to %s/version this database was created with a future version\n"
 "%s of libdb. The libdb version this binary is linked against cannot yet\n"
 "handle this format. Aborting...\n",
-				global.dbdir, db->dbversion+3);
+				global.dbdir, rdb_dbversion + 3);
 		return RET_ERROR;
 	}
 	return RET_OK;
 }
 
-static retvalue writeversionfile(struct database *db) {
+static retvalue writeversionfile(void) {
 	char *versionfilename, *finalversionfilename;
 	FILE *f;
 	int i, e;
@@ -695,37 +711,38 @@ static retvalue writeversionfile(struct database *db) {
 		free(versionfilename);
 		return RET_ERRNO(e);
 	}
-	if (db->version == NULL)
+	if (rdb_version == NULL)
 		(void)fputs("0\n", f);
 	else {
-		(void)fputs(db->version, f);
+		(void)fputs(rdb_version, f);
 		(void)fputc('\n', f);
 	}
-	if (db->lastsupportedversion == NULL) {
+	if (rdb_lastsupportedversion == NULL) {
 		(void)fputs("3.3.0\n", f);
 	} else {
 		int c;
 		retvalue r;
 
-		r = dpkgversions_cmp(db->lastsupportedversion, "3.3.0", &c);
+		r = dpkgversions_cmp(rdb_lastsupportedversion,
+				"3.3.0", &c);
 		if (!RET_IS_OK(r) || c < 0)
 			(void)fputs("3.3.0\n", f);
 		else {
-			(void)fputs(db->lastsupportedversion, f);
+			(void)fputs(rdb_lastsupportedversion, f);
 			(void)fputc('\n', f);
 		}
 	}
-	if (db->dbversion == NULL)
+	if (rdb_dbversion == NULL)
 		fprintf(f, "bdb%d.%d.%d\n", DB_VERSION_MAJOR, DB_VERSION_MINOR,
 				DB_VERSION_PATCH);
 	else {
-		(void)fputs(db->dbversion, f);
+		(void)fputs(rdb_dbversion, f);
 		(void)fputc('\n', f);
 	}
-	if (db->lastsupporteddbversion == NULL)
+	if (rdb_lastsupporteddbversion == NULL)
 		fprintf(f, "bdb%d.%d.0\n", DB_VERSION_MAJOR, DB_VERSION_MINOR);
 	else {
-		(void)fputs(db->lastsupporteddbversion, f);
+		(void)fputs(rdb_lastsupporteddbversion, f);
 		(void)fputc('\n', f);
 	}
 
@@ -770,14 +787,14 @@ static retvalue writeversionfile(struct database *db) {
 	return RET_OK;
 }
 
-static retvalue createnewdatabase(struct database *db, struct distribution *distributions) {
+static retvalue createnewdatabase(struct distribution *distributions) {
 	struct distribution *d;
 	struct target *t;
 	retvalue result = RET_NOTHING, r;
 
 	for (d = distributions ; d != NULL ; d = d->next) {
 		for (t = d->targets ; t != NULL ; t = t->next) {
-			r = target_initpackagesdb(t, db, READWRITE);
+			r = target_initpackagesdb(t, READWRITE);
 			RET_UPDATE(result, r);
 			if (RET_IS_OK(r)) {
 				r = target_closepackagesdb(t);
@@ -785,7 +802,7 @@ static retvalue createnewdatabase(struct database *db, struct distribution *dist
 			}
 		}
 	}
-	r = writeversionfile(db);
+	r = writeversionfile();
 	RET_UPDATE(result, r);
 	return result;
 }
@@ -795,10 +812,15 @@ static retvalue createnewdatabase(struct database *db, struct distribution *dist
  * - if readonly, do not create but return with RET_NOTHING
  * - lock database, waiting a given amount of time if already locked
  */
-retvalue database_create(struct database **result, struct distribution *alldistributions, bool fast, bool nopackages, bool allowunused, bool readonly, size_t waitforlock, bool verbosedb) {
-	struct database *n;
+retvalue database_create(struct distribution *alldistributions, bool fast, bool nopackages, bool allowunused, bool readonly, size_t waitforlock, bool verbosedb) {
 	retvalue r;
 	bool packagesfileexists, trackingfileexists, nopackagesyet;
+
+	if (rdb_initialized || rdb_used) {
+		fputs("Internal Error: database initialized a 2nd time!\n",
+				stderr);
+		return RET_ERROR_INTERNAL;
+	}
 
 	if (readonly && !isdir(global.dbdir)) {
 		if (verbose >= 0)
@@ -807,38 +829,42 @@ retvalue database_create(struct database **result, struct distribution *alldistr
 		return RET_NOTHING;
 	}
 
-	n = zNEW(struct database);
-	if (FAILEDTOALLOC(n))
-		return RET_ERROR_OOM;
+	rdb_initialized = true;
+	rdb_used = true;
 
-	r = database_lock(n, waitforlock);
+	r = database_lock(waitforlock);
 	assert (r != RET_NOTHING);
 	if (!RET_IS_OK(r)) {
-		database_free(n);
+		database_free();
 		return r;
 	}
-	n->readonly = readonly;
-	n->verbose = verbosedb;
+	rdb_readonly = readonly;
+	rdb_verbose = verbosedb;
 
-	r = database_hasdatabasefile(n, "packages.db", &packagesfileexists);
-	if (RET_WAS_ERROR(r))
+	r = database_hasdatabasefile("packages.db", &packagesfileexists);
+	if (RET_WAS_ERROR(r)) {
+		releaselock();
+		database_free();
 		return r;
-	r = database_hasdatabasefile(n, "tracking.db", &trackingfileexists);
-	if (RET_WAS_ERROR(r))
+	}
+	r = database_hasdatabasefile("tracking.db", &trackingfileexists);
+	if (RET_WAS_ERROR(r)) {
+		releaselock();
+		database_free();
 		return r;
+	}
 
 	nopackagesyet = !packagesfileexists && !trackingfileexists;
 
-	r = readversionfile(n, nopackagesyet);
+	r = readversionfile(nopackagesyet);
 	if (RET_WAS_ERROR(r)) {
-		releaselock(n);
-		database_free(n);
+		releaselock();
+		database_free();
 		return r;
 	}
 
 	if (nopackages) {
-		n->nopackages = true;
-		*result = n;
+		rdb_nopackages = true;
 		return RET_OK;
 	}
 
@@ -846,10 +872,9 @@ retvalue database_create(struct database **result, struct distribution *alldistr
 		// TODO: handle readonly, but only once packages files may no
 		// longer be generated when it is active...
 
-		r = createnewdatabase(n, alldistributions);
+		r = createnewdatabase(alldistributions);
 		if (RET_WAS_ERROR(r)) {
-			releaselock(n);
-			database_free(n);
+			database_close();
 			return r;
 		}
 	}
@@ -861,17 +886,17 @@ retvalue database_create(struct database **result, struct distribution *alldistr
 	if (!allowunused && !fast && packagesfileexists)  {
 		struct strlist identifiers;
 
-		r = database_listpackages(n, &identifiers);
+		r = database_listpackages(&identifiers);
 		if (RET_WAS_ERROR(r)) {
-			database_close(n);
+			database_close();
 			return r;
 		}
 		if (RET_IS_OK(r)) {
-			r = warnidentifers(n, &identifiers,
+			r = warnidentifers(&identifiers,
 					alldistributions, readonly);
 			if (RET_WAS_ERROR(r)) {
 				strlist_done(&identifiers);
-				database_close(n);
+				database_close();
 				return r;
 			}
 			strlist_done(&identifiers);
@@ -880,23 +905,22 @@ retvalue database_create(struct database **result, struct distribution *alldistr
 	if (!allowunused && !fast && trackingfileexists)  {
 		struct strlist codenames;
 
-		r = tracking_listdistributions(n, &codenames);
+		r = tracking_listdistributions(&codenames);
 		if (RET_WAS_ERROR(r)) {
-			database_close(n);
+			database_close();
 			return r;
 		}
 		if (RET_IS_OK(r)) {
 			r = warnunusedtracking(&codenames, alldistributions);
 			if (RET_WAS_ERROR(r)) {
 				strlist_done(&codenames);
-				database_close(n);
+				database_close();
 				return r;
 			}
 			strlist_done(&codenames);
 		}
 	}
 
-	*result = n;
 	return RET_OK;
 }
 
@@ -1657,7 +1681,7 @@ bool table_isempty(struct table *table) {
 /****************************************************************************
  * Open the different types of tables with their needed flags:              *
  ****************************************************************************/
-static retvalue database_table(struct database *database, const char *filename, const char *subtable, enum database_type type, uint32_t flags, /*@out@*/struct table **table_p) {
+static retvalue database_table(const char *filename, const char *subtable, enum database_type type, uint32_t flags, /*@out@*/struct table **table_p) {
 	struct table *table;
 	retvalue r;
 
@@ -1680,8 +1704,8 @@ static retvalue database_table(struct database *database, const char *filename, 
 	} else
 		table->subname = NULL;
 	table->readonly = ISSET(flags, DB_RDONLY);
-	table->verbose = database->verbose;
-	r = database_opentable(database, filename, subtable, type, flags,
+	table->verbose = rdb_verbose;
+	r = database_opentable(filename, subtable, type, flags,
 			&table->berkeleydb);
 	if (RET_WAS_ERROR(r)) {
 		free(table->subname);
@@ -1706,18 +1730,18 @@ static retvalue database_table(struct database *database, const char *filename, 
 	return r;
 }
 
-retvalue database_openreferences(struct database *db) {
+retvalue database_openreferences(void) {
 	retvalue r;
 
-	assert (db->references == NULL);
-	r = database_table(db, "references.db", "references",
-			dbt_BTREEDUP, DB_CREATE, &db->references);
+	assert (rdb_references == NULL);
+	r = database_table("references.db", "references",
+			dbt_BTREEDUP, DB_CREATE, &rdb_references);
 	assert (r != RET_NOTHING);
 	if (RET_WAS_ERROR(r)) {
-		db->references = NULL;
+		rdb_references = NULL;
 		return r;
 	} else
-		db->references->verbose = false;
+		rdb_references->verbose = false;
 	return RET_OK;
 }
 
@@ -1729,45 +1753,45 @@ static int paireddatacompare(UNUSED(DB *db), const DBT *a, const DBT *b) {
 		return strncmp(a->data, b->data, b->size);
 }
 
-retvalue database_opentracking(struct database *database, const char *codename, bool readonly, struct table **table_p) {
+retvalue database_opentracking(const char *codename, bool readonly, struct table **table_p) {
 	struct table *table IFSTUPIDCC(=NULL);
 	retvalue r;
 
-	if (database->nopackages) {
+	if (rdb_nopackages) {
 		(void)fputs(
 "Internal Error: Accessing packages databse while that was not prepared!\n",
 				stderr);
 		return RET_ERROR;
 	}
-	if (database->trackingdatabaseopen) {
+	if (rdb_trackingdatabaseopen) {
 		(void)fputs(
 "Internal Error: Trying to open multiple tracking databases at the same time.\nThis should normaly not happen (to avoid triggering bugs in the underlying BerkeleyDB)\n",
 				stderr);
 		return RET_ERROR;
 	}
 
-	r = database_table(database, "tracking.db", codename,
+	r = database_table("tracking.db", codename,
 			dbt_BTREEPAIRS, readonly?DB_RDONLY:DB_CREATE, &table);
 	assert (r != RET_NOTHING);
 	if (RET_WAS_ERROR(r))
 		return r;
-	table->flagreset = &database->trackingdatabaseopen;
-	database->trackingdatabaseopen = true;
+	table->flagreset = &rdb_trackingdatabaseopen;
+	rdb_trackingdatabaseopen = true;
 	*table_p = table;
 	return RET_OK;
 }
 
-retvalue database_openpackages(struct database *database, const char *identifier, bool readonly, struct table **table_p) {
+retvalue database_openpackages(const char *identifier, bool readonly, struct table **table_p) {
 	struct table *table IFSTUPIDCC(=NULL);
 	retvalue r;
 
-	if (database->nopackages) {
+	if (rdb_nopackages) {
 		(void)fputs(
 "Internal Error: Accessing packages databse while that was not prepared!\n",
 				stderr);
 		return RET_ERROR;
 	}
-	if (database->packagesdatabaseopen) {
+	if (rdb_packagesdatabaseopen) {
 		(void)fputs(
 "Internal Error: Trying to open multiple packages databases at the same time.\n"
 "This should normaly not happen (to avoid triggering bugs in the underlying BerkeleyDB)\n",
@@ -1775,36 +1799,36 @@ retvalue database_openpackages(struct database *database, const char *identifier
 		return RET_ERROR;
 	}
 
-	r = database_table(database, "packages.db", identifier,
+	r = database_table("packages.db", identifier,
 			dbt_BTREE, readonly?DB_RDONLY:DB_CREATE, &table);
 	assert (r != RET_NOTHING);
 	if (RET_WAS_ERROR(r))
 		return r;
-	table->flagreset = &database->packagesdatabaseopen;
-	database->packagesdatabaseopen = true;
+	table->flagreset = &rdb_packagesdatabaseopen;
+	rdb_packagesdatabaseopen = true;
 	*table_p = table;
 	return RET_OK;
 }
 
 /* Get a list of all identifiers having a package list */
-retvalue database_listpackages(struct database *database, struct strlist *identifiers) {
-	return database_listsubtables(database, "packages.db", identifiers);
+retvalue database_listpackages(struct strlist *identifiers) {
+	return database_listsubtables("packages.db", identifiers);
 }
 
 /* drop a database */
-retvalue database_droppackages(struct database *database, const char *identifier) {
-	return database_dropsubtable(database, "packages.db", identifier);
+retvalue database_droppackages(const char *identifier) {
+	return database_dropsubtable("packages.db", identifier);
 }
 
-retvalue database_openfiles(struct database *db) {
+retvalue database_openfiles(void) {
 	retvalue r;
 	struct strlist identifiers;
 	bool checksumsexisted, oldfiles;
 
-	assert (db->checksums == NULL);
-	assert (db->contents == NULL);
+	assert (rdb_checksums == NULL);
+	assert (rdb_contents == NULL);
 
-	r = database_listsubtables(db, "contents.cache.db", &identifiers);
+	r = database_listsubtables("contents.cache.db", &identifiers);
 	if (RET_IS_OK(r)) {
 		if (strlist_in(&identifiers, "filelists")) {
 			fprintf(stderr,
@@ -1819,19 +1843,19 @@ retvalue database_openfiles(struct database *db) {
 		strlist_done(&identifiers);
 	}
 
-	r = database_hasdatabasefile(db, "checksums.db", &checksumsexisted);
-	r = database_table(db, "checksums.db", "pool",
+	r = database_hasdatabasefile("checksums.db", &checksumsexisted);
+	r = database_table("checksums.db", "pool",
 			dbt_BTREE, DB_CREATE,
-			&db->checksums);
+			&rdb_checksums);
 	assert (r != RET_NOTHING);
 	if (RET_WAS_ERROR(r)) {
-		db->checksums = NULL;
+		rdb_checksums = NULL;
 		return r;
 	}
-	r = database_hasdatabasefile(db, "files.db", &oldfiles);
+	r = database_hasdatabasefile("files.db", &oldfiles);
 	if (RET_WAS_ERROR(r)) {
-		(void)table_close(db->checksums);
-		db->checksums = NULL;
+		(void)table_close(rdb_checksums);
+		rdb_checksums = NULL;
 		return r;
 	}
 	if (oldfiles) {
@@ -1842,18 +1866,18 @@ retvalue database_openfiles(struct database *db) {
 	}
 
 	// TODO: only create this file once it is actually needed...
-	r = database_table(db, "contents.cache.db", "compressedfilelists",
-			dbt_BTREE, DB_CREATE, &db->contents);
+	r = database_table("contents.cache.db", "compressedfilelists",
+			dbt_BTREE, DB_CREATE, &rdb_contents);
 	assert (r != RET_NOTHING);
 	if (RET_WAS_ERROR(r)) {
-		(void)table_close(db->checksums);
-		db->checksums = NULL;
-		db->contents = NULL;
+		(void)table_close(rdb_checksums);
+		rdb_checksums = NULL;
+		rdb_contents = NULL;
 	}
 	return r;
 }
 
-retvalue database_openreleasecache(struct database *database, const char *codename, struct table **cachedb_p) {
+retvalue database_openreleasecache(const char *codename, struct table **cachedb_p) {
 	retvalue r;
 	char *oldcachefilename;
 
@@ -1901,7 +1925,7 @@ retvalue database_openreleasecache(struct database *database, const char *codena
 	}
 	free(oldcachefilename);
 
-	r = database_table(database, "release.caches.db", codename,
+	r = database_table("release.caches.db", codename,
 			 dbt_HASH, DB_CREATE, cachedb_p);
 	if (RET_IS_OK(r))
 		(*cachedb_p)->verbose = false;
@@ -1927,15 +1951,14 @@ static retvalue table_copy(struct table *oldtable, struct table *newtable) {
 	return RET_OK;
 }
 
-retvalue database_translate_filelists(struct database *database) {
+retvalue database_translate_filelists(void) {
 	char *dbname, *tmpdbname;
 	struct table *oldtable, *newtable;
 	struct strlist identifiers;
 	int ret;
 	retvalue r, r2;
 
-	r = database_listsubtables(database, "contents.cache.db",
-			&identifiers);
+	r = database_listsubtables("contents.cache.db", &identifiers);
 	if (RET_IS_OK(r)) {
 		if (!strlist_in(&identifiers, "filelists")) {
 			fprintf(stderr,
@@ -1965,13 +1988,12 @@ retvalue database_translate_filelists(struct database *database) {
 		return RET_ERRNO(e);
 	}
 	newtable = NULL;
-	r = database_table(database, "contents.cache.db",
-			"compressedfilelists",
+	r = database_table("contents.cache.db", "compressedfilelists",
 			dbt_BTREE, DB_CREATE, &newtable);
 	assert (r != RET_NOTHING);
 	oldtable = NULL;
 	if (RET_IS_OK(r)) {
-		r = database_table(database, "old.contents.cache.db", "filelists",
+		r = database_table("old.contents.cache.db", "filelists",
 				dbt_BTREE, DB_RDONLY, &oldtable);
 		if (r == RET_NOTHING) {
 			fprintf(stderr, "Could not find old-style database!\n");
@@ -1988,7 +2010,7 @@ retvalue database_translate_filelists(struct database *database) {
 	oldtable = NULL;
 	if (RET_IS_OK(r)) {
 		/* copy the new-style database, */
-		r = database_table(database, "old.contents.cache.db", "compressedfilelists",
+		r = database_table("old.contents.cache.db", "compressedfilelists",
 				dbt_BTREE, DB_RDONLY, &oldtable);
 		if (RET_IS_OK(r)) {
 			/* if there is one... */
@@ -2175,11 +2197,16 @@ static inline retvalue translate(struct table *oldmd5sums, struct table *newchec
 }
 
 retvalue database_translate_legacy_checksums(bool verbosedb) {
-	struct database *n;
 	struct table *newchecksums, *oldmd5sums;
 	char *fullfilename;
 	retvalue r;
 	int e;
+
+	if (rdb_initialized || rdb_used) {
+		fputs("Internal Error: database initialized a 2nd time!\n",
+				stderr);
+		return RET_ERROR_INTERNAL;
+	}
 
 	if (!isdir(global.dbdir)) {
 		fprintf(stderr, "Cannot find directory '%s'!\n",
@@ -2187,49 +2214,46 @@ retvalue database_translate_legacy_checksums(bool verbosedb) {
 		return RET_ERROR;
 	}
 
-	n = zNEW(struct database);
-	if (FAILEDTOALLOC(n))
-		return RET_ERROR_OOM;
+	rdb_initialized = true;
+	rdb_used = true;
 
-	r = database_lock(n, 0);
+	r = database_lock(0);
 	assert (r != RET_NOTHING);
 	if (!RET_IS_OK(r)) {
-		database_free(n);
+		database_free();
 		return r;
 	}
-	n->readonly = READWRITE;
-	n->verbose = verbosedb;
+	rdb_readonly = READWRITE;
+	rdb_verbose = verbosedb;
 
-	r = readversionfile(n, false);
+	r = readversionfile(false);
 	if (RET_WAS_ERROR(r)) {
-		releaselock(n);
-		database_free(n);
+		releaselock();
+		database_free();
 		return r;
 	}
 
-	r = database_table(n, "files.db", "md5sums",
-			dbt_BTREE, 0, &oldmd5sums);
+	r = database_table("files.db", "md5sums", dbt_BTREE, 0, &oldmd5sums);
 	if (r == RET_NOTHING) {
 		fprintf(stderr,
 "There is no old files.db in %s. Nothing to translate!\n",
 				global.dbdir);
-		releaselock(n);
-		database_free(n);
+		releaselock();
+		database_free();
 		return RET_NOTHING;
 	} else if (RET_WAS_ERROR(r)) {
-		releaselock(n);
-		database_free(n);
+		releaselock();
+		database_free();
 		return r;
 	}
 
-	r = database_table(n, "checksums.db", "pool",
-			dbt_BTREE, DB_CREATE,
+	r = database_table("checksums.db", "pool", dbt_BTREE, DB_CREATE,
 			&newchecksums);
 	assert (r != RET_NOTHING);
 	if (RET_WAS_ERROR(r)) {
 		(void)table_close(oldmd5sums);
-		releaselock(n);
-		database_free(n);
+		releaselock();
+		database_free();
 		return r;
 	}
 
@@ -2237,22 +2261,22 @@ retvalue database_translate_legacy_checksums(bool verbosedb) {
 	if (RET_WAS_ERROR(r)) {
 		(void)table_close(oldmd5sums);
 		(void)table_close(newchecksums);
-		releaselock(n);
-		database_free(n);
+		releaselock();
+		database_free();
 		return r;
 	}
 
 	(void)table_close(oldmd5sums);
 	r = table_close(newchecksums);
 	if (RET_WAS_ERROR(r)) {
-		releaselock(n);
-		database_free(n);
+		releaselock();
+		database_free();
 		return r;
 	}
 	fullfilename = dbfilename("files.db");
 	if (FAILEDTOALLOC(fullfilename)) {
-		releaselock(n);
-		database_free(n);
+		releaselock();
+		database_free();
 		return RET_ERROR_OOM;
 	}
 	e = deletefile(fullfilename);
@@ -2260,11 +2284,11 @@ retvalue database_translate_legacy_checksums(bool verbosedb) {
 		fprintf(stderr, "Could not delete '%s'!\n"
 "It can now savely be deleted and it all that is left to be done!\n",
 				fullfilename);
-		database_free(n);
+		database_free();
 		return RET_ERRNO(e);
 	}
-	r = writeversionfile(n);
-	releaselock(n);
-	database_free(n);
+	r = writeversionfile();
+	releaselock();
+	database_free();
 	return r;
 }

@@ -129,7 +129,7 @@ static retvalue dsc_read(/*@out@*/struct dscpackage **pkg, const char *filename)
 	return RET_OK;
 }
 
-retvalue dsc_addprepared(struct database *database, const struct dsc_headers *dsc, component_t component, const struct strlist *filekeys, struct distribution *distribution, struct trackingdata *trackingdata){
+retvalue dsc_addprepared(const struct dsc_headers *dsc, component_t component, const struct strlist *filekeys, struct distribution *distribution, struct trackingdata *trackingdata){
 	retvalue r;
 	struct target *t = distribution_getpart(distribution,
 			component, architecture_source, pt_dsc);
@@ -137,13 +137,13 @@ retvalue dsc_addprepared(struct database *database, const struct dsc_headers *ds
 	assert (logger_isprepared(distribution->logger));
 
 	/* finally put it into the source distribution */
-	r = target_initpackagesdb(t, database, READWRITE);
+	r = target_initpackagesdb(t, READWRITE);
 	if (!RET_WAS_ERROR(r)) {
 		retvalue r2;
 		if (interrupted())
 			r = RET_ERROR_INTERRUPTED;
 		else
-			r = target_addpackage(t, distribution->logger, database,
+			r = target_addpackage(t, distribution->logger,
 					dsc->name, dsc->version,
 					dsc->control, filekeys,
 					false, trackingdata,
@@ -161,7 +161,7 @@ retvalue dsc_addprepared(struct database *database, const struct dsc_headers *ds
  * If basename, filekey and directory are != NULL, then they are used instead
  * of being newly calculated.
  * (And all files are expected to already be in the pool). */
-retvalue dsc_add(struct database *database, component_t forcecomponent, const char *forcesection, const char *forcepriority, struct distribution *distribution, const char *dscfilename, int delete, trackingdb tracks){
+retvalue dsc_add(component_t forcecomponent, const char *forcesection, const char *forcepriority, struct distribution *distribution, const char *dscfilename, int delete, trackingdb tracks){
 	retvalue r;
 	struct dscpackage *pkg;
 	struct trackingdata trackingdata;
@@ -337,7 +337,7 @@ retvalue dsc_add(struct database *database, component_t forcecomponent, const ch
 			r = RET_ERROR_OOM;
 		else
 			/* then look if we already have this, or copy it in */
-			r = files_preinclude(database,
+			r = files_preinclude(
 					dscfilename, dscfilekey,
 					&dscchecksums);
 
@@ -361,7 +361,7 @@ retvalue dsc_add(struct database *database, component_t forcecomponent, const ch
 	assert (pkg->dsc.files.names.count == pkg->filekeys.count);
 	for (i = 1 ; i < pkg->dsc.files.names.count ; i ++) {
 		if (!RET_WAS_ERROR(r)) {
-			r = files_checkincludefile(database, origdirectory,
+			r = files_checkincludefile(origdirectory,
 					pkg->dsc.files.names.values[i],
 					pkg->filekeys.values[i],
 					&pkg->dsc.files.checksums[i]);
@@ -399,7 +399,7 @@ retvalue dsc_add(struct database *database, component_t forcecomponent, const ch
 		}
 	}
 
-	r = dsc_addprepared(database, &pkg->dsc, pkg->component,
+	r = dsc_addprepared(&pkg->dsc, pkg->component,
 			&pkg->filekeys, distribution,
 			(tracks!=NULL)?&trackingdata:NULL);
 
@@ -425,7 +425,7 @@ retvalue dsc_add(struct database *database, component_t forcecomponent, const ch
 
 	if (tracks != NULL) {
 		retvalue r2;
-		r2 = trackingdata_finish(tracks, &trackingdata, database);
+		r2 = trackingdata_finish(tracks, &trackingdata);
 		RET_ENDUPDATE(r, r2);
 	}
 	return r;

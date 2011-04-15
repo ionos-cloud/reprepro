@@ -28,8 +28,6 @@ struct downloadcache {
 	/*@null@*/struct downloaditem *items;
 	/*@null@*/struct devices *devices;
 
-	struct database *database;
-
 	/* for showing what percentage was downloaded */
 	long long size_todo, size_done;
 	unsigned int last_percent;
@@ -44,8 +42,8 @@ retvalue downloadcache_free(/*@null@*//*@only@*/struct downloadcache *);
 /* queue a new file to be downloaded:
  * results in RET_ERROR_WRONG_MD5, if someone else already asked
  * for the same destination with other md5sum created. */
-retvalue downloadcache_add(struct downloadcache *, struct database *, struct aptmethod *, const char * /*orig*/, const char * /*filekey*/, const struct checksums *);
+retvalue downloadcache_add(struct downloadcache *, struct aptmethod *, const char * /*orig*/, const char * /*filekey*/, const struct checksums *);
 
 /* some as above, only for more files... */
-retvalue downloadcache_addfiles(struct downloadcache *, struct database *, struct aptmethod *, const struct checksumsarray * /*origfiles*/, const struct strlist * /*filekeys*/);
+retvalue downloadcache_addfiles(struct downloadcache *, struct aptmethod *, const struct checksumsarray * /*origfiles*/, const struct strlist * /*filekeys*/);
 #endif

@@ -52,6 +52,6 @@ retvalue binaries_calcfilekeys(component_t, const struct deb_headers *, packaget
 struct overridedata;
 retvalue binaries_complete(const struct deb_headers *, const char * /*filekey*/, const struct checksums *, const struct overridedata *, const char * /*section*/, const char * /*priority*/, char **/*newcontrol_p*/);
 
-retvalue binaries_adddeb(const struct deb_headers *, struct database *, const struct atomlist */*forcedarchitectures*/, packagetype_t, struct distribution *, /*@null@*/struct trackingdata *, component_t, const struct strlist */*filekeys*/, const char */*control*/);
-retvalue binaries_checkadddeb(const struct deb_headers *, struct database *, architecture_t /*forcearchitecture*/, packagetype_t, struct distribution *, bool tracking, component_t, bool /*permitnewerold*/);
+retvalue binaries_adddeb(const struct deb_headers *, const struct atomlist */*forcedarchitectures*/, packagetype_t, struct distribution *, /*@null@*/struct trackingdata *, component_t, const struct strlist */*filekeys*/, const char */*control*/);
+retvalue binaries_checkadddeb(const struct deb_headers *, architecture_t /*forcearchitecture*/, packagetype_t, struct distribution *, bool tracking, component_t, bool /*permitnewerold*/);
 #endif

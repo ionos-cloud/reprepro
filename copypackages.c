@@ -154,7 +154,7 @@ static void list_cancelpackage(struct package_list *list, /*@only@*/struct packa
 	assert (package == NULL);
 }
 
-static retvalue list_prepareadd(struct database *database, struct package_list *list, struct target *target, const char *packagename, /*@null@*/const char *v, architecture_t package_architecture, const char *chunk) {
+static retvalue list_prepareadd(struct package_list *list, struct target *target, const char *packagename, /*@null@*/const char *v, architecture_t package_architecture, const char *chunk) {
 	char *version;
 	char *source, *sourceversion;
 	struct package *new IFSTUPIDCC(=NULL);
@@ -199,7 +199,7 @@ static retvalue list_prepareadd(struct database *database, struct package_list *
 		const char *oldfilekey = new->origfiles.names.values[i];
 		const struct checksums *checksums = new->origfiles.checksums[i];
 
-		r = files_canadd(database, newfilekey, checksums);
+		r = files_canadd(newfilekey, checksums);
 		/* normaly it should just already have that file,
 		 * in which case we have nothing to do: */
 		if (r == RET_NOTHING)
@@ -248,7 +248,7 @@ static retvalue list_prepareadd(struct database *database, struct package_list *
 	return RET_OK;
 }
 
-static retvalue package_add(struct database *database, struct distribution *into, /*@null@*/trackingdb tracks, struct target *target, const struct package *package, /*@null@*/ const char *suitefrom) {
+static retvalue package_add(struct distribution *into, /*@null@*/trackingdb tracks, struct target *target, const struct package *package, /*@null@*/ const char *suitefrom) {
 	struct trackingdata trackingdata;
 	retvalue r;
 
@@ -258,8 +258,7 @@ static retvalue package_add(struct database *database, struct distribution *into
 				target->identifier);
 	}
 
-	r = files_expectfiles(database,
-			&package->filekeys,
+	r = files_expectfiles(&package->filekeys,
 			package->origfiles.checksums);
 	if (RET_WAS_ERROR(r))
 		return r;
@@ -272,7 +271,7 @@ static retvalue package_add(struct database *database, struct distribution *into
 			return r;
 	}
 	r = target_addpackage(target,
-			into->logger, database,
+			into->logger,
 			package->name, package->version,
 			package->control,
 			&package->filekeys, true,
@@ -284,14 +283,13 @@ static retvalue package_add(struct database *database, struct distribution *into
 	if (tracks != NULL) {
 		retvalue r2;
 
-		r2 = trackingdata_finish(tracks, &trackingdata,
-				database);
+		r2 = trackingdata_finish(tracks, &trackingdata);
 		RET_ENDUPDATE(r, r2);
 	}
 	return r;
 }
 
-static retvalue packagelist_add(struct database *database, struct distribution *into, const struct package_list *list, /*@null@*/const char *suitefrom) {
+static retvalue packagelist_add(struct distribution *into, const struct package_list *list, /*@null@*/const char *suitefrom) {
 	retvalue result, r;
 	struct target_package_list *tpl;
 	struct package *package;
@@ -302,7 +300,7 @@ static retvalue packagelist_add(struct database *database, struct distribution *
 		return r;
 
 	if (into->tracking != dt_NONE) {
-		r = tracking_initialize(&tracks, database, into, false);
+		r = tracking_initialize(&tracks, into, false);
 		if (RET_WAS_ERROR(r))
 			return r;
 	} else
@@ -312,13 +310,13 @@ static retvalue packagelist_add(struct database *database, struct distribution *
 	for (tpl = list->targets; tpl != NULL ; tpl = tpl->next) {
 		struct target *target = tpl->target;
 
-		r = target_initpackagesdb(target, database, READWRITE);
+		r = target_initpackagesdb(target, READWRITE);
 		RET_ENDUPDATE(result, r);
 		if (RET_WAS_ERROR(r))
 			break;
 		for (package = tpl->packages; package != NULL ;
 		                              package = package->next) {
-			r = package_add(database, into, tracks, target,
+			r = package_add(into, tracks, target,
 					package, suitefrom);
 			RET_UPDATE(result, r);
 		}
@@ -331,7 +329,7 @@ static retvalue packagelist_add(struct database *database, struct distribution *
 	return result;
 }
 
-static retvalue copy_by_func(struct package_list *list, struct database *database, struct distribution *into, struct distribution *from, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes, retvalue action(struct package_list*, struct database *, struct distribution *, struct distribution *, struct target *, struct target *, void *), void *data) {
+static retvalue copy_by_func(struct package_list *list, struct distribution *into, struct distribution *from, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes, retvalue action(struct package_list*, struct distribution *, struct distribution *, struct target *, struct target *, void *), void *data) {
 	retvalue result, r;
 	struct target *origtarget, *desttarget;
 
@@ -353,7 +351,7 @@ static retvalue copy_by_func(struct package_list *list, struct database *databas
 					into->codename);
 			continue;
 		}
-		r = action(list, database, into, from, desttarget, origtarget, data);
+		r = action(list, into, from, desttarget, origtarget, data);
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(result))
 			return result;
@@ -368,12 +366,12 @@ struct namelist {
 	bool *found;
 };
 
-static retvalue by_name(struct package_list *list, struct database *database, UNUSED(struct distribution *into), UNUSED(struct distribution *from), struct target *desttarget, struct target *fromtarget, void *data) {
+static retvalue by_name(struct package_list *list, UNUSED(struct distribution *into), UNUSED(struct distribution *from), struct target *desttarget, struct target *fromtarget, void *data) {
 	struct namelist *d = data;
 	retvalue result, r;
 	int i, j;
 
-	r = target_initpackagesdb(fromtarget, database, READONLY);
+	r = target_initpackagesdb(fromtarget, READONLY);
 	if (RET_WAS_ERROR(r))
 		return r;
 	result = RET_NOTHING;
@@ -406,7 +404,7 @@ static retvalue by_name(struct package_list *list, struct database *database, UN
 		RET_ENDUPDATE(result, r);
 		if (RET_WAS_ERROR(r))
 			break;
-		r = list_prepareadd(database, list, desttarget,
+		r = list_prepareadd(list, desttarget,
 				name, NULL, package_architecture, chunk);
 		free(chunk);
 		RET_UPDATE(result, r);
@@ -435,7 +433,7 @@ static void packagelist_done(struct package_list *list) {
 	}
 }
 
-retvalue copy_by_name(struct database *database, struct distribution *into, struct distribution *from, int argc, const char **argv, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes) {
+retvalue copy_by_name(struct distribution *into, struct distribution *from, int argc, const char **argv, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes) {
 	struct package_list list;
 	struct namelist names = {
 		argc, argv, nzNEW(argc, bool), nzNEW(argc, bool)
@@ -449,7 +447,7 @@ retvalue copy_by_name(struct database *database, struct distribution *into, stru
 	}
 
 	memset(&list, 0, sizeof(list));
-	r = copy_by_func(&list, database, into, from, components,
+	r = copy_by_func(&list, into, from, components,
 			architectures, packagetypes, by_name, &names);
 	free(names.warnedabout);
 	if (verbose >= 0 && !RET_WAS_ERROR(r)) {
@@ -476,12 +474,12 @@ retvalue copy_by_name(struct database *database, struct distribution *into, stru
 	free(names.found);
 	if (!RET_IS_OK(r))
 		return r;
-	r = packagelist_add(database, into, &list, from->codename);
+	r = packagelist_add(into, &list, from->codename);
 	packagelist_done(&list);
 	return r;
 }
 
-static retvalue by_source(struct package_list *list, struct database *database, UNUSED(struct distribution *into), UNUSED(struct distribution *from), struct target *desttarget, struct target *fromtarget, void *data) {
+static retvalue by_source(struct package_list *list, UNUSED(struct distribution *into), UNUSED(struct distribution *from), struct target *desttarget, struct target *fromtarget, void *data) {
 	struct namelist *d = data;
 	struct target_cursor iterator IFSTUPIDCC(=TARGET_CURSOR_ZERO);
 	const char *packagename, *chunk;
@@ -489,7 +487,7 @@ static retvalue by_source(struct package_list *list, struct database *database, 
 
 	assert (d->argc > 0);
 
-	r = target_openiterator(fromtarget, database, READONLY, &iterator);
+	r = target_openiterator(fromtarget, READONLY, &iterator);
 	assert (r != RET_NOTHING);
 	if (!RET_IS_OK(r))
 		return r;
@@ -542,7 +540,7 @@ static retvalue by_source(struct package_list *list, struct database *database, 
 			result = r;
 			break;
 		}
-		r = list_prepareadd(database, list, desttarget,
+		r = list_prepareadd(list, desttarget,
 				packagename, NULL, package_architecture, chunk);
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(r))
@@ -555,7 +553,7 @@ static retvalue by_source(struct package_list *list, struct database *database, 
 	return result;
 }
 
-retvalue copy_by_source(struct database *database, struct distribution *into, struct distribution *from, int argc, const char **argv, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes) {
+retvalue copy_by_source(struct distribution *into, struct distribution *from, int argc, const char **argv, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes) {
 	struct package_list list;
 	struct namelist names = { argc, argv, NULL, nzNEW(argc, bool) };
 	retvalue r;
@@ -567,7 +565,7 @@ retvalue copy_by_source(struct database *database, struct distribution *into, st
 	memset(&list, 0, sizeof(list));
 	// TODO: implement fast way by looking at source tracking
 	// (also allow copying .changes and .logs)
-	r = copy_by_func(&list, database, into, from, components, architectures,
+	r = copy_by_func(&list, into, from, components, architectures,
 			packagetypes, by_source, &names);
 	if (argc == 1 && !RET_WAS_ERROR(r) && verbose >= 0) {
 		assert(names.found != NULL);
@@ -629,19 +627,19 @@ retvalue copy_by_source(struct database *database, struct distribution *into, st
 	free(names.found);
 	if (!RET_IS_OK(r))
 		return r;
-	r = packagelist_add(database, into, &list, from->codename);
+	r = packagelist_add(into, &list, from->codename);
 	packagelist_done(&list);
 	return r;
 }
 
-static retvalue by_formula(struct package_list *list, struct database *database, UNUSED(struct distribution *into), UNUSED(struct distribution *from), struct target *desttarget, struct target *fromtarget, void *data) {
+static retvalue by_formula(struct package_list *list, UNUSED(struct distribution *into), UNUSED(struct distribution *from), struct target *desttarget, struct target *fromtarget, void *data) {
 	term *condition = data;
 	struct target_cursor iterator IFSTUPIDCC(=TARGET_CURSOR_ZERO);
 	const char *packagename, *chunk;
 	architecture_t package_architecture;
 	retvalue result, r;
 
-	r = target_openiterator(fromtarget, database, READONLY, &iterator);
+	r = target_openiterator(fromtarget, READONLY, &iterator);
 	assert (r != RET_NOTHING);
 	if (!RET_IS_OK(r))
 		return r;
@@ -659,7 +657,7 @@ static retvalue by_formula(struct package_list *list, struct database *database,
 			result = r;
 			break;
 		}
-		r = list_prepareadd(database, list, desttarget,
+		r = list_prepareadd(list, desttarget,
 				packagename, NULL, package_architecture, chunk);
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(r))
@@ -670,14 +668,14 @@ static retvalue by_formula(struct package_list *list, struct database *database,
 	return result;
 }
 
-static retvalue by_glob(struct package_list *list, struct database *database, UNUSED(struct distribution *into), UNUSED(struct distribution *from), struct target *desttarget, struct target *fromtarget, void *data) {
+static retvalue by_glob(struct package_list *list, UNUSED(struct distribution *into), UNUSED(struct distribution *from), struct target *desttarget, struct target *fromtarget, void *data) {
 	const char *glob = data;
 	struct target_cursor iterator IFSTUPIDCC(=TARGET_CURSOR_ZERO);
 	const char *packagename, *chunk;
 	architecture_t package_architecture;
 	retvalue result, r;
 
-	r = target_openiterator(fromtarget, database, READONLY, &iterator);
+	r = target_openiterator(fromtarget, READONLY, &iterator);
 	assert (r != RET_NOTHING);
 	if (!RET_IS_OK(r))
 		return r;
@@ -690,7 +688,7 @@ static retvalue by_glob(struct package_list *list, struct database *database, UN
 			result = r;
 			break;
 		}
-		r = list_prepareadd(database, list, desttarget,
+		r = list_prepareadd(list, desttarget,
 				packagename, NULL, package_architecture, chunk);
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(r))
@@ -701,22 +699,22 @@ static retvalue by_glob(struct package_list *list, struct database *database, UN
 	return result;
 }
 
-retvalue copy_by_glob(struct database *database, struct distribution *into, struct distribution *from, const char *glob, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes) {
+retvalue copy_by_glob(struct distribution *into, struct distribution *from, const char *glob, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes) {
 	struct package_list list;
 	retvalue r;
 
 	memset(&list, 0, sizeof(list));
 
-	r = copy_by_func(&list, database, into, from, components, architectures,
+	r = copy_by_func(&list, into, from, components, architectures,
 			packagetypes, by_glob, (void*)glob);
 	if (!RET_IS_OK(r))
 		return r;
-	r = packagelist_add(database, into, &list, from->codename);
+	r = packagelist_add(into, &list, from->codename);
 	packagelist_done(&list);
 	return r;
 }
 
-retvalue copy_by_formula(struct database *database, struct distribution *into, struct distribution *from, const char *filter, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes) {
+retvalue copy_by_formula(struct distribution *into, struct distribution *from, const char *filter, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes) {
 	struct package_list list;
 	term *condition;
 	retvalue r;
@@ -727,12 +725,12 @@ retvalue copy_by_formula(struct database *database, struct distribution *into, s
 	if (!RET_IS_OK(r)) {
 		return r;
 	}
-	r = copy_by_func(&list, database, into, from, components, architectures,
+	r = copy_by_func(&list, into, from, components, architectures,
 			packagetypes, by_formula, condition);
 	term_free(condition);
 	if (!RET_IS_OK(r))
 		return r;
-	r = packagelist_add(database, into, &list, from->codename);
+	r = packagelist_add(into, &list, from->codename);
 	packagelist_done(&list);
 	return r;
 }
@@ -808,7 +806,7 @@ static retvalue choose_by_glob(UNUSED(struct target *target), const char *packag
 		return RET_NOTHING;
 }
 
-retvalue copy_from_file(struct database *database, struct distribution *into, component_t component, architecture_t architecture, packagetype_t packagetype, const char *filename, int argc, const char **argv) {
+retvalue copy_from_file(struct distribution *into, component_t component, architecture_t architecture, packagetype_t packagetype, const char *filename, int argc, const char **argv) {
 	struct indexfile *i;
 	retvalue result, r;
 	struct target *target;
@@ -863,7 +861,7 @@ retvalue copy_from_file(struct database *database, struct distribution *into, co
 		r = choose_by_name(target,
 				packagename, version, control, &d);
 		if (RET_IS_OK(r))
-			r = list_prepareadd(database, &list, target,
+			r = list_prepareadd(&list, target,
 					packagename, version,
 					package_architecture, control);
 		free(packagename);
@@ -875,14 +873,14 @@ retvalue copy_from_file(struct database *database, struct distribution *into, co
 	r = indexfile_close(i);
 	RET_ENDUPDATE(result, r);
 	if (RET_IS_OK(result))
-		result = packagelist_add(database, into, &list, NULL);
+		result = packagelist_add(into, &list, NULL);
 	packagelist_done(&list);
 	return result;
 }
 
 typedef retvalue chooseaction(struct target *, const char *, const char *, const char *, void *);
 
-static retvalue restore_from_snapshot(struct database *database, struct distribution *into, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes, const char *snapshotname, chooseaction action, void *d) {
+static retvalue restore_from_snapshot(struct distribution *into, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes, const char *snapshotname, chooseaction action, void *d) {
 	retvalue result, r;
 	struct package_list list;
 	struct target *target;
@@ -957,7 +955,7 @@ static retvalue restore_from_snapshot(struct database *database, struct distribu
 			result = action(target,
 					packagename, version, control, d);
 			if (RET_IS_OK(result))
-				result = list_prepareadd(database, &list,
+				result = list_prepareadd(&list,
 						target, packagename, version,
 						package_architecture, control);
 			free(packagename);
@@ -974,26 +972,26 @@ static retvalue restore_from_snapshot(struct database *database, struct distribu
 	free(basedir);
 	if (!RET_IS_OK(result))
 		return result;
-	r = packagelist_add(database, into, &list, snapshotname);
+	r = packagelist_add(into, &list, snapshotname);
 	packagelist_done(&list);
 	return r;
 }
 
-retvalue restore_by_name(struct database *database, struct distribution *into, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes, const char *snapshotname, int argc, const char **argv) {
+retvalue restore_by_name(struct distribution *into, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes, const char *snapshotname, int argc, const char **argv) {
 	struct namelist d = {argc, argv, NULL, NULL};
-	return restore_from_snapshot(database, into,
+	return restore_from_snapshot(into,
 			components, architectures, packagetypes,
 			snapshotname, choose_by_name, &d);
 }
 
-retvalue restore_by_source(struct database *database, struct distribution *into, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes, const char *snapshotname, int argc, const char **argv) {
+retvalue restore_by_source(struct distribution *into, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes, const char *snapshotname, int argc, const char **argv) {
 	struct namelist d = {argc, argv, NULL, NULL};
-	return restore_from_snapshot(database, into,
+	return restore_from_snapshot(into,
 			components, architectures, packagetypes,
 			snapshotname, choose_by_source, &d);
 }
 
-retvalue restore_by_formula(struct database *database, struct distribution *into, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes, const char *snapshotname, const char *filter) {
+retvalue restore_by_formula(struct distribution *into, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes, const char *snapshotname, const char *filter) {
 	term *condition;
 	retvalue r;
 
@@ -1001,15 +999,15 @@ retvalue restore_by_formula(struct database *database, struct distribution *into
 	if (!RET_IS_OK(r)) {
 		return r;
 	}
-	r = restore_from_snapshot(database, into,
+	r = restore_from_snapshot(into,
 			components, architectures, packagetypes,
 			snapshotname, choose_by_condition, condition);
 	term_free(condition);
 	return r;
 }
 
-retvalue restore_by_glob(struct database *database, struct distribution *into, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes, const char *snapshotname, const char *glob) {
-	return restore_from_snapshot(database, into,
+retvalue restore_by_glob(struct distribution *into, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes, const char *snapshotname, const char *glob) {
+	return restore_from_snapshot(into,
 			components, architectures, packagetypes,
 			snapshotname, choose_by_glob, (void*)glob);
 }
