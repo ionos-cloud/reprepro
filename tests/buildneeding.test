@@ -22,7 +22,7 @@ Description: a package not build
  .
 
 Package: troettroet
-Architecture: $FAKEARCHITECTURE
+Architecture: abacus
 Description: some test-package
  .
 END
@@ -40,7 +40,7 @@ cat > conf/distributions <<EOF
 Codename: bla
 Suite: test
 Components: main
-Architectures: source $FAKEARCHITECTURE another
+Architectures: source abacus another
 Tracking: all
 
 Codename: blub
@@ -74,7 +74,7 @@ testrun - build-needing test another 3<<EOF
 stdout
 *=package 1.0-1 pool/main/p/package/package_1.0-1.dsc
 EOF
-testrun - build-needing test $FAKEARCHITECTURE 3<<EOF
+testrun - build-needing test abacus 3<<EOF
 stdout
 *=package 1.0-1 pool/main/p/package/package_1.0-1.dsc
 EOF
@@ -114,12 +114,12 @@ cd ..
 
 testrun - -C main includedeb test rumsrumsrums_1.0-1_all.deb 3<<EOF
 stderr
-*=Warning: database 'bla|main|${FAKEARCHITECTURE}' was modified but no index file was exported.
+*=Warning: database 'bla|main|abacus' was modified but no index file was exported.
 *=Warning: database 'bla|main|another' was modified but no index file was exported.
 *=Changes will only be visible after the next 'export'!
 stdout
 *=db: 'pool/main/p/package/rumsrumsrums_1.0-1_all.deb' added to checksums.db(pool).
-*=db: 'rumsrumsrums' added to packages.db(bla|main|${FAKEARCHITECTURE}).
+*=db: 'rumsrumsrums' added to packages.db(bla|main|abacus).
 *=db: 'rumsrumsrums' added to packages.db(bla|main|another).
 EOF
 
@@ -127,7 +127,7 @@ testrun - build-needing test another 3<<EOF
 stdout
 *=package 1.0-1 pool/main/p/package/package_1.0-1.dsc
 EOF
-testrun - build-needing test $FAKEARCHITECTURE 3<<EOF
+testrun - build-needing test abacus 3<<EOF
 stdout
 *=package 1.0-1 pool/main/p/package/package_1.0-1.dsc
 EOF
@@ -137,20 +137,20 @@ dpkg-gencontrol -ptroettroet
 dpkg --build debian/tmp ..
 cd ..
 
-testrun - -C main includedeb test troettroet_1.0-1_${FAKEARCHITECTURE}.deb 3<<EOF
+testrun - -C main includedeb test troettroet_1.0-1_abacus.deb 3<<EOF
 stderr
-*=Warning: database 'bla|main|${FAKEARCHITECTURE}' was modified but no index file was exported.
+*=Warning: database 'bla|main|abacus' was modified but no index file was exported.
 *=Changes will only be visible after the next 'export'!
 stdout
-*=db: 'pool/main/p/package/troettroet_1.0-1_${FAKEARCHITECTURE}.deb' added to checksums.db(pool).
-*=db: 'troettroet' added to packages.db(bla|main|${FAKEARCHITECTURE}).
+*=db: 'pool/main/p/package/troettroet_1.0-1_abacus.deb' added to checksums.db(pool).
+*=db: 'troettroet' added to packages.db(bla|main|abacus).
 EOF
 
 testrun - build-needing test another 3<<EOF
 stdout
 *=package 1.0-1 pool/main/p/package/package_1.0-1.dsc
 EOF
-testrun - build-needing test $FAKEARCHITECTURE 3<<EOF
+testrun - build-needing test abacus 3<<EOF
 stdout
 EOF
 
@@ -181,7 +181,7 @@ stdout
 EOF
 
 testrun empty build-needing test another
-testrun empty build-needing test $FAKEARCHITECTURE
+testrun empty build-needing test abacus
 
 # TODO: add a new version of that package...
 rm -r package-1.0
@@ -196,7 +196,7 @@ Maintainer: me <me@example.org>
 Standards-Version: 0.0
 
 Package: onearch
-Architecture: $FAKEARCHITECTURE
+Architecture: abacus
 Description: some test-onlyonearch
  .
 END
@@ -234,22 +234,22 @@ stdout
 EOF
 
 testrun empty build-needing test another
-testrun - build-needing test $FAKEARCHITECTURE 3<<EOF
+testrun - build-needing test abacus 3<<EOF
 stdout
 *=onlyonearch 1.0-1 pool/main/o/onlyonearch/onlyonearch_1.0-1.dsc
 EOF
 
-testrun - --delete -C main includedeb test onearch_1.0-1_${FAKEARCHITECTURE}.deb 3<<EOF
+testrun - --delete -C main includedeb test onearch_1.0-1_abacus.deb 3<<EOF
 stderr
-*=Warning: database 'bla|main|${FAKEARCHITECTURE}' was modified but no index file was exported.
+*=Warning: database 'bla|main|abacus' was modified but no index file was exported.
 *=Changes will only be visible after the next 'export'!
 stdout
--d1*=db: 'pool/main/o/onlyonearch/onearch_1.0-1_${FAKEARCHITECTURE}.deb' added to checksums.db(pool).
--d1*=db: 'onearch' added to packages.db(bla|main|${FAKEARCHITECTURE}).
+-d1*=db: 'pool/main/o/onlyonearch/onearch_1.0-1_abacus.deb' added to checksums.db(pool).
+-d1*=db: 'onearch' added to packages.db(bla|main|abacus).
 EOF
 
 testrun empty build-needing test another
-testrun empty build-needing test $FAKEARCHITECTURE
+testrun empty build-needing test abacus
 
 mkdir onlyarchall-1.0
 mkdir onlyarchall-1.0/debian
@@ -298,21 +298,21 @@ stdout
 EOF
 
 testrun empty build-needing test another
-testrun empty build-needing test $FAKEARCHITECTURE
+testrun empty build-needing test abacus
 
 testrun - --delete -C main includedeb test archall_1.0-1_all.deb 3<<EOF
 stderr
-*=Warning: database 'bla|main|${FAKEARCHITECTURE}' was modified but no index file was exported.
+*=Warning: database 'bla|main|abacus' was modified but no index file was exported.
 *=Warning: database 'bla|main|another' was modified but no index file was exported.
 *=Changes will only be visible after the next 'export'!
 stdout
 -d1*=db: 'pool/main/o/onlyarchall/archall_1.0-1_all.deb' added to checksums.db(pool).
--d1*=db: 'archall' added to packages.db(bla|main|${FAKEARCHITECTURE}).
+-d1*=db: 'archall' added to packages.db(bla|main|abacus).
 -d1*=db: 'archall' added to packages.db(bla|main|another).
 EOF
 
 testrun empty build-needing test another
-testrun empty build-needing test $FAKEARCHITECTURE
+testrun empty build-needing test abacus
 
 rm -r pool conf db *.deb *.log *.changes
 testsuccess

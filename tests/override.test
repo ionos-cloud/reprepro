@@ -1,13 +1,13 @@
 set -u
 source $TESTSDIR/test.inc
 
-mkdir -p conf dists/{c,d}/{main,component}/{source,binary-${FAKEARCHITECTURE}}
+mkdir -p conf dists/{c,d}/{main,component}/{source,binary-abacus}
 mkdir -p dists/{c,d}/main/{source,binary-abacus}
 mkdir -p pool/{main,component}/a/aa pool/{main,component}/b/bb
 cat > conf/distributions <<EOF
 Codename: c
 Components: main component
-Architectures: ${FAKEARCHITECTURE} source
+Architectures: abacus source
 # Don't do that at home, kids....
 DebIndices: Index .
 DscIndices: Index .
@@ -16,7 +16,7 @@ DscOverride: override-c-dsc
 
 Codename: d
 Components: main component
-Architectures: ${FAKEARCHITECTURE} source
+Architectures: abacus source
 # Don't do that at home, kids....
 DebIndices: Index .
 DscIndices: Index .
@@ -53,17 +53,17 @@ testrun - --nodelete include c aa.changes 3<<EOF
 stdout
 -v2*=Created directory "./db"
 -d1*=db: 'pool/main/a/aa/aa-addons_1-1_all.deb' added to checksums.db(pool).
--d1*=db: 'pool/main/a/aa/aa_1-1_${FAKEARCHITECTURE}.deb' added to checksums.db(pool).
+-d1*=db: 'pool/main/a/aa/aa_1-1_abacus.deb' added to checksums.db(pool).
 -d1*=db: 'pool/main/a/aa/aa_1-1.tar.gz' added to checksums.db(pool).
 -d1*=db: 'pool/main/a/aa/aa_1-1.dsc' added to checksums.db(pool).
--d1*=db: 'aa-addons' added to packages.db(c|main|${FAKEARCHITECTURE}).
--d1*=db: 'aa' added to packages.db(c|main|${FAKEARCHITECTURE}).
+-d1*=db: 'aa-addons' added to packages.db(c|main|abacus).
+-d1*=db: 'aa' added to packages.db(c|main|abacus).
 -d1*=db: 'aa' added to packages.db(c|main|source).
 -v0*=Exporting indices...
--v6*= looking for changes in 'c|main|${FAKEARCHITECTURE}'...
--v6*=  creating './dists/c/main/binary-${FAKEARCHITECTURE}/Index' (uncompressed)
--v6*= looking for changes in 'c|component|${FAKEARCHITECTURE}'...
--v6*=  creating './dists/c/component/binary-${FAKEARCHITECTURE}/Index' (uncompressed)
+-v6*= looking for changes in 'c|main|abacus'...
+-v6*=  creating './dists/c/main/binary-abacus/Index' (uncompressed)
+-v6*= looking for changes in 'c|component|abacus'...
+-v6*=  creating './dists/c/component/binary-abacus/Index' (uncompressed)
 -v6*= looking for changes in 'c|main|source'...
 -v6*=  creating './dists/c/main/source/Index' (uncompressed)
 -v6*= looking for changes in 'c|component|source'...
@@ -73,16 +73,16 @@ testrun - --nodelete include c bb.changes 3<<EOF
 =Data seems not to be signed trying to use directly...
 stdout
 -d1*=db: 'pool/component/b/bb/bb-addons_1-1_all.deb' added to checksums.db(pool).
--d1*=db: 'pool/component/b/bb/bb_1-1_${FAKEARCHITECTURE}.deb' added to checksums.db(pool).
+-d1*=db: 'pool/component/b/bb/bb_1-1_abacus.deb' added to checksums.db(pool).
 -d1*=db: 'pool/component/b/bb/bb_1-1.tar.gz' added to checksums.db(pool).
 -d1*=db: 'pool/component/b/bb/bb_1-1.dsc' added to checksums.db(pool).
--d1*=db: 'bb-addons' added to packages.db(c|component|${FAKEARCHITECTURE}).
--d1*=db: 'bb' added to packages.db(c|component|${FAKEARCHITECTURE}).
+-d1*=db: 'bb-addons' added to packages.db(c|component|abacus).
+-d1*=db: 'bb' added to packages.db(c|component|abacus).
 -d1*=db: 'bb' added to packages.db(c|component|source).
 -v0*=Exporting indices...
--v6*= looking for changes in 'c|main|${FAKEARCHITECTURE}'...
--v6*= looking for changes in 'c|component|${FAKEARCHITECTURE}'...
--v6*=  replacing './dists/c/component/binary-${FAKEARCHITECTURE}/Index' (uncompressed)
+-v6*= looking for changes in 'c|main|abacus'...
+-v6*= looking for changes in 'c|component|abacus'...
+-v6*=  replacing './dists/c/component/binary-abacus/Index' (uncompressed)
 -v6*= looking for changes in 'c|main|source'...
 -v6*= looking for changes in 'c|component|source'...
 -v6*=  replacing './dists/c/component/source/Index' (uncompressed)
@@ -101,17 +101,17 @@ testrun - --nodelete include d aa.changes 3<<EOF
 =Data seems not to be signed trying to use directly...
 stdout
 -d1*=db: 'pool/component/a/aa/aa-addons_1-1_all.deb' added to checksums.db(pool).
--d1*=db: 'pool/component/a/aa/aa_1-1_${FAKEARCHITECTURE}.deb' added to checksums.db(pool).
+-d1*=db: 'pool/component/a/aa/aa_1-1_abacus.deb' added to checksums.db(pool).
 -d1*=db: 'pool/component/a/aa/aa_1-1.tar.gz' added to checksums.db(pool).
 -d1*=db: 'pool/component/a/aa/aa_1-1.dsc' added to checksums.db(pool).
--d1*=db: 'aa-addons' added to packages.db(d|component|${FAKEARCHITECTURE}).
--d1*=db: 'aa' added to packages.db(d|component|${FAKEARCHITECTURE}).
+-d1*=db: 'aa-addons' added to packages.db(d|component|abacus).
+-d1*=db: 'aa' added to packages.db(d|component|abacus).
 -d1*=db: 'aa' added to packages.db(d|component|source).
 -v0*=Exporting indices...
--v6*= looking for changes in 'd|component|${FAKEARCHITECTURE}'...
--v6*=  creating './dists/d/component/binary-${FAKEARCHITECTURE}/Index' (uncompressed)
--v6*= looking for changes in 'd|main|${FAKEARCHITECTURE}'...
--v6*=  creating './dists/d/main/binary-${FAKEARCHITECTURE}/Index' (uncompressed)
+-v6*= looking for changes in 'd|component|abacus'...
+-v6*=  creating './dists/d/component/binary-abacus/Index' (uncompressed)
+-v6*= looking for changes in 'd|main|abacus'...
+-v6*=  creating './dists/d/main/binary-abacus/Index' (uncompressed)
 -v6*= looking for changes in 'd|component|source'...
 -v6*=  creating './dists/d/component/source/Index' (uncompressed)
 -v6*= looking for changes in 'd|main|source'...
@@ -121,16 +121,16 @@ testrun - --nodelete include d bb.changes 3<<EOF
 =Data seems not to be signed trying to use directly...
 stdout
 -d1*=db: 'pool/main/b/bb/bb-addons_1-1_all.deb' added to checksums.db(pool).
--d1*=db: 'pool/main/b/bb/bb_1-1_${FAKEARCHITECTURE}.deb' added to checksums.db(pool).
+-d1*=db: 'pool/main/b/bb/bb_1-1_abacus.deb' added to checksums.db(pool).
 -d1*=db: 'pool/main/b/bb/bb_1-1.tar.gz' added to checksums.db(pool).
 -d1*=db: 'pool/main/b/bb/bb_1-1.dsc' added to checksums.db(pool).
--d1*=db: 'bb-addons' added to packages.db(d|main|${FAKEARCHITECTURE}).
--d1*=db: 'bb' added to packages.db(d|main|${FAKEARCHITECTURE}).
+-d1*=db: 'bb-addons' added to packages.db(d|main|abacus).
+-d1*=db: 'bb' added to packages.db(d|main|abacus).
 -d1*=db: 'bb' added to packages.db(d|main|source).
 -v0*=Exporting indices...
--v6*= looking for changes in 'd|component|${FAKEARCHITECTURE}'...
--v6*= looking for changes in 'd|main|${FAKEARCHITECTURE}'...
--v6*=  replacing './dists/d/main/binary-${FAKEARCHITECTURE}/Index' (uncompressed)
+-v6*= looking for changes in 'd|component|abacus'...
+-v6*= looking for changes in 'd|main|abacus'...
+-v6*=  replacing './dists/d/main/binary-abacus/Index' (uncompressed)
 -v6*= looking for changes in 'd|component|source'...
 -v6*= looking for changes in 'd|main|source'...
 -v6*=  replacing './dists/d/main/source/Index' (uncompressed)

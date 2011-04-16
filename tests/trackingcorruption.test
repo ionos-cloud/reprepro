@@ -7,7 +7,7 @@ echo "export never" > conf/options
 cat > conf/distributions <<EOF
 Codename: breakme
 Components: something
-Architectures: $FAKEARCHITECTURE coal source
+Architectures: abacus coal source
 Tracking: all
 EOF
 
@@ -27,12 +27,12 @@ stdout
 -v2*=Created directory "./pool/something/a"
 -v2*=Created directory "./pool/something/a/aa"
 -d1*=db: 'pool/something/a/aa/aa-addons_1-1_all.deb' added to checksums.db(pool).
--d1*=db: 'pool/something/a/aa/aa_1-1_${FAKEARCHITECTURE}.deb' added to checksums.db(pool).
+-d1*=db: 'pool/something/a/aa/aa_1-1_abacus.deb' added to checksums.db(pool).
 -d1*=db: 'pool/something/a/aa/aa_1-1.tar.gz' added to checksums.db(pool).
 -d1*=db: 'pool/something/a/aa/aa_1-1.dsc' added to checksums.db(pool).
--d1*=db: 'aa-addons' added to packages.db(breakme|something|${FAKEARCHITECTURE}).
+-d1*=db: 'aa-addons' added to packages.db(breakme|something|abacus).
 -d1*=db: 'aa-addons' added to packages.db(breakme|something|coal).
--d1*=db: 'aa' added to packages.db(breakme|something|${FAKEARCHITECTURE}).
+-d1*=db: 'aa' added to packages.db(breakme|something|abacus).
 -d1*=db: 'aa' added to packages.db(breakme|something|source).
 -d1*=db: 'aa' added to tracking.db(breakme).
 EOF

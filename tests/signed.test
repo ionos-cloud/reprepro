@@ -8,7 +8,7 @@ gpg --import $TESTSDIR/good.key
 mkdir -p conf
 cat > conf/distributions <<CONFEND
 Codename: ATest
-Architectures: ${FAKEARCHITECTURE} source
+Architectures: abacus source
 Components: everything
 SignWith: good@nowhere.tld
 CONFEND
@@ -22,9 +22,9 @@ stdout
 -v2*=Created directory "./dists"
 -v2*=Created directory "./dists/ATest"
 -v2*=Created directory "./dists/ATest/everything"
--v2*=Created directory "./dists/ATest/everything/binary-${FAKEARCHITECTURE}"
--v6*= exporting 'ATest|everything|${FAKEARCHITECTURE}'...
--v6*=  creating './dists/ATest/everything/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped)
+-v2*=Created directory "./dists/ATest/everything/binary-abacus"
+-v6*= exporting 'ATest|everything|abacus'...
+-v6*=  creating './dists/ATest/everything/binary-abacus/Packages' (uncompressed,gzipped)
 -v2*=Created directory "./dists/ATest/everything/source"
 -v6*= exporting 'ATest|everything|source'...
 -v6*=  creating './dists/ATest/everything/source/Sources' (gzipped)

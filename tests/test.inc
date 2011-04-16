@@ -43,8 +43,6 @@ echo "$@"
 "$@"
 }
 
-FAKEARCHITECTURE=abacus
-
 if test -z "$SRCDIR" ||  ! test -d "$SRCDIR" ; then
 	echo "SRCDIR='$SRCDIR' not a valid directory!" >&2
 	exit 1
@@ -58,10 +56,8 @@ if test -z "$WORKDIR" ||  ! test -d "$WORKDIR" ; then
 	exit 1
 fi
 
-export FAKEARCHITECTURE
-export FALEN=${#FAKEARCHITECTURE}
-# new dpkg-dev supports a fake architecture without tricks (and the old tricks no longer work):
-export DEB_HOST_ARCH="$FAKEARCHITECTURE"
+# avoid architecture dependency of the test-suite:
+export DEB_HOST_ARCH="abacus"
 
 export PATH="$TESTSDIR:$PATH"
 if ! [ -x "$REPREPRO" ] ; then

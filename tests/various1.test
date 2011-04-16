@@ -35,7 +35,7 @@ export changed
 CONFEND
 cat > conf/distributions <<CONFEND
 Codename: A
-Architectures: ${FAKEARCHITECTURE} calculator
+Architectures: abacus calculator
 Components: dog cat
 Log: logfile
  --bla
@@ -49,7 +49,7 @@ stderr
 EOF
 cat > conf/distributions <<CONFEND
 Codename: A
-Architectures: ${FAKEARCHITECTURE} calculator
+Architectures: abacus calculator
 Components: dog cat
 Log: logfile
  -A
@@ -61,27 +61,27 @@ return 255
 EOF
 cat > conf/distributions <<CONFEND
 Codename: A
-Architectures: ${FAKEARCHITECTURE} calculator
+Architectures: abacus calculator
 Components: dog cat
 Log: logfile
- -A=${FAKEARCHITECTURE}
+ -A=abacus
 CONFEND
 testrun - -b . export 3<<EOF
 return 255
-*=Error parsing config file ./conf/distributions, line 5, column $(( 5 + $FALEN )):
+*=Error parsing config file ./conf/distributions, line 5, column 11:
 *=Unexpected end of line: name of notifier script missing!
 -v0*=There have been errors!
 EOF
 cat > conf/distributions <<CONFEND
 Codename: A
-Architectures: ${FAKEARCHITECTURE} calculator
+Architectures: abacus calculator
 Components: dog cat
 Log: logfile
- -A=${FAKEARCHITECTURE} --architecture=coal
+ -A=abacus --architecture=coal
 CONFEND
 testrun - -b . export 3<<EOF
 return 255
-*=Repeated notifier option --architecture in ./conf/distributions, line 5, column $(( 6 + $FALEN))!
+*=Repeated notifier option --architecture in ./conf/distributions, line 5, column 12!
 -v0*=There have been errors!
 EOF
 cat > conf/distributions <<CONFEND
@@ -90,13 +90,13 @@ Architectures: funny coal
 Components: dog
 
 Codename: A
-Architectures: ${FAKEARCHITECTURE} calculator
+Architectures: abacus calculator
 Components: dog cat
 Log: logfile
 # -A=nonexistant -C=nocomponent --type=none --withcontrol noscript.sh
 
 Codename: B
-Architectures: ${FAKEARCHITECTURE} source
+Architectures: abacus source
 Components: dog cat
 Contents:
 Log: logfile
@@ -108,33 +108,33 @@ stdout
 -v2*=Created directory "./dists"
 -v2*=Created directory "./dists/B"
 -v2*=Created directory "./dists/B/dog"
--v2*=Created directory "./dists/B/dog/binary-${FAKEARCHITECTURE}"
--v6*= exporting 'B|dog|${FAKEARCHITECTURE}'...
--v6*=  creating './dists/B/dog/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped)
+-v2*=Created directory "./dists/B/dog/binary-abacus"
+-v6*= exporting 'B|dog|abacus'...
+-v6*=  creating './dists/B/dog/binary-abacus/Packages' (uncompressed,gzipped)
 -v2*=Created directory "./dists/B/dog/source"
 -v6*= exporting 'B|dog|source'...
 -v6*=  creating './dists/B/dog/source/Sources' (gzipped)
 -v2*=Created directory "./dists/B/cat"
--v2*=Created directory "./dists/B/cat/binary-${FAKEARCHITECTURE}"
--v6*= exporting 'B|cat|${FAKEARCHITECTURE}'...
+-v2*=Created directory "./dists/B/cat/binary-abacus"
+-v6*= exporting 'B|cat|abacus'...
 -v2*=Created directory "./dists/B/cat/source"
--v6*=  creating './dists/B/cat/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped)
+-v6*=  creating './dists/B/cat/binary-abacus/Packages' (uncompressed,gzipped)
 -v6*= exporting 'B|cat|source'...
 -v6*=  creating './dists/B/cat/source/Sources' (gzipped)
--v1*= generating Contents-${FAKEARCHITECTURE}...
+-v1*= generating Contents-abacus...
 -v1*=Exporting A...
 -v2*=Created directory "./dists/A"
 -v2*=Created directory "./dists/A/dog"
--v2*=Created directory "./dists/A/dog/binary-${FAKEARCHITECTURE}"
--v6*= exporting 'A|dog|${FAKEARCHITECTURE}'...
--v6*=  creating './dists/A/dog/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped)
+-v2*=Created directory "./dists/A/dog/binary-abacus"
+-v6*= exporting 'A|dog|abacus'...
+-v6*=  creating './dists/A/dog/binary-abacus/Packages' (uncompressed,gzipped)
 -v2*=Created directory "./dists/A/dog/binary-calculator"
 -v6*= exporting 'A|dog|calculator'...
 -v6*=  creating './dists/A/dog/binary-calculator/Packages' (uncompressed,gzipped)
 -v2*=Created directory "./dists/A/cat"
--v2*=Created directory "./dists/A/cat/binary-${FAKEARCHITECTURE}"
--v6*= exporting 'A|cat|${FAKEARCHITECTURE}'...
--v6*=  creating './dists/A/cat/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped)
+-v2*=Created directory "./dists/A/cat/binary-abacus"
+-v6*= exporting 'A|cat|abacus'...
+-v6*=  creating './dists/A/cat/binary-abacus/Packages' (uncompressed,gzipped)
 -v2*=Created directory "./dists/A/cat/binary-calculator"
 -v6*= exporting 'A|cat|calculator'...
 -v6*=  creating './dists/A/cat/binary-calculator/Packages' (uncompressed,gzipped)
@@ -142,28 +142,28 @@ EOF
 dodo test -f db/checksums.db
 find dists -type f | LC_ALL=C sort -f > results
 cat > results.expected <<END
-dists/A/cat/binary-${FAKEARCHITECTURE}/Packages
-dists/A/cat/binary-${FAKEARCHITECTURE}/Packages.gz
-dists/A/cat/binary-${FAKEARCHITECTURE}/Release
+dists/A/cat/binary-abacus/Packages
+dists/A/cat/binary-abacus/Packages.gz
+dists/A/cat/binary-abacus/Release
 dists/A/cat/binary-calculator/Packages
 dists/A/cat/binary-calculator/Packages.gz
 dists/A/cat/binary-calculator/Release
-dists/A/dog/binary-${FAKEARCHITECTURE}/Packages
-dists/A/dog/binary-${FAKEARCHITECTURE}/Packages.gz
-dists/A/dog/binary-${FAKEARCHITECTURE}/Release
+dists/A/dog/binary-abacus/Packages
+dists/A/dog/binary-abacus/Packages.gz
+dists/A/dog/binary-abacus/Release
 dists/A/dog/binary-calculator/Packages
 dists/A/dog/binary-calculator/Packages.gz
 dists/A/dog/binary-calculator/Release
 dists/A/Release
-dists/B/cat/binary-${FAKEARCHITECTURE}/Packages
-dists/B/cat/binary-${FAKEARCHITECTURE}/Packages.gz
-dists/B/cat/binary-${FAKEARCHITECTURE}/Release
+dists/B/cat/binary-abacus/Packages
+dists/B/cat/binary-abacus/Packages.gz
+dists/B/cat/binary-abacus/Release
 dists/B/cat/source/Release
 dists/B/cat/source/Sources.gz
-dists/B/Contents-${FAKEARCHITECTURE}.gz
-dists/B/dog/binary-${FAKEARCHITECTURE}/Packages
-dists/B/dog/binary-${FAKEARCHITECTURE}/Packages.gz
-dists/B/dog/binary-${FAKEARCHITECTURE}/Release
+dists/B/Contents-abacus.gz
+dists/B/dog/binary-abacus/Packages
+dists/B/dog/binary-abacus/Packages.gz
+dists/B/dog/binary-abacus/Release
 dists/B/dog/source/Release
 dists/B/dog/source/Sources.gz
 dists/B/Release
@@ -341,35 +341,35 @@ stderr
 stdout
 -v9*=Adding reference to 'pool/dog/b/bird/bird_1.dsc' by 'B|dog|source'
 -v9*=Adding reference to 'pool/dog/b/bird/bird_1.tar.gz' by 'B|dog|source'
--v9*=Adding reference to 'pool/dog/b/bird/bird_1_${FAKEARCHITECTURE}.deb' by 'B|dog|${FAKEARCHITECTURE}'
--v9*=Adding reference to 'pool/dog/b/bird/bird-addons_1_all.deb' by 'B|dog|${FAKEARCHITECTURE}'
+-v9*=Adding reference to 'pool/dog/b/bird/bird_1_abacus.deb' by 'B|dog|abacus'
+-v9*=Adding reference to 'pool/dog/b/bird/bird-addons_1_all.deb' by 'B|dog|abacus'
 -v2*=Created directory "./pool"
 -v2*=Created directory "./pool/dog"
 -v2*=Created directory "./pool/dog/b"
 -v2*=Created directory "./pool/dog/b/bird"
 -d1*=db: 'pool/dog/b/bird/bird_1.dsc' added to checksums.db(pool).
 -d1*=db: 'pool/dog/b/bird/bird_1.tar.gz' added to checksums.db(pool).
--d1*=db: 'pool/dog/b/bird/bird_1_${FAKEARCHITECTURE}.deb' added to checksums.db(pool).
+-d1*=db: 'pool/dog/b/bird/bird_1_abacus.deb' added to checksums.db(pool).
 -d1*=db: 'pool/dog/b/bird/bird-addons_1_all.deb' added to checksums.db(pool).
 -v2*=Created directory "./logs"
 -d1*=db: 'bird' added to packages.db(B|dog|source).
--d1*=db: 'bird' added to packages.db(B|dog|${FAKEARCHITECTURE}).
--d1*=db: 'bird-addons' added to packages.db(B|dog|${FAKEARCHITECTURE}).
+-d1*=db: 'bird' added to packages.db(B|dog|abacus).
+-d1*=db: 'bird-addons' added to packages.db(B|dog|abacus).
 -v3*=deleting './i/bird_1.dsc'...
 -v3*=deleting './i/bird_1.tar.gz'...
--v3*=deleting './i/bird_1_${FAKEARCHITECTURE}.deb'...
+-v3*=deleting './i/bird_1_abacus.deb'...
 -v3*=deleting './i/bird-addons_1_all.deb'...
 -v3*=deleting './i/test.changes'...
 -v0*=Exporting indices...
--v6*= looking for changes in 'B|dog|${FAKEARCHITECTURE}'...
--v6*=  replacing './dists/B/dog/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped)
+-v6*= looking for changes in 'B|dog|abacus'...
+-v6*=  replacing './dists/B/dog/binary-abacus/Packages' (uncompressed,gzipped)
 -v6*= looking for changes in 'B|dog|source'...
 -v6*=  replacing './dists/B/dog/source/Sources' (gzipped)
--v6*= looking for changes in 'B|cat|${FAKEARCHITECTURE}'...
+-v6*= looking for changes in 'B|cat|abacus'...
 -v6*= looking for changes in 'B|cat|source'...
--v1*= generating Contents-${FAKEARCHITECTURE}...
--v4*=Reading filelist for pool/dog/b/bird/bird_1_${FAKEARCHITECTURE}.deb
--d1*=db: 'pool/dog/b/bird/bird_1_${FAKEARCHITECTURE}.deb' added to contents.cache.db(compressedfilelists).
+-v1*= generating Contents-abacus...
+-v4*=Reading filelist for pool/dog/b/bird/bird_1_abacus.deb
+-d1*=db: 'pool/dog/b/bird/bird_1_abacus.deb' added to contents.cache.db(compressedfilelists).
 -v4*=Reading filelist for pool/dog/b/bird/bird-addons_1_all.deb
 -d1*=db: 'pool/dog/b/bird/bird-addons_1_all.deb' added to contents.cache.db(compressedfilelists).
 EOF
@@ -378,8 +378,8 @@ echo normalizing logfile: DATESTR is "$LOGDATE??:??"
 sed -i -e 's/^'"$LOGDATE"'[0-9][0-9]:[0-9][0-9] /DATESTR /g' logs/logfile
 cat > results.log.expected <<EOF
 DATESTR add B dsc dog source bird 1
-DATESTR add B deb dog ${FAKEARCHITECTURE} bird 1
-DATESTR add B deb dog ${FAKEARCHITECTURE} bird-addons 1
+DATESTR add B deb dog abacus bird 1
+DATESTR add B deb dog abacus bird-addons 1
 EOF
 dodiff results.log.expected logs/logfile
 find temp -type f > results
@@ -394,11 +394,11 @@ dir/another	    tasty/bird,tasty/bird-addons
 dir/file	    tasty/bird,tasty/bird-addons
 dir/subdir/file	    tasty/bird,tasty/bird-addons
 EOF
-gunzip -c dists/B/Contents-${FAKEARCHITECTURE}.gz > results
+gunzip -c dists/B/Contents-abacus.gz > results
 dodiff results.expected results
-printindexpart pool/dog/b/bird/bird_1_${FAKEARCHITECTURE}.deb > results.expected
+printindexpart pool/dog/b/bird/bird_1_abacus.deb > results.expected
 printindexpart pool/dog/b/bird/bird-addons_1_all.deb >> results.expected
-dodiff results.expected dists/B/dog/binary-${FAKEARCHITECTURE}/Packages
+dodiff results.expected dists/B/dog/binary-abacus/Packages
 withoutchecksums pool/dog/b/bird/bird_1.dsc > results.expected
 ed -s results.expected <<EOF
 H
@@ -449,36 +449,36 @@ stdout
 -v2*=Created directory "./pool/cat/b/bird"
 -d1*=db: 'pool/cat/b/bird/bird_1.dsc' added to checksums.db(pool).
 -d1*=db: 'pool/cat/b/bird/bird_1.tar.gz' added to checksums.db(pool).
--d1*=db: 'pool/cat/b/bird/bird_1_${FAKEARCHITECTURE}.deb' added to checksums.db(pool).
+-d1*=db: 'pool/cat/b/bird/bird_1_abacus.deb' added to checksums.db(pool).
 -d1*=db: 'pool/cat/b/bird/bird-addons_1_all.deb' added to checksums.db(pool).
 -d1*=db: 'bird' added to packages.db(B|cat|source).
--d1*=db: 'bird' added to packages.db(B|cat|${FAKEARCHITECTURE}).
--d1*=db: 'bird-addons' added to packages.db(B|cat|${FAKEARCHITECTURE}).
+-d1*=db: 'bird' added to packages.db(B|cat|abacus).
+-d1*=db: 'bird-addons' added to packages.db(B|cat|abacus).
 -v3*=deleting './i/bird_1.dsc'...
 -v3*=deleting './i/bird_1.tar.gz'...
--v3*=deleting './i/bird_1_${FAKEARCHITECTURE}.deb'...
+-v3*=deleting './i/bird_1_abacus.deb'...
 -v3*=deleting './i/bird-addons_1_all.deb'...
 -v3*=deleting './i/test.changes'...
 -v0*=Exporting indices...
--v6*= looking for changes in 'B|cat|${FAKEARCHITECTURE}'...
+-v6*= looking for changes in 'B|cat|abacus'...
 -v6*= looking for changes in 'B|cat|source'...
--v6*= looking for changes in 'B|dog|${FAKEARCHITECTURE}'...
--v6*=  replacing './dists/B/cat/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped)
+-v6*= looking for changes in 'B|dog|abacus'...
+-v6*=  replacing './dists/B/cat/binary-abacus/Packages' (uncompressed,gzipped)
 -v6*= looking for changes in 'B|dog|source'...
 -v6*=  replacing './dists/B/cat/source/Sources' (gzipped)
--v1*= generating Contents-${FAKEARCHITECTURE}...
--v4*=Reading filelist for pool/cat/b/bird/bird_1_${FAKEARCHITECTURE}.deb
--d1*=db: 'pool/cat/b/bird/bird_1_${FAKEARCHITECTURE}.deb' added to contents.cache.db(compressedfilelists).
+-v1*= generating Contents-abacus...
+-v4*=Reading filelist for pool/cat/b/bird/bird_1_abacus.deb
+-d1*=db: 'pool/cat/b/bird/bird_1_abacus.deb' added to contents.cache.db(compressedfilelists).
 -v4*=Reading filelist for pool/cat/b/bird/bird-addons_1_all.deb
 -d1*=db: 'pool/cat/b/bird/bird-addons_1_all.deb' added to contents.cache.db(compressedfilelists).
 EOF
 checklog logfile <<EOF
 DATESTR add B dsc dog source bird 1
-DATESTR add B deb dog ${FAKEARCHITECTURE} bird 1
-DATESTR add B deb dog ${FAKEARCHITECTURE} bird-addons 1
+DATESTR add B deb dog abacus bird 1
+DATESTR add B deb dog abacus bird-addons 1
 DATESTR add B dsc cat source bird 1
-DATESTR add B deb cat ${FAKEARCHITECTURE} bird 1
-DATESTR add B deb cat ${FAKEARCHITECTURE} bird-addons 1
+DATESTR add B deb cat abacus bird 1
+DATESTR add B deb cat abacus bird-addons 1
 EOF
 find temp -type f > results
 dodiff /dev/null results
@@ -492,9 +492,9 @@ dir/another	    tasty/bird,tasty/bird-addons,cat/tasty/bird,cat/ugly/bird-addons
 dir/file	    tasty/bird,tasty/bird-addons,cat/tasty/bird,cat/ugly/bird-addons
 dir/subdir/file	    tasty/bird,tasty/bird-addons,cat/tasty/bird,cat/ugly/bird-addons
 EOF
-gunzip -c dists/B/Contents-${FAKEARCHITECTURE}.gz > results
+gunzip -c dists/B/Contents-abacus.gz > results
 dodiff results.expected results
-printindexpart pool/cat/b/bird/bird_1_${FAKEARCHITECTURE}.deb > results.expected
+printindexpart pool/cat/b/bird/bird_1_abacus.deb > results.expected
 printindexpart pool/cat/b/bird/bird-addons_1_all.deb >> results.expected
 ed -s results.expected <<EOF
 H
@@ -507,7 +507,7 @@ Task: lunch
 w
 q
 EOF
-dodiff results.expected dists/B/cat/binary-${FAKEARCHITECTURE}/Packages
+dodiff results.expected dists/B/cat/binary-abacus/Packages
 withoutchecksums pool/cat/b/bird/bird_1.dsc > results.expected
 ed -s results.expected <<EOF
 H
@@ -922,20 +922,20 @@ stdout
 -v2*=Created directory "./pool/dog/s"
 -v2*=Created directory "./pool/dog/s/sourceindeb"
 -d1*=db: 'pool/dog/s/sourceindeb/indebname_versionindeb~1_all.deb' added to checksums.db(pool).
--d1*=db: 'indebname' added to packages.db(A|dog|${FAKEARCHITECTURE}).
+-d1*=db: 'indebname' added to packages.db(A|dog|abacus).
 -d1*=db: 'indebname' added to packages.db(A|dog|calculator).
 -v3*=deleting './i/indebname_debfileversion~2_all.deb'...
 -v3*=deleting './i/test.changes'...
 -v0*=Exporting indices...
--v6*= looking for changes in 'A|cat|${FAKEARCHITECTURE}'...
--v6*=  replacing './dists/A/dog/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped)
+-v6*= looking for changes in 'A|cat|abacus'...
+-v6*=  replacing './dists/A/dog/binary-abacus/Packages' (uncompressed,gzipped)
 -v6*= looking for changes in 'A|cat|calculator'...
 -v6*=  replacing './dists/A/dog/binary-calculator/Packages' (uncompressed,gzipped)
--v6*= looking for changes in 'A|dog|${FAKEARCHITECTURE}'...
+-v6*= looking for changes in 'A|dog|abacus'...
 -v6*= looking for changes in 'A|dog|calculator'...
 EOF
 checklog logfile <<EOF
-DATESTR add A deb dog ${FAKEARCHITECTURE} indebname 1:versionindeb~1
+DATESTR add A deb dog abacus indebname 1:versionindeb~1
 DATESTR add A deb dog calculator indebname 1:versionindeb~1
 EOF
 find pool/dog/s -type f > results
@@ -1137,10 +1137,10 @@ stdout
 -v3*=deleting './i/dscfilename_fileversion~.dsc'...
 -v3*=deleting './i/test.changes'...
 -v0=Exporting indices...
--v6*= looking for changes in 'B|dog|${FAKEARCHITECTURE}'...
+-v6*= looking for changes in 'B|dog|abacus'...
 -v6*= looking for changes in 'B|dog|source'...
 -v6*=  replacing './dists/B/dog/source/Sources' (gzipped)
--v6*= looking for changes in 'B|cat|${FAKEARCHITECTURE}'...
+-v6*= looking for changes in 'B|cat|abacus'...
 -v6*= looking for changes in 'B|cat|source'...
 EOF
 checklog logfile <<EOF
@@ -1264,39 +1264,39 @@ cat > results.expected <<EOF
 pool/cat/b/bird/bird-addons_1_all.deb
 pool/cat/b/bird/bird_1.dsc
 pool/cat/b/bird/bird_1.tar.gz
-pool/cat/b/bird/bird_1_${FAKEARCHITECTURE}.deb
+pool/cat/b/bird/bird_1_abacus.deb
 pool/dog/b/bird/bird-addons_1_all.deb
 pool/dog/b/bird/bird_1.dsc
 pool/dog/b/bird/bird_1.tar.gz
-pool/dog/b/bird/bird_1_${FAKEARCHITECTURE}.deb
+pool/dog/b/bird/bird_1_abacus.deb
 pool/dog/d/dscfilename/dscfilename_versionindsc.dsc
 pool/dog/s/sourceindeb/indebname_versionindeb~1_all.deb
 EOF
 dodiff results.expected results
 find dists -type f | LC_ALL=C sort -f > results
 cat > results.expected <<EOF
-dists/A/cat/binary-${FAKEARCHITECTURE}/Packages
-dists/A/cat/binary-${FAKEARCHITECTURE}/Packages.gz
-dists/A/cat/binary-${FAKEARCHITECTURE}/Release
+dists/A/cat/binary-abacus/Packages
+dists/A/cat/binary-abacus/Packages.gz
+dists/A/cat/binary-abacus/Release
 dists/A/cat/binary-calculator/Packages
 dists/A/cat/binary-calculator/Packages.gz
 dists/A/cat/binary-calculator/Release
-dists/A/dog/binary-${FAKEARCHITECTURE}/Packages
-dists/A/dog/binary-${FAKEARCHITECTURE}/Packages.gz
-dists/A/dog/binary-${FAKEARCHITECTURE}/Release
+dists/A/dog/binary-abacus/Packages
+dists/A/dog/binary-abacus/Packages.gz
+dists/A/dog/binary-abacus/Release
 dists/A/dog/binary-calculator/Packages
 dists/A/dog/binary-calculator/Packages.gz
 dists/A/dog/binary-calculator/Release
 dists/A/Release
-dists/B/cat/binary-${FAKEARCHITECTURE}/Packages
-dists/B/cat/binary-${FAKEARCHITECTURE}/Packages.gz
-dists/B/cat/binary-${FAKEARCHITECTURE}/Release
+dists/B/cat/binary-abacus/Packages
+dists/B/cat/binary-abacus/Packages.gz
+dists/B/cat/binary-abacus/Release
 dists/B/cat/source/Release
 dists/B/cat/source/Sources.gz
-dists/B/Contents-${FAKEARCHITECTURE}.gz
-dists/B/dog/binary-${FAKEARCHITECTURE}/Packages
-dists/B/dog/binary-${FAKEARCHITECTURE}/Packages.gz
-dists/B/dog/binary-${FAKEARCHITECTURE}/Release
+dists/B/Contents-abacus.gz
+dists/B/dog/binary-abacus/Packages
+dists/B/dog/binary-abacus/Packages.gz
+dists/B/dog/binary-abacus/Release
 dists/B/dog/source/Release
 dists/B/dog/source/Sources.gz
 dists/B/Release
@@ -1366,10 +1366,10 @@ stdout
 -v3*=deleting './i/test.changes'...
 -v3*=deleting './i/strangefile_xyz'...
 -v0*=Exporting indices...
--v6*= looking for changes in 'B|dog|${FAKEARCHITECTURE}'...
+-v6*= looking for changes in 'B|dog|abacus'...
 -v6*= looking for changes in 'B|dog|source'...
 -v6*=  replacing './dists/B/dog/source/Sources' (gzipped)
--v6*= looking for changes in 'B|cat|${FAKEARCHITECTURE}'...
+-v6*= looking for changes in 'B|cat|abacus'...
 -v6*= looking for changes in 'B|cat|source'...
 -v0*=Deleting files no longer referenced...
 -v1*=deleting and forgetting pool/dog/d/dscfilename/dscfilename_versionindsc.dsc
@@ -1384,11 +1384,11 @@ cat > results.expected <<EOF
 pool/cat/b/bird/bird-addons_1_all.deb
 pool/cat/b/bird/bird_1.dsc
 pool/cat/b/bird/bird_1.tar.gz
-pool/cat/b/bird/bird_1_${FAKEARCHITECTURE}.deb
+pool/cat/b/bird/bird_1_abacus.deb
 pool/dog/b/bird/bird-addons_1_all.deb
 pool/dog/b/bird/bird_1.dsc
 pool/dog/b/bird/bird_1.tar.gz
-pool/dog/b/bird/bird_1_${FAKEARCHITECTURE}.deb
+pool/dog/b/bird/bird_1_abacus.deb
 pool/dog/d/dscfilename/dscfilename_newversion~.dsc
 pool/dog/d/dscfilename/strangefile_xyz
 pool/dog/s/sourceindeb/indebname_versionindeb~1_all.deb
@@ -1396,28 +1396,28 @@ EOF
 dodiff results.expected results
 find dists -type f | LC_ALL=C sort -f > results
 cat > results.expected <<EOF
-dists/A/cat/binary-${FAKEARCHITECTURE}/Packages
-dists/A/cat/binary-${FAKEARCHITECTURE}/Packages.gz
-dists/A/cat/binary-${FAKEARCHITECTURE}/Release
+dists/A/cat/binary-abacus/Packages
+dists/A/cat/binary-abacus/Packages.gz
+dists/A/cat/binary-abacus/Release
 dists/A/cat/binary-calculator/Packages
 dists/A/cat/binary-calculator/Packages.gz
 dists/A/cat/binary-calculator/Release
-dists/A/dog/binary-${FAKEARCHITECTURE}/Packages
-dists/A/dog/binary-${FAKEARCHITECTURE}/Packages.gz
-dists/A/dog/binary-${FAKEARCHITECTURE}/Release
+dists/A/dog/binary-abacus/Packages
+dists/A/dog/binary-abacus/Packages.gz
+dists/A/dog/binary-abacus/Release
 dists/A/dog/binary-calculator/Packages
 dists/A/dog/binary-calculator/Packages.gz
 dists/A/dog/binary-calculator/Release
 dists/A/Release
-dists/B/cat/binary-${FAKEARCHITECTURE}/Packages
-dists/B/cat/binary-${FAKEARCHITECTURE}/Packages.gz
-dists/B/cat/binary-${FAKEARCHITECTURE}/Release
+dists/B/cat/binary-abacus/Packages
+dists/B/cat/binary-abacus/Packages.gz
+dists/B/cat/binary-abacus/Release
 dists/B/cat/source/Release
 dists/B/cat/source/Sources.gz
-dists/B/Contents-${FAKEARCHITECTURE}.gz
-dists/B/dog/binary-${FAKEARCHITECTURE}/Packages
-dists/B/dog/binary-${FAKEARCHITECTURE}/Packages.gz
-dists/B/dog/binary-${FAKEARCHITECTURE}/Release
+dists/B/Contents-abacus.gz
+dists/B/dog/binary-abacus/Packages
+dists/B/dog/binary-abacus/Packages.gz
+dists/B/dog/binary-abacus/Release
 dists/B/dog/source/Release
 dists/B/dog/source/Sources.gz
 dists/B/Release
