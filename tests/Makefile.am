@@ -1,7 +1,5 @@
 EXTRA_DIST = \
 brokenunlzma.sh \
-debtest.sh \
-dpkg-architecture \
 genpackage.sh \
 test.inc \
 test.sh \
@@ -34,7 +32,6 @@ various2.test \
 various3.test \
 verify.test \
 wrongarch.test \
-tooltest.sh \
 evil.key \
 expired.key \
 expiredwithsubkey.key \
