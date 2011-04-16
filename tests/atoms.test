@@ -1,4 +1,4 @@
-source $TESTSDIR/test.inc
+. "$TESTSDIR"/test.inc
 
 # different tests to check the error messages when accessing
 # architectures components or packagetypes...

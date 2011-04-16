@@ -1,5 +1,5 @@
 set -u
-source $TESTSDIR/test.inc
+. "$TESTSDIR"/test.inc
 
 mkdir conf db pool fakes old
 mkdir -p dists/sourcedistribution/main/binary-coal

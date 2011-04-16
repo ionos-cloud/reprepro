@@ -1,5 +1,5 @@
 set -u
-source $TESTSDIR/test.inc
+. "$TESTSDIR"/test.inc
 
 mkdir -p conf
 cat > conf/distributions <<EOF
@@ -14,20 +14,20 @@ Architectures: source coal
 Uploaders: uploaders2
 EOF
 
-function checknonetakes() {
+checknonetakes() {
 testrun - -b . __checkuploaders test1 test2 < "$1" 3<<EOF
 stdout
 *='testpackage' would NOT have been accepted by any of the distributions selected.
 EOF
 }
 
-function check1takes() {
+check1takes() {
 testrun - -b . __checkuploaders test1 test2 < "$1" 3<<EOF
 stdout
 *='testpackage' would have been accepted by 'test1'
 EOF
 }
-function check2takes() {
+check2takes() {
 testrun - -b . __checkuploaders test1 test2 < "$1" 3<<EOF
 stdout
 *='testpackage' would have been accepted by 'test2'

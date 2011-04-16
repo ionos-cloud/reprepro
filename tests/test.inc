@@ -65,10 +65,10 @@ if ! [ -x "$REPREPRO" ] ; then
 	exit 1
 fi
 
-function checknolog() {
+checknolog() {
 	dodo test ! -f logs/"$1"
 }
-function checklog() {
+checklog() {
 	cat > results.log.expected
 	LOGDATE="$(date +'%Y-%m-%d %H:')"
 	echo normalizing "$1": DATESTR is "$LOGDATE??:??"
@@ -76,16 +76,16 @@ function checklog() {
 	dodiff results.log.expected logs/"$1"
 	rm logs/"$1"
 }
-function md5() {
+md5() {
 md5sum "$1" | cut -d' ' -f1
 }
-function sha1() {
+sha1() {
 sha1sum "$1" | cut -d' ' -f1
 }
-function sha256() {
+sha256() {
 sha256sum "$1" | cut -d' ' -f1
 }
-function printindexpart() {
+printindexpart() {
 	FILENAME="$1"
 	dpkg-deb -I "$FILENAME" control >"$FILENAME".control
 	ed -s "$FILENAME".control << EOF
@@ -109,49 +109,49 @@ EOF
 cat "$FILENAME".control
 rm "$FILENAME".control
 }
-function withoutchecksums() {
+withoutchecksums() {
 awk 'BEGIN{inheader=0} /^Checksums-.*: / || (inheader && /^ /)  {inheader = 1; next} {inheader = 0 ; print}' "$@"
 }
-function mdandsize() {
+mdandsize() {
 cat <<EOF
 $(md5sum "$1" | cut -d' ' -f1) $(stat -c "%s" "$1")
 EOF
 }
-function sha() {
+sha() {
 echo -n ":1:"
 sha1sum "$1" | cut -d' ' -f1
 }
-function sha1andsize() {
+sha1andsize() {
 cat <<EOF
 $(sha1sum "$1" | cut -d' ' -f1) $(stat -c "%s" "$1")
 EOF
 }
-function sha1and7size() {
+sha1and7size() {
 cat <<EOF
 $(sha1sum "$1" | cut -d' ' -f1) $(stat -c "%7s" "$1")
 EOF
 }
-function sha2() {
+sha2() {
 echo -n ":2:"
 sha256sum "$1" | cut -d' ' -f1
 }
-function sha2andsize() {
+sha2andsize() {
 cat <<EOF
 $(sha256sum "$1" | cut -d' ' -f1) $(stat -c "%s" "$1")
 EOF
 }
-function fullchecksum() {
+fullchecksum() {
 cat <<EOF
 $(sha "$1") $(sha2 "$1") $(md5sum "$1" | cut -d' ' -f1) $(stat -c "%s" "$1")
 EOF
 }
-function md5releaseline() {
+md5releaseline() {
  echo "$(mdandsize dists/"$1"/"$2") $2"
 }
-function sha1releaseline() {
+sha1releaseline() {
  echo "$(sha1andsize dists/"$1"/"$2") $2"
 }
-function sha2releaseline() {
+sha2releaseline() {
  echo "$(sha2andsize dists/"$1"/"$2") $2"
 }
 
@@ -167,7 +167,7 @@ EMPTYSHA2="e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 0"
 EMPTYGZSHA2="59869db34853933b239f1e2219cf7d431da006aa919635478511fabbfc8849d2 20"
 EMPTYBZ2SHA2="d3dda84eb03b9738d118eb2be78e246106900493c0ae07819ad60815134a8058 14"
 
-function testsuccess() {
+testsuccess() {
 	echo "Test$TESTNAME completed successfully"
 }
 

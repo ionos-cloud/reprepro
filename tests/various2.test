@@ -1,5 +1,5 @@
 set -u
-source $TESTSDIR/test.inc
+. "$TESTSDIR"/test.inc
 
 echo "Running various other old test..."
 mkdir -p conf logs

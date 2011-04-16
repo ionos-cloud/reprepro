@@ -1,5 +1,5 @@
 set -u
-source $TESTSDIR/test.inc
+. "$TESTSDIR"/test.inc
 
 # testing with Sources, as they are easier to generate...
 

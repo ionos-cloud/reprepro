@@ -1,5 +1,5 @@
 set -u
-source $TESTSDIR/test.inc
+. "$TESTSDIR"/test.inc
 
 if ! which gpg 2>/dev/null ; then
 	echo "SKIPPED: gpg not found!"

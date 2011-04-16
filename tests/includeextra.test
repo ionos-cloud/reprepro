@@ -1,5 +1,5 @@
 set -u
-source $TESTSDIR/test.inc
+. "$TESTSDIR"/test.inc
 
 # first create a fake package with logs and byhand files:
 mkdir documentation-9876AD

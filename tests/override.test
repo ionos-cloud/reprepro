@@ -1,9 +1,20 @@
 set -u
-source $TESTSDIR/test.inc
+. "$TESTSDIR"/test.inc
 
-mkdir -p conf dists/{c,d}/{main,component}/{source,binary-abacus}
-mkdir -p dists/{c,d}/main/{source,binary-abacus}
-mkdir -p pool/{main,component}/a/aa pool/{main,component}/b/bb
+mkdir -p conf dists/c/main/source
+mkdir -p conf dists/d/main/source
+mkdir -p conf dists/c/main/binary-abacus
+mkdir -p conf dists/d/main/binary-abacus
+mkdir -p conf dists/c/component/source
+mkdir -p conf dists/d/component/source
+mkdir -p conf dists/c/component/binary-abacus
+mkdir -p conf dists/d/component/binary-abacus
+mkdir -p dists/c/main/source
+mkdir -p dists/d/main/source
+mkdir -p dists/c/main/binary-abacus
+mkdir -p dists/d/main/binary-abacus
+mkdir -p pool/main/a/aa pool/component/b/bb
+mkdir -p pool/component/a/aa pool/main/b/bb
 cat > conf/distributions <<EOF
 Codename: c
 Components: main component

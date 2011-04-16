@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/dash
 
 # This needs installed:
 # apt, dpkg-dev, ed, python-apt, lzma
@@ -149,7 +149,7 @@ number_success=0
 number_skipped=0
 number_failed=0
 
-function runtest() {
+runtest() {
 	if ! test -f "$SRCDIR/tests/$1.test" ; then
 		echo "Cannot find $SRCDIR/tests/$1.test!" >&2
 		number_missing="$(( $number_missing + 1 ))"
@@ -165,7 +165,7 @@ function runtest() {
 	  export SRCDIR TESTSDIR
 	  export TESTTOOL RREDTOOL REPREPRO
 	  export TRACKINGTESTOPTIONS TESTOPTIONS REPREPROOPTIONS verbosity
-  	  WORKDIR="$WORKDIR/dir_$1" CALLEDFROMTESTSUITE=true bash "$SRCDIR/tests/$1.test"
+  	  WORKDIR="$WORKDIR/dir_$1" CALLEDFROMTESTSUITE=true dash "$SRCDIR/tests/$1.test"
 	) > "log_$1" 2>&1 || rc=$?
 	if test "$rc" -ne 0 ; then
 		number_failed="$(( $number_failed + 1 ))"
