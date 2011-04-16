@@ -1541,10 +1541,10 @@ Dependency lines. To get only architecture all packages use
 "architecture (== all)", to get only at least important
 packages use "priority (==required) | priority (==important)".
 .TP
-.B FilterList
-This takes at least two arguments: The first one is the default action
-when something is not found in the list, then a list of
-filenames (relative to
+.B FilterList\fR, \fPFilterSrcList
+These take at least two arguments:
+The first one is the default action when something is not found in the list,
+then a list of filenames (relative to
 .B \-\-confdir\fR,
 if not starting with a slash),
 in the format of dpkg \-\-get\-selections and only packages listed in
@@ -1572,6 +1572,13 @@ is treated like \fBinstall\fP if the version matches and like no
 entry if it does not match.
 Only one such entry per package is currently supported and the version
 is currently compared as string.
+
+If there is both \fBFilterList\fP and \fBFilterSrcList\fP then
+the first is used for \fB.deb\fP and \fB.udeb\fP and the second for
+\fB.dsc\fP packages.
+If there is only \fBFilterList\fP that is applied to everything.
+If there is only \fBFilterSrcList\fP that is applied to everything, too,
+but the source package name (and source version) is used to do the lookup.
 .TP
 .B ListHook
 If this is given, it is executed for all downloaded index files
@@ -1676,6 +1683,8 @@ but for the udebs.
 .B FilterFormula
 .TP
 .B FilterList
+.TP
+.B FilterSrcList
 The same as with update rules.
 .SH "OVERRIDE FILES"
 The format of override files used by reprepro

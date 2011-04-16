@@ -5,7 +5,7 @@
 
 typedef enum { UD_ERROR, UD_LOUDNO, UD_NO, UD_UPGRADE, UD_HOLD } upgrade_decision;
 
-typedef upgrade_decision upgrade_decide_function(void *privdata, const struct target *, const char *package, const char *old_version, const char *new_version, const char *newcontrolchunk);
+typedef upgrade_decision upgrade_decide_function(void *privdata, const struct target *, const char *package, const char *source, const char *old_version, const char *new_version, const char *new_src_version, const char *newcontrolchunk);
 
 /* The main part: */
 

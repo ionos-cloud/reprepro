@@ -192,7 +192,7 @@ void upgradelist_free(struct upgradelist *upgrade) {
 	return;
 }
 
-static retvalue upgradelist_trypackage(struct upgradelist *upgrade, void *privdata, upgrade_decide_function *predecide, void *predecide_data, const char *packagename_const, /*@null@*//*@only@*/char *packagename, /*@only@*/char *version, architecture_t architecture, const char *chunk) {
+static retvalue upgradelist_trypackage(struct upgradelist *upgrade, void *privdata, upgrade_decide_function *predecide, void *predecide_data, const char *packagename_const, /*@null@*//*@only@*/char *packagename, const char *sourcename, /*@only@*/char *version, const char *sourceversion, architecture_t architecture, const char *chunk) {
 	retvalue r;
 	upgrade_decision decision;
 	struct package_data *current, *insertafter;
@@ -278,7 +278,9 @@ static retvalue upgradelist_trypackage(struct upgradelist *upgrade, void *privda
 		char *newcontrol;
 
 		decision = predecide(predecide_data, upgrade->target,
-				packagename_const, NULL, version, chunk);
+				packagename_const, sourcename,
+				NULL, version, sourceversion,
+				chunk);
 		if (decision != UD_UPGRADE) {
 			upgrade->last = insertafter;
 			if (decision == UD_LOUDNO)
@@ -385,8 +387,9 @@ static retvalue upgradelist_trypackage(struct upgradelist *upgrade, void *privda
 "'%s' from '%s' is newer than '%s' currently\n",
 				version, packagename_const, current->version);
 		decision = predecide(predecide_data, upgrade->target,
-				current->name, current->version,
-				version, chunk);
+				current->name, sourcename,
+				current->version,
+				version, sourceversion, chunk);
 		if (decision != UD_UPGRADE) {
 			if (decision == UD_LOUDNO)
 				fprintf(stderr,
@@ -483,7 +486,7 @@ static retvalue upgradelist_trypackage(struct upgradelist *upgrade, void *privda
 
 retvalue upgradelist_update(struct upgradelist *upgrade, void *privdata, const char *filename, upgrade_decide_function *decide, void *decide_data, bool ignorewrongarchitecture) {
 	struct indexfile *i;
-	char *packagename, *version;
+	char *packagename, *version, *sourcename, *sourceversion;
 	const char *control;
 	retvalue result, r;
 	architecture_t package_architecture;
@@ -497,11 +500,18 @@ retvalue upgradelist_update(struct upgradelist *upgrade, void *privdata, const c
 	while (indexfile_getnext(i, &packagename, &version, &control,
 				&package_architecture,
 				upgrade->target, ignorewrongarchitecture)) {
-		r = upgradelist_trypackage(upgrade, privdata,
-				decide, decide_data,
-				packagename, packagename, version,
-				package_architecture, control);
-		RET_UPDATE(result, r);
+		r = upgrade->target->getsourceandversion(control, packagename,
+				&sourcename, &sourceversion);
+		if (RET_IS_OK(r)) {
+			r = upgradelist_trypackage(upgrade, privdata,
+					decide, decide_data,
+					packagename, packagename, sourcename,
+					version, sourceversion,
+					package_architecture, control);
+			RET_UPDATE(result, r);
+			free(sourcename);
+			free(sourceversion);
+		}
 		if (RET_WAS_ERROR(r)) {
 			if (verbose > 0)
 				fprintf(stderr,
@@ -531,6 +541,7 @@ retvalue upgradelist_pull(struct upgradelist *upgrade, struct target *source, up
 	while (target_nextpackage(&iterator, &package, &control)) {
 		char *version;
 		architecture_t package_architecture;
+		char *sourcename, *sourceversion;
 
 		assert (source->packagetype == upgrade->target->packagetype);
 
@@ -570,11 +581,19 @@ retvalue upgradelist_pull(struct upgradelist *upgrade, struct target *source, up
 			free(version);
 			continue;
 		}
-		r = upgradelist_trypackage(upgrade, privdata,
-				predecide, decide_data,
-				package, NULL, version,
-				package_architecture, control);
-		RET_UPDATE(result, r);
+
+		r = upgrade->target->getsourceandversion(control, package,
+				&sourcename, &sourceversion);
+		if (RET_IS_OK(r)) {
+			r = upgradelist_trypackage(upgrade, privdata,
+					predecide, decide_data,
+					package, NULL, sourcename,
+					version, sourceversion,
+					package_architecture, control);
+			RET_UPDATE(result, r);
+			free(sourcename);
+			free(sourceversion);
+		}
 		if (RET_WAS_ERROR(r))
 			break;
 		if (interrupted()) {

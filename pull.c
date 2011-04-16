@@ -62,6 +62,7 @@ struct pull_rule {
 	// NULL means no condition
 	/*@null@*/term *includecondition;
 	struct filterlist filterlist;
+	struct filterlist filtersrclist;
 	/*----only set after _addsourcedistribution----*/
 	/*@NULL@*/ struct distribution *distribution;
 	bool used;
@@ -78,6 +79,7 @@ static void pull_rule_free(/*@only@*/struct pull_rule *pull) {
 	atomlist_done(&pull->udebcomponents);
 	term_free(pull->includecondition);
 	filterlist_release(&pull->filterlist);
+	filterlist_release(&pull->filtersrclist);
 	free(pull);
 }
 
@@ -97,6 +99,7 @@ CFvalueSETPROC(pull_rule, from)
 CFatomlistSETPROC(pull_rule, components, at_component)
 CFatomlistSETPROC(pull_rule, udebcomponents, at_component)
 CFfilterlistSETPROC(pull_rule, filterlist)
+CFfilterlistSETPROC(pull_rule, filtersrclist)
 CFtermSETPROC(pull_rule, includecondition)
 
 CFUSETPROC(pull_rule, architectures) {
@@ -125,6 +128,7 @@ static const struct configfield pullconfigfields[] = {
 	CF("Components", pull_rule, components),
 	CF("UDebComponents", pull_rule, udebcomponents),
 	CF("FilterFormula", pull_rule, includecondition),
+	CF("FilterSrcList", pull_rule, filtersrclist),
 	CF("FilterList", pull_rule, filterlist)
 };
 
@@ -644,12 +648,35 @@ retvalue pull_prepare(struct distribution *alldistributions, struct pull_rule *r
  * decide what gets pulled                                                 *
  **************************************************************************/
 
-static upgrade_decision ud_decide_by_rule(void *privdata, const struct target *target, const char *package, /*@null@*/const char *old_version, const char *new_version, const char *newcontrolchunk) {
+static upgrade_decision ud_decide_by_rule(void *privdata, const struct target *target, const char *package, const char *sourcename, /*@null@*/const char *old_version, const char *new_version, const char *sourceversion, const char *newcontrolchunk) {
 	struct pull_rule *rule = privdata;
 	upgrade_decision decision = UD_UPGRADE;
 	retvalue r;
+	struct filterlist *fl;
+	const char *n, *v;
 
-	switch (filterlist_find(package, new_version, &rule->filterlist)) {
+	if (target->packagetype == pt_dsc) {
+		assert (strcmp(package, sourcename) == 0);
+		assert (strcmp(new_version, sourceversion) == 0);
+		if (rule->filtersrclist.set)
+			fl = &rule->filtersrclist;
+		else
+			fl = &rule->filterlist;
+		n = package;
+		v = new_version;
+	} else {
+		if (rule->filterlist.set) {
+			fl = &rule->filterlist;
+			n = package;
+			v = new_version;
+		} else {
+			fl = &rule->filtersrclist;
+			n = sourcename;
+			v = sourceversion;
+		}
+	}
+
+	switch (filterlist_find(n, v, fl)) {
 		case flt_deinstall:
 		case flt_purge:
 			return UD_NO;

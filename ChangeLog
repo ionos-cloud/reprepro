@@ -1,3 +1,9 @@
+2010-04-16
+	* add 'FilterSrcList'.
+
+2010-04-15
+	* Many clean-ups and coding style fixes.
+
 2010-03-30
 	* Support specifying a version in FilterList
 

@@ -159,6 +159,7 @@ struct update_pattern {
 	// NULL means no condition
 	/*@null@*/term *includecondition;
 	struct filterlist filterlist;
+	struct filterlist filtersrclist;
 	// NULL means nothing to execute after lists are downloaded...
 	/*@null@*/char *listhook;
 	/*@null@*/char *shellhook;
@@ -259,6 +260,7 @@ static void update_pattern_free(/*@only@*/struct update_pattern *update) {
 	strlist_done(&update->udebcomponents_into);
 	term_free(update->includecondition);
 	filterlist_release(&update->filterlist);
+	filterlist_release(&update->filtersrclist);
 	free(update->listhook);
 	free(update->shellhook);
 	remote_repository_free(update->repository);
@@ -352,6 +354,7 @@ CFtruthSETPROC(update_pattern, ignorerelease)
 CFscriptSETPROC(update_pattern, listhook)
 CFallSETPROC(update_pattern, shellhook)
 CFfilterlistSETPROC(update_pattern, filterlist)
+CFfilterlistSETPROC(update_pattern, filtersrclist)
 CFtermSSETPROC(update_pattern, includecondition)
 
 CFUSETPROC(update_pattern, downloadlistsas) {
@@ -529,6 +532,7 @@ static const struct configfield updateconfigfields[] = {
 	CF("ListShellHook", update_pattern, shellhook),
 	CF("FilterFormula", update_pattern, includecondition),
 	CF("FilterList", update_pattern, filterlist),
+	CF("FilterSrcList", update_pattern, filtersrclist),
 	CF("DownloadListsAs", update_pattern, downloadlistsas)
 };
 
@@ -1590,20 +1594,48 @@ static retvalue updates_calllisthooks(struct update_distribution *distributions)
  *         (all the logic in upgradelist.c, this is only clue code)         *
  ****************************************************************************/
 
-static upgrade_decision ud_decide_by_pattern(void *privdata, const struct target *target, const char *package, /*@null@*/const char *old_version, const char *new_version, const char *newcontrolchunk) {
+static upgrade_decision ud_decide_by_pattern(void *privdata, const struct target *target, const char *package, const char *source, /*@null@*/const char *old_version, const char *new_version, const char *new_src_version, const char *newcontrolchunk) {
 	const struct update_pattern *pattern = privdata, *p;
 	retvalue r;
 	upgrade_decision decision = UD_UPGRADE;
 	enum filterlisttype listdecision;
 
-	p = pattern;
-	while (p != NULL && !p->filterlist.set)
-		p = p->pattern_from;
-	if (p == NULL)
-		listdecision = flt_install;
-	else
-		listdecision = filterlist_find(package, new_version,
-				&p->filterlist);
+	if (target->packagetype == pt_dsc) {
+		p = pattern;
+		while (p != NULL && !p->filtersrclist.set)
+			p = p->pattern_from;
+		if (p != NULL)
+			listdecision = filterlist_find(package, new_version,
+					&p->filtersrclist);
+		else {
+			p = pattern;
+			while (p != NULL && !p->filterlist.set)
+				p = p->pattern_from;
+			if (p == NULL)
+				listdecision = flt_install;
+			else
+				listdecision = filterlist_find(package,
+						new_version, &p->filterlist);
+		}
+	} else {
+		p = pattern;
+		while (p != NULL && !p->filterlist.set)
+			p = p->pattern_from;
+		if (p != NULL)
+			listdecision = filterlist_find(package, new_version,
+					&p->filterlist);
+		else {
+			p = pattern;
+			while (p != NULL && !p->filtersrclist.set)
+				p = p->pattern_from;
+			if (p == NULL)
+				listdecision = flt_install;
+			else
+				listdecision = filterlist_find(source,
+						new_src_version,
+						&p->filtersrclist);
+		}
+	}
 
 	switch (listdecision) {
 		case flt_deinstall:
