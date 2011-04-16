@@ -84,7 +84,6 @@ case $TESTTOOLVERSION in
 	   exit 1
 	   ;;
 esac
-touch results.empty
 
 testrun - 3<<EOF
 *=modifychanges: Modify a Debian style .changes file

@@ -1,6 +1,6 @@
 # Shell script snippets used in the test scripts...
 
-set -e
+set -e -u
 
 export LC_ALL=C
 
@@ -8,22 +8,22 @@ testrun() {
 rules=$1
 shift
 if test "x$rules" = "x" ; then
-	"$TESTTOOL" -C $TESTOPTIONS "$REPREPRO" $REPREPROOPTIONS "$@"
+	"$TESTTOOL" -C $TRACKINGTESTOPTIONS $TESTOPTIONS "$REPREPRO" $REPREPROOPTIONS "$@"
 elif test "x$rules" = "x-" ; then
-	"$TESTTOOL" -r -C $TESTOPTIONS "$REPREPRO" $REPREPROOPTIONS "$@"
+	"$TESTTOOL" -r -C $TRACKINGTESTOPTIONS $TESTOPTIONS "$REPREPRO" $REPREPROOPTIONS "$@"
 else
-	"$TESTTOOL" -r -C $TESTOPTIONS "$REPREPRO" $REPREPROOPTIONS "$@" 3<"$rules".rules
+	"$TESTTOOL" -r -C $TRACKINGTESTOPTIONS $TESTOPTIONS "$REPREPRO" $REPREPROOPTIONS "$@" 3<"$rules".rules
 fi
 }
 testout() {
 rules=$1
 shift
 if test "x$rules" = "x" ; then
-	"$TESTTOOL" -o results $TESTOPTIONS "$REPREPRO" $REPREPROOPTIONS "$@"
+	"$TESTTOOL" -o results $TRACKINGTESTOPTIONS $TESTOPTIONS "$REPREPRO" $REPREPROOPTIONS "$@"
 elif test "x$rules" = "x-" ; then
-	"$TESTTOOL" -o results -r $TESTOPTIONS "$REPREPRO" $REPREPROOPTIONS "$@"
+	"$TESTTOOL" -o results -r $TRACKINGTESTOPTIONS $TESTOPTIONS "$REPREPRO" $REPREPROOPTIONS "$@"
 else
-	"$TESTTOOL" -o results -r $TESTOPTIONS "$REPREPRO" $REPREPROOPTIONS "$@" 3<"$rules".rules
+	"$TESTTOOL" -o results -r $TRACKINGTESTOPTIONS $TESTOPTIONS "$REPREPRO" $REPREPROOPTIONS "$@" 3<"$rules".rules
 fi
 }
 dogrep() {
@@ -43,220 +43,32 @@ echo "$@"
 "$@"
 }
 
-function setverbosity() {
-	if test "x$1" = "xdefault" ; then
-		set -- "$DEFAULTVERBOSITY"
-	fi
-	case "$1" in
-		-1)
-			VERBOSITYOPTIONS="-D v=-1"
-			VERBOSITY="-s"
-			verbosity=-1
-			;;
-		0)
-			VERBOSITYOPTIONS="-D v=0"
-			VERBOSITY=""
-			verbosity=0
-			;;
-		1)
-			VERBOSITYOPTIONS="-D v=1"
-			VERBOSITY="-v"
-			verbosity=1
-			;;
-		2)
-			VERBOSITYOPTIONS="-D v=2"
-			VERBOSITY="-vv"
-			verbosity=2
-			;;
-		3)
-			VERBOSITYOPTIONS="-D v=3"
-			VERBOSITY="-vvv"
-			verbosity=3
-			;;
-		4)
-			VERBOSITYOPTIONS="-D v=4"
-			VERBOSITY="-vvvv"
-			verbosity=4
-			;;
-		5)
-			VERBOSITYOPTIONS="-D v=5"
-			VERBOSITY="-vvvvv"
-			verbosity=5
-			;;
-		6)
-			VERBOSITYOPTIONS="-D v=6"
-			VERBOSITY="-vvvvvv"
-			verbosity=6
-			;;
-		unchanged)
-			;;
-		*)
-			echo "Unsupported verbosity" >&2
-			exit 1
-			;;
-	esac
-}
-
 FAKEARCHITECTURE=abacus
-SRCDIR="$(readlink -e "$(dirname $0)/..")"
-WORKDIR="`pwd`/testdir"
-USE_VALGRIND=""
-VALGRIND_SUP=""
-VERBOSEDB="1"
-DEFAULTVERBOSITY=6
-deleteifmarked=true
 
-while [ $# -gt 0 ] ; do
-	case "$1" in
-		--srcdir)
-			shift
-			SRCDIR="$(readlink -e "$1")"
-			shift
-			;;
-		--neverdelete)
-			deleteifmarked=false
-			shift
-			;;
-		--delete)
-			if ! $deleteifmarked ; then
-				rm -r "$WORKDIR" || true
-			fi
-			shift
-			;;
-		--valgrind)
-			USE_VALGRIND=1
-			shift
-			;;
-		--valgrind-supp)
-			USE_VALGRIND=1
-			shift
-			VALGRIND_SUP="$1"
-			shift
-			;;
-		--fake-architecture)
-			shift
-			FAKEARCHITECTURE="$1"
-			shift
-			;;
-		--verbosity)
-			shift
-			DEFAULTVERBOSITY="$1"
-			shift
-			;;
-		--noverbosedb)
-			VERBOSEDB=""
-			shift
-			;;
-		--*)
-			echo "Unsupported option $1" >&2
-			exit 1
-			;;
-		*)
-			break
-			;;
-	esac
-done
+if test -z "$SRCDIR" ||  ! test -d "$SRCDIR" ; then
+	echo "SRCDIR='$SRCDIR' not a valid directory!" >&2
+	exit 1
+fi
+if test -z "$TESTSDIR" ||  ! test -d "$TESTSDIR" ; then
+	echo "TESTSDIR='$TESTSDIR' not a valid directory!" >&2
+	exit 1
+fi
+if test -z "$WORKDIR" ||  ! test -d "$WORKDIR" ; then
+	echo "WORKDIR='$WORKDIR' not a valid directory!" >&2
+	exit 1
+fi
+
 export FAKEARCHITECTURE
 export FALEN=${#FAKEARCHITECTURE}
 # new dpkg-dev supports a fake architecture without tricks (and the old tricks no longer work):
 export DEB_HOST_ARCH="$FAKEARCHITECTURE"
 
-if [ "2" -lt "$#" ] ; then
-	echo "Syntax: test.sh [<testtool-binary>] [<reprepro-binary>]" >&2
-	exit 1
-fi
-echo "SRCDIR is '$SRCDIR'"
-if [ ! -d "$SRCDIR" ] || [ ! -d "$SRCDIR/tests" ] ; then
-	echo "Error: Could not find source directory (tried: '$SRCDIR')!" >&2
-	exit 1
-fi
-if [ "1" -le "$#" ] ; then
-	TESTTOOL="$(readlink -e "$1")"
-else
-	TESTTOOL=testtool
-fi
-if [ "2" -le "$#" ] ; then
-	REPREPRO="$(readlink -e "$2")"
-else
-	REPREPRO="$SRCDIR/reprepro"
-fi
-RREDTOOL="$(dirname "$REPREPRO")/rredtool"
-
-if [ -z "$TESTOPTIONS" ] ; then
-	if [ -z "$USE_VALGRIND" ] ; then
-		TESTOPTIONS="-e -a"
-	elif [ -z "$VALGRIND_SUP" ] ; then
-		TESTOPTIONS="-e -a --debug --leak-check=full --suppressions=$SRCDIR/valgrind.supp"
-	else
-		TESTOPTIONS="-e -a --debug --leak-check=full --suppressions=$VALGRIND_SUP"
-	fi
-fi
-MAINTESTOPTIONS="$TESTOPTIONS"
-
-
-function setoptions() {
-	if test $# -lt 3 ; then
-		echo "setoptions: Wrong argument count!" >&2
-		exit 1
-	fi
-	setverbosity "$1"
-	shift
-	TESTOPTIONS="$1 $VERBOSITYOPTIONS $MAINTESTOPTIONS"
-	shift
-	REPREPROOPTIONS="$1 $VERBOSITY"
-	shift
-	if test -n "$VERBOSEDB" ; then
-		TESTOPTIONS="-D x=0 -D d=1 $TESTOPTIONS"
-		REPREPROOPTIONS="--verbosedb $REPREPROOPTIONS"
-	else
-		TESTOPTIONS="-D x=0 -D d=0 $TESTOPTIONS"
-	fi
-	TRACKINGTESTOPTIONS="-D t=0"
-	while test $# -gt 0 ; do
-		case $1 in
-			tracking)
-				if test -n "$VERBOSEDB" ; then
-					TRACKINGTESTOPTIONS="-D t=1"
-				fi
-				;;
-			*)
-				echo "setoptions: unsupported third argument!" >&2
-				exit 1
-				;;
-		esac
-		shift
-	done
-	TESTOPTIONS="$TRACKINGTESTOPTIONS $TESTOPTIONS"
-	echo testoptions are set to: $TESTOPTIONS
-	echo reprepro options are set to: $REPREPROOPTIONS
-}
-export PATH="$SRCDIR/tests:$PATH"
+export PATH="$TESTSDIR:$PATH"
 if ! [ -x "$REPREPRO" ] ; then
 	echo "Could not find $REPREPRO!" >&2
 	exit 1
 fi
-TESTTOOLVERSION="`$TESTTOOL --version`"
-case $TESTTOOLVERSION in
-	"testtool version "*) ;;
-	*) echo "Failed to get version of testtool($TESTTOOL)"
-	   exit 1
-	   ;;
-esac
 
-if test -d "$WORKDIR" && test -f "$WORKDIR/ThisDirectoryWillBeDeleted" && $deleteifmarked ; then
-	rm -r "$WORKDIR" || exit 3
-fi
-
-mkdir "$WORKDIR" || exit 1
-echo "Remove this file to avoid silent removal" > "$WORKDIR"/ThisDirectoryWillBeDeleted
-cd "$WORKDIR"
-
-touch results.empty
-cat > empty.rules <<EOF
-stdout
-stderr
-returns 0
-EOF
 function checknolog() {
 	dodo test ! -f logs/"$1"
 }
@@ -359,14 +171,13 @@ EMPTYSHA2="e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 0"
 EMPTYGZSHA2="59869db34853933b239f1e2219cf7d431da006aa919635478511fabbfc8849d2 20"
 EMPTYBZ2SHA2="d3dda84eb03b9738d118eb2be78e246106900493c0ae07819ad60815134a8058 14"
 
-function runtest() {
-	echo "Running test '$1'.."
-	TESTNAME=" $1"
-	source "$SRCDIR/tests/test$1.sh"
-}
 function testsuccess() {
 	echo "Test$TESTNAME completed successfully"
 }
 
-setoptions default "" ""
-TESTINCSETUP=issetup
+cat > empty.rules <<EOF
+stdout
+stderr
+returns 0
+EOF
+

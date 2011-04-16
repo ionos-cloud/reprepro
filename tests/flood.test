@@ -1,9 +1,5 @@
-#!/bin/bash
-
-set -e
-if [ "x$TESTINCSETUP" != "xissetup" ] ; then
-	source $(dirname $0)/test.inc
-fi
+set -u
+source $TESTSDIR/test.inc
 
 mkdir test-1
 mkdir test-1/debian
@@ -115,9 +111,9 @@ EOF
 echo "with tracking is $tracking"
 if $tracking ; then
 	echo "Tracking: minimal" >> conf/distributions
-	setoptions unchanged "" "" tracking
+	TRACKINGTESTOPTIONS="-D t=1"
 else
-	setoptions unchanged "" ""
+	TRACKINGTESTOPTIONS="-D t=0"
 fi
 
 cat >> conf/distributions <<EOF

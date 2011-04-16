@@ -1,9 +1,5 @@
-#!/bin/bash
-
-set -e
-if [ "x$TESTINCSETUP" != "xissetup" ] ; then
-        source $(dirname $0)/test.inc
-fi
+set -u
+source $TESTSDIR/test.inc
 
 dodo test ! -e dists
 mkdir conf db logs lists
@@ -30,7 +26,7 @@ Components: all
 Pull: froma
 Log: logab
 EOF
-setoptions unchanged "" "" tracking
+TRACKINGTESTOPTIONS="-D t=1"
 else
 cat >> conf/distributions <<EOF
 
@@ -45,7 +41,7 @@ Components: all
 Pull: froma
 Log: logab
 EOF
-setoptions unchanged "" ""
+TRACKINGTESTOPTIONS="-D t=0"
 fi
 
 checknolog logab
@@ -219,7 +215,7 @@ Files:
  pool/all/a/aa/aa_1-1.tar.gz s 1
 
 END
-if $tracking; then dodiff results.expected results ; else dodiff results.empty results ; fi
+if $tracking; then dodiff results.expected results ; else dodiff /dev/null results ; fi
 testrun - -b . export a 3<<EOF
 stdout
 -v1*=Exporting a...
@@ -323,7 +319,7 @@ Files:
  pool/all/a/aa/aa_1-2.tar.gz s 1
 
 END
-if $tracking; then dodiff results.expected results ; else dodiff results.empty results ; fi
+if $tracking; then dodiff results.expected results ; else dodiff /dev/null results ; fi
 rm -r dists/a dists/b
 testout - -b . dumppull b 3<<EOF
 stderr
@@ -413,9 +409,9 @@ Files:
  pool/all/a/aa/aa_1-3.tar.gz s 1
 
 END
-if $tracking; then dodiff results.expected results ; else dodiff results.empty results ; fi
+if $tracking; then dodiff results.expected results ; else dodiff /dev/null results ; fi
 testout "" -b . dumpunreferenced
-dodiff results.empty results
+dodiff /dev/null results
 DISTRI=a PACKAGE=ab EPOCH="" VERSION=2 REVISION="-1" SECTION="stupid/base" genpackage.sh
 testrun - -b . --delete --delete --export=never include a test.changes 3<<EOF
 stderr
@@ -548,7 +544,7 @@ DATESTR replace a deb all ${FAKEARCHITECTURE} ab-addons 3-1 2-1
 DATESTR replace a deb all ${FAKEARCHITECTURE} ab 3-1 2-1
 EOF
 testout "" -b . dumpunreferenced
-dodiff results.empty results
+dodiff /dev/null results
 test -f broken.changes
 test -f ab_3-1.diff.gz
 test ! -f ab-addons_3-1_all.deb
@@ -584,9 +580,9 @@ Files:
  pool/all/a/ab/ab_3-1_${FAKEARCHITECTURE}.deb b 1
 
 END
-if $tracking; then dodiff results.expected results ; else dodiff results.empty results ; fi
+if $tracking; then dodiff results.expected results ; else dodiff /dev/null results ; fi
 testout "" -b . dumpunreferenced
-dodiff results.empty results
+dodiff /dev/null results
 testrun - -b . --delete --delete include a broken.changes 3<<EOF
 -v0=Data seems not to be signed trying to use directly...
 *=Unable to find pool/all/a/ab/ab_3-1.tar.gz needed by ab_3-1.dsc!
@@ -657,7 +653,7 @@ testout "" -b . dumpunreferenced
 cat > results.expected << EOF
 pool/all/a/ab/ab_3-1.diff.gz
 EOF
-dodiff results.empty results || dodiff results.expected results
+dodiff /dev/null results || dodiff results.expected results
 testrun - -b . deleteunreferenced 3<<EOF
 stdout
 -v1=deleting and forgetting pool/all/a/ab/ab_3-1.diff.gz
@@ -953,7 +949,7 @@ stdout
 -v0*=Deleting all tracks for a...
 EOF
 testout "" -b . dumptracks
-dodiff results.empty results
+dodiff /dev/null results
 fi
 testout "" -b . dumpreferences
 cat > results.expected <<EOF
@@ -1039,9 +1035,9 @@ EOF
 fi
 checknolog logab
 testout "" -b . dumptracks
-dodiff results.empty results
+dodiff /dev/null results
 testout "" -b . dumpunreferenced
-dodiff results.empty results
+dodiff /dev/null results
 rm -r dists
 done
 rm -r db db2 conf lists logs

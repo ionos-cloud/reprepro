@@ -1,13 +1,12 @@
-#!/bin/bash
-
-set -e
-if [ "x$TESTINCSETUP" != "xissetup" ] ; then
-	source $(dirname $0)/test.inc
-fi
+set -u
+source $TESTSDIR/test.inc
 
 # testing with Sources, as they are easier to generate...
 
-if test -e "$RREDTOOL" ; then
+if ! test -e "$RREDTOOL" ; then
+	echo "SKIPPED: rredtool not found, '$RREDTOOL' tried."
+	exit 0
+fi
 
 mkdir conf
 cat > conf/distributions <<EOF
@@ -278,18 +277,5 @@ dodiff results.expected 4.diff
 rm 4.diff
 
 rm -r old db pool conf dists pre_*.dsc pre_*.tar.gz test_1.dsc test_1.tar.gz  results.expected patches
-
-else
-echo
-echo
-echo
-echo
-echo "WARNING: $RREDTOOL does not exists. cannot test diff generation"
-echo
-echo
-echo
-echo
-echo
-fi
 
 testsuccess

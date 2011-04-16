@@ -1,13 +1,5 @@
-#!/bin/bash
-
-set -e
-if [ "x$TESTINCSETUP" != "xissetup" ] ; then
-	source $(dirname $0)/test.inc
-fi
-
-dodo test ! -d db
-dodo test ! -d conf
-dodo test ! -d pool
+set -u
+source $TESTSDIR/test.inc
 
 # First test if finding the binaries works properly...
 
@@ -251,7 +243,7 @@ testrun - --unlzma=brokenunlzma.sh __extractsourcesection fake_1-1.dsc 3<<EOF
 returns 255
 =Data seems not to be signed trying to use directly...
 *=brokenunlzma.sh: claiming broken archive
-*=Error reading from ./fake_1-1.diff.lzma: $SRCDIR/tests/brokenunlzma.sh exited with code 1!
+*=Error reading from ./fake_1-1.diff.lzma: $TESTSDIR/brokenunlzma.sh exited with code 1!
 -v0*=There have been errors!
 stdout
 EOF
@@ -289,7 +281,7 @@ testrun - --unlzma=brokenunlzma.sh __extractsourcesection fake_1-1.dsc 3<<EOF
 returns 255
 =Data seems not to be signed trying to use directly...
 *=brokenunlzma.sh: claiming broken archive
-*=Error reading from ./fake_1-1.debian.tar.lzma: $SRCDIR/tests/brokenunlzma.sh exited with code 1!
+*=Error reading from ./fake_1-1.debian.tar.lzma: $TESTSDIR/brokenunlzma.sh exited with code 1!
 -v0*=There have been errors!
 stdout
 EOF
@@ -298,7 +290,7 @@ testrun - --unlzma=brokenunlzma.sh __extractsourcesection fake_1-1.dsc 3<<EOF
 returns 255
 =Data seems not to be signed trying to use directly...
 *=brokenunlzma.sh: claiming broken archive
-*=Error reading from ./fake_1-1.diff.lzma: $SRCDIR/tests/brokenunlzma.sh exited with code 1!
+*=Error reading from ./fake_1-1.diff.lzma: $TESTSDIR/brokenunlzma.sh exited with code 1!
 -v0*=There have been errors!
 stdout
 EOF

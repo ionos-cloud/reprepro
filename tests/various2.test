@@ -1,9 +1,5 @@
-#!/bin/bash
-
-set -e
-if [ "x$TESTINCSETUP" != "xissetup" ] ; then
-        source $(dirname $0)/test.inc
-fi
+set -u
+source $TESTSDIR/test.inc
 
 echo "Running various other old test..."
 mkdir -p conf logs
@@ -1043,7 +1039,7 @@ END
 dodiff results.expected results
 
 testout "" -b . dumpunreferenced
-dodiff results.empty results
+dodiff /dev/null results
 testrun - -b . removealltracks test2 test1 3<<EOF
 stdout
 stderr
@@ -1220,7 +1216,7 @@ Files:
 END
 dodiff results.expected results
 testout "" -b . dumpunreferenced
-dodiff results.empty results
+dodiff /dev/null results
 
 echo "now testing .orig.tar.gz handling"
 tar -czf test_1.orig.tar.gz test.changes
@@ -1354,7 +1350,7 @@ EOF
 dodo zgrep testb_2-3.dsc dists/test1/stupid/source/Sources.gz
 
 testout "" -b . dumpunreferenced
-dodiff results.empty results
+dodiff /dev/null results
 
 echo "now testing some error messages:"
 PACKAGE=4test EPOCH="1:" VERSION=b.1 REVISION="-1" SECTION="stupid/base" genpackage.sh
@@ -1403,7 +1399,7 @@ stderr
 returns 249
 EOF
 testout "" -b . dumpunreferenced
-dodiff results.empty results
+dodiff /dev/null results
 
 testout "" -b . dumptracks
 # TODO: check those if they are really expected...
@@ -1518,7 +1514,7 @@ EOF
 cp db/tracking.db db/saved2tracking.db
 cp db/references.db db/saved2references.db
 testout "" -b . dumpunreferenced
-dodiff results.empty results
+dodiff /dev/null results
 testout "" -b . dumptracks
 cat > results.expected <<EOF
 Distribution: test1
@@ -1579,7 +1575,7 @@ stdout
 -v0*=Looking for old tracks in test1...
 EOF
 testout "" -b . dumpunreferenced
-dodiff results.empty results
+dodiff /dev/null results
 testout "" -b . dumptracks
 dodiff results.expected results
 sed -i -e 's/^Tracking: minimal includechanges/Tracking: minimal/' conf/distributions
@@ -1597,7 +1593,7 @@ stdout
 -d1*=db: 'pool/stupid/t/testb/testb_1:2-3_source+${FAKEARCHITECTURE}+all.changes' removed from checksums.db(pool).
 EOF
 testout "" -b . dumpunreferenced
-dodiff results.empty results
+dodiff /dev/null results
 testout "" -b . dumptracks
 cat > results.expected <<EOF
 Distribution: test1
@@ -1653,7 +1649,7 @@ stdout
 -v0*=Looking for old tracks in test1...
 EOF
 testout "" -b . dumpunreferenced
-dodiff results.empty results
+dodiff /dev/null results
 # Earlier update rules made this tracking data outdated.
 # so copy it, so it can be replayed so that also outdated data
 # is tested to be handled correctly.
@@ -1741,7 +1737,7 @@ EOF
 dodiff results.expected results
 
 testout "" -b . dumpunreferenced
-dodiff results.empty results
+dodiff /dev/null results
 testout ""  -b . dumpreferences
 cp results results.expected
 testrun - -b . rereference 3<<EOF
@@ -1951,7 +1947,7 @@ stdout
 *=Deleting vanished identifier 'foo|unneeded|fingers'.
 EOF
 testout "" -b . dumpunreferenced
-dodiff results.empty results
+dodiff /dev/null results
 echo "Format: 2.0" > broken.changes
 testrun - -b . include test2 broken.changes 3<<EOF
 -v0=Data seems not to be signed trying to use directly...
@@ -2026,7 +2022,7 @@ testrun - -b . --ignore=missingfield include test2 broken.changes 3<<EOF
 returns 255
 EOF
 testout "" -b . dumpunreferenced
-dodiff results.empty results
+dodiff /dev/null results
 echo " $EMPTYMD5 section priority filename_version.tar.gz" >> broken.changes
 testrun - -b . --ignore=missingfield include test2 broken.changes 3<<EOF
 -v0=Data seems not to be signed trying to use directly...
@@ -2150,7 +2146,7 @@ stdout
 -v2*=removed now empty directory ./pool/stupid/n
 EOF
 testout "" -b . dumpunreferenced
-dodiff results.empty results
+dodiff /dev/null results
 testout "" -b . dumpreferences
 # first remove file, then try to remove the package
 testrun - -b . _forget pool/ugly/s/simple/simple_1_${FAKEARCHITECTURE}.deb 3<<EOF
@@ -2221,7 +2217,7 @@ DATESTR remove test2 deb ugly ${FAKEARCHITECTURE} simple 1
 DATESTR remove test2 dsc ugly source simple 1
 EOF
 testout "" -b . dumpunreferenced
-dodiff results.empty results
+dodiff /dev/null results
 
 cat > broken.changes <<EOF
 Format: -1.0
@@ -2414,7 +2410,7 @@ DATESTR remove test2 deb stupid ${FAKEARCHITECTURE} 4test 1:b.1-1
 DATESTR remove test2 dsc stupid source 4test 1:b.1-1
 EOF
 testout "" -b . dumpunreferenced
-dodiff results.empty results
+dodiff /dev/null results
 
 checknolog log1
 checknolog log2
@@ -2422,7 +2418,7 @@ checknolog log2
 testout "" -b . dumptracks
 # TODO: check here for what should be here,
 # check the othe stuff, too
-#dodiff results.empty results
+#dodiff /dev/null results
 cat > conf/distributions <<EOF
 Codename: X
 Architectures: none
@@ -2519,9 +2515,9 @@ checknolog log1
 checknolog log2
 
 testout "" -b . dumptracks
-dodiff results.empty results
+dodiff /dev/null results
 testout "" -b . dumpunreferenced
-dodiff results.empty results
+dodiff /dev/null results
 
 rm -r dists db conf conf2 logs lists
 rm 4test* bloat* simple* test_* test-* testb* differently* filename_version.tar.gz

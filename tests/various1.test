@@ -1,9 +1,5 @@
-#!/bin/bash
-
-set -e
-if [ "x$TESTINCSETUP" != "xissetup" ] ; then
-	source $(dirname $0)/test.inc
-fi
+set -u
+source $TESTSDIR/test.inc
 
 mkdir -p conf
 cat > conf/distributions <<EOF
@@ -387,9 +383,9 @@ DATESTR add B deb dog ${FAKEARCHITECTURE} bird-addons 1
 EOF
 dodiff results.log.expected logs/logfile
 find temp -type f > results
-dodiff results.empty results
+dodiff /dev/null results
 find i -type f > results
-dodiff results.empty results
+dodiff /dev/null results
 cat > results.expected <<EOF
 FILE                                                    LOCATION
 x	    tasty/bird,tasty/bird-addons
@@ -485,9 +481,9 @@ DATESTR add B deb cat ${FAKEARCHITECTURE} bird 1
 DATESTR add B deb cat ${FAKEARCHITECTURE} bird-addons 1
 EOF
 find temp -type f > results
-dodiff results.empty results
+dodiff /dev/null results
 find i -type f > results
-dodiff results.empty results
+dodiff /dev/null results
 cat > results.expected <<EOF
 FILE                                                    LOCATION
 x	    tasty/bird,tasty/bird-addons,cat/tasty/bird,cat/ugly/bird-addons
@@ -1352,7 +1348,7 @@ Checksums-Sha256:
 EOF
 dodiff results.expected results
 testout "" -b . dumpunreferenced
-dodiff results.empty results
+dodiff /dev/null results
 printf '$d\nw\nq\n' | ed -s i/test.changes
 echo " 31a1096ff883d52f0c1f39e652d6336f 33 - - strangefile_xyz" >> i/test.changes
 checknolog logfile
@@ -1451,7 +1447,7 @@ EOF
 dodiff results.expected results
 
 testout "" -b . dumpunreferenced
-dodiff results.empty results
+dodiff /dev/null results
 
 rm -r conf db pool dists i pkg logs temp
 rm results.expected results.log.expected results bird.preprocessed

@@ -1,19 +1,16 @@
-#!/bin/bash
+set -u
+source $TESTSDIR/test.inc
 
-set -e
-
-if test "${MAINTESTOPTIONS+set}" != set ; then
-	source $(dirname $0)/test.inc
-	STANDALONE="true"
-else
-	STANDALONE=""
+if ! which gpg 2>/dev/null ; then
+	echo "SKIPPED: gpg not found!"
+	exit 0
 fi
 
 rm -rf db dists pool lists conf gpgtestdir
 
 mkdir -p gpgtestdir
 export GNUPGHOME="`pwd`/gpgtestdir"
-gpg --import $SRCDIR/tests/good.key $SRCDIR/tests/evil.key $SRCDIR/tests/expired.key $SRCDIR/tests/revoked.key
+gpg --import $TESTSDIR/good.key $TESTSDIR/evil.key $TESTSDIR/expired.key $TESTSDIR/revoked.key
 
 mkdir -p conf
 cat > conf/options <<CONFEND
@@ -77,7 +74,7 @@ mv test.changes.asc testsigned.changes
 echo generating signature with revoked key:
 gpg --expert --default-key revoked@nowhere.tld --sign -a test.changes
 mv test.changes.asc testrevsigned.changes
-gpg --import $SRCDIR/tests/revoked.pkey
+gpg --import $TESTSDIR/revoked.pkey
 
 
 testrun - -b . include ATest test.changes 3<<EOF
@@ -309,10 +306,4 @@ EOF
 rm -rf db conf dists pool gpgtestdir i tmp
 rm package-addons* package_* *.changes
 
-if test x$STANDALONE = xtrue ; then
-	set +v +x
-	echo
-	echo "If the script is still running to show this,"
-	echo "all tested cases seem to work. (Though writing some tests more can never harm)."
-fi
-exit 0
+testsuccess
