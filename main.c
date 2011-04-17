@@ -1448,7 +1448,7 @@ ACTION_F(n, n, y, y, export) {
 	retvalue result, r;
 	struct distribution *d;
 
-	if (export == EXPORT_NEVER) {
+	if (export == EXPORT_NEVER || export == EXPORT_SILENT_NEVER) {
 		fprintf(stderr,
 "Error: reprepro export incompatible with --export=never\n");
 		return RET_ERROR;
@@ -4140,6 +4140,10 @@ static int longoption = 0;
 const char *programname;
 
 static void setexport(const char *argument) {
+	if (strcasecmp(argument, "silent-never") == 0) {
+		CONFIGSET(export, EXPORT_SILENT_NEVER);
+		return;
+	}
 	if (strcasecmp(argument, "never") == 0) {
 		CONFIGSET(export, EXPORT_NEVER);
 		return;

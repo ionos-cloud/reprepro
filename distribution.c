@@ -879,6 +879,15 @@ retvalue distribution_exportlist(enum exportwhen when, struct distribution *dist
 	bool todo = false;
 	struct distribution *d;
 
+	if (when == EXPORT_SILENT_NEVER) {
+		for (d = distributions ; d != NULL ; d = d->next) {
+			struct target *t;
+
+			for (t = d->targets ; t != NULL ; t = t->next)
+				t->wasmodified = false;
+		}
+		return RET_NOTHING;
+	}
 	if (when == EXPORT_NEVER) {
 		if (verbose > 10)
 			fprintf(stderr,
@@ -949,6 +958,13 @@ retvalue distribution_exportlist(enum exportwhen when, struct distribution *dist
 }
 
 retvalue distribution_export(enum exportwhen when, struct distribution *distribution) {
+	if (when == EXPORT_SILENT_NEVER) {
+		struct target *t;
+
+		for (t = distribution->targets ; t != NULL ; t = t->next)
+			t->wasmodified = false;
+		return RET_NOTHING;
+	}
 	if (when == EXPORT_NEVER) {
 		if (verbose >= 10)
 			fprintf(stderr,

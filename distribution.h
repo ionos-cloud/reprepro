@@ -131,7 +131,7 @@ retvalue distribution_remove_packages(struct distribution *, const struct atomli
 
 retvalue distribution_fullexport(struct distribution *distribution);
 
-enum exportwhen {EXPORT_NEVER, EXPORT_CHANGED, EXPORT_NORMAL, EXPORT_FORCE };
+enum exportwhen {EXPORT_NEVER, EXPORT_SILENT_NEVER, EXPORT_CHANGED, EXPORT_NORMAL, EXPORT_FORCE };
 retvalue distribution_export(enum exportwhen, struct distribution *);
 
 retvalue distribution_snapshot(struct distribution *distribution, const char *name);
