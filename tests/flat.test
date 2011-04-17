@@ -21,7 +21,7 @@ EOF
 testrun - -b . export 1234 3<<EOF
 stderr
 stdout
--v2*=Created directory "./db"
+$(odb)
 -v1*=Exporting 1234...
 -v2*=Created directory "./dists"
 -v2*=Created directory "./dists/1234"
@@ -312,7 +312,7 @@ stdout
 -v2=Created directory "./pool/a/t"
 -v2=Created directory "./pool/a/t/test"
 -v0*=Getting packages...
--d1*=db: 'pool/a/t/test/test_0_all.deb' added to checksums.db(pool).
+$(ofa 'pool/a/t/test/test_0_all.deb')
 -v1*=Shutting down aptmethods...
 -v0*=Installing (and possibly deleting) packages...
 -d1*=db: 'test' added to packages.db(1234|a|yyyyyyyyyy).
@@ -372,7 +372,7 @@ stdout
 -v2=Created directory "./pool/a/t"
 -v2=Created directory "./pool/a/t/test"
 -v0*=Getting packages...
--d1*=db: 'pool/a/t/test/test_1_yyyyyyyyyy.deb' added to checksums.db(pool).
+$(ofa 'pool/a/t/test/test_1_yyyyyyyyyy.deb')
 -v1*=Shutting down aptmethods...
 -v0*=Installing (and possibly deleting) packages...
 -d1*=db: 'test' removed from packages.db(1234|a|yyyyyyyyyy).
@@ -427,7 +427,7 @@ stdout
 -v4*=  nothing to do for 'u|1234|a|x'
 -v3*=  nothing new for '1234|a|x' (use --noskipold to process anyway)
 -v0*=Getting packages...
--d1*=db: 'pool/a/t/test/fake.dsc' added to checksums.db(pool).
+$(ofa 'pool/a/t/test/fake.dsc')
 -v1*=Shutting down aptmethods...
 -v0*=Installing (and possibly deleting) packages...
 -d1*=db: 'test' added to packages.db(1234|a|source).

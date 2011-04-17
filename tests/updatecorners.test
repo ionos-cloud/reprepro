@@ -53,7 +53,7 @@ stderr
 ='Failed to stat - stat (2: No such file or directory)'
 -v0*=There have been errors!
 stdout
--v2*=Created directory "./db"
+$(odb)
 returns 255
 EOF
 
@@ -101,8 +101,8 @@ stderr
 -v1*=aptmethod got 'copy:${WORKDIR}/test/test/test.tar.gz'
 stdout
 -v0*=Getting packages...
--d1*=db: 'pool/c/t/test/test.dsc' added to checksums.db(pool).
--d1*=db: 'pool/c/t/test/test.tar.gz' added to checksums.db(pool).
+$(ofa 'pool/c/t/test/test.dsc')
+$(ofa 'pool/c/t/test/test.tar.gz')
 -v1*=Shutting down aptmethods...
 -v0*=Installing (and possibly deleting) packages...
 -d1*=db: 'test' added to packages.db(t|c|source).

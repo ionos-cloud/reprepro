@@ -180,7 +180,7 @@ EOF
 
 testrun - --unlzma=NONE update boring 3<<EOF
 stdout
--v2*=Created directory "./db"
+$(odb)
 -v2*=Created directory "./lists"
 stderr
 *=./conf/updates:5:126: Ignoring all but first 18 entries...
@@ -329,18 +329,18 @@ stdout
 -v2*=Created directory "./pool/main/c/cc"
 -v2*=Created directory "./pool/main/a"
 -v2*=Created directory "./pool/main/a/aa"
--d1*=db: 'pool/firmware/d/dd/dd-addons_2-0_all.deb' added to checksums.db(pool).
--d1*=db: 'pool/firmware/d/dd/dd_2-0_abacus.deb' added to checksums.db(pool).
--d1*=db: 'pool/main/c/cc/cc-addons_1-1000_all.deb' added to checksums.db(pool).
--d1*=db: 'pool/main/c/cc/cc_1-1000_abacus.deb' added to checksums.db(pool).
--d1*=db: 'pool/main/c/cc/cc_1-1000.dsc' added to checksums.db(pool).
--d1*=db: 'pool/main/c/cc/cc_1-1000.tar.gz' added to checksums.db(pool).
--d1*=db: 'pool/firmware/b/bb/bb-addons_2-0_all.deb' added to checksums.db(pool).
--d1*=db: 'pool/firmware/b/bb/bb_2-0_abacus.deb' added to checksums.db(pool).
--d1*=db: 'pool/main/a/aa/aa-addons_1-1000_all.deb' added to checksums.db(pool).
--d1*=db: 'pool/main/a/aa/aa_1-1000_abacus.deb' added to checksums.db(pool).
--d1*=db: 'pool/main/a/aa/aa_1-1000.dsc' added to checksums.db(pool).
--d1*=db: 'pool/main/a/aa/aa_1-1000.tar.gz' added to checksums.db(pool).
+$(ofa 'pool/firmware/d/dd/dd-addons_2-0_all.deb')
+$(ofa 'pool/firmware/d/dd/dd_2-0_abacus.deb')
+$(ofa 'pool/main/c/cc/cc-addons_1-1000_all.deb')
+$(ofa 'pool/main/c/cc/cc_1-1000_abacus.deb')
+$(ofa 'pool/main/c/cc/cc_1-1000.dsc')
+$(ofa 'pool/main/c/cc/cc_1-1000.tar.gz')
+$(ofa 'pool/firmware/b/bb/bb-addons_2-0_all.deb')
+$(ofa 'pool/firmware/b/bb/bb_2-0_abacus.deb')
+$(ofa 'pool/main/a/aa/aa-addons_1-1000_all.deb')
+$(ofa 'pool/main/a/aa/aa_1-1000_abacus.deb')
+$(ofa 'pool/main/a/aa/aa_1-1000.dsc')
+$(ofa 'pool/main/a/aa/aa_1-1000.tar.gz')
 -v1*=Shutting down aptmethods...
 -v0*=Installing (and possibly deleting) packages...
 -d1*=db: 'dd-addons' added to packages.db(boring|firmware|coal).
@@ -448,10 +448,10 @@ stderr
 -v1*=aptmethod got 'copy:$WORKDIR/source1/pool/main/aa_2-1.tar.gz'
 -v1*=aptmethod got 'copy:$WORKDIR/source1/pool/main/aa_2-1.dsc'
 stdout
--d1*=db: 'pool/main/a/aa/aa-addons_2-1_all.deb' added to checksums.db(pool).
--d1*=db: 'pool/main/a/aa/aa_2-1_abacus.deb' added to checksums.db(pool).
--d1*=db: 'pool/main/a/aa/aa_2-1.dsc' added to checksums.db(pool).
--d1*=db: 'pool/main/a/aa/aa_2-1.tar.gz' added to checksums.db(pool).
+$(ofa 'pool/main/a/aa/aa-addons_2-1_all.deb')
+$(ofa 'pool/main/a/aa/aa_2-1_abacus.deb')
+$(ofa 'pool/main/a/aa/aa_2-1.dsc')
+$(ofa 'pool/main/a/aa/aa_2-1.tar.gz')
 -v1*=Shutting down aptmethods...
 -v0*=Installing (and possibly deleting) packages...
 -d1*=db: 'aa-addons' removed from packages.db(boring|main|coal).
@@ -521,8 +521,8 @@ stderr
 -v1*=aptmethod got 'copy:$WORKDIR/source1/pool/firmware/ee-addons_2-1_all.deb'
 -v1*=aptmethod got 'copy:$WORKDIR/source1/pool/firmware/ee_2-1_abacus.deb'
 stdout
--d1*=db: 'pool/firmware/e/ee/ee-addons_2-1_all.deb' added to checksums.db(pool).
--d1*=db: 'pool/firmware/e/ee/ee_2-1_abacus.deb' added to checksums.db(pool).
+$(ofa 'pool/firmware/e/ee/ee-addons_2-1_all.deb')
+$(ofa 'pool/firmware/e/ee/ee_2-1_abacus.deb')
 -v1*=Shutting down aptmethods...
 -v0*=Installing (and possibly deleting) packages...
 -d1*=db: 'ee-addons' added to packages.db(boring|firmware|coal).
@@ -573,8 +573,8 @@ stderr
 *=Warning: downgrading 'bb' from '2-0' to '1-1' in 'boring|firmware|abacus'!
 *=Warning: downgrading 'bb-addons' from '2-0' to '1-1' in 'boring|firmware|abacus'!
 stdout
--d1*=db: 'pool/firmware/b/bb/bb-addons_1-1_all.deb' added to checksums.db(pool).
--d1*=db: 'pool/firmware/b/bb/bb_1-1_abacus.deb' added to checksums.db(pool).
+$(ofa 'pool/firmware/b/bb/bb-addons_1-1_all.deb')
+$(ofa 'pool/firmware/b/bb/bb_1-1_abacus.deb')
 -v1*=Shutting down aptmethods...
 -v0*=Installing (and possibly deleting) packages...
 -d1*=db: 'bb-addons' removed from packages.db(boring|firmware|coal).

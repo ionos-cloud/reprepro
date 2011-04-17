@@ -21,7 +21,7 @@ testrun - -b . export 3<<EOF
 stderr
 *=Warning: unknown architecture 'nonexistant', ignoring notificator line line 5 in ./conf/distributions
 stdout
--v2*=Created directory "./db"
+$(odb)
 -v1*=Exporting B...
 -v2*=Created directory "./dists"
 -v2*=Created directory "./dists/B"
@@ -201,7 +201,7 @@ testrun empty -b . dumpunreferenced
 testrun - -b . _detect pool/dog/f/foo/foo_0_abacus.deb 3<<EOF
 stderr
 stdout
--d1*=db: 'pool/dog/f/foo/foo_0_abacus.deb' added to checksums.db(pool).
+$(ofa 'pool/dog/f/foo/foo_0_abacus.deb')
 -v0*=1 files were added but not used.
 -v0*=The next deleteunreferenced call will delete them.
 EOF
@@ -255,7 +255,7 @@ testrun empty -b . dumpunreferenced
 testrun - -b . _detect pool/dog/f/foo/foo_1.dsc 3<<EOF
 stderr
 stdout
--d1*=db: 'pool/dog/f/foo/foo_1.dsc' added to checksums.db(pool).
+$(ofa 'pool/dog/f/foo/foo_1.dsc')
 -v0*=1 files were added but not used.
 -v0*=The next deleteunreferenced call will delete them.
 EOF
@@ -271,7 +271,7 @@ EOF
 testrun - -b . _detect pool/dog/f/foo/foo_1.tar.gz 3<<EOF
 stderr
 stdout
--d1*=db: 'pool/dog/f/foo/foo_1.tar.gz' added to checksums.db(pool).
+$(ofa 'pool/dog/f/foo/foo_1.tar.gz')
 -v0*=1 files were added but not used.
 -v0*=The next deleteunreferenced call will delete them.
 EOF
@@ -564,16 +564,13 @@ stdout
 -v6*= looking for changes in 'B|cat|source'...
 -v1*= generating Contents-abacus...
 -v0*=Deleting files no longer referenced...
--v1*=deleting and forgetting pool/dog/f/foo/foo_0_abacus.deb
--d1*=db: 'pool/dog/f/foo/foo_0_abacus.deb' removed from checksums.db(pool).
--v1*=deleting and forgetting pool/dog/f/foo/foo_1.dsc
--d1*=db: 'pool/dog/f/foo/foo_1.dsc' removed from checksums.db(pool).
--v1*=deleting and forgetting pool/dog/f/foo/foo_1.tar.gz
+$(ofd 'pool/dog/f/foo/foo_0_abacus.deb')
+$(ofd 'pool/dog/f/foo/foo_1.dsc')
+$(ofd 'pool/dog/f/foo/foo_1.tar.gz')
 -v2*=removed now empty directory ./pool/dog/f/foo
 -v2*=removed now empty directory ./pool/dog/f
 -v2*=removed now empty directory ./pool/dog
 -v2*=removed now empty directory ./pool
--d1*=db: 'pool/dog/f/foo/foo_1.tar.gz' removed from checksums.db(pool).
 EOF
 
 testrun empty -b . dumpunreferenced

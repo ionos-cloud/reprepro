@@ -21,15 +21,15 @@ stderr
 =Warning: database 'breakme|something|source' was modified but no index file was exported.
 =Changes will only be visible after the next 'export'!
 stdout
--v2*=Created directory "./db"
+$(odb)
 -v2*=Created directory "./pool"
 -v2*=Created directory "./pool/something"
 -v2*=Created directory "./pool/something/a"
 -v2*=Created directory "./pool/something/a/aa"
--d1*=db: 'pool/something/a/aa/aa-addons_1-1_all.deb' added to checksums.db(pool).
--d1*=db: 'pool/something/a/aa/aa_1-1_abacus.deb' added to checksums.db(pool).
--d1*=db: 'pool/something/a/aa/aa_1-1.tar.gz' added to checksums.db(pool).
--d1*=db: 'pool/something/a/aa/aa_1-1.dsc' added to checksums.db(pool).
+$(ofa 'pool/something/a/aa/aa-addons_1-1_all.deb')
+$(ofa 'pool/something/a/aa/aa_1-1_abacus.deb')
+$(ofa 'pool/something/a/aa/aa_1-1.tar.gz')
+$(ofa 'pool/something/a/aa/aa_1-1.dsc')
 -d1*=db: 'aa-addons' added to packages.db(breakme|something|abacus).
 -d1*=db: 'aa-addons' added to packages.db(breakme|something|coal).
 -d1*=db: 'aa' added to packages.db(breakme|something|abacus).

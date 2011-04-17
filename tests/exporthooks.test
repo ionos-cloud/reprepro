@@ -34,7 +34,7 @@ chmod a+x conf/strange.sh
 
 testrun - -b . export o 3<<EOF
 stdout
--v2*=Created directory "./db"
+$(odb)
 -v1*=Exporting o...
 -v2*=Created directory "./dists"
 -v2*=Created directory "./dists/o"

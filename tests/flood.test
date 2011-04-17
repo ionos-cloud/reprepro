@@ -128,14 +128,14 @@ stderr
 =Data seems not to be signed trying to use directly...
 -v3*=Limiting 'mytest_2_all.deb' to architectures another as requested.
 stdout
--v2*=Created directory "./db"
+$(odb)
 -v2*=Created directory "./pool"
 -v2*=Created directory "./pool/main"
 -v2*=Created directory "./pool/main/t"
 -v2*=Created directory "./pool/main/t/test"
--d1*=db: 'pool/main/t/test/mytest_2_all.deb' added to checksums.db(pool).
--d1*=db: 'pool/main/t/test/siblingtoo_3_another.deb' added to checksums.db(pool).
--d1*=db: 'pool/main/t/test/sibling_2_another.deb' added to checksums.db(pool).
+$(ofa 'pool/main/t/test/mytest_2_all.deb')
+$(ofa 'pool/main/t/test/siblingtoo_3_another.deb')
+$(ofa 'pool/main/t/test/sibling_2_another.deb')
 -d1*=db: 'mytest' added to packages.db(test|main|another).
 -d1*=db: 'siblingtoo' added to packages.db(test|main|another).
 -d1*=db: 'sibling' added to packages.db(test|main|another).
@@ -175,9 +175,9 @@ stderr
 =Data seems not to be signed trying to use directly...
 -v3*=Limiting 'mytest_2.4_all.deb' to architectures abacus as requested.
 stdout
--d1*=db: 'pool/main/t/test/mytest_2.4_all.deb' added to checksums.db(pool).
--d1*=db: 'pool/main/t/test/siblingalso_3.1_abacus.deb' added to checksums.db(pool).
--d1*=db: 'pool/main/t/test/sibling_2.2_abacus.deb' added to checksums.db(pool).
+$(ofa 'pool/main/t/test/mytest_2.4_all.deb')
+$(ofa 'pool/main/t/test/siblingalso_3.1_abacus.deb')
+$(ofa 'pool/main/t/test/sibling_2.2_abacus.deb')
 -d1*=db: 'mytest' added to packages.db(test|main|abacus).
 -d1*=db: 'siblingalso' added to packages.db(test|main|abacus).
 -d1*=db: 'sibling' added to packages.db(test|main|abacus).
@@ -241,7 +241,7 @@ EOF
 
 testrun - -b . -C main -A somemore includedeb test siblingtoo_3_somemore.deb 3<<EOF
 stdout
--d1*=db: 'pool/main/t/test/siblingtoo_3_somemore.deb' added to checksums.db(pool).
+$(ofa 'pool/main/t/test/siblingtoo_3_somemore.deb')
 -d1*=db: 'siblingtoo' added to packages.db(test|main|somemore).
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test|main|abacus'...
@@ -313,7 +313,7 @@ EOF
 
 testrun - -b . -C main includedeb test sibling_2.2_another.deb 3<<EOF
 stdout
--d1*=db: 'pool/main/t/test/sibling_2.2_another.deb' added to checksums.db(pool).
+$(ofa 'pool/main/t/test/sibling_2.2_another.deb')
 -d1*=db: 'sibling' removed from packages.db(test|main|another).
 -d1*=db: 'sibling' added to packages.db(test|main|another).
 -v0*=Exporting indices...
@@ -327,8 +327,7 @@ stdout
 -v6*= looking for changes in 'test|bad|somemore'...
 -v6*= looking for changes in 'test|bad|source'...
 -v0*=Deleting files no longer referenced...
--v1*=deleting and forgetting pool/main/t/test/sibling_2_another.deb
--d1*=db: 'pool/main/t/test/sibling_2_another.deb' removed from checksums.db(pool).
+$(ofd 'pool/main/t/test/sibling_2_another.deb')
 EOF
 
 if $tracking ; then
@@ -425,7 +424,7 @@ testrun - -b . processincoming myrule 3<<EOF
 stderr
 =Data seems not to be signed trying to use directly...
 stdout
--d1*=db: 'pool/main/t/test/sibling_2_another.deb' added to checksums.db(pool).
+$(ofa 'pool/main/t/test/sibling_2_another.deb')
 -d1*=db: 'mytest' added to packages.db(two|main|another).
 -d1*=db: 'siblingtoo' added to packages.db(two|main|another).
 -d1*=db: 'sibling' added to packages.db(two|main|another).
@@ -662,8 +661,7 @@ stdout
 -v6*= looking for changes in 'two|bad|somemore'...
 -v6*= looking for changes in 'two|bad|source'...
 -v0*=Deleting files no longer referenced...
--v1*=deleting and forgetting pool/main/t/test/sibling_2_another.deb
--d1*=db: 'pool/main/t/test/sibling_2_another.deb' removed from checksums.db(pool).
+$(ofd 'pool/main/t/test/sibling_2_another.deb')
 EOF
 
 testrun - -b . list two 3<<EOF

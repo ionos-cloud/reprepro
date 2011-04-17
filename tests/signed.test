@@ -17,7 +17,7 @@ gpg --list-keys
 
 testrun - -b . export 3<<EOF
 stdout
--v2*=Created directory "./db"
+$(odb)
 -v1*=Exporting ATest...
 -v2*=Created directory "./dists"
 -v2*=Created directory "./dists/ATest"

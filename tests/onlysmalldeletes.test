@@ -38,7 +38,7 @@ cd ..
 cat > pi.rules <<EOF
 =Data seems not to be signed trying to use directly...
 stdout
--v2*=Created directory "./db"
+$(odb)
 -v2*=Created directory "./tmp"
 -v2*=Created directory "./pool"
 -v2*=Created directory "./pool/all"
@@ -58,10 +58,10 @@ EOF
 for i in $(seq 1 40) ; do
 cat >>pi.rules <<EOF
 -v2*=Created directory "./pool/all/a/a$i"
--d1*=db: 'pool/all/a/a${i}/a${i}_${i}.dsc' added to checksums.db(pool).
--d1*=db: 'pool/all/a/a${i}/a${i}_${i}.tar.gz' added to checksums.db(pool).
--d1*=db: 'pool/all/a/a${i}/a${i}_${i}_abacus.deb' added to checksums.db(pool).
--d1*=db: 'pool/all/a/a${i}/a${i}-addons_${i}_all.deb' added to checksums.db(pool).
+$(ofa "pool/all/a/a${i}/a${i}_${i}.dsc")
+$(ofa "pool/all/a/a${i}/a${i}_${i}.tar.gz")
+$(ofa "pool/all/a/a${i}/a${i}_${i}_abacus.deb")
+$(ofa "pool/all/a/a${i}/a${i}-addons_${i}_all.deb")
 -d1*=db: 'a${i}' added to packages.db(test|all|source).
 -d1*=db: 'a${i}' added to packages.db(test|all|abacus).
 -d1*=db: 'a${i}-addons' added to packages.db(test|all|abacus).

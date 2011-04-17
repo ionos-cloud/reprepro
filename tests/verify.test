@@ -31,7 +31,7 @@ CONFEND
 testrun - -b . update Test 3<<EOF
 return 255
 stdout
--v2*=Created directory "./db"
+$(odb)
 stderr
 *=Error: Too short key id '111' in VerifyRelease condition '111'!
 -v0*=There have been errors!

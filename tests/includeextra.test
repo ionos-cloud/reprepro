@@ -76,14 +76,14 @@ stderr
 *=Ignoring byhand file: 'history.txt'!
 *=Ignoring log file: 'documentation_9876AD_coal+all.log'!
 stdout
--v2*=Created directory "./db"
+$(odb)
 -v2*=Created directory "./pool"
 -v2*=Created directory "./pool/main"
 -v2*=Created directory "./pool/main/d"
 -v2*=Created directory "./pool/main/d/documentation"
--d1*=db: 'pool/main/d/documentation/documentation_9876AD_all.deb' added to checksums.db(pool).
--d1*=db: 'pool/main/d/documentation/documentation_9876AD.tar.gz' added to checksums.db(pool).
--d1*=db: 'pool/main/d/documentation/documentation_9876AD.dsc' added to checksums.db(pool).
+$(ofa 'pool/main/d/documentation/documentation_9876AD_all.deb')
+$(ofa 'pool/main/d/documentation/documentation_9876AD.tar.gz')
+$(ofa 'pool/main/d/documentation/documentation_9876AD.dsc')
 -d1*=db: 'documentation' added to packages.db(test|main|coal).
 -d1*=db: 'documentation' added to packages.db(test|main|source).
 -v0*=Exporting indices...
@@ -112,17 +112,17 @@ stderr
 =Data seems not to be signed trying to use directly...
 *=Ignoring log file: 'documentation_9876AD_coal+all.log'!
 stdout
--v2*=Created directory "./db"
+$(odb)
 -v2*=Created directory "./pool"
 -v2*=Created directory "./pool/main"
 -v2*=Created directory "./pool/main/d"
 -v2*=Created directory "./pool/main/d/documentation"
 -v2*=Created directory "./pool/main/d/documentation/documentation_9876AD_byhand"
--d1*=db: 'pool/main/d/documentation/documentation_9876AD_byhand/history.txt' added to checksums.db(pool).
--d1*=db: 'pool/main/d/documentation/documentation_9876AD_byhand/manifesto.txt' added to checksums.db(pool).
--d1*=db: 'pool/main/d/documentation/documentation_9876AD_all.deb' added to checksums.db(pool).
--d1*=db: 'pool/main/d/documentation/documentation_9876AD.tar.gz' added to checksums.db(pool).
--d1*=db: 'pool/main/d/documentation/documentation_9876AD.dsc' added to checksums.db(pool).
+$(ofa 'pool/main/d/documentation/documentation_9876AD_byhand/history.txt')
+$(ofa 'pool/main/d/documentation/documentation_9876AD_byhand/manifesto.txt')
+$(ofa 'pool/main/d/documentation/documentation_9876AD_all.deb')
+$(ofa 'pool/main/d/documentation/documentation_9876AD.tar.gz')
+$(ofa 'pool/main/d/documentation/documentation_9876AD.dsc')
 -d1*=db: 'documentation' added to packages.db(test|main|coal).
 -d1*=db: 'documentation' added to packages.db(test|main|source).
 -d1*=db: 'documentation' added to tracking.db(test).
@@ -182,16 +182,11 @@ stdout
 -v6*=  replacing './dists/test/main/source/Sources' (gzipped)
 -d1*=db: 'documentation' '9876AD' removed from tracking.db(test).
 -v0*=Deleting files no longer referenced...
--v1*=deleting and forgetting pool/main/d/documentation/documentation_9876AD.dsc
--d1*=db: 'pool/main/d/documentation/documentation_9876AD.dsc' removed from checksums.db(pool).
--v1*=deleting and forgetting pool/main/d/documentation/documentation_9876AD.tar.gz
--d1*=db: 'pool/main/d/documentation/documentation_9876AD.tar.gz' removed from checksums.db(pool).
--v1*=deleting and forgetting pool/main/d/documentation/documentation_9876AD_all.deb
--d1*=db: 'pool/main/d/documentation/documentation_9876AD_all.deb' removed from checksums.db(pool).
--v1*=deleting and forgetting pool/main/d/documentation/documentation_9876AD_byhand/history.txt
--d1*=db: 'pool/main/d/documentation/documentation_9876AD_byhand/history.txt' removed from checksums.db(pool).
--v1*=deleting and forgetting pool/main/d/documentation/documentation_9876AD_byhand/manifesto.txt
--d1*=db: 'pool/main/d/documentation/documentation_9876AD_byhand/manifesto.txt' removed from checksums.db(pool).
+$(ofd 'pool/main/d/documentation/documentation_9876AD.dsc')
+$(ofd 'pool/main/d/documentation/documentation_9876AD.tar.gz')
+$(ofd 'pool/main/d/documentation/documentation_9876AD_all.deb')
+$(ofd 'pool/main/d/documentation/documentation_9876AD_byhand/history.txt')
+$(ofd 'pool/main/d/documentation/documentation_9876AD_byhand/manifesto.txt')
 -v2*=removed now empty directory ./pool/main/d/documentation/documentation_9876AD_byhand
 -v2*=removed now empty directory ./pool/main/d/documentation
 -v2*=removed now empty directory ./pool/main/d
@@ -213,18 +208,18 @@ testrun - include test test.changes 3<<EOF
 stderr
 =Data seems not to be signed trying to use directly...
 stdout
--v2*=Created directory "./db"
+$(odb)
 -v2*=Created directory "./pool"
 -v2*=Created directory "./pool/main"
 -v2*=Created directory "./pool/main/d"
 -v2*=Created directory "./pool/main/d/documentation"
--d1*=db: 'pool/main/d/documentation/documentation_9876AD_coal+all.log' added to checksums.db(pool).
+$(ofa 'pool/main/d/documentation/documentation_9876AD_coal+all.log')
 -v2*=Created directory "./pool/main/d/documentation/documentation_9876AD_byhand"
--d1*=db: 'pool/main/d/documentation/documentation_9876AD_byhand/history.txt' added to checksums.db(pool).
--d1*=db: 'pool/main/d/documentation/documentation_9876AD_byhand/manifesto.txt' added to checksums.db(pool).
--d1*=db: 'pool/main/d/documentation/documentation_9876AD_all.deb' added to checksums.db(pool).
--d1*=db: 'pool/main/d/documentation/documentation_9876AD.tar.gz' added to checksums.db(pool).
--d1*=db: 'pool/main/d/documentation/documentation_9876AD.dsc' added to checksums.db(pool).
+$(ofa 'pool/main/d/documentation/documentation_9876AD_byhand/history.txt')
+$(ofa 'pool/main/d/documentation/documentation_9876AD_byhand/manifesto.txt')
+$(ofa 'pool/main/d/documentation/documentation_9876AD_all.deb')
+$(ofa 'pool/main/d/documentation/documentation_9876AD.tar.gz')
+$(ofa 'pool/main/d/documentation/documentation_9876AD.dsc')
 -d1*=db: 'documentation' added to packages.db(test|main|coal).
 -d1*=db: 'documentation' added to packages.db(test|main|source).
 -d1*=db: 'documentation' added to tracking.db(test).
@@ -271,19 +266,19 @@ testrun - include test test.changes 3<<EOF
 stderr
 =Data seems not to be signed trying to use directly...
 stdout
--v2*=Created directory "./db"
+$(odb)
 -v2*=Created directory "./pool"
 -v2*=Created directory "./pool/main"
 -v2*=Created directory "./pool/main/d"
 -v2*=Created directory "./pool/main/d/documentation"
--d1*=db: 'pool/main/d/documentation/documentation_9876AD_source+all.changes' added to checksums.db(pool).
--d1*=db: 'pool/main/d/documentation/documentation_9876AD_coal+all.log' added to checksums.db(pool).
+$(ofa 'pool/main/d/documentation/documentation_9876AD_source+all.changes')
+$(ofa 'pool/main/d/documentation/documentation_9876AD_coal+all.log')
 -v2*=Created directory "./pool/main/d/documentation/documentation_9876AD_byhand"
--d1*=db: 'pool/main/d/documentation/documentation_9876AD_byhand/history.txt' added to checksums.db(pool).
--d1*=db: 'pool/main/d/documentation/documentation_9876AD_byhand/manifesto.txt' added to checksums.db(pool).
--d1*=db: 'pool/main/d/documentation/documentation_9876AD_all.deb' added to checksums.db(pool).
--d1*=db: 'pool/main/d/documentation/documentation_9876AD.tar.gz' added to checksums.db(pool).
--d1*=db: 'pool/main/d/documentation/documentation_9876AD.dsc' added to checksums.db(pool).
+$(ofa 'pool/main/d/documentation/documentation_9876AD_byhand/history.txt')
+$(ofa 'pool/main/d/documentation/documentation_9876AD_byhand/manifesto.txt')
+$(ofa 'pool/main/d/documentation/documentation_9876AD_all.deb')
+$(ofa 'pool/main/d/documentation/documentation_9876AD.tar.gz')
+$(ofa 'pool/main/d/documentation/documentation_9876AD.dsc')
 -d1*=db: 'documentation' added to packages.db(test|main|coal).
 -d1*=db: 'documentation' added to packages.db(test|main|source).
 -d1*=db: 'documentation' added to tracking.db(test).
@@ -340,20 +335,13 @@ stdout
 -v6*=  replacing './dists/test/main/source/Sources' (gzipped)
 -d1*=db: 'documentation' '9876AD' removed from tracking.db(test).
 -v0*=Deleting files no longer referenced...
--v1*=deleting and forgetting pool/main/d/documentation/documentation_9876AD_source+all.changes
--d1*=db: 'pool/main/d/documentation/documentation_9876AD_source+all.changes' removed from checksums.db(pool).
--v1*=deleting and forgetting pool/main/d/documentation/documentation_9876AD_coal+all.log
--d1*=db: 'pool/main/d/documentation/documentation_9876AD_coal+all.log' removed from checksums.db(pool).
--v1*=deleting and forgetting pool/main/d/documentation/documentation_9876AD.dsc
--d1*=db: 'pool/main/d/documentation/documentation_9876AD.dsc' removed from checksums.db(pool).
--v1*=deleting and forgetting pool/main/d/documentation/documentation_9876AD.tar.gz
--d1*=db: 'pool/main/d/documentation/documentation_9876AD.tar.gz' removed from checksums.db(pool).
--v1*=deleting and forgetting pool/main/d/documentation/documentation_9876AD_all.deb
--d1*=db: 'pool/main/d/documentation/documentation_9876AD_all.deb' removed from checksums.db(pool).
--v1*=deleting and forgetting pool/main/d/documentation/documentation_9876AD_byhand/history.txt
--d1*=db: 'pool/main/d/documentation/documentation_9876AD_byhand/history.txt' removed from checksums.db(pool).
--v1*=deleting and forgetting pool/main/d/documentation/documentation_9876AD_byhand/manifesto.txt
--d1*=db: 'pool/main/d/documentation/documentation_9876AD_byhand/manifesto.txt' removed from checksums.db(pool).
+$(ofd 'pool/main/d/documentation/documentation_9876AD_source+all.changes')
+$(ofd 'pool/main/d/documentation/documentation_9876AD_coal+all.log')
+$(ofd 'pool/main/d/documentation/documentation_9876AD.dsc')
+$(ofd 'pool/main/d/documentation/documentation_9876AD.tar.gz')
+$(ofd 'pool/main/d/documentation/documentation_9876AD_all.deb')
+$(ofd 'pool/main/d/documentation/documentation_9876AD_byhand/history.txt')
+$(ofd 'pool/main/d/documentation/documentation_9876AD_byhand/manifesto.txt')
 -v2*=removed now empty directory ./pool/main/d/documentation/documentation_9876AD_byhand
 -v2*=removed now empty directory ./pool/main/d/documentation
 -v2*=removed now empty directory ./pool/main/d
@@ -377,19 +365,19 @@ testrun - processincoming foo 3<<EOF
 stderr
 =Data seems not to be signed trying to use directly...
 stdout
--v2*=Created directory "./db"
+$(odb)
 -v2*=Created directory "./pool"
 -v2*=Created directory "./pool/main"
 -v2*=Created directory "./pool/main/d"
 -v2*=Created directory "./pool/main/d/documentation"
--d1*=db: 'pool/main/d/documentation/documentation_9876AD_source+all.changes' added to checksums.db(pool).
--d1*=db: 'pool/main/d/documentation/documentation_9876AD_coal+all.log' added to checksums.db(pool).
+$(ofa 'pool/main/d/documentation/documentation_9876AD_source+all.changes')
+$(ofa 'pool/main/d/documentation/documentation_9876AD_coal+all.log')
 -v2*=Created directory "./pool/main/d/documentation/documentation_9876AD_byhand"
--d1*=db: 'pool/main/d/documentation/documentation_9876AD_byhand/history.txt' added to checksums.db(pool).
--d1*=db: 'pool/main/d/documentation/documentation_9876AD_byhand/manifesto.txt' added to checksums.db(pool).
--d1*=db: 'pool/main/d/documentation/documentation_9876AD_all.deb' added to checksums.db(pool).
--d1*=db: 'pool/main/d/documentation/documentation_9876AD.tar.gz' added to checksums.db(pool).
--d1*=db: 'pool/main/d/documentation/documentation_9876AD.dsc' added to checksums.db(pool).
+$(ofa 'pool/main/d/documentation/documentation_9876AD_byhand/history.txt')
+$(ofa 'pool/main/d/documentation/documentation_9876AD_byhand/manifesto.txt')
+$(ofa 'pool/main/d/documentation/documentation_9876AD_all.deb')
+$(ofa 'pool/main/d/documentation/documentation_9876AD.tar.gz')
+$(ofa 'pool/main/d/documentation/documentation_9876AD.dsc')
 -d1*=db: 'documentation' added to packages.db(test|main|coal).
 -d1*=db: 'documentation' added to packages.db(test|main|source).
 -d1*=db: 'documentation' added to tracking.db(test).
@@ -441,7 +429,7 @@ EOF
 
 testrun - processincoming foo 3<<EOF
 stdout
--v2*=Created directory "./db"
+$(odb)
 stderr
 =Data seems not to be signed trying to use directly...
 *=Error: 'test.changes' contains unused file 'documentation_9876AD_coal+all.log'!
@@ -467,9 +455,9 @@ stdout
 -v2*=Created directory "./pool/main/d/documentation"
 -v2*=Created directory "./log"
 -v2*=Created directory "./log/documentation_9876AD_source+all.0000000"
--d1*=db: 'pool/main/d/documentation/documentation_9876AD_all.deb' added to checksums.db(pool).
--d1*=db: 'pool/main/d/documentation/documentation_9876AD.tar.gz' added to checksums.db(pool).
--d1*=db: 'pool/main/d/documentation/documentation_9876AD.dsc' added to checksums.db(pool).
+$(ofa 'pool/main/d/documentation/documentation_9876AD_all.deb')
+$(ofa 'pool/main/d/documentation/documentation_9876AD.tar.gz')
+$(ofa 'pool/main/d/documentation/documentation_9876AD.dsc')
 -d1*=db: 'documentation' added to packages.db(test|main|coal).
 -d1*=db: 'documentation' added to packages.db(test|main|source).
 -d1*=db: 'documentation' added to tracking.db(test).
@@ -517,20 +505,20 @@ testrun - processincoming foo 3<<EOF
 stderr
 =Data seems not to be signed trying to use directly...
 stdout
--v2*=Created directory "./db"
+$(odb)
 -v2*=Created directory "./pool"
 -v2*=Created directory "./pool/main"
 -v2*=Created directory "./pool/main/d"
 -v2*=Created directory "./pool/main/d/documentation"
 -v2*=Created directory "./log/documentation_9876AD_source+all.0000001"
--d1*=db: 'pool/main/d/documentation/documentation_9876AD_source+all.changes' added to checksums.db(pool).
--d1*=db: 'pool/main/d/documentation/documentation_9876AD_coal+all.log' added to checksums.db(pool).
+$(ofa 'pool/main/d/documentation/documentation_9876AD_source+all.changes')
+$(ofa 'pool/main/d/documentation/documentation_9876AD_coal+all.log')
 -v2*=Created directory "./pool/main/d/documentation/documentation_9876AD_byhand"
--d1*=db: 'pool/main/d/documentation/documentation_9876AD_byhand/history.txt' added to checksums.db(pool).
--d1*=db: 'pool/main/d/documentation/documentation_9876AD_byhand/manifesto.txt' added to checksums.db(pool).
--d1*=db: 'pool/main/d/documentation/documentation_9876AD_all.deb' added to checksums.db(pool).
--d1*=db: 'pool/main/d/documentation/documentation_9876AD.tar.gz' added to checksums.db(pool).
--d1*=db: 'pool/main/d/documentation/documentation_9876AD.dsc' added to checksums.db(pool).
+$(ofa 'pool/main/d/documentation/documentation_9876AD_byhand/history.txt')
+$(ofa 'pool/main/d/documentation/documentation_9876AD_byhand/manifesto.txt')
+$(ofa 'pool/main/d/documentation/documentation_9876AD_all.deb')
+$(ofa 'pool/main/d/documentation/documentation_9876AD.tar.gz')
+$(ofa 'pool/main/d/documentation/documentation_9876AD.dsc')
 -d1*=db: 'documentation' added to packages.db(test|main|coal).
 -d1*=db: 'documentation' added to packages.db(test|main|source).
 -d1*=db: 'documentation' added to tracking.db(test).
@@ -577,7 +565,7 @@ testrun - processincoming foo 3<<EOF
 stderr
 =Data seems not to be signed trying to use directly...
 stdout
--v2*=Created directory "./db"
+$(odb)
 -v2*=Created directory "./log/documentation_9876AD_source+all.0000002"
 stderr
 *=Error 2 executing './conf/handle-byhand.sh': No such file or directory
@@ -608,14 +596,14 @@ stdout
 -v2*=Created directory "./pool/main/d"
 -v2*=Created directory "./pool/main/d/documentation"
 -v2*=Created directory "./log/documentation_9876AD_source+all.0000003"
--d1*=db: 'pool/main/d/documentation/documentation_9876AD_source+all.changes' added to checksums.db(pool).
--d1*=db: 'pool/main/d/documentation/documentation_9876AD_coal+all.log' added to checksums.db(pool).
+$(ofa 'pool/main/d/documentation/documentation_9876AD_source+all.changes')
+$(ofa 'pool/main/d/documentation/documentation_9876AD_coal+all.log')
 -v2*=Created directory "./pool/main/d/documentation/documentation_9876AD_byhand"
--d1*=db: 'pool/main/d/documentation/documentation_9876AD_byhand/history.txt' added to checksums.db(pool).
--d1*=db: 'pool/main/d/documentation/documentation_9876AD_byhand/manifesto.txt' added to checksums.db(pool).
--d1*=db: 'pool/main/d/documentation/documentation_9876AD_all.deb' added to checksums.db(pool).
--d1*=db: 'pool/main/d/documentation/documentation_9876AD.tar.gz' added to checksums.db(pool).
--d1*=db: 'pool/main/d/documentation/documentation_9876AD.dsc' added to checksums.db(pool).
+$(ofa 'pool/main/d/documentation/documentation_9876AD_byhand/history.txt')
+$(ofa 'pool/main/d/documentation/documentation_9876AD_byhand/manifesto.txt')
+$(ofa 'pool/main/d/documentation/documentation_9876AD_all.deb')
+$(ofa 'pool/main/d/documentation/documentation_9876AD.tar.gz')
+$(ofa 'pool/main/d/documentation/documentation_9876AD.dsc')
 -d1*=db: 'documentation' added to packages.db(test|main|coal).
 -d1*=db: 'documentation' added to packages.db(test|main|source).
 -d1*=db: 'documentation' added to tracking.db(test).
@@ -664,15 +652,15 @@ testrun - processincoming foo 3<<EOF
 stderr
 =Data seems not to be signed trying to use directly...
 stdout
--v2*=Created directory "./db"
+$(odb)
 -v2*=Created directory "./pool"
 -v2*=Created directory "./pool/main"
 -v2*=Created directory "./pool/main/d"
 -v2*=Created directory "./pool/main/d/documentation"
 -v2*=Created directory "./log/documentation_9876AD_source+all.0000004"
--d1*=db: 'pool/main/d/documentation/documentation_9876AD_all.deb' added to checksums.db(pool).
--d1*=db: 'pool/main/d/documentation/documentation_9876AD.tar.gz' added to checksums.db(pool).
--d1*=db: 'pool/main/d/documentation/documentation_9876AD.dsc' added to checksums.db(pool).
+$(ofa 'pool/main/d/documentation/documentation_9876AD_all.deb')
+$(ofa 'pool/main/d/documentation/documentation_9876AD.tar.gz')
+$(ofa 'pool/main/d/documentation/documentation_9876AD.dsc')
 -d1*=db: 'documentation' added to packages.db(test|main|coal).
 -d1*=db: 'documentation' added to packages.db(test|main|source).
 -d1*=db: 'documentation' added to tracking.db(test).
@@ -719,15 +707,15 @@ testrun - processincoming foo 3<<EOF
 stderr
 =Data seems not to be signed trying to use directly...
 stdout
--v2*=Created directory "./db"
+$(odb)
 -v2*=Created directory "./pool"
 -v2*=Created directory "./pool/main"
 -v2*=Created directory "./pool/main/d"
 -v2*=Created directory "./pool/main/d/documentation"
 -v2*=Created directory "./log/documentation_9876AD_source+all.0000005"
--d1*=db: 'pool/main/d/documentation/documentation_9876AD_all.deb' added to checksums.db(pool).
--d1*=db: 'pool/main/d/documentation/documentation_9876AD.tar.gz' added to checksums.db(pool).
--d1*=db: 'pool/main/d/documentation/documentation_9876AD.dsc' added to checksums.db(pool).
+$(ofa 'pool/main/d/documentation/documentation_9876AD_all.deb')
+$(ofa 'pool/main/d/documentation/documentation_9876AD.tar.gz')
+$(ofa 'pool/main/d/documentation/documentation_9876AD.dsc')
 -d1*=db: 'documentation' added to packages.db(test|main|coal).
 -d1*=db: 'documentation' added to packages.db(test|main|source).
 -v3*=deleting './i/documentation_9876AD_all.deb'...
@@ -778,7 +766,7 @@ testrun - processincoming foo 3<<EOF
 stderr
 =Data seems not to be signed trying to use directly...
 stdout
--v2*=Created directory "./db"
+$(odb)
 stderr
 *=Error: 'test.changes' contains unused file 'history.txt'!
 *=(Do Permit: unused_files to conf/incoming to ignore and
@@ -803,9 +791,9 @@ stdout
 -v2*=Created directory "./pool/main"
 -v2*=Created directory "./pool/main/d"
 -v2*=Created directory "./pool/main/d/documentation"
--d1*=db: 'pool/main/d/documentation/documentation_9876AD_all.deb' added to checksums.db(pool).
--d1*=db: 'pool/main/d/documentation/documentation_9876AD.tar.gz' added to checksums.db(pool).
--d1*=db: 'pool/main/d/documentation/documentation_9876AD.dsc' added to checksums.db(pool).
+$(ofa 'pool/main/d/documentation/documentation_9876AD_all.deb')
+$(ofa 'pool/main/d/documentation/documentation_9876AD.tar.gz')
+$(ofa 'pool/main/d/documentation/documentation_9876AD.dsc')
 -d1*=db: 'documentation' added to packages.db(test|main|coal).
 -d1*=db: 'documentation' added to packages.db(test|main|source).
 -v3*=deleting './i/documentation_9876AD_all.deb'...
@@ -851,13 +839,14 @@ testrun - processincoming foo 3<<EOF
 stderr
 =Data seems not to be signed trying to use directly...
 stdout
+$(odb)
 -v2*=Created directory "./pool"
 -v2*=Created directory "./pool/main"
 -v2*=Created directory "./pool/main/d"
 -v2*=Created directory "./pool/main/d/documentation"
--d1*=db: 'pool/main/d/documentation/documentation_9876AD_all.deb' added to checksums.db(pool).
--d1*=db: 'pool/main/d/documentation/documentation_9876AD.tar.gz' added to checksums.db(pool).
--d1*=db: 'pool/main/d/documentation/documentation_9876AD.dsc' added to checksums.db(pool).
+$(ofa 'pool/main/d/documentation/documentation_9876AD_all.deb')
+$(ofa 'pool/main/d/documentation/documentation_9876AD.tar.gz')
+$(ofa 'pool/main/d/documentation/documentation_9876AD.dsc')
 -d1*=db: 'documentation' added to packages.db(test|main|coal).
 -d1*=db: 'documentation' added to packages.db(test|main|source).
 -v3*=deleting './i/documentation_9876AD_all.deb'...
@@ -867,7 +856,6 @@ stdout
 -v3*=deleting './i/documentation_9876AD.dsc'...
 -v3*=deleting './i/test.changes'...
 -v0*=Exporting indices...
--v2*=Created directory "./db"
 -v2*=Created directory "./dists/test/main"
 -v2*=Created directory "./dists/test/main/binary-coal"
 -v6*= looking for changes in 'test|main|coal'...

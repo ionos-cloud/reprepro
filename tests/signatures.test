@@ -85,8 +85,7 @@ stderr
 *=To ignore use --ignore=uploaders.
 -v0*=There have been errors!
 stdout
--v2*=Created directory "./db"
-stdout
+$(odb)
 EOF
 
 testrun - -b . include BTest test.changes 3<<EOF
@@ -107,10 +106,10 @@ stdout
 -v2*=Created directory "./pool/everything"
 -v2*=Created directory "./pool/everything/p"
 -v2*=Created directory "./pool/everything/p/package"
--d1*=db: 'pool/everything/p/package/package-addons_9-2_all.deb' added to checksums.db(pool).
--d1*=db: 'pool/everything/p/package/package_9-2_abacus.deb' added to checksums.db(pool).
--d1*=db: 'pool/everything/p/package/package_9-2.tar.gz' added to checksums.db(pool).
--d1*=db: 'pool/everything/p/package/package_9-2.dsc' added to checksums.db(pool).
+$(ofa 'pool/everything/p/package/package-addons_9-2_all.deb')
+$(ofa 'pool/everything/p/package/package_9-2_abacus.deb')
+$(ofa 'pool/everything/p/package/package_9-2.tar.gz')
+$(ofa 'pool/everything/p/package/package_9-2.dsc')
 -d1*=db: 'package-addons' added to packages.db(CTest|everything|abacus).
 -d1*=db: 'package' added to packages.db(CTest|everything|abacus).
 -d1*=db: 'package' added to packages.db(CTest|everything|source).

@@ -116,10 +116,10 @@ EOF
 
 cat > addchecksums.rules <<EOF
 stdout
--d1*=db: 'pool/main/a/a/a_1_all.deb' added to checksums.db(pool).
--d1*=db: 'pool/main/a/a/a_2_all.deb' added to checksums.db(pool).
--d1*=db: 'pool/main/b/baa/b_2_coal.deb' added to checksums.db(pool).
--d1*=db: 'pool/main/5/5dchess/5dchess_0.0-1_coal.deb' added to checksums.db(pool).
+$(ofa 'pool/main/a/a/a_1_all.deb')
+$(ofa 'pool/main/a/a/a_2_all.deb')
+$(ofa 'pool/main/b/baa/b_2_coal.deb')
+$(ofa 'pool/main/5/5dchess/5dchess_0.0-1_coal.deb')
 -v0*=4 files were added but not used.
 -v0*=The next deleteunreferenced call will delete them.
 EOF
@@ -169,8 +169,7 @@ stdout
 =generating diff
 =This was too fast, diffile already there, waiting a bit...
 -v0*=Deleting files no longer referenced...
--v1*=deleting and forgetting pool/main/a/a/a_1_all.deb
--d1*=db: 'pool/main/a/a/a_1_all.deb' removed from checksums.db(pool).
+$(ofd 'pool/main/a/a/a_1_all.deb')
 EOF
 cp dists/sourcedistribution/main/binary-coal/Packages old/2
 sleep 1

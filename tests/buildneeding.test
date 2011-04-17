@@ -58,13 +58,13 @@ stderr
 *=Warning: database 'bla|main|source' was modified but no index file was exported.
 *=Changes will only be visible after the next 'export'!
 stdout
--v2*=Created directory "./db"
+$(odb)
 -v2*=Created directory "./pool"
 -v2*=Created directory "./pool/main"
 -v2*=Created directory "./pool/main/p"
 -v2*=Created directory "./pool/main/p/package"
-*=db: 'pool/main/p/package/package_1.0-1.dsc' added to checksums.db(pool).
-*=db: 'pool/main/p/package/package_1.0-1.tar.gz' added to checksums.db(pool).
+$(ofa 'pool/main/p/package/package_1.0-1.dsc')
+$(ofa 'pool/main/p/package/package_1.0-1.tar.gz')
 *=db: 'package' added to packages.db(bla|main|source).
 *=db: 'package' added to tracking.db(bla).
 EOF
@@ -118,7 +118,7 @@ stderr
 *=Warning: database 'bla|main|another' was modified but no index file was exported.
 *=Changes will only be visible after the next 'export'!
 stdout
-*=db: 'pool/main/p/package/rumsrumsrums_1.0-1_all.deb' added to checksums.db(pool).
+$(ofa 'pool/main/p/package/rumsrumsrums_1.0-1_all.deb')
 *=db: 'rumsrumsrums' added to packages.db(bla|main|abacus).
 *=db: 'rumsrumsrums' added to packages.db(bla|main|another).
 EOF
@@ -142,7 +142,7 @@ stderr
 *=Warning: database 'bla|main|abacus' was modified but no index file was exported.
 *=Changes will only be visible after the next 'export'!
 stdout
-*=db: 'pool/main/p/package/troettroet_1.0-1_abacus.deb' added to checksums.db(pool).
+$(ofa 'pool/main/p/package/troettroet_1.0-1_abacus.deb')
 *=db: 'troettroet' added to packages.db(bla|main|abacus).
 EOF
 
@@ -177,7 +177,7 @@ testrun - -C main include test package_1.0-1_another.changes 3<<EOF
 stderr
 =Data seems not to be signed trying to use directly...
 stdout
-*=db: 'pool/main/p/package/package_1.0-1_another.log' added to checksums.db(pool).
+$(ofa 'pool/main/p/package/package_1.0-1_another.log')
 EOF
 
 testrun empty build-needing test another
@@ -227,8 +227,8 @@ stderr
 stdout
 -v2*=Created directory "./pool/main/o"
 -v2*=Created directory "./pool/main/o/onlyonearch"
--d1*=db: 'pool/main/o/onlyonearch/onlyonearch_1.0-1.dsc' added to checksums.db(pool).
--d1*=db: 'pool/main/o/onlyonearch/onlyonearch_1.0-1.tar.gz' added to checksums.db(pool).
+$(ofa 'pool/main/o/onlyonearch/onlyonearch_1.0-1.dsc')
+$(ofa 'pool/main/o/onlyonearch/onlyonearch_1.0-1.tar.gz')
 -d1*=db: 'onlyonearch' added to packages.db(bla|main|source).
 -d1*=db: 'onlyonearch' added to tracking.db(bla).
 EOF
@@ -244,7 +244,7 @@ stderr
 *=Warning: database 'bla|main|abacus' was modified but no index file was exported.
 *=Changes will only be visible after the next 'export'!
 stdout
--d1*=db: 'pool/main/o/onlyonearch/onearch_1.0-1_abacus.deb' added to checksums.db(pool).
+$(ofa 'pool/main/o/onlyonearch/onearch_1.0-1_abacus.deb')
 -d1*=db: 'onearch' added to packages.db(bla|main|abacus).
 EOF
 
@@ -291,8 +291,8 @@ stderr
 *=Changes will only be visible after the next 'export'!
 stdout
 -v2*=Created directory "./pool/main/o/onlyarchall"
--d1*=db: 'pool/main/o/onlyarchall/onlyarchall_1.0-1.dsc' added to checksums.db(pool).
--d1*=db: 'pool/main/o/onlyarchall/onlyarchall_1.0-1.tar.gz' added to checksums.db(pool).
+$(ofa 'pool/main/o/onlyarchall/onlyarchall_1.0-1.dsc')
+$(ofa 'pool/main/o/onlyarchall/onlyarchall_1.0-1.tar.gz')
 -d1*=db: 'onlyarchall' added to packages.db(bla|main|source).
 -d1*=db: 'onlyarchall' added to tracking.db(bla).
 EOF
@@ -306,7 +306,7 @@ stderr
 *=Warning: database 'bla|main|another' was modified but no index file was exported.
 *=Changes will only be visible after the next 'export'!
 stdout
--d1*=db: 'pool/main/o/onlyarchall/archall_1.0-1_all.deb' added to checksums.db(pool).
+$(ofa 'pool/main/o/onlyarchall/archall_1.0-1_all.deb')
 -d1*=db: 'archall' added to packages.db(bla|main|abacus).
 -d1*=db: 'archall' added to packages.db(bla|main|another).
 EOF

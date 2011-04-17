@@ -26,10 +26,10 @@ stdout
 -v2*=Created directory "./pool/one"
 -v2*=Created directory "./pool/one/a"
 -v2*=Created directory "./pool/one/a/aa"
--d1*=db: 'pool/one/a/aa/aa-addons_4-2_all.deb' added to checksums.db(pool).
--d1*=db: 'pool/one/a/aa/aa_1-1_abacus.deb' added to checksums.db(pool).
--d1*=db: 'pool/one/a/aa/aa_1-1.tar.gz' added to checksums.db(pool).
--d1*=db: 'pool/one/a/aa/aa_1-1.dsc' added to checksums.db(pool).
+$(ofa 'pool/one/a/aa/aa-addons_4-2_all.deb')
+$(ofa 'pool/one/a/aa/aa_1-1_abacus.deb')
+$(ofa 'pool/one/a/aa/aa_1-1.tar.gz')
+$(ofa 'pool/one/a/aa/aa_1-1.dsc')
 -d1*=db: 'aa-addons' added to packages.db(a|one|abacus).
 -d1*=db: 'aa' added to packages.db(a|one|abacus).
 -d1*=db: 'aa' added to packages.db(a|one|source).
@@ -47,10 +47,10 @@ stdout
 -v2*=Created directory "./pool/two"
 -v2*=Created directory "./pool/two/a"
 -v2*=Created directory "./pool/two/a/aa"
--d1*=db: 'pool/two/a/aa/aa-addons_3-2_all.deb' added to checksums.db(pool).
--d1*=db: 'pool/two/a/aa/aa_1-2_abacus.deb' added to checksums.db(pool).
--d1*=db: 'pool/two/a/aa/aa_1-2.tar.gz' added to checksums.db(pool).
--d1*=db: 'pool/two/a/aa/aa_1-2.dsc' added to checksums.db(pool).
+$(ofa 'pool/two/a/aa/aa-addons_3-2_all.deb')
+$(ofa 'pool/two/a/aa/aa_1-2_abacus.deb')
+$(ofa 'pool/two/a/aa/aa_1-2.tar.gz')
+$(ofa 'pool/two/a/aa/aa_1-2.dsc')
 -d1*=db: 'aa-addons' added to packages.db(a|two|abacus).
 -d1*=db: 'aa' added to packages.db(a|two|abacus).
 -d1*=db: 'aa' added to packages.db(a|two|source).

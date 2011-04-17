@@ -62,11 +62,11 @@ mv test.changes bb.changes
 testrun - --nodelete include c aa.changes 3<<EOF
 =Data seems not to be signed trying to use directly...
 stdout
--v2*=Created directory "./db"
--d1*=db: 'pool/main/a/aa/aa-addons_1-1_all.deb' added to checksums.db(pool).
--d1*=db: 'pool/main/a/aa/aa_1-1_abacus.deb' added to checksums.db(pool).
--d1*=db: 'pool/main/a/aa/aa_1-1.tar.gz' added to checksums.db(pool).
--d1*=db: 'pool/main/a/aa/aa_1-1.dsc' added to checksums.db(pool).
+$(odb)
+$(ofa 'pool/main/a/aa/aa-addons_1-1_all.deb')
+$(ofa 'pool/main/a/aa/aa_1-1_abacus.deb')
+$(ofa 'pool/main/a/aa/aa_1-1.tar.gz')
+$(ofa 'pool/main/a/aa/aa_1-1.dsc')
 -d1*=db: 'aa-addons' added to packages.db(c|main|abacus).
 -d1*=db: 'aa' added to packages.db(c|main|abacus).
 -d1*=db: 'aa' added to packages.db(c|main|source).
@@ -83,10 +83,10 @@ EOF
 testrun - --nodelete include c bb.changes 3<<EOF
 =Data seems not to be signed trying to use directly...
 stdout
--d1*=db: 'pool/component/b/bb/bb-addons_1-1_all.deb' added to checksums.db(pool).
--d1*=db: 'pool/component/b/bb/bb_1-1_abacus.deb' added to checksums.db(pool).
--d1*=db: 'pool/component/b/bb/bb_1-1.tar.gz' added to checksums.db(pool).
--d1*=db: 'pool/component/b/bb/bb_1-1.dsc' added to checksums.db(pool).
+$(ofa 'pool/component/b/bb/bb-addons_1-1_all.deb')
+$(ofa 'pool/component/b/bb/bb_1-1_abacus.deb')
+$(ofa 'pool/component/b/bb/bb_1-1.tar.gz')
+$(ofa 'pool/component/b/bb/bb_1-1.dsc')
 -d1*=db: 'bb-addons' added to packages.db(c|component|abacus).
 -d1*=db: 'bb' added to packages.db(c|component|abacus).
 -d1*=db: 'bb' added to packages.db(c|component|source).
@@ -111,10 +111,10 @@ EOF
 testrun - --nodelete include d aa.changes 3<<EOF
 =Data seems not to be signed trying to use directly...
 stdout
--d1*=db: 'pool/component/a/aa/aa-addons_1-1_all.deb' added to checksums.db(pool).
--d1*=db: 'pool/component/a/aa/aa_1-1_abacus.deb' added to checksums.db(pool).
--d1*=db: 'pool/component/a/aa/aa_1-1.tar.gz' added to checksums.db(pool).
--d1*=db: 'pool/component/a/aa/aa_1-1.dsc' added to checksums.db(pool).
+$(ofa 'pool/component/a/aa/aa-addons_1-1_all.deb')
+$(ofa 'pool/component/a/aa/aa_1-1_abacus.deb')
+$(ofa 'pool/component/a/aa/aa_1-1.tar.gz')
+$(ofa 'pool/component/a/aa/aa_1-1.dsc')
 -d1*=db: 'aa-addons' added to packages.db(d|component|abacus).
 -d1*=db: 'aa' added to packages.db(d|component|abacus).
 -d1*=db: 'aa' added to packages.db(d|component|source).
@@ -131,10 +131,10 @@ EOF
 testrun - --nodelete include d bb.changes 3<<EOF
 =Data seems not to be signed trying to use directly...
 stdout
--d1*=db: 'pool/main/b/bb/bb-addons_1-1_all.deb' added to checksums.db(pool).
--d1*=db: 'pool/main/b/bb/bb_1-1_abacus.deb' added to checksums.db(pool).
--d1*=db: 'pool/main/b/bb/bb_1-1.tar.gz' added to checksums.db(pool).
--d1*=db: 'pool/main/b/bb/bb_1-1.dsc' added to checksums.db(pool).
+$(ofa 'pool/main/b/bb/bb-addons_1-1_all.deb')
+$(ofa 'pool/main/b/bb/bb_1-1_abacus.deb')
+$(ofa 'pool/main/b/bb/bb_1-1.tar.gz')
+$(ofa 'pool/main/b/bb/bb_1-1.dsc')
 -d1*=db: 'bb-addons' added to packages.db(d|main|abacus).
 -d1*=db: 'bb' added to packages.db(d|main|abacus).
 -d1*=db: 'bb' added to packages.db(d|main|source).

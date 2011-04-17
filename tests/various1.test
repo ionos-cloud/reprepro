@@ -23,7 +23,7 @@ testrun - -b . checkupdate test 3<<EOF
 stderr
 *=Nothing to do, because none of the selected distributions has an Update: field.
 stdout
--v2*=Created directory "./db"
+$(odb)
 -v2=Created directory "./lists"
 EOF
 rm -r -f lists
@@ -103,7 +103,7 @@ Log: logfile
 CONFEND
 testrun - -b . export B A 3<<EOF
 stdout
--v2*=Created directory "./db"
+$(odb)
 -v1*=Exporting B...
 -v2*=Created directory "./dists"
 -v2*=Created directory "./dists/B"
@@ -347,10 +347,10 @@ stdout
 -v2*=Created directory "./pool/dog"
 -v2*=Created directory "./pool/dog/b"
 -v2*=Created directory "./pool/dog/b/bird"
--d1*=db: 'pool/dog/b/bird/bird_1.dsc' added to checksums.db(pool).
--d1*=db: 'pool/dog/b/bird/bird_1.tar.gz' added to checksums.db(pool).
--d1*=db: 'pool/dog/b/bird/bird_1_abacus.deb' added to checksums.db(pool).
--d1*=db: 'pool/dog/b/bird/bird-addons_1_all.deb' added to checksums.db(pool).
+$(ofa 'pool/dog/b/bird/bird_1.dsc')
+$(ofa 'pool/dog/b/bird/bird_1.tar.gz')
+$(ofa 'pool/dog/b/bird/bird_1_abacus.deb')
+$(ofa 'pool/dog/b/bird/bird-addons_1_all.deb')
 -v2*=Created directory "./logs"
 -d1*=db: 'bird' added to packages.db(B|dog|source).
 -d1*=db: 'bird' added to packages.db(B|dog|abacus).
@@ -447,10 +447,10 @@ stdout
 -v2*=Created directory "./pool/cat"
 -v2*=Created directory "./pool/cat/b"
 -v2*=Created directory "./pool/cat/b/bird"
--d1*=db: 'pool/cat/b/bird/bird_1.dsc' added to checksums.db(pool).
--d1*=db: 'pool/cat/b/bird/bird_1.tar.gz' added to checksums.db(pool).
--d1*=db: 'pool/cat/b/bird/bird_1_abacus.deb' added to checksums.db(pool).
--d1*=db: 'pool/cat/b/bird/bird-addons_1_all.deb' added to checksums.db(pool).
+$(ofa 'pool/cat/b/bird/bird_1.dsc')
+$(ofa 'pool/cat/b/bird/bird_1.tar.gz')
+$(ofa 'pool/cat/b/bird/bird_1_abacus.deb')
+$(ofa 'pool/cat/b/bird/bird-addons_1_all.deb')
 -d1*=db: 'bird' added to packages.db(B|cat|source).
 -d1*=db: 'bird' added to packages.db(B|cat|abacus).
 -d1*=db: 'bird-addons' added to packages.db(B|cat|abacus).
@@ -921,7 +921,7 @@ stderr
 stdout
 -v2*=Created directory "./pool/dog/s"
 -v2*=Created directory "./pool/dog/s/sourceindeb"
--d1*=db: 'pool/dog/s/sourceindeb/indebname_versionindeb~1_all.deb' added to checksums.db(pool).
+$(ofa 'pool/dog/s/sourceindeb/indebname_versionindeb~1_all.deb')
 -d1*=db: 'indebname' added to packages.db(A|dog|abacus).
 -d1*=db: 'indebname' added to packages.db(A|dog|calculator).
 -v3*=deleting './i/indebname_debfileversion~2_all.deb'...
@@ -1132,7 +1132,7 @@ stderr
 stdout
 -v2*=Created directory "./pool/dog/d"
 -v2*=Created directory "./pool/dog/d/dscfilename"
--d1*=db: 'pool/dog/d/dscfilename/dscfilename_versionindsc.dsc' added to checksums.db(pool).
+$(ofa 'pool/dog/d/dscfilename/dscfilename_versionindsc.dsc')
 -d1*=db: 'dscfilename' added to packages.db(B|dog|source).
 -v3*=deleting './i/dscfilename_fileversion~.dsc'...
 -v3*=deleting './i/test.changes'...
@@ -1358,8 +1358,8 @@ stderr
 -v0=Data seems not to be signed trying to use directly...
 =Unknown file type: '31a1096ff883d52f0c1f39e652d6336f 33 - - strangefile_xyz', assuming source format...
 stdout
--d1*=db: 'pool/dog/d/dscfilename/dscfilename_newversion~.dsc' added to checksums.db(pool).
--d1*=db: 'pool/dog/d/dscfilename/strangefile_xyz' added to checksums.db(pool).
+$(ofa 'pool/dog/d/dscfilename/dscfilename_newversion~.dsc')
+$(ofa 'pool/dog/d/dscfilename/strangefile_xyz')
 -d1*=db: 'dscfilename' removed from packages.db(B|dog|source).
 -d1*=db: 'dscfilename' added to packages.db(B|dog|source).
 -v3*=deleting './i/dscfilename_fileversion~.dsc'...
@@ -1372,8 +1372,7 @@ stdout
 -v6*= looking for changes in 'B|cat|abacus'...
 -v6*= looking for changes in 'B|cat|source'...
 -v0*=Deleting files no longer referenced...
--v1*=deleting and forgetting pool/dog/d/dscfilename/dscfilename_versionindsc.dsc
--d1*=db: 'pool/dog/d/dscfilename/dscfilename_versionindsc.dsc' removed from checksums.db(pool).
+$(ofd 'pool/dog/d/dscfilename/dscfilename_versionindsc.dsc')
 EOF
 checklog logfile <<EOF
 DATESTR replace B dsc dog source dscfilename 1:newversion~ versionindsc
