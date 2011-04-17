@@ -56,6 +56,7 @@ struct filterlistitem {
 static void filterlistitems_free(/*@null@*//*@only@*/struct filterlistitem *list) {
 	while (list != NULL) {
 		struct filterlistitem *next = list->next;
+		free(list->version);
 		free(list->packagename);
 		free(list);
 		list = next;
