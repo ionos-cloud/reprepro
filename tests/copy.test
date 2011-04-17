@@ -17,7 +17,6 @@ EOF
 DISTRI=a PACKAGE=aa EPOCH="" VERSION=1 REVISION="-1" FAKEVER="4-2" SECTION="one" genpackage.sh
 
 testrun - -b . --export=never --delete --delete include a test.changes 3<<EOF
--v0=Data seems not to be signed trying to use directly...
 *=Warning: database 'a|one|abacus' was modified but no index file was exported.
 *=Warning: database 'a|one|source' was modified but no index file was exported.
 *=Changes will only be visible after the next 'export'!
@@ -39,7 +38,6 @@ EOF
 
 DISTRI=a PACKAGE=aa EPOCH="" VERSION=1 REVISION="-2" FAKEVER="3-2" SECTION="two" genpackage.sh
 testrun - -b . --export=never --delete --delete include a test.changes 3<<EOF
--v0=Data seems not to be signed trying to use directly...
 *=Warning: database 'a|two|abacus' was modified but no index file was exported.
 *=Warning: database 'a|two|source' was modified but no index file was exported.
 *=Changes will only be visible after the next 'export'!

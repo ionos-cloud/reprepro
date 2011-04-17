@@ -453,8 +453,6 @@ Priority: priority
 Files:
 EOF
 testrun - -C a -b . includedsc foo test.dsc 3<<EOF
-stderr
--v0=Data seems not to be signed trying to use directly...
 stdout
 -v2*=Created directory "./pool"
 -v2*=Created directory "./pool/a"

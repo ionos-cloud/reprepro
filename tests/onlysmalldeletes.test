@@ -36,7 +36,6 @@ done
 cd ..
 
 cat > pi.rules <<EOF
-=Data seems not to be signed trying to use directly...
 stdout
 $(odb)
 -v2*=Created directory "./tmp"

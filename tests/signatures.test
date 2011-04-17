@@ -80,7 +80,6 @@ gpg --import $TESTSDIR/revoked.pkey
 testrun - -b . include ATest test.changes 3<<EOF
 return 255
 stderr
-=Data seems not to be signed trying to use directly...
 *=No rule allowing this package in found in auploaders!
 *=To ignore use --ignore=uploaders.
 -v0*=There have been errors!
@@ -91,7 +90,6 @@ EOF
 testrun - -b . include BTest test.changes 3<<EOF
 return 255
 stderr
-=Data seems not to be signed trying to use directly...
 *=No rule allowing this package in found in buploaders!
 *=To ignore use --ignore=uploaders.
 -v0*=There have been errors!
@@ -99,8 +97,6 @@ stdout
 EOF
 
 testrun - -b . include CTest test.changes 3<<EOF
-stderr
-=Data seems not to be signed trying to use directly...
 stdout
 -v2*=Created directory "./pool"
 -v2*=Created directory "./pool/everything"
@@ -128,7 +124,6 @@ EOF
 testrun - -b . include ATest testbadsigned.changes 3<<EOF
 return 255
 stderr
-=Data seems not to be signed trying to use directly...
 *=No rule allowing this package in found in auploaders!
 *=To ignore use --ignore=uploaders.
 -v0*=There have been errors!
@@ -138,7 +133,6 @@ EOF
 testrun - -b . include BTest testbadsigned.changes 3<<EOF
 return 255
 stderr
-=Data seems not to be signed trying to use directly...
 *=No rule allowing this package in found in buploaders!
 *=To ignore use --ignore=uploaders.
 -v0*=There have been errors!
@@ -147,7 +141,6 @@ EOF
 
 testrun - -b . include CTest testbadsigned.changes 3<<EOF
 stderr
-=Data seems not to be signed trying to use directly...
 *=Skipping inclusion of 'package-addons' '9-2' in 'CTest|everything|abacus', as it has already '9-2'.
 *=Skipping inclusion of 'package' '9-2' in 'CTest|everything|abacus', as it has already '9-2'.
 *=Skipping inclusion of 'package' '9-2' in 'CTest|everything|source', as it has already '9-2'.
@@ -158,7 +151,6 @@ testrun - -b . include ATest testrevsigned.changes 3<<EOF
 return 255
 stderr
 -v1*=Ignoring signature with '12D6C95C8C737389EAAF535972F1D61F685AF714' on 'testrevsigned.changes', as the key is revoked.
-=Data seems not to be signed trying to use directly...
 *=No rule allowing this package in found in auploaders!
 *=To ignore use --ignore=uploaders.
 -v0*=There have been errors!
@@ -169,7 +161,6 @@ testrun - -b . include BTest testrevsigned.changes 3<<EOF
 return 255
 stderr
 -v1*=Ignoring signature with '12D6C95C8C737389EAAF535972F1D61F685AF714' on 'testrevsigned.changes', as the key is revoked.
-=Data seems not to be signed trying to use directly...
 *=No rule allowing this package in found in buploaders!
 *=To ignore use --ignore=uploaders.
 -v0*=There have been errors!
@@ -179,7 +170,6 @@ EOF
 testrun - -b . include CTest testrevsigned.changes 3<<EOF
 stderr
 -v1*=Ignoring signature with '12D6C95C8C737389EAAF535972F1D61F685AF714' on 'testrevsigned.changes', as the key is revoked.
-=Data seems not to be signed trying to use directly...
 *=Skipping inclusion of 'package-addons' '9-2' in 'CTest|everything|abacus', as it has already '9-2'.
 *=Skipping inclusion of 'package' '9-2' in 'CTest|everything|abacus', as it has already '9-2'.
 *=Skipping inclusion of 'package' '9-2' in 'CTest|everything|source', as it has already '9-2'.
@@ -189,7 +179,6 @@ EOF
 testrun - -b . include ATest testsigned.changes 3<<EOF
 return 255
 stderr
-=Data seems not to be signed trying to use directly...
 *=No rule allowing this package in found in auploaders!
 *=To ignore use --ignore=uploaders.
 -v0*=There have been errors!
@@ -197,8 +186,6 @@ stdout
 EOF
 
 testrun - -b . include BTest testsigned.changes 3<<EOF
-stderr
-=Data seems not to be signed trying to use directly...
 stdout
 -d1*=db: 'package-addons' added to packages.db(BTest|everything|abacus).
 -d1*=db: 'package' added to packages.db(BTest|everything|abacus).
@@ -216,7 +203,6 @@ EOF
 
 testrun - -b . include CTest testsigned.changes 3<<EOF
 stderr
-=Data seems not to be signed trying to use directly...
 *=Skipping inclusion of 'package-addons' '9-2' in 'CTest|everything|abacus', as it has already '9-2'.
 *=Skipping inclusion of 'package' '9-2' in 'CTest|everything|abacus', as it has already '9-2'.
 *=Skipping inclusion of 'package' '9-2' in 'CTest|everything|source', as it has already '9-2'.
@@ -228,14 +214,11 @@ cp test.changes i/
 testrun - -b . processincoming ab 3<<EOF
 return 243
 stderr
-=Data seems not to be signed trying to use directly...
 *=No distribution accepting 'test.changes'!
 -v0*=There have been errors!
 stdout
 EOF
 testrun - -b . processincoming abc 3<<EOF
-stderr
-=Data seems not to be signed trying to use directly...
 stdout
 -v3*=Will not put 'package' in 'CTest|everything|source', as already there with same version '9-2'.
 -v3*=Will not put 'package' in 'CTest|everything|abacus', as already there with same version '9-2'.
@@ -253,7 +236,6 @@ cp testrevsigned.changes i/
 testrun - -b . processincoming ab 3<<EOF
 return 243
 stderr
-=Data seems not to be signed trying to use directly...
 *=No distribution accepting 'testrevsigned.changes'!
 -v0*=There have been errors!
 -v1*=Ignoring signature with '12D6C95C8C737389EAAF535972F1D61F685AF714' on 'testrevsigned.changes', as the key is revoked.
@@ -262,7 +244,6 @@ stdout
 EOF
 testrun - -b . processincoming abc 3<<EOF
 stderr
-=Data seems not to be signed trying to use directly...
 -v1*=Ignoring signature with '12D6C95C8C737389EAAF535972F1D61F685AF714' on 'testrevsigned.changes', as the key is revoked.
 #-v0*='testrevsigned.changes' would have been accepted into 'BTest' if signature with '12D6C95C8C737389EAAF535972F1D61F685AF714' was checkable and valid.
 stdout
@@ -282,14 +263,11 @@ cp testbadsigned.changes i/
 testrun - -b . processincoming ab 3<<EOF
 return 243
 stderr
-=Data seems not to be signed trying to use directly...
 *=No distribution accepting 'testbadsigned.changes'!
 -v0*=There have been errors!
 stdout
 EOF
 testrun - -b . processincoming abc 3<<EOF
-stderr
-=Data seems not to be signed trying to use directly...
 stdout
 -v3*=Will not put 'package' in 'CTest|everything|source', as already there with same version '9-2'.
 -v3*=Will not put 'package' in 'CTest|everything|abacus', as already there with same version '9-2'.

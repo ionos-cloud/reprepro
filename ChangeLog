@@ -1,6 +1,8 @@
 2010-04-17
 	* add --export=silent-never like never but silenting
 	  all warnings (mostly useful for testsuite).
+	* avoid 'Data seems not to be signed trying to use directly'
+	  message if data start like unsigned file should start.
 
 2010-04-16
 	* add 'FilterSrcList'.

@@ -14,8 +14,6 @@ EOF
 DISTRI=breakme PACKAGE=aa EPOCH="" VERSION=1 REVISION=-1 SECTION="base" genpackage.sh -sa
 
 testrun - include breakme test.changes 3<<EOF
-stderr
-=Data seems not to be signed trying to use directly...
 stdout
 $(odb)
 -v2*=Created directory "./pool"

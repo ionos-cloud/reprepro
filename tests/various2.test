@@ -303,8 +303,6 @@ dodiff dists/test2/Release.expected dists/test2/Release || exit 1
 PACKAGE=simple EPOCH="" VERSION=1 REVISION="" SECTION="stupid/base" genpackage.sh
 checknolog log1
 testrun - -b . include test1 test.changes 3<<EOF
-stderr
--v0=Data seems not to be signed trying to use directly...
 stdout
 -v2*=Created directory "./pool"
 -v2*=Created directory "./pool/stupid"
@@ -336,8 +334,6 @@ EOF
 
 PACKAGE=bloat+-0a9z.app EPOCH=99: VERSION=0.9-A:Z+a:z REVISION=-0+aA.9zZ SECTION="ugly/base" genpackage.sh
 testrun - -b . include test1 test.changes 3<<EOF
-stderr
--v0=Data seems not to be signed trying to use directly...
 stdout
 -v2*=Created directory "./pool/ugly"
 -v2*=Created directory "./pool/ugly/b"
@@ -499,7 +495,6 @@ END
 
 testrun - -b . -Tdsc -A source includedsc test2 simple_1.dsc 3<<EOF
 stderr
--v0=Data seems not to be signed trying to use directly...
 -v1=simple_1.dsc: component guessed as 'ugly'
 stdout
 *=testhook got 4: './dists/test2' 'stupid/binary-abacus/Packages.new' 'stupid/binary-abacus/Packages' 'old'
@@ -528,7 +523,6 @@ DATESTR add test2 dsc ugly source simple 1
 EOF
 testrun - -b . -Tdsc -A source includedsc test2 bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc 3<<EOF
 stderr
--v0=Data seems not to be signed trying to use directly...
 -v1=bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc: component guessed as 'stupid'
 stdout
 -v2*=Created directory "./pool/stupid/b"
@@ -557,7 +551,6 @@ DATESTR add test2 dsc stupid source bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
 EOF
 testrun - -b . -Tdeb -A abacus includedeb test2 simple_1_abacus.deb 3<<EOF
 stderr
--v0=Data seems not to be signed trying to use directly...
 -v1=simple_1_abacus.deb: component guessed as 'ugly'
 stdout
 $(ofa 'pool/ugly/s/simple/simple_1_abacus.deb')
@@ -583,7 +576,6 @@ DATESTR add test2 deb ugly abacus simple 1
 EOF
 testrun - -b . -Tdeb -A coal includedeb test2 simple-addons_1_all.deb 3<<EOF
 stderr
--v0=Data seems not to be signed trying to use directly...
 -v1=simple-addons_1_all.deb: component guessed as 'ugly'
 stdout
 $(ofa 'pool/ugly/s/simple/simple-addons_1_all.deb')
@@ -609,7 +601,6 @@ DATESTR add test2 deb ugly coal simple-addons 1
 EOF
 testrun - -b . -Tdeb -A abacus includedeb test2 bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_abacus.deb 3<<EOF
 stderr
--v0=Data seems not to be signed trying to use directly...
 -v1=bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_abacus.deb: component guessed as 'stupid'
 stdout
 $(ofa 'pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_abacus.deb')
@@ -635,7 +626,6 @@ DATESTR add test2 deb stupid abacus bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
 EOF
 testrun - -b . -Tdeb -A coal includedeb test2 bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb 3<<EOF
 stderr
--v0=Data seems not to be signed trying to use directly...
 -v1=bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb: component guessed as 'stupid'
 stdout
 $(ofa 'pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb')
@@ -1070,8 +1060,6 @@ $(ofd 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:0.9-A:Z+a:z-0+aA.9zZ_sourc
 EOF
 echo returned: $?
 testrun - -b . include test1 test.changes 3<<EOF
-stderr
--v0=Data seems not to be signed trying to use directly...
 stdout
 -v2*=Created directory "./pool/ugly/b"
 -v2*=Created directory "./pool/ugly/b/bloat+-0a9z.app"
@@ -1100,8 +1088,6 @@ EOF
 echo returned: $?
 OUTPUT=test2.changes PACKAGE=bloat+-0a9z.app EPOCH=99: VERSION=9.0-A:Z+a:z REVISION=-0+aA.9zZ SECTION="ugly/extra" genpackage.sh
 testrun - -b . include test1 test2.changes 3<<EOF
-stderr
--v0=Data seems not to be signed trying to use directly...
 stdout
 $(ofa 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_9.0-A:Z+a:z-0+aA.9zZ_all.deb')
 $(ofa 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ_abacus.deb')
@@ -1153,7 +1139,6 @@ DATESTR add test1 deb stupid abacus simple 1
 EOF
 testrun - -b . -S sectiontest -P prioritytest includedsc test1 simple_1.dsc 3<<EOF
 stderr
--v0=Data seems not to be signed trying to use directly...
 -v1*=simple_1.dsc: component guessed as 'stupid'
 stdout
 $(ofa 'pool/stupid/s/simple/simple_1.dsc')
@@ -1214,7 +1199,6 @@ PACKAGE=test EPOCH="" VERSION=1 REVISION="-2" SECTION="stupid/base" genpackage.s
 testrun - -b . include test1 test.changes 3<<EOF
 returns 249
 stderr
--v0=Data seems not to be signed trying to use directly...
 *=Unable to find pool/stupid/t/test/test_1.orig.tar.gz needed by test_1-2.dsc!
 *=Perhaps you forgot to give dpkg-buildpackage the -sa option,
 *= or you could try --ignore=missingfile to guess possible files to use.
@@ -1239,7 +1223,6 @@ checknolog log1
 checknolog log2
 testrun - -b . --ignore=missingfile include test1 test.changes 3<<EOF
 stderr
--v0=Data seems not to be signed trying to use directly...
 *=Unable to find pool/stupid/t/test/test_1.orig.tar.gz!
 *=Perhaps you forgot to give dpkg-buildpackage the -sa option.
 *=--ignore=missingfile was given, searching for file...
@@ -1274,8 +1257,6 @@ dodo zgrep test_1-2.dsc dists/test1/stupid/source/Sources.gz
 tar -czf testb_2.orig.tar.gz test.changes
 PACKAGE=testb EPOCH="1:" VERSION=2 REVISION="-2" SECTION="stupid/base" genpackage.sh -sa
 testrun - -b . include test1 test.changes 3<<EOF
-stderr
--v0=Data seems not to be signed trying to use directly...
 stdout
 -v2*=Created directory "./pool/stupid/t/testb"
 $(ofa 'pool/stupid/t/testb/testb-addons_2-2_all.deb')
@@ -1305,8 +1286,6 @@ dodo zgrep testb_2-2.dsc dists/test1/stupid/source/Sources.gz
 rm test2.changes
 PACKAGE=testb EPOCH="1:" VERSION=2 REVISION="-3" SECTION="stupid/base" OUTPUT="test2.changes" genpackage.sh -sd
 testrun - -b . include test1 test2.changes 3<<EOF
-stderr
--v0=Data seems not to be signed trying to use directly...
 stdout
 $(ofa 'pool/stupid/t/testb/testb-addons_2-3_all.deb')
 $(ofa 'pool/stupid/t/testb/testb_2-3_abacus.deb')
@@ -1341,8 +1320,6 @@ dodiff /dev/null results
 echo "now testing some error messages:"
 PACKAGE=4test EPOCH="1:" VERSION=b.1 REVISION="-1" SECTION="stupid/base" genpackage.sh
 testrun -  -b . include test1 test.changes 3<<EOF
-stderr
--v0=Data seems not to be signed trying to use directly...
 stdout
 -v2*=Created directory "./pool/stupid/4"
 -v2*=Created directory "./pool/stupid/4/4test"
@@ -1922,7 +1899,6 @@ testout "" -b . dumpunreferenced
 dodiff /dev/null results
 echo "Format: 2.0" > broken.changes
 testrun - -b . include test2 broken.changes 3<<EOF
--v0=Data seems not to be signed trying to use directly...
 *=In 'broken.changes': Missing 'Date' field!
 =To ignore use --ignore=missingfield.
 -v0*=There have been errors!
@@ -1930,35 +1906,30 @@ returns 255
 EOF
 echo "Date: today" >> broken.changes
 testrun - -b . include test2 broken.changes 3<<EOF
--v0=Data seems not to be signed trying to use directly...
 *=In 'broken.changes': Missing 'Source' field
 -v0*=There have been errors!
 returns 255
 EOF
 echo "Source: nowhere" >> broken.changes
 testrun - -b . include test2 broken.changes 3<<EOF
--v0=Data seems not to be signed trying to use directly...
 *=In 'broken.changes': Missing 'Binary' field
 -v0*=There have been errors!
 returns 255
 EOF
 echo "Binary: phantom" >> broken.changes
 testrun - -b . include test2 broken.changes 3<<EOF
--v0=Data seems not to be signed trying to use directly...
 *=In 'broken.changes': Missing 'Architecture' field
 -v0*=There have been errors!
 returns 255
 EOF
 echo "Architecture: brain" >> broken.changes
 testrun - -b . include test2 broken.changes 3<<EOF
--v0=Data seems not to be signed trying to use directly...
 *=In 'broken.changes': Missing 'Version' field
 -v0*=There have been errors!
 returns 255
 EOF
 echo "Version: old" >> broken.changes
 testrun - -b . include test2 broken.changes 3<<EOF
--v0=Data seems not to be signed trying to use directly...
 =Warning: Package version 'old' does not start with a digit, violating 'should'-directive in policy 5.6.11
 *=In 'broken.changes': Missing 'Distribution' field
 -v0*=There have been errors!
@@ -1966,7 +1937,6 @@ returns 255
 EOF
 echo "Distribution: old" >> broken.changes
 testrun - -b . include test2 broken.changes 3<<EOF
--v0=Data seems not to be signed trying to use directly...
 =Warning: Package version 'old' does not start with a digit, violating 'should'-directive in policy 5.6.11
 *=In 'broken.changes': Missing 'Maintainer' field!
 =To ignore use --ignore=missingfield.
@@ -1975,7 +1945,6 @@ returns 255
 EOF
 echo "Distribution: old" >> broken.changes
 testrun - -b . --ignore=missingfield include test2 broken.changes 3<<EOF
--v0=Data seems not to be signed trying to use directly...
 =Warning: Package version 'old' does not start with a digit, violating 'should'-directive in policy 5.6.11
 *=In 'broken.changes': Missing 'Maintainer' field!
 =Ignoring as --ignore=missingfield given.
@@ -1985,7 +1954,6 @@ returns 255
 EOF
 echo "Files:" >> broken.changes
 testrun - -b . --ignore=missingfield include test2 broken.changes 3<<EOF
--v0=Data seems not to be signed trying to use directly...
 =Warning: Package version 'old' does not start with a digit, violating 'should'-directive in policy 5.6.11
 *=In 'broken.changes': Missing 'Maintainer' field!
 *=broken.changes: Not enough files in .changes!
@@ -1997,7 +1965,6 @@ testout "" -b . dumpunreferenced
 dodiff /dev/null results
 echo " $EMPTYMD5 section priority filename_version.tar.gz" >> broken.changes
 testrun - -b . --ignore=missingfield include test2 broken.changes 3<<EOF
--v0=Data seems not to be signed trying to use directly...
 =Warning: Package version 'old' does not start with a digit, violating 'should'-directive in policy 5.6.11
 =In 'broken.changes': Missing 'Maintainer' field!
 =Ignoring as --ignore=missingfield given.
@@ -2018,7 +1985,6 @@ Architectures: brain
 Components: test
 EOF
 testrun - -b . --ignore=unusedarch --ignore=surprisingarch --ignore=wrongdistribution --ignore=missingfield include test2 broken.changes 3<<EOF
--v0=Data seems not to be signed trying to use directly...
 =Warning: Package version 'old' does not start with a digit, violating 'should'-directive in policy 5.6.11
 =Ignoring as --ignore=missingfield given.
 =In 'broken.changes': Missing 'Maintainer' field!
@@ -2035,7 +2001,6 @@ echo " $EMPTYMD5 section priority nowhere_old.dsc" >> broken.changes
 touch nowhere_old.dsc
 
 testrun - -b . --ignore=unusedarch --ignore=surprisingarch --ignore=wrongdistribution --ignore=missingfield include test2 broken.changes 3<<EOF
--v0=Data seems not to be signed trying to use directly...
 =Warning: Package version 'old' does not start with a digit, violating 'should'-directive in policy 5.6.11
 =Ignoring as --ignore=missingfield given.
 =In 'broken.changes': Missing 'Maintainer' field!
@@ -2055,7 +2020,6 @@ EOF
 
 touch filename_version.tar.gz
 testrun - -b . --ignore=unusedarch --ignore=surprisingarch --ignore=wrongdistribution --ignore=missingfield include test2 broken.changes 3<<EOF
--v0=Data seems not to be signed trying to use directly...
 =Warning: Package version 'old' does not start with a digit, violating 'should'-directive in policy 5.6.11
 =Ignoring as --ignore=missingfield given.
 =In 'broken.changes': Missing 'Maintainer' field!
@@ -2205,7 +2169,6 @@ EOF
 #todo: make it work without this..
 cp 4test_b.1-1.dsc differently_0another.dsc
 testrun - -b . include test2 broken.changes 3<<EOF
--v0=Data seems not to be signed trying to use directly...
 =Warning: Package version 'b.1-1.dsc' does not start with a digit, violating 'should'-directive in policy 5.6.11
 =Looks like source but does not start with 'differently_' as I would have guessed!
 =I hope you know what you do.
@@ -2218,7 +2181,6 @@ cat >> broken.changes <<EOF
  `md5sum 4test_b.1-1.tar.gz| cut -d" " -f 1` `stat -c%s 4test_b.1-1.tar.gz` a b 4test_b.1-1.tar.gz
 EOF
 testrun - -b . include test2 broken.changes 3<<EOF
--v0=Data seems not to be signed trying to use directly...
 *=Warning: File '4test_b.1-1.tar.gz' looks like source but does not start with 'differently_'!
 =I hope you know what you do.
 *='./pool/stupid/d/differently/4test_b.1-1_abacus.deb' has packagename '4test' not listed in the .changes file!
@@ -2240,7 +2202,6 @@ $(ofd 'pool/stupid/d/differently/differently_0another.dsc')
 returns 255
 EOF
 testrun - -b . --ignore=surprisingbinary include test2 broken.changes 3<<EOF
--v0=Data seems not to be signed trying to use directly...
 *=Warning: File '4test_b.1-1.tar.gz' looks like source but does not start with 'differently_'!
 =I hope you know what you do.
 *='./pool/stupid/d/differently/4test_b.1-1_abacus.deb' has packagename '4test' not listed in the .changes file!
@@ -2281,7 +2242,6 @@ Files:
 EOF
 cp 4test_b.1-1.dsc 4test_0orso.dsc
 testrun - -b . include test2 broken.changes 3<<EOF
--v0=Data seems not to be signed trying to use directly...
 =Warning: Package version 'b.1-1_abacus.deb' does not start with a digit, violating 'should'-directive in policy 5.6.11
 *='./pool/stupid/4/4test/4test_b.1-1_abacus.deb' lists source version '1:b.1-1', but .changes says it is '0orso'!
 *=To ignore use --ignore=wrongsourceversion.
@@ -2294,7 +2254,6 @@ $(ofd 'pool/stupid/4/4test/4test_0orso.dsc')
 returns 255
 EOF
 testrun - -b . --ignore=wrongsourceversion include test2 broken.changes 3<<EOF
--v0=Data seems not to be signed trying to use directly...
 *='./pool/stupid/4/4test/4test_b.1-1_abacus.deb' lists source version '1:b.1-1', but .changes says it is '0orso'!
 *=Ignoring as --ignore=wrongsourceversion given.
 *='4test_0orso.dsc' says it is version '1:b.1-1', while .changes file said it is '0orso'
@@ -2310,7 +2269,6 @@ EOF
 checknolog log1
 checknolog log2
 testrun - -b . --ignore=wrongsourceversion --ignore=wrongversion include test2 broken.changes 3<<EOF
--v0=Data seems not to be signed trying to use directly...
 *='./pool/stupid/4/4test/4test_b.1-1_abacus.deb' lists source version '1:b.1-1', but .changes says it is '0orso'!
 *=Ignoring as --ignore=wrongsourceversion given.
 *='4test_0orso.dsc' says it is version '1:b.1-1', while .changes file said it is '0orso'

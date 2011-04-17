@@ -53,7 +53,6 @@ EOF
 
 testrun - includedsc test package_1.0-1.dsc 3<<EOF
 stderr
-=Data seems not to be signed trying to use directly...
 -v1*=package_1.0-1.dsc: component guessed as 'main'
 stdout
 $(odb)
@@ -157,7 +156,6 @@ cd ..
 
 testrun - -C main include test package_1.0-1_another.changes 3<<EOF
 stderr
-=Data seems not to be signed trying to use directly...
 *=Ignoring log file: 'package_1.0-1_another.log'!
 *=package_1.0-1_another.changes: Not enough files in .changes!
 -v0*=There have been errors!
@@ -168,7 +166,6 @@ sed -i -e 's/Tracking: all/Tracking: all includelogs/' conf/distributions
 
 testrun - -C main include test package_1.0-1_another.changes 3<<EOF
 stderr
-=Data seems not to be signed trying to use directly...
 stdout
 $(ofa 'pool/main/p/package/package_1.0-1_another.log')
 EOF
@@ -213,7 +210,6 @@ rm -r onlyonearch-1.0
 
 testrun - --delete includedsc test onlyonearch_1.0-1.dsc 3<<EOF
 stderr
-=Data seems not to be signed trying to use directly...
 -v1*=onlyonearch_1.0-1.dsc: component guessed as 'main'
 stdout
 -v2*=Created directory "./pool/main/o"
@@ -274,7 +270,6 @@ rm -r onlyarchall-1.0
 
 testrun - --delete includedsc test onlyarchall_1.0-1.dsc 3<<EOF
 stderr
-=Data seems not to be signed trying to use directly...
 -v1*=onlyarchall_1.0-1.dsc: component guessed as 'main'
 stdout
 -v2*=Created directory "./pool/main/o/onlyarchall"

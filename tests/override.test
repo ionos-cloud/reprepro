@@ -60,7 +60,6 @@ DISTRI=c PACKAGE=bb EPOCH="" VERSION=1 REVISION="-1" SECTION="component/base" ge
 mv test.changes bb.changes
 
 testrun - --nodelete include c aa.changes 3<<EOF
-=Data seems not to be signed trying to use directly...
 stdout
 $(odb)
 $(ofa 'pool/main/a/aa/aa-addons_1-1_all.deb')
@@ -81,7 +80,6 @@ $(ofa 'pool/main/a/aa/aa_1-1.dsc')
 -v6*=  creating './dists/c/component/source/Index' (uncompressed)
 EOF
 testrun - --nodelete include c bb.changes 3<<EOF
-=Data seems not to be signed trying to use directly...
 stdout
 $(ofa 'pool/component/b/bb/bb-addons_1-1_all.deb')
 $(ofa 'pool/component/b/bb/bb_1-1_abacus.deb')
@@ -109,7 +107,6 @@ w
 q
 EOF
 testrun - --nodelete include d aa.changes 3<<EOF
-=Data seems not to be signed trying to use directly...
 stdout
 $(ofa 'pool/component/a/aa/aa-addons_1-1_all.deb')
 $(ofa 'pool/component/a/aa/aa_1-1_abacus.deb')
@@ -129,7 +126,6 @@ $(ofa 'pool/component/a/aa/aa_1-1.dsc')
 -v6*=  creating './dists/d/main/source/Index' (uncompressed)
 EOF
 testrun - --nodelete include d bb.changes 3<<EOF
-=Data seems not to be signed trying to use directly...
 stdout
 $(ofa 'pool/main/b/bb/bb-addons_1-1_all.deb')
 $(ofa 'pool/main/b/bb/bb_1-1_abacus.deb')

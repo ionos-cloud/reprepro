@@ -25,8 +25,6 @@ EOF
 
 
 testrun - -C main includedsc test fake.dsc 3<<EOF
-stderr
-=Data seems not to be signed trying to use directly...
 stdout
 $(odb)
 -v2*=Created directory "./pool"
@@ -60,8 +58,6 @@ mkdir morgue
 chmod a-w morgue
 
 testrun - -C main includedsc test fake.dsc 3<<EOF
-stderr
-=Data seems not to be signed trying to use directly...
 stdout
 -v2*=Created directory "./pool"
 -v2*=Created directory "./pool/main"
@@ -138,8 +134,6 @@ dodo test ! -e pool
 # Next test: what if the file is missing?
 
 testrun - -C main includedsc test fake.dsc 3<<EOF
-stderr
-=Data seems not to be signed trying to use directly...
 stdout
 -v2*=Created directory "./pool"
 -v2*=Created directory "./pool/main"
@@ -171,8 +165,6 @@ dodiff results.expected results
 # Next test: file cannot be moved
 
 testrun - -C main includedsc test fake.dsc 3<<EOF
-stderr
-=Data seems not to be signed trying to use directly...
 stdout
 $(ofa 'pool/main/b/bla/bla_1.7.dsc')
 -d1*=db: 'bla' added to packages.db(test|main|source).
@@ -224,8 +216,6 @@ testrun empty dumpunreferenced
 
 # Test symbolic link:
 testrun - -C main includedsc test fake.dsc 3<<EOF
-stderr
-=Data seems not to be signed trying to use directly...
 stdout
 -v2*=Created directory "./pool"
 -v2*=Created directory "./pool/main"

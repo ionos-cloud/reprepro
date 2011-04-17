@@ -71,7 +71,6 @@ EOF
 
 testrun - include test test.changes 3<<EOF
 stderr
-=Data seems not to be signed trying to use directly...
 *=Ignoring byhand file: 'manifesto.txt'!
 *=Ignoring byhand file: 'history.txt'!
 *=Ignoring log file: 'documentation_9876AD_coal+all.log'!
@@ -109,7 +108,6 @@ EOF
 
 testrun - include test test.changes 3<<EOF
 stderr
-=Data seems not to be signed trying to use directly...
 *=Ignoring log file: 'documentation_9876AD_coal+all.log'!
 stdout
 $(odb)
@@ -205,8 +203,6 @@ Tracking: minimal includebyhand includelogs
 EOF
 
 testrun - include test test.changes 3<<EOF
-stderr
-=Data seems not to be signed trying to use directly...
 stdout
 $(odb)
 -v2*=Created directory "./pool"
@@ -263,8 +259,6 @@ Tracking: minimal includebyhand includelogs includechanges
 EOF
 
 testrun - include test test.changes 3<<EOF
-stderr
-=Data seems not to be signed trying to use directly...
 stdout
 $(odb)
 -v2*=Created directory "./pool"
@@ -362,8 +356,6 @@ Default: test
 EOF
 
 testrun - processincoming foo 3<<EOF
-stderr
-=Data seems not to be signed trying to use directly...
 stdout
 $(odb)
 -v2*=Created directory "./pool"
@@ -431,7 +423,6 @@ testrun - processincoming foo 3<<EOF
 stdout
 $(odb)
 stderr
-=Data seems not to be signed trying to use directly...
 *=Error: 'test.changes' contains unused file 'documentation_9876AD_coal+all.log'!
 *=(Do Permit: unused_files to conf/incoming to ignore and
 *= additionally Cleanup: unused_files to delete them)
@@ -446,8 +437,6 @@ Logdir: log
 EOF
 
 testrun - processincoming foo 3<<EOF
-stderr
-=Data seems not to be signed trying to use directly...
 stdout
 -v2*=Created directory "./pool"
 -v2*=Created directory "./pool/main"
@@ -502,8 +491,6 @@ q
 EOF
 
 testrun - processincoming foo 3<<EOF
-stderr
-=Data seems not to be signed trying to use directly...
 stdout
 $(odb)
 -v2*=Created directory "./pool"
@@ -562,8 +549,6 @@ EOF
 # first without the script, to check the error:
 
 testrun - processincoming foo 3<<EOF
-stderr
-=Data seems not to be signed trying to use directly...
 stdout
 $(odb)
 -v2*=Created directory "./log/documentation_9876AD_source+all.0000002"
@@ -588,8 +573,6 @@ chmod u+x conf/handle-alternate.sh
 chmod u+x conf/handle-byhand.sh
 
 testrun - processincoming foo 3<<EOF
-stderr
-=Data seems not to be signed trying to use directly...
 stdout
 -v2*=Created directory "./pool"
 -v2*=Created directory "./pool/main"
@@ -649,8 +632,6 @@ q
 EOF
 
 testrun - processincoming foo 3<<EOF
-stderr
-=Data seems not to be signed trying to use directly...
 stdout
 $(odb)
 -v2*=Created directory "./pool"
@@ -704,8 +685,6 @@ q
 EOF
 
 testrun - processincoming foo 3<<EOF
-stderr
-=Data seems not to be signed trying to use directly...
 stdout
 $(odb)
 -v2*=Created directory "./pool"
@@ -763,8 +742,6 @@ q
 EOF
 
 testrun - processincoming foo 3<<EOF
-stderr
-=Data seems not to be signed trying to use directly...
 stdout
 $(odb)
 stderr
@@ -784,8 +761,6 @@ cat >> conf/distributions <<EOF
 EOF
 
 testrun - processincoming foo 3<<EOF
-stderr
-=Data seems not to be signed trying to use directly...
 stdout
 -v2*=Created directory "./pool"
 -v2*=Created directory "./pool/main"
@@ -836,8 +811,6 @@ q
 EOF
 
 testrun - processincoming foo 3<<EOF
-stderr
-=Data seems not to be signed trying to use directly...
 stdout
 $(odb)
 -v2*=Created directory "./pool"

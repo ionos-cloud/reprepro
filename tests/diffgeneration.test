@@ -114,7 +114,6 @@ EOF
 mkdir old
 testrun - includedsc test test_1.dsc 3<<EOF
 -v1*=test_1.dsc: component guessed as 'main'
--v6=Data seems not to be signed trying to use directly...
 stdout
 $(odb)
 -v2*=Created directory "./pool"
@@ -136,7 +135,6 @@ dodo cp dists/test/main/source/Sources old/0
 dodo test "!" -e dists/test/main/source/Sources.diff
 testrun - includedsc test pre_1.dsc 3<<EOF
 -v1*=pre_1.dsc: component guessed as 'main'
--v6=Data seems not to be signed trying to use directly...
 stdout
 -v2*=Created directory "./pool/main/p"
 -v2*=Created directory "./pool/main/p/pre"
@@ -151,7 +149,6 @@ dodo cp dists/test/main/source/Sources old/1
 dodo test -f dists/test/main/source/Sources.diff/Index
 testrun - includedsc test pre_2.dsc 3<<EOF
 -v1*=pre_2.dsc: component guessed as 'main'
--v6=Data seems not to be signed trying to use directly...
 stdout
 $(ofa 'pool/main/p/pre/pre_2.dsc')
 $(ofa 'pool/main/p/pre/pre_2.tar.gz')
@@ -168,7 +165,6 @@ dodo cp dists/test/main/source/Sources old/2
 dodo test -f dists/test/main/source/Sources.diff/Index
 testrun - includedsc test pre_3.dsc 3<<EOF
 -v1*=pre_3.dsc: component guessed as 'main'
--v6=Data seems not to be signed trying to use directly...
 stdout
 $(ofa 'pool/main/p/pre/pre_3.dsc')
 $(ofa 'pool/main/p/pre/pre_3.tar.gz')

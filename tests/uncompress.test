@@ -218,7 +218,6 @@ Files:
 EOF
 
 testrun - __extractsourcesection fake_1-1.dsc 3<<EOF
-=Data seems not to be signed trying to use directly...
 stdout
 *=Section: admin
 *=Priority: extra
@@ -241,7 +240,6 @@ EOF
 
 testrun - --unlzma=brokenunlzma.sh __extractsourcesection fake_1-1.dsc 3<<EOF
 returns 255
-=Data seems not to be signed trying to use directly...
 *=brokenunlzma.sh: claiming broken archive
 *=Error reading from ./fake_1-1.diff.lzma: $TESTSDIR/brokenunlzma.sh exited with code 1!
 -v0*=There have been errors!
@@ -252,14 +250,12 @@ mv fake_1-1.debian.tar.lzma save.tar.lzma
 
 # a missing file is no error, but no success either...
 testrun - __extractsourcesection fake_1-1.dsc 3<<EOF
-=Data seems not to be signed trying to use directly...
 stdout
 EOF
 
 cp save.tar.lzma fake_1.orig.tar.lzma
 # a missing file is no error, but no success either (and not reading further files)
 testrun - __extractsourcesection fake_1-1.dsc 3<<EOF
-=Data seems not to be signed trying to use directly...
 stdout
 EOF
 
@@ -270,7 +266,6 @@ tar -cf - debian | lzma > fake_1-1.debian.tar.lzma
 rm -r debian
 
 testrun - __extractsourcesection fake_1-1.dsc 3<<EOF
-=Data seems not to be signed trying to use directly...
 stdout
 *=Section: admin
 *=Priority: extra
@@ -279,7 +274,6 @@ EOF
 touch breakon2nd
 testrun - --unlzma=brokenunlzma.sh __extractsourcesection fake_1-1.dsc 3<<EOF
 returns 255
-=Data seems not to be signed trying to use directly...
 *=brokenunlzma.sh: claiming broken archive
 *=Error reading from ./fake_1-1.debian.tar.lzma: $TESTSDIR/brokenunlzma.sh exited with code 1!
 -v0*=There have been errors!
@@ -288,7 +282,6 @@ EOF
 
 testrun - --unlzma=brokenunlzma.sh __extractsourcesection fake_1-1.dsc 3<<EOF
 returns 255
-=Data seems not to be signed trying to use directly...
 *=brokenunlzma.sh: claiming broken archive
 *=Error reading from ./fake_1-1.diff.lzma: $TESTSDIR/brokenunlzma.sh exited with code 1!
 -v0*=There have been errors!
@@ -301,7 +294,6 @@ EOF
 # 
 # testrun - __extractsourcesection fake_1-1.dsc 3<<EOF
 # returns 255
-# =Data seems not to be signed trying to use directly...
 # *=/usr/bin/unlzma: Read error
 # *=Error 84 trying to extract control information from ./fake_1-1.debian.tar.lzma:
 # *=Empty input file: Invalid or incomplete multibyte or wide character
@@ -345,7 +337,6 @@ Files:
 EOF
 
 testrun - __extractsourcesection fake_1-1.dsc 3<<EOF
-=Data seems not to be signed trying to use directly...
 stdout
 *=Section: base
 *=Priority: required
@@ -355,7 +346,6 @@ rm testfile* smallfile*
 
 testrun - --unlzma=false __extractsourcesection fake_1-1.dsc 3<<EOF
 returns 255
-=Data seems not to be signed trying to use directly...
 *=Error reading from ./fake_1-1.diff.lzma: /bin/false exited with code 1!
 -v0*=There have been errors!
 stdout
@@ -391,7 +381,6 @@ Files:
 EOF
 
 testrun - __extractsourcesection fake_1-2.dsc 3<<EOF
-=Data seems not to be signed trying to use directly...
 stdout
 *=Section: sssss
 *=Priority: ppp

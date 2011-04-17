@@ -35,7 +35,6 @@ EOF
 DISTRI=test PACKAGE=a VERSION=1 REVISION=-1 FAKEVER=7-1 SECTION=base genpackage.sh
 mkdir -p pool/main/a/a
 testrun - --delete include test test.changes 3<<EOF
-=Data seems not to be signed trying to use directly...
 stdout
 $(odb)
 $(ofa pool/main/a/a/a_1-1.tar.gz)
@@ -49,7 +48,6 @@ EOF
 DISTRI=test PACKAGE=b VERSION=1 REVISION=-1 FAKEVER=7-1 SECTION=base genpackage.sh
 mkdir -p pool/main/b/b
 testrun - --delete include test test.changes 3<<EOF
-=Data seems not to be signed trying to use directly...
 stdout
 $(ofa pool/main/b/b/b_1-1.tar.gz)
 $(ofa pool/main/b/b/b_1-1.dsc)

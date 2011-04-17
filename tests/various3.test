@@ -168,7 +168,6 @@ test -d dists/b
 rm -r dists/a dists/b
 DISTRI=a PACKAGE=aa EPOCH="" VERSION=1 REVISION="-1" SECTION="stupid/base" genpackage.sh
 testrun - -b . --export=never --delete --delete include a test.changes 3<<EOF
--v0=Data seems not to be signed trying to use directly...
 *=Warning: database 'a|all|abacus' was modified but no index file was exported.
 *=Warning: database 'a|all|source' was modified but no index file was exported.
 *=Changes will only be visible after the next 'export'!
@@ -264,8 +263,6 @@ test -d dists/b
 dogrep "Version: 1-1" dists/b/all/binary-abacus/Packages
 DISTRI=a PACKAGE=aa EPOCH="" VERSION=1 REVISION="-2" SECTION="stupid/base" genpackage.sh
 testrun - -b . --export=changed --delete include a test.changes 3<<EOF
-stderr
--v0=Data seems not to be signed trying to use directly...
 stdout
 $(ofa 'pool/all/a/aa/aa-addons_1-2_all.deb')
 $(ofa 'pool/all/a/aa/aa_1-2_abacus.deb')
@@ -358,7 +355,6 @@ test -d dists/b
 dogrep "Version: 1-2" dists/b/all/binary-abacus/Packages
 DISTRI=a PACKAGE=aa EPOCH="" VERSION=1 REVISION="-3" SECTION="stupid/base" genpackage.sh
 testrun - -b . --export=never include a test.changes 3<<EOF
--v0=Data seems not to be signed trying to use directly...
 *=Warning: database 'a|all|abacus' was modified but no index file was exported.
 *=Warning: database 'a|all|source' was modified but no index file was exported.
 *=Changes will only be visible after the next 'export'!
@@ -409,7 +405,6 @@ dodiff /dev/null results
 DISTRI=a PACKAGE=ab EPOCH="" VERSION=2 REVISION="-1" SECTION="stupid/base" genpackage.sh
 testrun - -b . --delete --delete --export=never include a test.changes 3<<EOF
 stderr
--v0=Data seems not to be signed trying to use directly...
 *=Warning: database 'a|all|abacus' was modified but no index file was exported.
 *=Warning: database 'a|all|source' was modified but no index file was exported.
 =Changes will only be visible after the next 'export'!
@@ -486,7 +481,6 @@ test -f pool/all/a/aa/aa_1-3_abacus.deb
 DISTRI=a PACKAGE=ab EPOCH="" VERSION=3 REVISION="-1" SECTION="stupid/base" genpackage.sh
 grep -v '\.tar\.gz' test.changes > broken.changes
 testrun - -b . --delete --delete include a broken.changes 3<<EOF
--v0=Data seems not to be signed trying to use directly...
 *=I don't know what to do having a .dsc without a .diff.gz or .tar.gz in 'broken.changes'!
 -v0*=There have been errors!
 returns 255
@@ -494,7 +488,6 @@ EOF
 checknolog logab
 echo " $EMPTYMD5 stupid/base superfluous ab_3-1.diff.gz" >> broken.changes
 testrun - -b . --delete --delete include a broken.changes 3<<EOF
--v0=Data seems not to be signed trying to use directly...
 *=Cannot find file './ab_3-1.diff.gz' needed by 'broken.changes'!
 -v0*=There have been errors!
 returns 249
@@ -511,8 +504,6 @@ test ! -f pool/all/a/ab/ab_3-1_abacus.deb
 test ! -f pool/all/a/ab/ab_3-1.dsc
 touch ab_3-1.diff.gz
 testrun - -b . --delete -T deb include a broken.changes 3<<EOF
-stderr
--v0=Data seems not to be signed trying to use directly...
 stdout
 $(ofa 'pool/all/a/ab/ab-addons_3-1_all.deb')
 $(ofa 'pool/all/a/ab/ab_3-1_abacus.deb')
@@ -576,7 +567,6 @@ if $tracking; then dodiff results.expected results ; else dodiff /dev/null resul
 testout "" -b . dumpunreferenced
 dodiff /dev/null results
 testrun - -b . --delete --delete include a broken.changes 3<<EOF
--v0=Data seems not to be signed trying to use directly...
 *=Unable to find pool/all/a/ab/ab_3-1.tar.gz needed by ab_3-1.dsc!
 *=Perhaps you forgot to give dpkg-buildpackage the -sa option,
 = or you could try --ignore=missingfile to guess possible files to use.
@@ -601,7 +591,6 @@ test -f pool/all/a/ab/ab_3-1_abacus.deb
 test ! -f pool/all/a/ab/ab_3-1.dsc
 cat broken.changes
 testrun - -b . -T dsc --delete --delete --ignore=missingfile include a broken.changes 3<<EOF
--v0=Data seems not to be signed trying to use directly...
 *=Unable to find pool/all/a/ab/ab_3-1.tar.gz!
 *=Perhaps you forgot to give dpkg-buildpackage the -sa option.
 *=--ignore=missingfile was given, searching for file...
@@ -650,7 +639,6 @@ EOF
 DISTRI=b PACKAGE=ac EPOCH="" VERSION=1 REVISION="-1" SECTION="stupid/base" genpackage.sh
 testrun - -b . -A abacus --delete --delete --ignore=missingfile include b test.changes 3<<EOF
 stderr
--v0=Data seems not to be signed trying to use directly...
 -v2*=Skipping 'ac_1-1.dsc' as architecture 'source' is not in the requested set.
 -v2*=Skipping 'ac_1-1.tar.gz' as architecture 'source' is not in the requested set.
 -v3*=Limiting 'ac-addons_1-1_all.deb' to architectures abacus as requested.

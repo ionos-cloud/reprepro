@@ -742,7 +742,8 @@ retvalue signature_readsignedchunk(const char *filename, const char *filenametos
 
 	/* fast-track unsigned chunks: */
 	if (startofchanges[0] != '-' && *afterchanges == '\0') {
-		if (verbose > 5)
+		if (verbose > 5 && strncmp(startofchanges, "Format:", 7) != 0
+				&& strncmp(startofchanges, "Source:", 7) != 0)
 			fprintf(stderr,
 "Data seems not to be signed trying to use directly...\n");
 		len = chunk_extract(chunk, chunk, &afterchunk);
