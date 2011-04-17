@@ -21,6 +21,7 @@ packagediff.test \
 signatures.test \
 signed.test \
 snapshotcopyrestore.test \
+srcfilterlist.test \
 subcomponents.test \
 template.test \
 trackingcorruption.test \
