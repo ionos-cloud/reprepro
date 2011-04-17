@@ -3,7 +3,7 @@ set -u
 
 dodo test ! -d db
 mkdir -p conf
-echo "export never" > conf/options
+echo "export silent-never" > conf/options
 cat > conf/distributions <<EOF
 Codename: breakme
 Components: something
@@ -16,10 +16,6 @@ DISTRI=breakme PACKAGE=aa EPOCH="" VERSION=1 REVISION=-1 SECTION="base" genpacka
 testrun - include breakme test.changes 3<<EOF
 stderr
 =Data seems not to be signed trying to use directly...
-=Warning: database 'breakme|something|abacus' was modified but no index file was exported.
-=Warning: database 'breakme|something|coal' was modified but no index file was exported.
-=Warning: database 'breakme|something|source' was modified but no index file was exported.
-=Changes will only be visible after the next 'export'!
 stdout
 $(odb)
 -v2*=Created directory "./pool"
@@ -50,10 +46,6 @@ EOF
 testrun - --keepunreferenced remove breakme aa aa-addons 3<<EOF
 stderr
 *=Could not found tracking data for aa_1-1 in breakme to remove old files from it.
-*=Warning: database 'breakme|something|abacus' was modified but no index file was exported.
-*=Changes will only be visible after the next 'export'!
-*=Warning: database 'breakme|something|coal' was modified but no index file was exported.
-*=Warning: database 'breakme|something|source' was modified but no index file was exported.
 stdout
 -v1*=removing 'aa' from 'breakme|something|abacus'...
 -d1*=db: 'aa' removed from packages.db(breakme|something|abacus).

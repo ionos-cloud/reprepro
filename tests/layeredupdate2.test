@@ -3,7 +3,7 @@ set -u
 
 dodo test ! -d db
 mkdir -p conf dists
-echo "export never" > conf/options
+echo "export silent-never" > conf/options
 cat > conf/updatelog.sh <<EOF
 #!/bin/sh
 echo "\$@" >> '$WORKDIR/updatelog'
@@ -357,13 +357,6 @@ $(ofa 'pool/main/a/aa/aa_1-1000.tar.gz')
 -d1*=db: 'aa' added to packages.db(boring|main|source).
 -d1*=db: 'aa' added to packages.db(boring|main|abacus).
 -d1*=db: 'aa-addons' added to packages.db(boring|main|abacus).
-stderr
-*=Warning: database 'boring|main|abacus' was modified but no index file was exported.
-*=Warning: database 'boring|main|coal' was modified but no index file was exported.
-*=Warning: database 'boring|main|source' was modified but no index file was exported.
-*=Warning: database 'boring|firmware|abacus' was modified but no index file was exported.
-*=Warning: database 'boring|firmware|coal' was modified but no index file was exported.
-*=Changes will only be visible after the next 'export'!
 EOF
 
 DISTRI=dummy PACKAGE=aa EPOCH="" VERSION=2 REVISION=-1 SECTION="base" genpackage.sh -sa
@@ -464,11 +457,6 @@ $(ofa 'pool/main/a/aa/aa_2-1.tar.gz')
 -d1*=db: 'aa-addons' added to packages.db(boring|main|abacus).
 -v1*=4 files lost their last reference.
 -v1*=(dumpunreferenced lists such files, use deleteunreferenced to delete them.)
-stderr
-*=Warning: database 'boring|main|abacus' was modified but no index file was exported.
-*=Warning: database 'boring|main|coal' was modified but no index file was exported.
-*=Warning: database 'boring|main|source' was modified but no index file was exported.
-*=Changes will only be visible after the next 'export'!
 EOF
 
 #remove upgradeonly again, letting ee in
@@ -528,10 +516,6 @@ $(ofa 'pool/firmware/e/ee/ee_2-1_abacus.deb')
 -d1*=db: 'ee-addons' added to packages.db(boring|firmware|coal).
 -d1*=db: 'ee' added to packages.db(boring|firmware|abacus).
 -d1*=db: 'ee-addons' added to packages.db(boring|firmware|abacus).
-stderr
-*=Warning: database 'boring|firmware|abacus' was modified but no index file was exported.
-*=Warning: database 'boring|firmware|coal' was modified but no index file was exported.
-*=Changes will only be visible after the next 'export'!
 EOF
 
 #  reinsert delete rule, this should cause a downgrade of bb
@@ -583,10 +567,6 @@ $(ofa 'pool/firmware/b/bb/bb_1-1_abacus.deb')
 -d1*=db: 'bb-addons' added to packages.db(boring|firmware|coal).
 -d1*=db: 'bb' added to packages.db(boring|firmware|abacus).
 -d1*=db: 'bb-addons' added to packages.db(boring|firmware|abacus).
-stderr
-*=Warning: database 'boring|firmware|abacus' was modified but no index file was exported.
-*=Warning: database 'boring|firmware|coal' was modified but no index file was exported.
-*=Changes will only be visible after the next 'export'!
 stdout
 -v1*=2 files lost their last reference.
 -v1*=(dumpunreferenced lists such files, use deleteunreferenced to delete them.)

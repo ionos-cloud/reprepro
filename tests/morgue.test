@@ -4,7 +4,7 @@ set -u
 mkdir conf
 cat > conf/options <<EOF
 morguedir ./morgue
-export never
+export silent-never
 EOF
 cat > conf/distributions <<EOF
 Codename: test
@@ -27,8 +27,6 @@ EOF
 testrun - -C main includedsc test fake.dsc 3<<EOF
 stderr
 =Data seems not to be signed trying to use directly...
-*=Warning: database 'test|main|source' was modified but no index file was exported.
-*=Changes will only be visible after the next 'export'!
 stdout
 $(odb)
 -v2*=Created directory "./pool"
@@ -40,9 +38,6 @@ $(ofa 'pool/main/b/bla/bla_1.7.dsc')
 EOF
 
 testrun - remove test bla 3<<EOF
-stderr
-*=Warning: database 'test|main|source' was modified but no index file was exported.
-*=Changes will only be visible after the next 'export'!
 stdout
 -v1*=removing 'bla' from 'test|main|source'...
 -d1*=db: 'bla' removed from packages.db(test|main|source).
@@ -67,8 +62,6 @@ chmod a-w morgue
 testrun - -C main includedsc test fake.dsc 3<<EOF
 stderr
 =Data seems not to be signed trying to use directly...
-*=Warning: database 'test|main|source' was modified but no index file was exported.
-*=Changes will only be visible after the next 'export'!
 stdout
 -v2*=Created directory "./pool"
 -v2*=Created directory "./pool/main"
@@ -79,9 +72,6 @@ $(ofa 'pool/main/b/bla/bla_1.7.dsc')
 EOF
 
 testrun - remove test bla 3<<EOF
-stderr
-*=Warning: database 'test|main|source' was modified but no index file was exported.
-*=Changes will only be visible after the next 'export'!
 stdout
 -v1*=removing 'bla' from 'test|main|source'...
 -d1*=db: 'bla' removed from packages.db(test|main|source).
@@ -150,8 +140,6 @@ dodo test ! -e pool
 testrun - -C main includedsc test fake.dsc 3<<EOF
 stderr
 =Data seems not to be signed trying to use directly...
-*=Warning: database 'test|main|source' was modified but no index file was exported.
-*=Changes will only be visible after the next 'export'!
 stdout
 -v2*=Created directory "./pool"
 -v2*=Created directory "./pool/main"
@@ -164,9 +152,6 @@ EOF
 dodo rm pool/main/b/bla/bla_1.7.dsc
 
 testrun - remove test bla 3<<EOF
-stderr
-*=Warning: database 'test|main|source' was modified but no index file was exported.
-*=Changes will only be visible after the next 'export'!
 stdout
 -v1*=removing 'bla' from 'test|main|source'...
 -d1*=db: 'bla' removed from packages.db(test|main|source).
@@ -188,8 +173,6 @@ dodiff results.expected results
 testrun - -C main includedsc test fake.dsc 3<<EOF
 stderr
 =Data seems not to be signed trying to use directly...
-*=Warning: database 'test|main|source' was modified but no index file was exported.
-*=Changes will only be visible after the next 'export'!
 stdout
 $(ofa 'pool/main/b/bla/bla_1.7.dsc')
 -d1*=db: 'bla' added to packages.db(test|main|source).
@@ -198,9 +181,6 @@ EOF
 dodo chmod a-w pool/main/b/bla
 
 testrun - remove test bla 3<<EOF
-stderr
-*=Warning: database 'test|main|source' was modified but no index file was exported.
-*=Changes will only be visible after the next 'export'!
 stdout
 -v1*=removing 'bla' from 'test|main|source'...
 -d1*=db: 'bla' removed from packages.db(test|main|source).
@@ -246,8 +226,6 @@ testrun empty dumpunreferenced
 testrun - -C main includedsc test fake.dsc 3<<EOF
 stderr
 =Data seems not to be signed trying to use directly...
-*=Warning: database 'test|main|source' was modified but no index file was exported.
-*=Changes will only be visible after the next 'export'!
 stdout
 -v2*=Created directory "./pool"
 -v2*=Created directory "./pool/main"
@@ -261,9 +239,6 @@ dodo mv pool/main/b/bla/bla_1.7.dsc pool/main/b/bla/bla_1.7.dscc
 dodo ln -s bla_1.7.dscc pool/main/b/bla/bla_1.7.dsc
 
 testrun - remove test bla 3<<EOF
-stderr
-*=Warning: database 'test|main|source' was modified but no index file was exported.
-*=Changes will only be visible after the next 'export'!
 stdout
 -v1*=removing 'bla' from 'test|main|source'...
 -d1*=db: 'bla' removed from packages.db(test|main|source).

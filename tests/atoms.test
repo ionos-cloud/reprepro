@@ -5,7 +5,7 @@
 
 mkdir conf
 cat > conf/options <<EOF
-export never
+export silent-never
 EOF
 
 cat > conf/distributions <<EOF

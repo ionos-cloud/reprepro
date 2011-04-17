@@ -9,7 +9,7 @@ Components: c
 Architectures: a
 EOF
 cat > conf/options <<EOF
-export never
+export silent-never
 EOF
 
 echo "fake-deb1" > fake1.deb
@@ -85,9 +85,6 @@ $(ofa 'pool/c/p/pseudo/fake_0_all.deb')
 EOF
 
 testrun - -b . -C c -A a -T deb _addpackage n fakeindex fake  3<<EOF
-stderr
-*=Warning: database 'n|c|a' was modified but no index file was exported.
-*=Changes will only be visible after the next 'export'!
 stdout
 -d1*=db: 'fake' added to packages.db(n|c|a).
 -v1*=Adding 'fake' '0' to 'n|c|a'.

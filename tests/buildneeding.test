@@ -48,15 +48,13 @@ Components: main
 Architectures: notinbla
 EOF
 cat >> conf/options <<EOF
-export never
+export silent-never
 EOF
 
 testrun - includedsc test package_1.0-1.dsc 3<<EOF
 stderr
 =Data seems not to be signed trying to use directly...
 -v1*=package_1.0-1.dsc: component guessed as 'main'
-*=Warning: database 'bla|main|source' was modified but no index file was exported.
-*=Changes will only be visible after the next 'export'!
 stdout
 $(odb)
 -v2*=Created directory "./pool"
@@ -114,9 +112,6 @@ cd ..
 
 testrun - -C main includedeb test rumsrumsrums_1.0-1_all.deb 3<<EOF
 stderr
-*=Warning: database 'bla|main|abacus' was modified but no index file was exported.
-*=Warning: database 'bla|main|another' was modified but no index file was exported.
-*=Changes will only be visible after the next 'export'!
 stdout
 $(ofa 'pool/main/p/package/rumsrumsrums_1.0-1_all.deb')
 *=db: 'rumsrumsrums' added to packages.db(bla|main|abacus).
@@ -139,8 +134,6 @@ cd ..
 
 testrun - -C main includedeb test troettroet_1.0-1_abacus.deb 3<<EOF
 stderr
-*=Warning: database 'bla|main|abacus' was modified but no index file was exported.
-*=Changes will only be visible after the next 'export'!
 stdout
 $(ofa 'pool/main/p/package/troettroet_1.0-1_abacus.deb')
 *=db: 'troettroet' added to packages.db(bla|main|abacus).
@@ -222,8 +215,6 @@ testrun - --delete includedsc test onlyonearch_1.0-1.dsc 3<<EOF
 stderr
 =Data seems not to be signed trying to use directly...
 -v1*=onlyonearch_1.0-1.dsc: component guessed as 'main'
-*=Warning: database 'bla|main|source' was modified but no index file was exported.
-*=Changes will only be visible after the next 'export'!
 stdout
 -v2*=Created directory "./pool/main/o"
 -v2*=Created directory "./pool/main/o/onlyonearch"
@@ -241,8 +232,6 @@ EOF
 
 testrun - --delete -C main includedeb test onearch_1.0-1_abacus.deb 3<<EOF
 stderr
-*=Warning: database 'bla|main|abacus' was modified but no index file was exported.
-*=Changes will only be visible after the next 'export'!
 stdout
 $(ofa 'pool/main/o/onlyonearch/onearch_1.0-1_abacus.deb')
 -d1*=db: 'onearch' added to packages.db(bla|main|abacus).
@@ -287,8 +276,6 @@ testrun - --delete includedsc test onlyarchall_1.0-1.dsc 3<<EOF
 stderr
 =Data seems not to be signed trying to use directly...
 -v1*=onlyarchall_1.0-1.dsc: component guessed as 'main'
-*=Warning: database 'bla|main|source' was modified but no index file was exported.
-*=Changes will only be visible after the next 'export'!
 stdout
 -v2*=Created directory "./pool/main/o/onlyarchall"
 $(ofa 'pool/main/o/onlyarchall/onlyarchall_1.0-1.dsc')
@@ -302,9 +289,6 @@ testrun empty build-needing test abacus
 
 testrun - --delete -C main includedeb test archall_1.0-1_all.deb 3<<EOF
 stderr
-*=Warning: database 'bla|main|abacus' was modified but no index file was exported.
-*=Warning: database 'bla|main|another' was modified but no index file was exported.
-*=Changes will only be visible after the next 'export'!
 stdout
 $(ofa 'pool/main/o/onlyarchall/archall_1.0-1_all.deb')
 -d1*=db: 'archall' added to packages.db(bla|main|abacus).
