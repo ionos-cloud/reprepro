@@ -463,6 +463,12 @@ package may only be named once (even when there are different versions or types)
 .B \-\-restrict\-binary \fIname\fP\fR[\fP=\fIversion\fP\fR|\fP:\fItype\fP\fR]\fP
 Like \fB\-\-restrict\fP but restrict to binary packages (\fB.deb\fP and \fB.udeb\fP).
 Source packages are not upgraded unless they appear in a \fB\-\-restrict\fP.
+.TP
+.B \-\-restrict\-file \fIfilename\fP
+Like \fB\-\-restrict\fP but read a whole file in the \fBFilterSrcList\fP format.
+.TP
+.B \-\-restrict\-file\-bin \fIfilename\fP
+Like \fB\-\-restrict\-bin\fP but read a whole file in the \fBFilterList\fP format.
 .SH COMMANDS
 .TP
 .BR export " [ " \fIcodenames\fP " ]"

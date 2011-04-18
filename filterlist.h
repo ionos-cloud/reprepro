@@ -35,5 +35,6 @@ enum filterlisttype filterlist_find(const char *name, const char *version, const
 
 extern struct filterlist cmdline_bin_filter, cmdline_src_filter;
 retvalue filterlist_cmdline_add_pkg(bool, const char *);
+retvalue filterlist_cmdline_add_file(bool, const char *);
 
 #endif

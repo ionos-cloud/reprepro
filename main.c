@@ -4146,6 +4146,8 @@ LO_MORGUEDIR,
 LO_SHOWPERCENT,
 LO_RESTRICT_BIN,
 LO_RESTRICT_SRC,
+LO_RESTRICT_FILE_BIN,
+LO_RESTRICT_FILE_SRC,
 LO_UNIGNORE};
 static int longoption = 0;
 const char *programname;
@@ -4457,6 +4459,18 @@ static void handle_option(int c, const char *argument) {
 					if (RET_WAS_ERROR(r))
 						exit(EXIT_FAILURE);
 					break;
+				case LO_RESTRICT_FILE_BIN:
+					r = filterlist_cmdline_add_file(false,
+							argument);
+					if (RET_WAS_ERROR(r))
+						exit(EXIT_FAILURE);
+					break;
+				case LO_RESTRICT_FILE_SRC:
+					r = filterlist_cmdline_add_file(true,
+							argument);
+					if (RET_WAS_ERROR(r))
+						exit(EXIT_FAILURE);
+					break;
 				default:
 					fputs(
 "Error parsing arguments!\n", stderr);
@@ -4713,6 +4727,10 @@ int main(int argc, char *argv[]) {
 		{"restrict-source", required_argument, &longoption, LO_RESTRICT_SRC},
 		{"restrict-src", required_argument, &longoption, LO_RESTRICT_SRC},
 		{"restrict-binary", required_argument, &longoption, LO_RESTRICT_BIN},
+		{"restrict-file", required_argument, &longoption, LO_RESTRICT_FILE_SRC},
+		{"restrict-file-source", required_argument, &longoption, LO_RESTRICT_FILE_SRC},
+		{"restrict-file-src", required_argument, &longoption, LO_RESTRICT_FILE_SRC},
+		{"restrict-file-binary", required_argument, &longoption, LO_RESTRICT_FILE_BIN},
 		{NULL, 0, NULL, 0}
 	};
 	const struct action *a;

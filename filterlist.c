@@ -481,13 +481,37 @@ static retvalue filterlist_cmdline_init(struct filterlist *l) {
 retvalue filterlist_cmdline_add_file(bool src, const char *filename) {
 	retvalue r;
 	struct filterlist *l = src ? &cmdline_src_filter : &cmdline_bin_filter;
+	char *name;
 
 	r = filterlist_cmdline_init(l);
 	if (RET_WAS_ERROR(r))
 		return r;
 	l->set = true;
 	l->defaulttype = flt_auto_hold;
-	return RET_OK;
+
+	if (strcmp(filename, "-") == 0)
+		filename = "/dev/stdin";
+	name = strdup(filename);
+	if (FAILEDTOALLOC(name))
+		return RET_ERROR_OOM;
+	if (l->count > 1) {
+		struct filterlistfile **n;
+
+		n = realloc(l->files, (l->count + 1) *
+				sizeof(struct filterlistfile *));
+		if (FAILEDTOALLOC(n)) {
+			free(name);
+			return RET_ERROR_OOM;
+		}
+		n[l->count++] = NULL;
+		l->files = n;
+	} else {
+		/* already allocated in _init */
+		assert (l->count == 1);
+		l->count++;
+	}
+
+	return filterlistfile_get(name, &l->files[l->count - 1]);
 }
 
 retvalue filterlist_cmdline_add_pkg(bool src, const char *package) {

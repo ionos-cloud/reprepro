@@ -128,6 +128,29 @@ Updates needed for 'f|main|abacus':
 EOF
 dodiff results.expected results
 
+testout - --restrict-file-bin /dev/stdin dumppull 3</dev/null <<EOF
+a = 1-1
+EOF
+cat > results.expected <<EOF
+Updates needed for 'a|main|source':
+Updates needed for 'a|main|abacus':
+add 'a' - '1-1' 'a'
+Updates needed for 'b|main|source':
+Updates needed for 'b|main|abacus':
+Updates needed for 'c|main|source':
+Updates needed for 'c|main|abacus':
+add 'a' - '1-1' 'c'
+Updates needed for 'd|main|source':
+Updates needed for 'd|main|abacus':
+add 'a' - '1-1' 'd'
+Updates needed for 'e|main|source':
+Updates needed for 'e|main|abacus':
+add 'a' - '1-1' 'e'
+Updates needed for 'f|main|source':
+Updates needed for 'f|main|abacus':
+EOF
+dodiff results.expected results
+
 testout - --restrict a=1-1 --restrict-bin b=1-1 dumppull 3</dev/null
 cat > results.expected <<EOF
 Updates needed for 'a|main|source':
