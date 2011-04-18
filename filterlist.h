@@ -4,6 +4,8 @@
 enum filterlisttype {
 	/* must be 0, so it is the default, when there is no list */
 	flt_install = 0,
+	flt_unchanged, /* special value used by the cmdline lists */
+	flt_auto_hold, /* special value used by the cmdline lists */
 	flt_purge,
 	flt_warning,
 	flt_deinstall,
@@ -30,5 +32,8 @@ retvalue filterlist_load(/*@out@*/struct filterlist *, struct configiterator *);
 void filterlist_release(struct filterlist *list);
 
 enum filterlisttype filterlist_find(const char *name, const char *version, const struct filterlist *);
+
+extern struct filterlist cmdline_bin_filter, cmdline_src_filter;
+retvalue filterlist_cmdline_add_pkg(bool, const char *);
 
 #endif

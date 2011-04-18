@@ -72,6 +72,7 @@
 #include "sourcecheck.h"
 #include "uploaderslist.h"
 #include "sizes.h"
+#include "filterlist.h"
 
 #ifndef STD_BASE_DIR
 #define STD_BASE_DIR "."
@@ -3638,6 +3639,7 @@ ACTION_B(n, n, y, reportcruft) {
 #define NEED_ACT 256
 #define NEED_SP 512
 #define NEED_DELNEW 1024
+#define NEED_RESTRICT 2048
 #define A_N(w) action_n_n_n_ ## w, 0
 #define A_C(w) action_c_n_n_ ## w, NEED_CONFIG
 #define A_ROB(w) action_b_n_n_ ## w, NEED_DATABASE|IS_RO
@@ -3760,15 +3762,15 @@ static const struct action {
 		0, -1, "tidytracks [<distributions>]"},
 	{"removetrack",		A_D(removetrack),
 		3, 3, "removetrack <distribution> <sourcename> <version>"},
-	{"update",		A_D(update),
+	{"update",		A_D(update)|NEED_RESTRICT,
 		0, -1, "update [<distributions>]"},
-	{"checkupdate",		A_B(checkupdate),
+	{"checkupdate",		A_B(checkupdate)|NEED_RESTRICT,
 		0, -1, "checkupdate [<distributions>]"},
-	{"dumpupdate",		A_B(dumpupdate),
+	{"dumpupdate",		A_B(dumpupdate)|NEED_RESTRICT,
 		0, -1, "dumpupdate [<distributions>]"},
 	{"predelete",		A_D(predelete),
 		0, -1, "predelete [<distributions>]"},
-	{"pull",		A_D(pull),
+	{"pull",		A_D(pull)|NEED_RESTRICT,
 		0, -1, "pull [<distributions>]"},
 	{"copy",		A_Dact(copy),
 		3, -1, "[-C <component> ] [-A <architecture>] [-T <packagetype>] copy <destination-distribution> <source-distribution> <package-names to pull>"},
@@ -3786,9 +3788,9 @@ static const struct action {
 		3, 3, "[-C <component> ] [-A <architecture>] [-T <packagetype>] restorematched <distribution> <snapshot-name> <glob>"},
 	{"restorefilter",		A_Dact(restorefilter),
 		3, 3, "[-C <component> ] [-A <architecture>] [-T <packagetype>] restorefilter <distribution> <snapshot-name> <formula>"},
-	{"dumppull",		A_B(dumppull),
+	{"dumppull",		A_B(dumppull)|NEED_RESTRICT,
 		0, -1, "dumppull [<distributions>]"},
-	{"checkpull",		A_B(checkpull),
+	{"checkpull",		A_B(checkpull)|NEED_RESTRICT,
 		0, -1, "checkpull [<distributions>]"},
 	{"includedeb",		A_Dactsp(includedeb)|NEED_DELNEW,
 		2, -1, "[--delete] includedeb <distribution> <.deb-file>"},
@@ -3900,6 +3902,13 @@ static retvalue callaction(command_t command, const struct action *action, int a
 		if (!IGNORING(unusedoption,
 "Action '%s' cannot take a priority option!\n"
 "neither --priority nor -P make sense here.\n",
+				action->name))
+			return RET_ERROR;
+	}
+	if (!ISSET(needs, NEED_RESTRICT) && (cmdline_bin_filter.set
+				|| cmdline_src_filter.set)) {
+		if (!IGNORING(unusedoption,
+"Action '%s' cannot take a --restrict-* option!\n",
 				action->name))
 			return RET_ERROR;
 	}
@@ -4135,6 +4144,8 @@ LO_LISTSKIP,
 LO_LISTMAX,
 LO_MORGUEDIR,
 LO_SHOWPERCENT,
+LO_RESTRICT_BIN,
+LO_RESTRICT_SRC,
 LO_UNIGNORE};
 static int longoption = 0;
 const char *programname;
@@ -4434,6 +4445,18 @@ static void handle_option(int c, const char *argument) {
 					} else
 						CONFIGDUP(listformat, argument);
 					break;
+				case LO_RESTRICT_BIN:
+					r = filterlist_cmdline_add_pkg(false,
+							argument);
+					if (RET_WAS_ERROR(r))
+						exit(EXIT_FAILURE);
+					break;
+				case LO_RESTRICT_SRC:
+					r = filterlist_cmdline_add_pkg(true,
+							argument);
+					if (RET_WAS_ERROR(r))
+						exit(EXIT_FAILURE);
+					break;
 				default:
 					fputs(
 "Error parsing arguments!\n", stderr);
@@ -4686,6 +4709,10 @@ int main(int argc, char *argv[]) {
 		{"list-max", required_argument, &longoption, LO_LISTMAX},
 		{"morguedir", required_argument, &longoption, LO_MORGUEDIR},
 		{"show-percent", no_argument, &longoption, LO_SHOWPERCENT},
+		{"restrict", required_argument, &longoption, LO_RESTRICT_SRC},
+		{"restrict-source", required_argument, &longoption, LO_RESTRICT_SRC},
+		{"restrict-src", required_argument, &longoption, LO_RESTRICT_SRC},
+		{"restrict-binary", required_argument, &longoption, LO_RESTRICT_BIN},
 		{NULL, 0, NULL, 0}
 	};
 	const struct action *a;

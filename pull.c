@@ -654,6 +654,7 @@ static upgrade_decision ud_decide_by_rule(void *privdata, const struct target *t
 	retvalue r;
 	struct filterlist *fl;
 	const char *n, *v;
+	bool cmdline_still_undecided;
 
 	if (target->packagetype == pt_dsc) {
 		assert (strcmp(package, sourcename) == 0);
@@ -696,8 +697,82 @@ static upgrade_decision ud_decide_by_rule(void *privdata, const struct target *t
 			break;
 		case flt_install:
 			break;
+		case flt_unchanged:
+		case flt_auto_hold:
+			assert (false);
+			break;
 	}
 
+	cmdline_still_undecided = false;
+	switch (filterlist_find(sourcename, sourceversion,
+				&cmdline_src_filter)) {
+		case flt_deinstall:
+		case flt_purge:
+			return UD_NO;
+		case flt_warning:
+			return UD_LOUDNO;
+		case flt_auto_hold:
+			cmdline_still_undecided = true;
+			decision = UD_HOLD;
+			break;
+		case flt_hold:
+			decision = UD_HOLD;
+			break;
+		case flt_error:
+			/* cannot yet be handled! */
+			fprintf(stderr,
+"Package name marked to be unexpected('error'): '%s'!\n", package);
+			return UD_ERROR;
+		case flt_upgradeonly:
+			if (old_version == NULL)
+				return UD_NO;
+			break;
+		case flt_install:
+			decision = UD_UPGRADE;
+			break;
+		case flt_unchanged:
+			cmdline_still_undecided = true;
+			break;
+	}
+
+
+	if (target->packagetype != pt_dsc) {
+		switch (filterlist_find(package, new_version,
+					&cmdline_bin_filter)) {
+			case flt_deinstall:
+			case flt_purge:
+				return UD_NO;
+			case flt_warning:
+				return UD_LOUDNO;
+			case flt_hold:
+				decision = UD_HOLD;
+				break;
+			case flt_error:
+				/* cannot yet be handled! */
+				fprintf(stderr,
+"Package name marked to be unexpected('error'): '%s'!\n", package);
+				return UD_ERROR;
+			case flt_upgradeonly:
+				if (old_version == NULL)
+					return UD_NO;
+				break;
+			case flt_install:
+				decision = UD_UPGRADE;
+				break;
+			case flt_unchanged:
+				break;
+			case flt_auto_hold:
+				/* hold only if it was not in the src-filter */
+				if (cmdline_still_undecided)
+					decision = UD_HOLD;
+				break;
+		}
+	} else if (cmdline_bin_filter.defaulttype == flt_auto_hold) {
+		if (cmdline_still_undecided)
+			decision = UD_HOLD;
+	}
+
+	/* formula tested last as it is the most expensive */
 	if (rule->includecondition != NULL) {
 		r = term_decidechunktarget(rule->includecondition,
 				newcontrolchunk, target);

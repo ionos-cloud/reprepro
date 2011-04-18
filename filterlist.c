@@ -446,3 +446,131 @@ enum filterlisttype filterlist_find(const char *name, const char *version, const
 	}
 	return list->defaulttype;
 }
+
+struct filterlist cmdline_bin_filter = {
+	.count = 0,
+	.files = NULL,
+	/* as long as nothing added, this does not change anything.
+	 * Once something is added, that will be auto_hold */
+	.defaulttype = flt_unchanged,
+	.set = false,
+};
+struct filterlist cmdline_src_filter = {
+	.count = 0,
+	.files = NULL,
+	/* as long as nothing added, this does not change anything.
+	 * Once something is added, that will be auto_hold */
+	.defaulttype = flt_unchanged,
+	.set = false,
+};
+
+static retvalue filterlist_cmdline_init(struct filterlist *l) {
+	if (l->count == 0) {
+		l->files = nzNEW(2, struct filterlistfile *);
+		if (FAILEDTOALLOC(l->files))
+			return RET_ERROR_OOM;
+		l->files[0] = zNEW(struct filterlistfile);
+		if (FAILEDTOALLOC(l->files[0]))
+			return RET_ERROR_OOM;
+		l->files[0]->reference_count = 1;
+		l->count = 1;
+	}
+	return RET_OK;
+}
+
+retvalue filterlist_cmdline_add_file(bool src, const char *filename) {
+	retvalue r;
+	struct filterlist *l = src ? &cmdline_src_filter : &cmdline_bin_filter;
+
+	r = filterlist_cmdline_init(l);
+	if (RET_WAS_ERROR(r))
+		return r;
+	l->set = true;
+	l->defaulttype = flt_auto_hold;
+	return RET_OK;
+}
+
+retvalue filterlist_cmdline_add_pkg(bool src, const char *package) {
+	retvalue r;
+	enum filterlisttype what;
+	struct filterlist *l = src ? &cmdline_src_filter : &cmdline_bin_filter;
+	struct filterlistfile *f;
+	struct filterlistitem **p, *h;
+	char *name, *version;
+	const char *c;
+	int cmp;
+
+	r = filterlist_cmdline_init(l);
+	if (RET_WAS_ERROR(r))
+		return r;
+	l->set = true;
+	l->defaulttype = flt_auto_hold;
+
+	c = strchr(package, '=');
+	if (c != NULL) {
+		what = flt_install;
+		name = strndup(package, c - package);
+		if (FAILEDTOALLOC(name))
+			return RET_ERROR_OOM;
+		version = strdup(c + 1);
+		if (FAILEDTOALLOC(version)) {
+			free(name);
+			return RET_ERROR_OOM;
+		}
+	} else {
+		version = NULL;
+		c = strchr(package, ':');
+		if (c == NULL) {
+			what = flt_install;
+			name = strndup(package, c - package);
+			if (FAILEDTOALLOC(name))
+				return RET_ERROR_OOM;
+		} else {
+			const struct constant *t = filterlisttype_listtypes;
+			while (t->name != NULL) {
+				if (strcmp(c + 1, t->name) == 0) {
+					what = t->value;
+					break;
+				}
+				t++;
+			}
+			if (t->name == NULL) {
+				fprintf(stderr,
+"Error: unknown filter-outcome '%s' (expected 'install' or ...)\n",
+						c + 1);
+				return RET_ERROR;
+			}
+
+		}
+		name = strndup(package, c - package);
+		if (FAILEDTOALLOC(name))
+			return RET_ERROR_OOM;
+	}
+	f = l->files[0];
+	assert (f != NULL);
+	p = &f->root;
+	cmp = -1;
+	while (*p != NULL && (cmp = strcmp(name, (*p)->packagename)) > 0)
+		p = &((*p)->next);
+	if (cmp == 0) {
+		fprintf(stderr,
+"Package in command line filter two times: '%s'\n",
+				name);
+		free(name);
+		free(version);
+		return RET_ERROR;
+	}
+	h = zNEW(struct filterlistitem);
+	if (FAILEDTOALLOC(h)) {
+		free(name);
+		free(version);
+		return RET_ERROR_OOM;
+	}
+	h->next = *p;
+	*p = h;
+	h->what = what;
+	h->packagename = name;
+	h->version = version;
+	f->last = h;
+	return RET_OK;
+}

@@ -1,3 +1,7 @@
+2010-04-18
+	* add --restrict and --restrict-bin to restrict update
+	  and pull operations to specific packages.
+
 2010-04-17
 	* add --export=silent-never like never but silenting
 	  all warnings (mostly useful for testsuite).

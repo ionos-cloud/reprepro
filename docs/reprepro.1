@@ -446,6 +446,23 @@ avoid removing large quantities of data but means you might often
 give
 .B \-\-noonlysmalldeletes
 to override it.
+.TP
+.B \-\-restrict \fIsrc\fP\fR[\fP=\fIversion\fP\fR|\fP:\fItype\fP\fR]\fP
+Restrict a \fBpull\fP or \fBupdate\fP to only act on packages belonging
+to source-package \fIsrc\fP.
+Any other package will not be updated (unless it matches a \fB\-\-restrict\-bin\fP).
+Only packages that would otherwise be updated or are at least marked with \fBhold\fP
+in a \fBFilterList\fP or \fBFilerSrcList\fP will be updated.
+
+The action can be restricted to a source version using a equal sign or
+changed to another type (see FilterList) using a colon.
+
+This option can be given multiple times to list multiple packages, but each
+package may only be named once (even when there are different versions or types).
+.TP
+.B \-\-restrict\-binary \fIname\fP\fR[\fP=\fIversion\fP\fR|\fP:\fItype\fP\fR]\fP
+Like \fB\-\-restrict\fP but restrict to binary packages (\fB.deb\fP and \fB.udeb\fP).
+Source packages are not upgraded unless they appear in a \fB\-\-restrict\fP.
 .SH COMMANDS
 .TP
 .BR export " [ " \fIcodenames\fP " ]"
