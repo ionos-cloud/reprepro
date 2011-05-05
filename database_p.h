@@ -5,26 +5,10 @@
 #include "database.h"
 #endif
 
-struct references;
-struct filesdb;
+extern /*@null@*/ struct table *rdb_checksums, *rdb_contents;
+extern /*@null@*/ struct table *rdb_references;
 
-struct database {
-	/*@null@*/ struct table *checksums, *contents;
-	/* for the references database: */
-	/*@null@*/ struct table *references;
-	/* internal stuff: */
-	bool locked, verbose;
-	int dircreationdepth;
-	bool nopackages, readonly,
-	     packagesdatabaseopen, trackingdatabaseopen;
-	/*@null@*/ char *version, *lastsupportedversion,
-	     *dbversion, *lastsupporteddbversion;
-	struct {
-		bool createnewtables;
-	} capabilities ;
-};
-
-retvalue database_listsubtables(struct database *,const char *,/*@out@*/struct strlist *);
-retvalue database_dropsubtable(struct database *, const char *table, const char *subtable);
+retvalue database_listsubtables(const char *, /*@out@*/struct strlist *);
+retvalue database_dropsubtable(const char *, const char *);
 
 #endif

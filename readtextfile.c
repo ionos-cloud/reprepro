@@ -36,10 +36,11 @@ static bool isbinarydata(const char *buffer, size_t len, const char *source) {
 	size_t i;
 	unsigned char c;
 
-	for( i = 0 ; i < len ; i++ ) {
+	for (i = 0 ; i < len ; i++) {
 		c = (unsigned char)buffer[i];
-		if( c < ' ' && c != '\t' && c != '\n' && c != '\r' ) {
-			fprintf(stderr, "Unexpected binary character \\%03hho in %s\n",
+		if (c < ' ' && c != '\t' && c != '\n' && c != '\r') {
+			fprintf(stderr,
+"Unexpected binary character \\%03hho in %s\n",
 					c, source);
 			return true;
 		}
@@ -53,36 +54,36 @@ retvalue readtextfilefd(int fd, const char *source, char **data, size_t *len) {
 	char *buffer, *h;
 
 	buffer = malloc(buffersize);
-	if( buffer == NULL )
+	if (FAILEDTOALLOC(buffer))
 		return RET_ERROR_OOM;
 	errno = 0;
-	while( (readbytes = read(fd, buffer + readdata, buffersize-readdata))
-			> 0 ) {
+	while ((readbytes = read(fd, buffer + readdata, buffersize-readdata))
+			> 0) {
 
 		/* text files are normaly small, so it does not hurt to check
 		 * the whole of them always */
-		if( isbinarydata(buffer + readdata, (size_t)readbytes, source) ) {
+		if (isbinarydata(buffer + readdata, (size_t)readbytes, source)) {
 			free(buffer);
 			return RET_ERROR;
 		}
 		readdata += readbytes;
-		assert( readdata <= buffersize );
-		if( readdata + 1024 >= buffersize ) {
-			if( buffersize >= 10*1024*1024 ) {
+		assert (readdata <= buffersize);
+		if (readdata + 1024 >= buffersize) {
+			if (buffersize >= 10*1024*1024) {
 				fprintf(stderr, "Ridiculously large %s\n", source);
 				free(buffer);
 				return RET_ERROR;
 			}
 			buffersize += 51200;
 			h = realloc(buffer, buffersize);
-			if( h == NULL ) {
+			if (FAILEDTOALLOC(h)) {
 				free(buffer);
 				return RET_ERROR_OOM;
 			}
 			buffer = h;
 		}
 	}
-	if( readbytes < 0 ) {
+	if (readbytes < 0) {
 		int e = errno;
 		free(buffer);
 		fprintf(stderr, "Error reading %s: %s\n", source,
@@ -90,11 +91,11 @@ retvalue readtextfilefd(int fd, const char *source, char **data, size_t *len) {
 		return RET_ERRNO(e);
 	}
 	h = realloc(buffer, readdata + 1);
-	if( h == NULL ) {
+	if (h == NULL) {
 #ifdef SPLINT
 		h = NULL;
 #endif
-		if( readdata >= buffersize ) {
+		if (readdata >= buffersize) {
 			free(buffer);
 			return RET_ERROR_OOM;
 		}
@@ -102,7 +103,7 @@ retvalue readtextfilefd(int fd, const char *source, char **data, size_t *len) {
 		buffer = h;
 	buffer[readdata] = '\0';
 	*data = buffer;
-	if( len != NULL )
+	if (len != NULL)
 		*len = readdata;
 	return RET_OK;
 }
@@ -113,19 +114,19 @@ retvalue readtextfile(const char *source, const char *sourcetoshow, char **data,
 	int ret;
 
 	fd = open(source, O_RDONLY|O_NOCTTY);
-	if( fd < 0 ) {
+	if (fd < 0) {
 		int e = errno;
 		fprintf(stderr, "Error opening '%s': %s\n",
 				sourcetoshow, strerror(e));
 		return RET_ERRNO(e);
 	}
 	r = readtextfilefd(fd, sourcetoshow, &buffer, &bufferlen);
-	if( !RET_IS_OK(r) ) {
+	if (!RET_IS_OK(r)) {
 		(void)close(fd);
 		return r;
 	}
 	ret = close(fd);
-	if( ret != 0 ) {
+	if (ret != 0) {
 		int e = errno;
 		free(buffer);
 		fprintf(stderr, "Error reading %s: %s\n", sourcetoshow,
@@ -133,7 +134,7 @@ retvalue readtextfile(const char *source, const char *sourcetoshow, char **data,
 		return RET_ERRNO(e);
 	}
 	*data = buffer;
-	if( len != NULL )
+	if (len != NULL)
 		*len = bufferlen;
 	return RET_OK;
 }

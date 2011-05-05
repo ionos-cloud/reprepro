@@ -23,7 +23,7 @@ struct contentsoptions {
 struct distribution;
 struct configiterator;
 
-retvalue contentsoptions_parse(struct distribution *distribution, struct configiterator *iter);
-retvalue contents_generate(struct database *, struct distribution *, struct release *, bool onlyneeded);
+retvalue contentsoptions_parse(struct distribution *, struct configiterator *);
+retvalue contents_generate(struct distribution *, struct release *, bool /*onlyneeded*/);
 
 #endif

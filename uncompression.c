@@ -75,24 +75,24 @@ static retvalue startchild(enum compression c, int stdinfd, int stdoutfd, /*@out
 	pid_t pid;
 
 	pid = fork();
-	if( pid < 0 ) {
+	if (pid < 0) {
 		e = errno;
 		fprintf(stderr, "Error %d forking: %s\n", e, strerror(e));
 		(void)close(stdinfd);
 		(void)close(stdoutfd);
 		return RET_ERRNO(e);
 	}
-	if( pid == 0 ) {
+	if (pid == 0) {
 		/* setup child */
 		i = dup2(stdoutfd, 1);
-		if( i < 0 ) {
+		if (i < 0) {
 			e = errno;
 			fprintf(stderr, "Error %d in dup(%d, 1): %s\n",
 					e, stdoutfd, strerror(e));
 			raise(SIGUSR2);
 		}
 		i = dup2(stdinfd, 0);
-		if( i < 0 ) {
+		if (i < 0) {
 			e = errno;
 			fprintf(stderr, "Error %d in dup(%d, 0): %s\n",
 					e, stdinfd, strerror(e));
@@ -118,7 +118,7 @@ static retvalue startpipeoutchild(enum compression c, int fd, /*@out@*/int *pipe
 	retvalue r;
 
 	i = pipe(filedes);
-	if( i < 0 ) {
+	if (i < 0) {
 		e = errno;
 		fprintf(stderr, "Error %d creating pipe: %s\n", e, strerror(e));
 		(void)close(fd);
@@ -126,7 +126,7 @@ static retvalue startpipeoutchild(enum compression c, int fd, /*@out@*/int *pipe
 	}
 	markcloseonexec(filedes[0]);
 	r = startchild(c, fd, filedes[1], pid_p);
-	if( RET_WAS_ERROR(r) )
+	if (RET_WAS_ERROR(r))
 		(void)close(filedes[0]);
 	else
 		*pipefd = filedes[0];
@@ -138,14 +138,14 @@ static retvalue startpipeinoutchild(enum compression c, /*@out@*/int *infd, /*@o
 	retvalue r;
 
 	i = pipe(infiledes);
-	if( i < 0 ) {
+	if (i < 0) {
 		e = errno;
 		fprintf(stderr, "Error %d creating pipe: %s\n", e, strerror(e));
 		return RET_ERRNO(e);
 	}
 	markcloseonexec(infiledes[1]);
 	r = startpipeoutchild(c, infiledes[0], outfd, pid_p);
-	if( RET_WAS_ERROR(r) )
+	if (RET_WAS_ERROR(r))
 		(void)close(infiledes[1]);
 	else
 		*infd = infiledes[1];
@@ -157,28 +157,28 @@ static void uncompress_start_queued(void) {
 	int running_count = 0;
 	int e, stdinfd, stdoutfd;
 
-	for( t = tasks ; t != NULL ; t = t->next ) {
-		if( t->pid > 0 )
+	for (t = tasks ; t != NULL ; t = t->next) {
+		if (t->pid > 0)
 			running_count++;
 	}
 	// TODO: make the maximum number configurable,
 	// until that 1 is the best guess...
-	if( running_count >= 1 )
+	if (running_count >= 1)
 		return;
 	t = tasks;
-	while( t != NULL && t->pid > 0 )
+	while (t != NULL && t->pid > 0)
 		t = t->next;
-	if( t == NULL )
+	if (t == NULL)
 		/* nothing to do... */
 		return;
-	if( verbose > 1 ) {
+	if (verbose > 1) {
 		fprintf(stderr, "Uncompress '%s' into '%s' using '%s'...\n",
 				t->compressedfilename,
 				t->uncompressedfilename,
 				extern_uncompressors[t->compression]);
 	}
 	stdinfd = open(t->compressedfilename, O_RDONLY|O_NOCTTY);
-	if( stdinfd < 0 ) {
+	if (stdinfd < 0) {
 		e = errno;
 		fprintf(stderr, "Error %d opening %s: %s\n",
 				e, t->compressedfilename,
@@ -187,7 +187,7 @@ static void uncompress_start_queued(void) {
 	}
 	stdoutfd = open(t->uncompressedfilename,
 			O_WRONLY|O_CREAT|O_EXCL|O_NOFOLLOW, 0666);
-	if( stdoutfd < 0 ) {
+	if (stdoutfd < 0) {
 		close(stdinfd);
 		e = errno;
 		fprintf(stderr, "Error %d creating %s: %s\n",
@@ -207,26 +207,27 @@ retvalue uncompress_checkpid(pid_t pid, int status) {
 	retvalue r;
 	bool error = false;
 
-	if( pid <= 0 )
+	if (pid <= 0)
 		return RET_NOTHING;
 	t_p = &tasks;
-	while( (t = (*t_p)) != NULL && t->pid != pid )
+	while ((t = (*t_p)) != NULL && t->pid != pid)
 		t_p = &t->next;
-	if( t == NULL ) {
+	if (t == NULL) {
 		/* not one we started */
 		return RET_NOTHING;
 	}
-	if( WIFEXITED(status) ) {
-		if( WEXITSTATUS(status) != 0 ) {
-			fprintf(stderr, "'%s' < %s > %s exited with errorcode %d!\n",
+	if (WIFEXITED(status)) {
+		if (WEXITSTATUS(status) != 0) {
+			fprintf(stderr,
+"'%s' < %s > %s exited with errorcode %d!\n",
 					extern_uncompressors[t->compression],
 					t->compressedfilename,
 					t->uncompressedfilename,
 					(int)(WEXITSTATUS(status)));
 			error = true;
 		}
-	} else if( WIFSIGNALED(status) ) {
-		if( WTERMSIG(status) != SIGUSR2 )
+	} else if (WIFSIGNALED(status)) {
+		if (WTERMSIG(status) != SIGUSR2)
 			fprintf(stderr, "'%s' < %s > %s killed by signal %d!\n",
 					extern_uncompressors[t->compression],
 					t->compressedfilename,
@@ -240,31 +241,31 @@ retvalue uncompress_checkpid(pid_t pid, int status) {
 					t->uncompressedfilename);
 		error = true;
 	}
-	if( error ) {
+	if (error) {
 		/* no need to leave partial stuff around */
 		(void)unlink(t->uncompressedfilename);
 	}
-	if( !error && verbose > 10 )
+	if (!error && verbose > 10)
 		printf("'%s' < %s > %s finished successfully!\n",
 				extern_uncompressors[t->compression],
 					t->compressedfilename,
 					t->uncompressedfilename);
-	if( error && uncompression_builtin(t->compression) ) {
+	if (error && uncompression_builtin(t->compression)) {
 		/* try builtin method instead */
 		r = builtin_uncompress(t->compressedfilename,
 				t->uncompressedfilename, t->compression);
-		if( RET_WAS_ERROR(r) ) {
+		if (RET_WAS_ERROR(r)) {
 			(void)unlink(t->uncompressedfilename);
-		} else if( RET_IS_OK(r) ) {
+		} else if (RET_IS_OK(r)) {
 			error = false;
 		}
 	}
 	/* call the notification, if asked for */
-	if( t->callback != NULL ) {
+	if (t->callback != NULL) {
 		r = t->callback(t->privdata, t->compressedfilename, error);
-		if( r == RET_NOTHING )
+		if (r == RET_NOTHING)
 			r = RET_OK;
-	} else if( error )
+	} else if (error)
 		r = RET_ERROR;
 	else
 		r = RET_OK;
@@ -289,51 +290,51 @@ static void search_binary(/*@null@*/const char *setting, const char *default_pro
 	const char *path, *colon;
 
 	/* not set or empty means default */
-	if( setting == NULL || setting[0] == '\0' )
+	if (setting == NULL || setting[0] == '\0')
 		setting = default_program;
 	/* all-caps NONE means I do not want any... */
-	if( strcmp(setting, "NONE") == 0 )
+	if (strcmp(setting, "NONE") == 0)
 		return;
 	/* look for the file, look in $PATH if not qualified,
 	 * only check existance, if someone it putting files not executable
 	 * by us there it is their fault (as being executeable by us is hard
 	 * to check) */
-	if( strchr(setting, '/') != NULL ) {
-		if( !isregularfile(setting) )
+	if (strchr(setting, '/') != NULL) {
+		if (!isregularfile(setting))
 			return;
-		if( access(setting, X_OK) != 0 )
+		if (access(setting, X_OK) != 0)
 			return;
 		program = strdup(setting);
 	} else {
 		path = getenv("PATH");
-		if( path == NULL )
+		if (path == NULL)
 			return;
 		program = NULL;
-		while( program == NULL && path[0] != '\0' ) {
-			if( path[0] == ':' ) {
+		while (program == NULL && path[0] != '\0') {
+			if (path[0] == ':') {
 				path++;
 				continue;
 			}
 			colon = strchr(path, ':');
-			if( colon == NULL )
+			if (colon == NULL)
 				colon = path + strlen(path);
-			assert( colon > path );
+			assert (colon > path);
 			program = mprintf("%.*s/%s", (int)(colon - path), path,
 					setting);
-			if( program == NULL )
+			if (program == NULL)
 				return;
-			if( !isregularfile(program) ||
-					access(program, X_OK) != 0 ) {
+			if (!isregularfile(program) ||
+					access(program, X_OK) != 0) {
 				free(program);
 				program = NULL;
 			}
-			if( *colon == ':' )
+			if (*colon == ':')
 				path = colon + 1;
 			else
 				path = colon;
 		}
 	}
-	if( program == NULL )
+	if (program == NULL)
 		return;
 
 	*program_p = program;
@@ -357,10 +358,10 @@ static inline retvalue builtin_uncompress(const char *compressed, const char *de
 	retvalue r;
 
 	r = uncompress_open(&f, compressed, compression);
-	if( !RET_IS_OK(r) )
+	if (!RET_IS_OK(r))
 		return r;
 	destfd = open(destination, O_WRONLY|O_CREAT|O_EXCL|O_NOCTTY, 0666);
-	if( destfd < 0 ) {
+	if (destfd < 0) {
 		e = errno;
 		fprintf(stderr, "Error %d creating '%s': %s\n",
 				e, destination, strerror(e));
@@ -369,30 +370,31 @@ static inline retvalue builtin_uncompress(const char *compressed, const char *de
 	}
 	do {
 		bytes_read = uncompress_read(f, buffer, 4096);
-		if( bytes_read <= 0 )
+		if (bytes_read <= 0)
 			break;
 
 		bytes_written = 0;
-		while( bytes_written < bytes_read ) {
+		while (bytes_written < bytes_read) {
 			written = write(destfd, buffer + bytes_written,
 					bytes_read - bytes_written);
-			if( written < 0 ) {
+			if (written < 0) {
 				e = errno;
 				fprintf(stderr,
-						"Error %d writing to '%s': %s\n", e, destination, strerror(e) );
+"Error %d writing to '%s': %s\n",
+					e, destination, strerror(e));
 				close(destfd);
 				uncompress_abort(f);
 				return RET_ERRNO(e);
 			}
 			bytes_written += written;
 		}
-	} while( true );
+	} while (true);
 	r = uncompress_close(f);
-	if( RET_WAS_ERROR(r) ) {
+	if (RET_WAS_ERROR(r)) {
 		(void)close(destfd);
 		return r;
 	}
-	if( close(destfd) != 0 ) {
+	if (close(destfd) != 0) {
 		e = errno;
 		fprintf(stderr, "Error %d writing to '%s': %s!\n",
 				e, destination, strerror(e));
@@ -405,17 +407,17 @@ static retvalue uncompress_queue_external(enum compression compression, const ch
 	struct uncompress_task *t, **t_p;
 
 	t_p = &tasks;
-	while( (t = (*t_p)) != NULL )
+	while ((t = (*t_p)) != NULL)
 		t_p = &t->next;
 
-	t = calloc(1, sizeof(struct uncompress_task));
-	if( FAILEDTOALLOC(t) )
+	t = zNEW(struct uncompress_task);
+	if (FAILEDTOALLOC(t))
 		return RET_ERROR_OOM;
 
 	t->compressedfilename = strdup(compressed);
 	t->uncompressedfilename = strdup(uncompressed);
-	if( FAILEDTOALLOC(t->compressedfilename) ||
-	    FAILEDTOALLOC(t->uncompressedfilename) ) {
+	if (FAILEDTOALLOC(t->compressedfilename) ||
+	    FAILEDTOALLOC(t->uncompressedfilename)) {
 		uncompress_task_free(t);
 		return RET_ERROR_OOM;
 	}
@@ -431,21 +433,22 @@ retvalue uncompress_queue_file(const char *compressed, const char *destination, 
 	retvalue r;
 
 	(void)unlink(destination);
-	if( extern_uncompressors[compression] != NULL ) {
-		r = uncompress_queue_external(compression, compressed, destination, action, privdata);
-		if( r != RET_NOTHING ) {
+	if (extern_uncompressors[compression] != NULL) {
+		r = uncompress_queue_external(compression, compressed,
+				destination, action, privdata);
+		if (r != RET_NOTHING) {
 			return r;
 		}
-		if( !uncompression_builtin(compression) )
+		if (!uncompression_builtin(compression))
 			return RET_ERROR;
 	}
-	if( verbose > 1 ) {
+	if (verbose > 1) {
 		fprintf(stderr, "Uncompress '%s' into '%s'...\n",
 				compressed, destination);
 	}
-	assert( uncompression_builtin(compression) );
+	assert (uncompression_builtin(compression));
 	r = builtin_uncompress(compressed, destination, compression);
-	if( RET_WAS_ERROR(r) ) {
+	if (RET_WAS_ERROR(r)) {
 		(void)unlink(destination);
 		return r;
 	}
@@ -456,23 +459,23 @@ retvalue uncompress_file(const char *compressed, const char *destination, enum c
 	retvalue r;
 
 	/* not allowed within a aptmethod session */
-	assert( tasks == NULL );
+	assert (tasks == NULL);
 
 	(void)unlink(destination);
-	if( uncompression_builtin(compression) ) {
-		if( verbose > 1 ) {
+	if (uncompression_builtin(compression)) {
+		if (verbose > 1) {
 			fprintf(stderr, "Uncompress '%s' into '%s'...\n",
 					compressed, destination);
 		}
 		r = builtin_uncompress(compressed, destination, compression);
-	} else if( extern_uncompressors[compression] != NULL ) {
+	} else if (extern_uncompressors[compression] != NULL) {
 		r = uncompress_queue_external(compression,
 				compressed, destination, NULL, NULL);
-		if( r == RET_NOTHING )
+		if (r == RET_NOTHING)
 			r = RET_ERROR;
-		if( RET_IS_OK(r) ) {
+		if (RET_IS_OK(r)) {
 			/* wait for the child to finish... */
-			assert( tasks != NULL && tasks->next == NULL );
+			assert (tasks != NULL && tasks->next == NULL);
 
 			do {
 				int status;
@@ -480,14 +483,14 @@ retvalue uncompress_file(const char *compressed, const char *destination, enum c
 
 				pid = wait(&status);
 
-				if( pid < 0 ) {
+				if (pid < 0) {
 					int e = errno;
 
-					if( interrupted() ) {
+					if (interrupted()) {
 						r = RET_ERROR_INTERRUPTED;
 						break;
 					}
-					if( e == EINTR )
+					if (e == EINTR)
 						continue;
 					fprintf(stderr,
 "Error %d waiting for uncompression child %lu: %s\n",
@@ -496,13 +499,13 @@ retvalue uncompress_file(const char *compressed, const char *destination, enum c
 					r = RET_ERRNO(e);
 				} else
 					r = uncompress_checkpid(pid, status);
-			} while( r == RET_NOTHING );
+			} while (r == RET_NOTHING);
 		}
 	} else {
-		assert( "Impossible uncompress error" == NULL );
+		assert ("Impossible uncompress error" == NULL);
 		r = RET_ERROR;
 	}
-	if( RET_WAS_ERROR(r) ) {
+	if (RET_WAS_ERROR(r)) {
 		(void)unlink(destination);
 		return r;
 	}
@@ -534,11 +537,11 @@ retvalue uncompress_open(/*@out@*/struct compressedfile **file_p, const char *fi
 	int fd, e;
 	retvalue r;
 
-	f = calloc(1, sizeof(struct compressedfile));
-	if( FAILEDTOALLOC(f) )
+	f = zNEW(struct compressedfile);
+	if (FAILEDTOALLOC(f))
 		return RET_ERROR_OOM;
 	f->filename = strdup(filename);
-	if( FAILEDTOALLOC(f->filename) ) {
+	if (FAILEDTOALLOC(f->filename)) {
 		free(f);
 		return RET_ERROR_OOM;
 	}
@@ -548,14 +551,14 @@ retvalue uncompress_open(/*@out@*/struct compressedfile **file_p, const char *fi
 	f->pipeinfd = -1;
 	f->len = -1;
 
-	switch( compression ) {
+	switch (compression) {
 		case c_none:
 			f->fd = open(filename, O_RDONLY|O_NOCTTY);
-			if( f->fd < 0 ) {
+			if (f->fd < 0) {
 				e = errno;
 				free(f->filename);
 				free(f);
-				// if( e == || e == )
+				// if (e == || e ==)
 				//	return RET_NOTHING;
 				fprintf(stderr, "Error %d opening '%s': %s!\n",
 						e, filename, strerror(e));
@@ -565,9 +568,10 @@ retvalue uncompress_open(/*@out@*/struct compressedfile **file_p, const char *fi
 			return RET_OK;
 		case c_gzip:
 			f->gz = gzopen(filename, "r");
-			if( f->gz == NULL ) {
+			if (f->gz == NULL) {
 				// TODO: better error message...
-				fprintf(stderr, "Could not read %s\n", filename);
+				fprintf(stderr, "Could not read %s\n",
+						filename);
 				free(f->filename);
 				free(f);
 				return RET_ERROR;
@@ -577,7 +581,7 @@ retvalue uncompress_open(/*@out@*/struct compressedfile **file_p, const char *fi
 #ifdef HAVE_LIBBZ2
 		case c_bzip2:
 			f->bz = BZ2_bzopen(filename, "r");
-			if( f->bz == NULL ) {
+			if (f->bz == NULL) {
 				// TODO: better error message...
 				fprintf(stderr, "Could not read %s\n",
 						filename);
@@ -589,18 +593,18 @@ retvalue uncompress_open(/*@out@*/struct compressedfile **file_p, const char *fi
 			return RET_OK;
 #endif
 		default:
-			assert( extern_uncompressors[compression] != NULL );
+			assert (extern_uncompressors[compression] != NULL);
 	}
 	/* call external helper instead */
 	fd = open(f->filename, O_RDONLY|O_NOCTTY);
-	if( fd < 0 ) {
+	if (fd < 0) {
 		e = errno;
 		fprintf(stderr, "Error %d opening '%s': %s\n", e,
 				f->filename, strerror(e));
 		return RET_ERRNO(e);
 	}
 	r = startpipeoutchild(compression, fd, &f->fd, &f->pid);
-	if( RET_WAS_ERROR(r) )
+	if (RET_WAS_ERROR(r))
 		return r;
 	*file_p = f;
 	return RET_OK;
@@ -612,8 +616,8 @@ retvalue uncompress_fdopen(struct compressedfile **file_p, int fd, off_t len, en
 	struct compressedfile *f;
 	retvalue r;
 
-	f = calloc(1, sizeof(struct compressedfile));
-	if( FAILEDTOALLOC(f) ) {
+	f = zNEW(struct compressedfile);
+	if (FAILEDTOALLOC(f)) {
 		*errno_p = ENOMEM;
 		*msg_p = "Out of memory";
 		return RET_ERROR_OOM;
@@ -625,7 +629,7 @@ retvalue uncompress_fdopen(struct compressedfile **file_p, int fd, off_t len, en
 	f->pipeinfd = -1;
 	f->len = len;
 
-	switch( compression ) {
+	switch (compression) {
 		case c_none:
 			f->fd = fd;
 			f->infd = -1;
@@ -634,11 +638,12 @@ retvalue uncompress_fdopen(struct compressedfile **file_p, int fd, off_t len, en
 			// TODO: perhaps rather implement your own reading and
 			// uncompression, this way length read cannot be controlled
 			f->gz = gzdopen(dup(fd), "r");
-			if( f->gz == NULL ) {
+			if (f->gz == NULL) {
 				*errno_p = errno;
 				*msg_p = strerror(errno);
 				// TODO: better error message...
-				fprintf(stderr, "Error opening internal gz uncompression using zlib...\n");
+				fprintf(stderr,
+"Error opening internal gz uncompression using zlib...\n");
 				free(f);
 				return RET_ERROR;
 			}
@@ -646,25 +651,26 @@ retvalue uncompress_fdopen(struct compressedfile **file_p, int fd, off_t len, en
 #ifdef HAVE_LIBBZ2
 		case c_bzip2:
 			f->bz = BZ2_bzdopen(dup(fd), "r");
-			if( f->bz == NULL ) {
+			if (f->bz == NULL) {
 				*errno_p = errno;
 				*msg_p = strerror(errno);
 				// TODO: better error message...
-				fprintf(stderr, "Error opening internal bz2 uncompression using libbz2\n");
+				fprintf(stderr,
+"Error opening internal bz2 uncompression using libbz2\n");
 				free(f);
 				return RET_ERROR;
 			}
 			break;
 #endif
 		default:
-			if( intermediate_size == 0 ) {
+			if (intermediate_size == 0) {
 				/* pipes are guaranteed to swallow a full
 				 * page without blocking if poll
 				 * tells you can write */
 				long l = sysconf(_SC_PAGESIZE);
-				if( l <= 0 )
+				if (l <= 0)
 					intermediate_size = 512;
-				else if( l > 4096 )
+				else if (l > 4096)
 					intermediate_size = 4096;
 				else
 					intermediate_size = l;
@@ -672,7 +678,7 @@ retvalue uncompress_fdopen(struct compressedfile **file_p, int fd, off_t len, en
 			f->intermediate.buffer = malloc(intermediate_size);
 			f->intermediate.ready = 0;
 			f->intermediate.ofs = 0;
-			if( FAILEDTOALLOC(f->intermediate.buffer) ) {
+			if (FAILEDTOALLOC(f->intermediate.buffer)) {
 				*errno_p = ENOMEM;
 				*msg_p = "Out of memory";
 				free(f);
@@ -680,7 +686,7 @@ retvalue uncompress_fdopen(struct compressedfile **file_p, int fd, off_t len, en
 			}
 			r = startpipeinoutchild(f->compression,
 					&f->pipeinfd, &f->fd, &f->pid);
-			if( RET_WAS_ERROR(r) ) {
+			if (RET_WAS_ERROR(r)) {
 				*errno_p = -EINVAL;
 				*msg_p = "Error starting external uncompressor";
 				free(f->intermediate.buffer);
@@ -697,8 +703,8 @@ static inline int pipebackforth(struct compressedfile *file, void *buffer, int s
 	 * write when there is still space in the pipe, otherwise we can end up
 	 * in a because we are waiting for the output of a program that cannot
 	 * generate output because it needs more input from us first or because
-	 * we wait for a program to accept input that waits for us to consume the
-	 * output... */
+	 * we wait for a program to accept input that waits for us to consume
+	 * the output... */
 	struct pollfd p[2];
 	ssize_t written;
 	int i;
@@ -712,20 +718,20 @@ static inline int pipebackforth(struct compressedfile *file, void *buffer, int s
 
 		/* wait till there is something to do */
 		i = poll(p, 2, -1);
-		if( i < 0 ) {
-			if( errno == EINTR )
+		if (i < 0) {
+			if (errno == EINTR)
 				continue;
 			file->error = errno;
 			return -1;
 		}
-		if( (p[0].revents & POLLERR ) != 0 ) {
+		if ((p[0].revents & POLLERR) != 0) {
 			file->error = EIO;
 			return -1;
 		}
-		if( (p[0].revents & POLLHUP ) != 0 ) {
+		if ((p[0].revents & POLLHUP) != 0) {
 			/* not being able to send when we have something
 			 * is an error */
-			if( file->len > 0 || file->intermediate.ready > 0 ) {
+			if (file->len > 0 || file->intermediate.ready > 0) {
 				file->error = EIO;
 				return -1;
 			}
@@ -735,31 +741,31 @@ static inline int pipebackforth(struct compressedfile *file, void *buffer, int s
 			return read(file->fd, buffer, size);
 
 		}
-		if( (p[0].revents & POLLOUT) != 0 ) {
+		if ((p[0].revents & POLLOUT) != 0) {
 			struct intermediate_buffer *im = &file->intermediate;
 
-			if( im->ready < 0 )
+			if (im->ready < 0)
 				return -1;
 
-			if( im->ready == 0 ) {
+			if (im->ready == 0) {
 				// TODO: check if splice is safe or will create
 				// dead-locks...
 				int isize = intermediate_size;
 				im->ofs = 0;
 
-				if( file->len >= 0 && isize > file->len )
+				if (file->len >= 0 && isize > file->len)
 					isize = file->len;
-				if( isize == 0 )
+				if (isize == 0)
 					im->ready = 0;
 				else
 					im->ready = read(file->infd,
 							im->buffer + im->ofs,
 							isize);
-				if( im->ready < 0 ) {
+				if (im->ready < 0) {
 					file->error = errno;
 					return -1;
 				}
-				if( im->ready == 0 ) {
+				if (im->ready == 0) {
 					(void)close(file->pipeinfd);
 					file->pipeinfd = -1;
 					/* wait for the rest */
@@ -769,7 +775,7 @@ static inline int pipebackforth(struct compressedfile *file, void *buffer, int s
 			}
 			written = write(file->pipeinfd, im->buffer + im->ofs,
 					im->ready);
-			if( written < 0 ) {
+			if (written < 0) {
 				file->error = errno;
 				return -1;
 			}
@@ -777,23 +783,23 @@ static inline int pipebackforth(struct compressedfile *file, void *buffer, int s
 			im->ready -= written;
 		}
 
-		if( (p[1].revents & POLLIN) != 0 )
+		if ((p[1].revents & POLLIN) != 0)
 			return read(file->fd, buffer, size);
-	} while( true );
+	} while (true);
 }
 
 int uncompress_read(struct compressedfile *file, void *buffer, int size) {
 	ssize_t s;
 	int i;
 
-	switch( file->compression ) {
+	switch (file->compression) {
 		case c_none:
-			if( file->len == 0 )
+			if (file->len == 0)
 				return 0;
-			if( file->len > 0 && size > file->len )
+			if (file->len > 0 && size > file->len)
 				size = file->len;
 			s = read(file->fd, buffer, size);
-			if( s < 0 )
+			if (s < 0)
 				file->error = errno;
 			file->len -= s;
 			return s;
@@ -808,13 +814,13 @@ int uncompress_read(struct compressedfile *file, void *buffer, int size) {
 			return i;
 #endif
 		default:
-			if( file->pipeinfd != -1 ) {
+			if (file->pipeinfd != -1) {
 				/* things more complicated, as perhaps
 				   something needs writing first... */
 				return pipebackforth(file, buffer, size);
 			}
 			s = read(file->fd, buffer, size);
-			if( s < 0 )
+			if (s < 0)
 				file->error = errno;
 			return s;
 	}
@@ -829,13 +835,13 @@ static retvalue uncompress_commonclose(struct compressedfile *file, int *errno_p
 #define ERRORBUFFERSIZE 100
 	static char errorbuffer[ERRORBUFFERSIZE];
 
-	if( file == NULL )
+	if (file == NULL)
 		return RET_OK;
 	free(file->intermediate.buffer);
 
-	switch( file->compression ) {
+	switch (file->compression) {
 		case c_none:
-			if( file->error != 0 ) {
+			if (file->error != 0) {
 				*errno_p = file->error;
 				*msg_p = strerror(file->error);
 				return RET_ERRNO(file->error);
@@ -844,12 +850,12 @@ static retvalue uncompress_commonclose(struct compressedfile *file, int *errno_p
 		case c_gzip:
 			file->fd = -1;
 			msg = gzerror(file->gz, &zerror);
-			if( zerror == Z_ERRNO ) {
+			if (zerror == Z_ERRNO) {
 				*errno_p = file->error;
 				(void)gzclose(file->gz);
 				*msg_p = strerror(file->error);
 				return RET_ERRNO(file->error);
-			} else if( zerror < 0 ) {
+			} else if (zerror < 0) {
 				*errno_p = -EINVAL;
 				snprintf(errorbuffer, ERRORBUFFERSIZE,
 						"Zlib error %d: %s",
@@ -859,11 +865,11 @@ static retvalue uncompress_commonclose(struct compressedfile *file, int *errno_p
 				return RET_ERROR_Z;
 			}
 			zerror = gzclose(file->gz);
-			if( zerror == Z_ERRNO ) {
+			if (zerror == Z_ERRNO) {
 				*errno_p = file->error;
 				*msg_p = strerror(file->error);
 				return RET_ERRNO(file->error);
-			} if( zerror < 0 ) {
+			} if (zerror < 0) {
 				*errno_p = -EINVAL;
 				snprintf(errorbuffer, ERRORBUFFERSIZE,
 						"Zlib error %d", zerror);
@@ -875,7 +881,7 @@ static retvalue uncompress_commonclose(struct compressedfile *file, int *errno_p
 		case c_bzip2:
 			file->fd = -1;
 			msg = BZ2_bzerror(file->bz, &zerror);
-			if( zerror < 0 ) {
+			if (zerror < 0) {
 				*errno_p = -EINVAL;
 				snprintf(errorbuffer, ERRORBUFFERSIZE,
 						"libbz2 error %d: %s",
@@ -890,29 +896,29 @@ static retvalue uncompress_commonclose(struct compressedfile *file, int *errno_p
 #endif
 		default:
 			(void)close(file->fd);
-			if( file->pipeinfd != -1 )
+			if (file->pipeinfd != -1)
 				(void)close(file->pipeinfd);
 			file->fd = file->infd;
 			file->infd = -1;
 			result = RET_OK;
-			if( file->pid <= 0 )
+			if (file->pid <= 0)
 				return RET_OK;
 			do {
 				pid = waitpid(file->pid, &status, 0);
 				e = errno;
-				if( interrupted() ) {
+				if (interrupted()) {
 					*errno_p = EINTR;
 					*msg_p = "Interrupted";
 					result = RET_ERROR_INTERRUPTED;
 				}
-			} while( pid == -1 && (e == EINTR || e == EAGAIN) );
-			if( pid == -1 ) {
+			} while (pid == -1 && (e == EINTR || e == EAGAIN));
+			if (pid == -1) {
 				*errno_p = e;
 				*msg_p = strerror(file->error);
 				return RET_ERRNO(e);
 			}
-			if( WIFEXITED(status) ) {
-				if( WEXITSTATUS(status) == 0 )
+			if (WIFEXITED(status)) {
+				if (WEXITSTATUS(status) == 0)
 					return result;
 				else {
 					*errno_p = -EINVAL;
@@ -923,7 +929,7 @@ static retvalue uncompress_commonclose(struct compressedfile *file, int *errno_p
 					*msg_p = errorbuffer;
 					return RET_ERROR;
 				}
-			} else if( WIFSIGNALED(status) && WTERMSIG(status) != SIGUSR2 ) {
+			} else if (WIFSIGNALED(status) && WTERMSIG(status) != SIGUSR2) {
 				*errno_p = -EINVAL;
 				snprintf(errorbuffer, ERRORBUFFERSIZE,
 						"%s killed by signal %d",
@@ -950,20 +956,21 @@ retvalue uncompress_error(struct compressedfile *file) {
 	const char *msg;
 	pid_t pid;
 
-	if( file == NULL )
+	if (file == NULL)
 		return RET_NOTHING;
 
-	switch( file->compression ) {
+	switch (file->compression) {
 		case c_none:
-			if( file->error == 0 )
+			if (file->error == 0)
 				return RET_OK;
 			break;
 		case c_gzip:
 			msg = gzerror(file->gz, &zerror);
-			if( zerror >= 0 )
+			if (zerror >= 0)
 				return RET_OK;
-			if( zerror != Z_ERRNO ) {
-				fprintf(stderr, "Zlib error %d uncompressing file '%s': %s\n",
+			if (zerror != Z_ERRNO) {
+				fprintf(stderr,
+"Zlib error %d uncompressing file '%s': %s\n",
 						zerror,
 						file->filename,
 						msg);
@@ -973,8 +980,9 @@ retvalue uncompress_error(struct compressedfile *file) {
 #ifdef HAVE_LIBBZ2
 		case c_bzip2:
 			msg = BZ2_bzerror(file->bz, &zerror);
-			if( zerror < 0 ) {
-				fprintf(stderr, "libbz2 error %d uncompressing file '%s': %s\n",
+			if (zerror < 0) {
+				fprintf(stderr,
+"libbz2 error %d uncompressing file '%s': %s\n",
 						zerror,
 						file->filename,
 						msg);
@@ -983,26 +991,27 @@ retvalue uncompress_error(struct compressedfile *file) {
 				return RET_OK;
 #endif
 		default:
-			if( file->error != 0 )
+			if (file->error != 0)
 				break;
-			if( file->pid <= 0 )
+			if (file->pid <= 0)
 				return RET_OK;
 			pid = waitpid(file->pid, &status, WNOHANG);
-			if( pid < 0 ) {
+			if (pid < 0) {
 				e = errno;
-				fprintf(stderr, "Error looking for child %lu (a '%s'): %s\n",
+				fprintf(stderr,
+"Error looking for child %lu (a '%s'): %s\n",
 						(long unsigned)file->pid,
 						extern_uncompressors[file->compression],
 						strerror(e));
 				return RET_ERRNO(e);
 			}
-			if( pid != file->pid ) {
+			if (pid != file->pid) {
 				/* still running */
 				return RET_OK;
 			}
 			file->pid = -1;
-			if( WIFEXITED(status) ) {
-				if( WEXITSTATUS(status) == 0 )
+			if (WIFEXITED(status)) {
+				if (WEXITSTATUS(status) == 0)
 					return RET_OK;
 				else {
 					fprintf(stderr,
@@ -1011,7 +1020,7 @@ retvalue uncompress_error(struct compressedfile *file) {
 						(int)(WEXITSTATUS(status)));
 					return RET_ERROR;
 				}
-			} else if( WIFSIGNALED(status) && WTERMSIG(status) != SIGUSR2 ) {
+			} else if (WIFSIGNALED(status) && WTERMSIG(status) != SIGUSR2) {
 				fprintf(stderr,
 						"%s killed by signal %d\n",
 						extern_uncompressors[file->compression],
@@ -1025,7 +1034,7 @@ retvalue uncompress_error(struct compressedfile *file) {
 			}
 	}
 	/* an error, but which? */
-	if( file->error != 0 ) {
+	if (file->error != 0) {
 		fprintf(stderr, "Error %d uncompressing file '%s': %s\n",
 				file->error, file->filename,
 				strerror(file->error));
@@ -1040,12 +1049,12 @@ void uncompress_abort(struct compressedfile *file) {
 	pid_t pid;
 	int e, status;
 
-	if( file == NULL )
+	if (file == NULL)
 		return;
 
-	switch( file->compression ) {
+	switch (file->compression) {
 		case c_none:
-			if( file->fd >= 0 )
+			if (file->fd >= 0)
 				(void)close(file->fd);
 			break;
 		case c_gzip:
@@ -1059,28 +1068,28 @@ void uncompress_abort(struct compressedfile *file) {
 		default:
 			/* kill before closing, to avoid it getting
 			 * a sigpipe */
-			if( file->pid > 0 )
+			if (file->pid > 0)
 				kill(file->pid, SIGTERM);
-			if( file->infd >= 0 )
+			if (file->infd >= 0)
 				(void)close(file->infd);
-			if( file->pipeinfd != -1 )
+			if (file->pipeinfd != -1)
 				(void)close(file->pipeinfd);
 			do {
 				pid = waitpid(file->pid, &status, 0);
 				e = errno;
-				if( interrupted() ) {
+				if (interrupted()) {
 					break;
 				}
-			} while( pid == -1 && (e == EINTR || e == EAGAIN) );
-			if( pid == -1 )
+			} while (pid == -1 && (e == EINTR || e == EAGAIN));
+			if (pid == -1)
 				break;
-			if( file->fd >= 0 )
+			if (file->fd >= 0)
 				(void)close(file->fd);
-			if( WIFEXITED(status) ) {
+			if (WIFEXITED(status)) {
 				break;
-			} else if( WIFSIGNALED(status)
+			} else if (WIFSIGNALED(status)
 					&& WTERMSIG(status) != SIGTERM
-					&& WTERMSIG(status) != SIGUSR2 ) {
+					&& WTERMSIG(status) != SIGUSR2) {
 				fprintf(stderr, "%s killed by signal %d\n",
 						extern_uncompressors[file->compression],
 						(int)(WTERMSIG(status)));
@@ -1093,10 +1102,10 @@ void uncompress_abort(struct compressedfile *file) {
 retvalue uncompress_fdclose(struct compressedfile *file, int *errno_p, const char **msg_p) {
 	retvalue result;
 
-	if( file == NULL )
+	if (file == NULL)
 		return RET_OK;
 
-	assert( file->filename == NULL );
+	assert (file->filename == NULL);
 
 	result = uncompress_commonclose(file, errno_p, msg_p);
 
@@ -1109,14 +1118,14 @@ retvalue uncompress_close(struct compressedfile *file) {
 	retvalue r;
 	int e;
 
-	if( file == NULL )
+	if (file == NULL)
 		return RET_OK;
 
-	assert( file->filename != NULL );
+	assert (file->filename != NULL);
 
 	r = uncompress_commonclose(file, &e, &msg);
-	if( RET_IS_OK(r) ) {
-		if( file->fd >= 0 && close(file->fd) != 0 ) {
+	if (RET_IS_OK(r)) {
+		if (file->fd >= 0 && close(file->fd) != 0) {
 			e = errno;
 			fprintf(stderr,
 "Error %d reading from %s: %s!\n", e, file->filename, strerror(e));
@@ -1125,9 +1134,9 @@ retvalue uncompress_close(struct compressedfile *file) {
 		free(file);
 		return r;
 	}
-	if( file->fd >= 0 )
+	if (file->fd >= 0)
 		(void)close(file->fd);
-	if( e == -EINVAL ) {
+	if (e == -EINVAL) {
 		fprintf(stderr,
 "Error reading from %s: %s!\n", file->filename, msg);
 	} else {
@@ -1143,12 +1152,12 @@ enum compression compression_by_suffix(const char *name, size_t *len_p) {
 	enum compression c;
 	size_t len = *len_p;
 
-	for( c = c_COUNT - 1 ; c > c_none ; c-- ) {
+	for (c = c_COUNT - 1 ; c > c_none ; c--) {
 		size_t l = strlen(uncompression_suffix[c]);
 
-		if( len <= l )
+		if (len <= l)
 			continue;
-		if( strncmp(name + len - l, uncompression_suffix[c], l) == 0 ) {
+		if (strncmp(name + len - l, uncompression_suffix[c], l) == 0) {
 			*len_p -= l;
 			return c;
 		}

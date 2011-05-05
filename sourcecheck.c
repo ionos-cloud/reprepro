@@ -66,7 +66,7 @@ static void free_source_info(struct info_source *s) {
 	}
 }
 
-static retvalue collect_source_versions(struct database *database, struct distribution *d, struct info_source **out) {
+static retvalue collect_source_versions(struct distribution *d, struct info_source **out) {
 	struct info_source *root = NULL, *last = NULL;
 	struct target *t;
 	struct target_cursor target_cursor = TARGET_CURSOR_ZERO;
@@ -74,9 +74,9 @@ static retvalue collect_source_versions(struct database *database, struct distri
 	retvalue result = RET_NOTHING, r;
 
 	for (t = d->targets ; t != NULL ; t = t->next) {
-		if (t->architecture_atom != architecture_source)
+		if (t->architecture != architecture_source)
 			continue;
-		r = target_openiterator(t, database, true, &target_cursor);
+		r = target_openiterator(t, true, &target_cursor);
 		if (RET_WAS_ERROR(r)) {
 			RET_UPDATE(result, r);
 			break;
@@ -126,7 +126,7 @@ static retvalue collect_source_versions(struct database *database, struct distri
 				}
 			}
 			if (into != NULL) {
-				last = calloc(1, sizeof(struct info_source));
+				last = zNEW(struct info_source);
 				if (FAILEDTOALLOC(last)) {
 					free(version);
 					result = RET_ERROR_OOM;
@@ -146,12 +146,12 @@ static retvalue collect_source_versions(struct database *database, struct distri
 				continue;
 			}
 			assert (last != NULL);
-			assert (strcmp(name,last->name)==0);
+			assert (strcmp(name, last->name)==0);
 
 			v = &last->version;
 			while (strcmp(v->version, version) != 0) {
 				if (v->next == NULL) {
-					v->next = calloc(1, sizeof(struct info_source_version));
+					v->next = zNEW(struct info_source_version);
 					if (FAILEDTOALLOC(v->next)) {
 						free(version);
 						result = RET_ERROR_OOM;
@@ -182,16 +182,16 @@ static retvalue collect_source_versions(struct database *database, struct distri
 	return result;
 }
 
-static retvalue process_binaries(struct database *db, struct distribution *d, struct info_source *sources, retvalue (*action)(struct distribution *, struct target *,const char *, const char *, const char *, const char *, void *), void *privdata) {
+static retvalue process_binaries(struct distribution *d, struct info_source *sources, retvalue (*action)(struct distribution *, struct target *, const char *, const char *, const char *, const char *, void *), void *privdata) {
 	struct target *t;
 	struct target_cursor target_cursor = TARGET_CURSOR_ZERO;
 	const char *name, *chunk;
 	retvalue result = RET_NOTHING, r;
 
 	for (t = d->targets ; t != NULL ; t = t->next) {
-		if (t->architecture_atom == architecture_source)
+		if (t->architecture == architecture_source)
 			continue;
-		r = target_openiterator(t, db, true, &target_cursor);
+		r = target_openiterator(t, true, &target_cursor);
 		if (RET_WAS_ERROR(r)) {
 			RET_UPDATE(result, r);
 			break;
@@ -240,36 +240,37 @@ static retvalue listunusedsources(struct distribution *d, const struct trackedpa
 	bool hasbinary = false, hassource = false;
 	int i;
 
-	for( i = 0 ; i < pkg->filekeys.count ; i++ ) {
-		if( pkg->refcounts[i] == 0 )
+	for (i = 0 ; i < pkg->filekeys.count ; i++) {
+		if (pkg->refcounts[i] == 0)
 			continue;
-		if( pkg->filetypes[i] == 's' )
+		if (pkg->filetypes[i] == 's')
 			hassource = true;
-		if( pkg->filetypes[i] == 'b' )
+		if (pkg->filetypes[i] == 'b')
 			hasbinary = true;
-		if( pkg->filetypes[i] == 'a' )
+		if (pkg->filetypes[i] == 'a')
 			hasbinary = true;
 	}
-	if( hassource && ! hasbinary ) {
-		printf("%s %s %s\n", d->codename, pkg->sourcename, pkg->sourceversion);
+	if (hassource && ! hasbinary) {
+		printf("%s %s %s\n", d->codename, pkg->sourcename,
+				pkg->sourceversion);
 		return RET_OK;
 	}
 	return RET_NOTHING;
 }
 
-retvalue unusedsources(struct database *database, struct distribution *alldistributions) {
+retvalue unusedsources(struct distribution *alldistributions) {
 	struct distribution *d;
 	retvalue result = RET_NOTHING, r;
 
-	for( d = alldistributions ; d != NULL ; d = d->next ) {
-		if( !d->selected )
+	for (d = alldistributions ; d != NULL ; d = d->next) {
+		if (!d->selected)
 			continue;
-		if( !atomlist_in(&d->architectures, architecture_source) )
+		if (!atomlist_in(&d->architectures, architecture_source))
 			continue;
-		if( d->tracking != dt_NONE ) {
-			r = tracking_foreach_ro(database, d, listunusedsources);
+		if (d->tracking != dt_NONE) {
+			r = tracking_foreach_ro(d, listunusedsources);
 			RET_UPDATE(result, r);
-			if( RET_WAS_ERROR(r) )
+			if (RET_WAS_ERROR(r))
 				return r;
 			continue;
 		}
@@ -277,11 +278,11 @@ retvalue unusedsources(struct database *database, struct distribution *alldistri
 		const struct info_source *s;
 		const struct info_source_version *v;
 
-		r = collect_source_versions(database, d, &sources);
+		r = collect_source_versions(d, &sources);
 		if (!RET_IS_OK(r))
 			continue;
 
-		r = process_binaries(database, d, sources, NULL, NULL);
+		r = process_binaries(d, sources, NULL, NULL);
 		RET_UPDATE(result, r);
 		for (s = sources ; s != NULL ; s = s->next) {
 			for (v = &s->version ; v != NULL ; v = v->next) {
@@ -300,23 +301,25 @@ static retvalue listsourcemissing(struct distribution *d, const struct trackedpa
 	bool hasbinary = false, hassource = false;
 	int i;
 
-	for( i = 0 ; i < pkg->filekeys.count ; i++ ) {
-		if( pkg->refcounts[i] == 0 )
+	for (i = 0 ; i < pkg->filekeys.count ; i++) {
+		if (pkg->refcounts[i] == 0)
 			continue;
-		if( pkg->filetypes[i] == 's' )
+		if (pkg->filetypes[i] == 's')
 			hassource = true;
-		if( pkg->filetypes[i] == 'b' )
+		if (pkg->filetypes[i] == 'b')
 			hasbinary = true;
-		if( pkg->filetypes[i] == 'a' )
+		if (pkg->filetypes[i] == 'a')
 			hasbinary = true;
 	}
-	if( hasbinary && ! hassource ) {
-		for( i = 0 ; i < pkg->filekeys.count ; i++ ) {
-			if( pkg->refcounts[i] == 0 )
+	if (hasbinary && ! hassource) {
+		for (i = 0 ; i < pkg->filekeys.count ; i++) {
+			if (pkg->refcounts[i] == 0)
 				continue;
-			if( pkg->filetypes[i] != 'b' && pkg->filetypes[i] != 'a' )
+			if (pkg->filetypes[i] != 'b' && pkg->filetypes[i] != 'a')
 				continue;
-			printf("%s %s %s %s\n", d->codename, pkg->sourcename, pkg->sourceversion, pkg->filekeys.values[i]);
+			printf("%s %s %s %s\n", d->codename, pkg->sourcename,
+					pkg->sourceversion,
+					pkg->filekeys.values[i]);
 		}
 		return RET_OK;
 	}
@@ -336,34 +339,33 @@ static retvalue listmissing(struct distribution *d, struct target *t, UNUSED(con
 	return RET_OK;
 }
 
-retvalue sourcemissing(struct database *database, struct distribution *alldistributions) {
+retvalue sourcemissing(struct distribution *alldistributions) {
 	struct distribution *d;
 	retvalue result = RET_NOTHING, r;
 
-	for( d = alldistributions ; d != NULL ; d = d->next ) {
-		if( !d->selected )
+	for (d = alldistributions ; d != NULL ; d = d->next) {
+		if (!d->selected)
 			continue;
-		if( !atomlist_in(&d->architectures, architecture_source) ) {
-			if( verbose >= 0 )
+		if (!atomlist_in(&d->architectures, architecture_source)) {
+			if (verbose >= 0)
 				fprintf(stderr,
 "Not processing distribution '%s', as it has no source packages.\n",
 						d->codename);
 			continue;
 		}
-		if( d->tracking != dt_NONE ) {
-			r = tracking_foreach_ro(database, d, listsourcemissing);
+		if (d->tracking != dt_NONE) {
+			r = tracking_foreach_ro(d, listsourcemissing);
 			RET_UPDATE(result, r);
-			if( RET_WAS_ERROR(r) )
+			if (RET_WAS_ERROR(r))
 				return r;
 		} else {
 			struct info_source *sources = NULL;
 
-			r = collect_source_versions(database, d, &sources);
+			r = collect_source_versions(d, &sources);
 			if (!RET_IS_OK(r))
 				continue;
 
-			r = process_binaries(database, d, sources,
-					listmissing, NULL);
+			r = process_binaries(d, sources, listmissing, NULL);
 			RET_UPDATE(result, r);
 			free_source_info(sources);
 		}
@@ -376,21 +378,23 @@ static retvalue listcruft(struct distribution *d, const struct trackedpackage *p
 	bool hasbinary = false, hassource = false;
 	int i;
 
-	for( i = 0 ; i < pkg->filekeys.count ; i++ ) {
-		if( pkg->refcounts[i] == 0 )
+	for (i = 0 ; i < pkg->filekeys.count ; i++) {
+		if (pkg->refcounts[i] == 0)
 			continue;
-		if( pkg->filetypes[i] == 's' )
+		if (pkg->filetypes[i] == 's')
 			hassource = true;
-		if( pkg->filetypes[i] == 'b' )
+		if (pkg->filetypes[i] == 'b')
 			hasbinary = true;
-		if( pkg->filetypes[i] == 'a' )
+		if (pkg->filetypes[i] == 'a')
 			hasbinary = true;
 	}
-	if( hasbinary && ! hassource ) {
-		printf("binaries-without-source %s %s %s\n", d->codename, pkg->sourcename, pkg->sourceversion);
+	if (hasbinary && ! hassource) {
+		printf("binaries-without-source %s %s %s\n", d->codename,
+				pkg->sourcename, pkg->sourceversion);
 		return RET_OK;
-	} else if( hassource && ! hasbinary ) {
-		printf("source-without-binaries %s %s %s\n", d->codename, pkg->sourcename, pkg->sourceversion);
+	} else if (hassource && ! hasbinary) {
+		printf("source-without-binaries %s %s %s\n", d->codename,
+				pkg->sourcename, pkg->sourceversion);
 		return RET_OK;
 	}
 	return RET_NOTHING;
@@ -407,7 +411,7 @@ static retvalue listmissingonce(struct distribution *d, UNUSED(struct target *t)
 			continue;
 		return RET_NOTHING;
 	}
-	s = calloc(1, sizeof(struct info_source));
+	s = zNEW(struct info_source);
 	if (FAILEDTOALLOC(s))
 		return RET_ERROR_OOM;
 	s->name = strdup(source);
@@ -425,24 +429,24 @@ static retvalue listmissingonce(struct distribution *d, UNUSED(struct target *t)
 	return RET_OK;
 }
 
-retvalue reportcruft(struct database *database, struct distribution *alldistributions) {
+retvalue reportcruft(struct distribution *alldistributions) {
 	struct distribution *d;
 	retvalue result = RET_NOTHING, r;
 
-	for( d = alldistributions ; d != NULL ; d = d->next ) {
-		if( !d->selected )
+	for (d = alldistributions ; d != NULL ; d = d->next) {
+		if (!d->selected)
 			continue;
-		if( !atomlist_in(&d->architectures, architecture_source) ) {
-			if( verbose >= 0 )
+		if (!atomlist_in(&d->architectures, architecture_source)) {
+			if (verbose >= 0)
 				fprintf(stderr,
 "Not processing distribution '%s', as it has no source packages.\n",
 						d->codename);
 			continue;
 		}
-		if( d->tracking != dt_NONE ) {
-			r = tracking_foreach_ro(database, d, listcruft);
+		if (d->tracking != dt_NONE) {
+			r = tracking_foreach_ro(d, listcruft);
 			RET_UPDATE(result, r);
-			if( RET_WAS_ERROR(r) )
+			if (RET_WAS_ERROR(r))
 				return r;
 			continue;
 		}
@@ -451,11 +455,11 @@ retvalue reportcruft(struct database *database, struct distribution *alldistribu
 		const struct info_source *s;
 		const struct info_source_version *v;
 
-		r = collect_source_versions(database, d, &sources);
+		r = collect_source_versions( d, &sources);
 		if (!RET_IS_OK(r))
 			continue;
 
-		r = process_binaries(database, d, sources,
+		r = process_binaries( d, sources,
 				listmissingonce, &list);
 		RET_UPDATE(result, r);
 		for (s = sources ; s != NULL ; s = s->next) {
@@ -463,7 +467,7 @@ retvalue reportcruft(struct database *database, struct distribution *alldistribu
 				if (v->used)
 					continue;
 				printf("source-without-binaries %s %s %s\n",
-						d->codename, s->name, v->version);
+					d->codename, s->name, v->version);
 			}
 		}
 		free_source_info(list);

@@ -15,11 +15,11 @@ struct chunkeditfield {
 	/*@null@*/struct chunkeditfield *next;
 	/* The name of the field: */
 	const char *field; size_t len_field;
-	enum cefaction { CEF_DELETE,    /* delete if there */
+	enum cefaction { CEF_DELETE,   /* delete if there */
 		       	CEF_ADDMISSED, /* add if not there */
 		       	CEF_REPLACE,   /* replace if there */
-		       	CEF_ADD,      /* add if not there or replace if there */
-			CEF_KEEP   /* keep it */
+		       	CEF_ADD,       /* add if not there or replace if there */
+			CEF_KEEP       /* keep it */
 	} action;
 	enum cefwhen { CEF_EARLY, CEF_LATE } when;
 	/* the following must be 0 or NULL for CEF_DELETE */
@@ -35,18 +35,18 @@ struct chunkeditfield {
 };
 
 /* those return NULL on out of memory and free next in that case */
-/*@null@*/struct chunkeditfield *cef_newfield(const char *field, enum cefaction action, enum cefwhen when, unsigned int linecount, /*@only@*//*@null@*/struct chunkeditfield *next);
+/*@null@*/struct chunkeditfield *cef_newfield(const char *, enum cefaction, enum cefwhen, unsigned int /*linecount*/, /*@only@*//*@null@*/struct chunkeditfield *);
 
-void cef_setdata(struct chunkeditfield *cef, const char *data);
-void cef_setdatalen(struct chunkeditfield *cef, const char *data, size_t len);
+void cef_setdata(struct chunkeditfield *, const char *);
+void cef_setdatalen(struct chunkeditfield *, const char *, size_t);
 /* calculate the length, do not change the strlist after that before free */
-void cef_setwordlist(struct chunkeditfield *cef, const struct strlist *words);
-retvalue cef_setline(struct chunkeditfield *cef, int line, int wordcount, ...);
+void cef_setwordlist(struct chunkeditfield *, const struct strlist *);
+retvalue cef_setline(struct chunkeditfield *, int /*line*/, int /*wordcount*/, ...);
 retvalue cef_setline2(struct chunkeditfield *, int, const char *, size_t, const char *, size_t, int, ...);
 
-retvalue chunk_edit(const char *chunk, char **result, size_t *len, const struct chunkeditfield *cef);
+retvalue chunk_edit(const char *, char **, size_t *, const struct chunkeditfield *);
 
-void cef_free(/*@only@*//*@null@*/struct chunkeditfield *f);
+void cef_free(/*@only@*//*@null@*/struct chunkeditfield *);
 
 static inline struct chunkeditfield *cef_pop(/*@only@*/struct chunkeditfield *cef) {
 	struct chunkeditfield *next = cef->next;

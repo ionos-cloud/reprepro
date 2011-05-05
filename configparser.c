@@ -63,14 +63,14 @@ unsigned int config_markercolumn(const struct configiterator *iter) {
 void config_overline(struct configiterator *iter) {
 	int c;
 
-	while( !iter->eol ) {
+	while (!iter->eol) {
 		c = fgetc(iter->f);
-		if( c == '#' ) {
+		if (c == '#') {
 			do {
 				c = fgetc(iter->f);
-			} while( c != EOF && c != '\n' );
+			} while (c != EOF && c != '\n');
 		}
-		if( c == EOF || c == '\n' )
+		if (c == EOF || c == '\n')
 			iter->eol = true;
 		else
 			iter->column++;
@@ -80,18 +80,18 @@ void config_overline(struct configiterator *iter) {
 bool config_nextline(struct configiterator *iter) {
 	int c;
 
-	assert( iter->eol );
+	assert (iter->eol);
 	c = fgetc(iter->f);
-	while( c == '#' ) {
+	while (c == '#') {
 		do {
 			c = fgetc(iter->f);
-		} while( c != EOF && c != '\n' );
+		} while (c != EOF && c != '\n');
 		iter->line++;
 		c = fgetc(iter->f);
 	}
-	if( c == EOF )
+	if (c == EOF)
 		return false;
-	if( c == ' ' || c == '\t' ) {
+	if (c == ' ' || c == '\t') {
 		iter->line++;
 		iter->column = 1;
 		iter->eol = false;
@@ -110,11 +110,11 @@ static inline retvalue finishchunk(configfinishfunction finishfunc, void *privda
 	size_t i;
 	retvalue r;
 
-	if( complete )
-		for( i = 0 ; i < fieldcount ; i++ ) {
-			if( !fields[i].required )
+	if (complete)
+		for (i = 0 ; i < fieldcount ; i++) {
+			if (!fields[i].required)
 				continue;
-			if( found[i] )
+			if (found[i])
 				continue;
 			fprintf(stderr,
 "Error parsing config file %s, line %u:\n"
@@ -141,13 +141,13 @@ retvalue configfile_parse(const char *filename, bool ignoreunknown, configinitfu
 	retvalue result, r;
 
 	iter.filename = calc_conffile(filename);
-	if( iter.filename == NULL )
+	if (FAILEDTOALLOC(iter.filename))
 		return RET_ERROR_OOM;
 	iter.line = 0;
 	iter.column = 0;
 
 	iter.f = fopen(iter.filename, "r");
-	if( iter.f == NULL ) {
+	if (iter.f == NULL) {
 		int e = errno;
 		fprintf(stderr, "Error opening config file '%s': %s(%d)\n",
 				iter.filename, strerror(e), e);
@@ -160,48 +160,51 @@ retvalue configfile_parse(const char *filename, bool ignoreunknown, configinitfu
 		iter.column = 1;
 
 		c = fgetc(iter.f);
-		while( c == '#' ) {
+		while (c == '#') {
 			do {
 				c = fgetc(iter.f);
-			} while( c != EOF && c != '\n' );
+			} while (c != EOF && c != '\n');
 			iter.line++;
 			c = fgetc(iter.f);
 		}
-		if( c == '\r' )  {
+		if (c == '\r')  {
 			do {
 				c = fgetc(iter.f);
-			} while( c == '\r');
-			if( c != EOF && c != '\n' ) {
-				fprintf(stderr, "%s:%u: error parsing configuration file: CR without following LF!\n",
+			} while (c == '\r');
+			if (c != EOF && c != '\n') {
+				fprintf(stderr,
+"%s:%u: error parsing configuration file: CR without following LF!\n",
 						iter.filename, iter.line);
 				result = RET_ERROR;
 				break;
 			}
 		}
-		if( c == EOF )
+		if (c == EOF)
 			break;
-		if( c == '\n' ) {
+		if (c == '\n') {
 			/* Ignore multiple emptye lines */
-			if( this == NULL )
+			if (this == NULL)
 				continue;
 			/* finish this chunk, to get ready for the next: */
 			r = finishchunk(finishfunc, privdata, &iter,
 					fields, fieldcount, found,
 					&this, &last, true);
-			if( RET_WAS_ERROR(r) ) {
+			if (RET_WAS_ERROR(r)) {
 				result = r;
 				break;
 			}
 			continue;
 		}
-		if( c == '\0' ) {
-			fprintf(stderr, "Error parsing %s, line %u: \\000 character not allowed in config files!\n",
+		if (c == '\0') {
+			fprintf(stderr,
+"Error parsing %s, line %u: \\000 character not allowed in config files!\n",
 					iter.filename, iter.line);
 			result = RET_ERROR;
 			break;
 		}
-		if( c == '\0' ) {
-			fprintf(stderr, "Error parsing %s, line %u: unexpected white space before keyword!\n",
+		if (c == '\0') {
+			fprintf(stderr,
+"Error parsing %s, line %u: unexpected white space before keyword!\n",
 					iter.filename, iter.line);
 			result = RET_ERROR;
 			break;
@@ -209,65 +212,72 @@ retvalue configfile_parse(const char *filename, bool ignoreunknown, configinitfu
 		key[0] = c;
 		keylen = 1;
 
-		while( (c = fgetc(iter.f)) != EOF && c != ':' && c != '\n' && c != '#' && c != '\0') {
+		while ((c = fgetc(iter.f)) != EOF && c != ':' && c != '\n'
+				&& c != '#' && c != '\0') {
 			iter.column++;
-			if( c == ' ' ) {
-				fprintf(stderr, "Error parsing %s, line %u: Unexpected space in header name!\n",
+			if (c == ' ') {
+				fprintf(stderr,
+"Error parsing %s, line %u: Unexpected space in header name!\n",
 						iter.filename, iter.line);
 				result = RET_ERROR;
 				break;
 			}
-			if( c == '\t' ) {
-				fprintf(stderr, "Error parsing %s, line %u: Unexpected tabulator character in header name!\n",
+			if (c == '\t') {
+				fprintf(stderr,
+"Error parsing %s, line %u: Unexpected tabulator character in header name!\n",
 						iter.filename, iter.line);
 				result = RET_ERROR;
 				break;
 			}
 			key[keylen++] = c;
-			if( keylen >= 100 )
+			if (keylen >= 100)
 				break;
 		}
-		if( c != ':' ) {
-			if( c != ' ' && c != '\t' )
+		if (c != ':') {
+			if (c != ' ' && c != '\t')
 				/* newline or end-of-file */
-				fprintf(stderr, "Error parsing %s, line %u, column %u: Colon expected!\n",
+				fprintf(stderr,
+"Error parsing %s, line %u, column %u: Colon expected!\n",
 					iter.filename, iter.line, iter.column);
 			result = RET_ERROR;
 			break;
 		}
-		if( this == NULL ) {
+		if (this == NULL) {
 			/* new chunk, initialize everything */
 			r = initfunc(privdata, last, &this);
-			assert( r != RET_NOTHING );
-			if( RET_WAS_ERROR(r) ) {
+			assert (r != RET_NOTHING);
+			if (RET_WAS_ERROR(r)) {
 				result = r;
 				break;
 			}
-			assert( this != NULL );
+			assert (this != NULL);
 			iter.startline = iter.line;
 			memset(found, 0, sizeof(found));
 		}
-		for( i = 0 ; i < fieldcount ; i++ ) {
-			if( keylen != fields[i].namelen )
+		for (i = 0 ; i < fieldcount ; i++) {
+			if (keylen != fields[i].namelen)
 				continue;
-			if( strncasecmp(key, fields[i].name, keylen) != 0 )
+			if (strncasecmp(key, fields[i].name, keylen) != 0)
 				continue;
 			break;
 		}
-		if( i >= fieldcount ) {
+		if (i >= fieldcount) {
 			key[keylen] = '\0';
-			if( !ignoreunknown ) {
-				fprintf(stderr, "Error parsing %s, line %u: Unknown header '%s'!\n",
+			if (!ignoreunknown) {
+				fprintf(stderr,
+"Error parsing %s, line %u: Unknown header '%s'!\n",
 						iter.filename, iter.line, key);
 				result = RET_ERROR_UNKNOWNFIELD;
 				break;
 			}
-			if( verbose >= 0 )
-				fprintf(stderr, "Warning parsing %s, line %u: Unknown header '%s'!\n",
+			if (verbose >= 0)
+				fprintf(stderr,
+"Warning parsing %s, line %u: Unknown header '%s'!\n",
 						iter.filename, iter.line, key);
-		} else if( found[i] ) {
-			fprintf(stderr, "Error parsing %s, line %u: Second appearance of '%s' in the same chunk!\n",
-					iter.filename, iter.line, fields[i].name);
+		} else if (found[i]) {
+			fprintf(stderr,
+"Error parsing %s, line %u: Second appearance of '%s' in the same chunk!\n",
+				iter.filename, iter.line, fields[i].name);
 			result = RET_ERROR;
 			break;
 		} else
@@ -275,29 +285,29 @@ retvalue configfile_parse(const char *filename, bool ignoreunknown, configinitfu
 		do {
 			c = fgetc(iter.f);
 			iter.column++;
-		} while( c == ' ' || c == '\t' );
+		} while (c == ' ' || c == '\t');
 		(void)ungetc(c, iter.f);
 
 		iter.eol = false;
-		if( i < fieldcount ) {
+		if (i < fieldcount) {
 			r = fields[i].setfunc(privdata, fields[i].name, this, &iter);
 			RET_UPDATE(result, r);
-			if( RET_WAS_ERROR(r) )
+			if (RET_WAS_ERROR(r))
 				break;
 		}
 		/* ignore all data left of this field */
 		do {
 			config_overline(&iter);
-		} while( config_nextline(&iter) );
-	} while( true );
-	if( this != NULL ) {
+		} while (config_nextline(&iter));
+	} while (true);
+	if (this != NULL) {
 		r = finishchunk(finishfunc, privdata, &iter,
 				fields, fieldcount, found,
 				&this, &last,
 				!RET_WAS_ERROR(result));
 		RET_UPDATE(result, r);
 	}
-	if( ferror(iter.f) != 0) {
+	if (ferror(iter.f) != 0) {
 		int e = errno;
 		fprintf(stderr, "Error reading config file '%s': %s(%d)\n",
 				iter.filename, strerror(e), e);
@@ -305,7 +315,7 @@ retvalue configfile_parse(const char *filename, bool ignoreunknown, configinitfu
 		RET_UPDATE(result, r);
 	}
 	ret = fclose(iter.f);
-	if( ret != 0 ) {
+	if (ret != 0) {
 		int e = errno;
 		fprintf(stderr, "Error closing config file '%s': %s(%d)\n",
 				iter.filename, strerror(e), e);
@@ -322,34 +332,36 @@ static inline int config_nextchar(struct configiterator *iter) {
 
 	c = fgetc(iter->f);
 	realcolumn = iter->column + 1;
-	if( c == '#' ) {
+	if (c == '#') {
 		do {
 			c = fgetc(iter->f);
 			realcolumn++;
-		} while( c != '\n' && c != EOF && c != '\r' );
+		} while (c != '\n' && c != EOF && c != '\r');
 	}
-	if( c == '\r' ) {
-		while( c == '\r' ) {
+	if (c == '\r') {
+		while (c == '\r') {
 			realcolumn++;
 			c = fgetc(iter->f);
 		}
-		if( c != '\n' && c != EOF ) {
-			fprintf(stderr, "Warning parsing config file '%s', line '%u', column %u: CR not followed by LF!\n",
+		if (c != '\n' && c != EOF) {
+			fprintf(stderr,
+"Warning parsing config file '%s', line '%u', column %u: CR not followed by LF!\n",
 					config_filename(iter),
 					config_line(iter),
 					realcolumn);
 
 		}
 	}
-	if( c == EOF ) {
-		fprintf(stderr, "Warning parsing config file '%s', line '%u': File ending without final LF!\n",
+	if (c == EOF) {
+		fprintf(stderr,
+"Warning parsing config file '%s', line '%u': File ending without final LF!\n",
 				config_filename(iter),
 				config_line(iter));
 		/* fake a proper text file: */
 		c = '\n';
 	}
 	iter->column++;
-	if( c == '\n' )
+	if (c == '\n')
 		iter->eol = true;
 	return c;
 }
@@ -360,12 +372,12 @@ static inline int config_nextnonspace(struct configiterator *iter) {
 	do {
 		iter->markerline = iter->line;
 		iter->markercolumn = iter->column;
-		if( iter->eol ) {
-			if( !config_nextline(iter) )
+		if (iter->eol) {
+			if (!config_nextline(iter))
 				return EOF;
 		}
 		c = config_nextchar(iter);
-	} while( c == '\n' || c == ' ' || c == '\t');
+	} while (c == '\n' || c == ' ' || c == '\t');
 	return c;
 }
 
@@ -375,20 +387,20 @@ int config_nextnonspaceinline(struct configiterator *iter) {
 	do {
 		iter->markerline = iter->line;
 		iter->markercolumn = iter->column;
-		if( iter->eol )
+		if (iter->eol)
 			return EOF;
 		c = config_nextchar(iter);
-		if( c == '\n' )
+		if (c == '\n')
 			return EOF;
-	} while( c == '\r' || c == ' ' || c == '\t');
+	} while (c == '\r' || c == ' ' || c == '\t');
 	return c;
 }
 
-#define configparser_errorlast(iter,message,...) \
+#define configparser_errorlast(iter, message, ...) \
 	fprintf(stderr, "Error parsing %s, line %u, column %u: " message "\n", \
 			iter->filename, iter->markerline, \
 			iter->markercolumn, ##  __VA_ARGS__);
-#define configparser_error(iter,message,...) \
+#define configparser_error(iter, message, ...) \
 	fprintf(stderr, "Error parsing %s, line %u, column %u: " message "\n", \
 			iter->filename, iter->line, \
 			iter->column, ##  __VA_ARGS__);
@@ -401,9 +413,9 @@ retvalue config_completeword(struct configiterator *iter, char firstc, char **re
 	iter->markerline = iter->line;
 	iter->markercolumn = iter->column;
 	do {
-		if( len + 2 >= size ) {
+		if (len + 2 >= size) {
 			nv = realloc(value, size+128);
-			if( nv == NULL ) {
+			if (FAILEDTOALLOC(nv)) {
 				free(value);
 				return RET_ERROR_OOM;
 			}
@@ -413,14 +425,14 @@ retvalue config_completeword(struct configiterator *iter, char firstc, char **re
 		value[len] = c;
 		len++;
 		c = config_nextchar(iter);
-		if( c == '\n' )
+		if (c == '\n')
 			break;
-	} while( c != ' ' && c != '\t' );
-	assert( len > 0 );
-	assert( len < size );
+	} while (c != ' ' && c != '\t');
+	assert (len > 0);
+	assert (len < size);
 	value[len] = '\0';
 	nv = realloc(value, len+1);
-	if( nv == NULL )
+	if (nv == NULL)
 		*result_p = value;
 	else
 		*result_p = nv;
@@ -431,7 +443,7 @@ retvalue config_getwordinline(struct configiterator *iter, char **result_p) {
 	int c;
 
 	c = config_nextnonspaceinline(iter);
-	if( c == EOF )
+	if (c == EOF)
 		return RET_NOTHING;
 	return config_completeword(iter, c, result_p);
 }
@@ -440,7 +452,7 @@ retvalue config_getword(struct configiterator *iter, char **result_p) {
 	int c;
 
 	c = config_nextnonspace(iter);
-	if( c == EOF )
+	if (c == EOF)
 		return RET_NOTHING;
 	return config_completeword(iter, c, result_p);
 }
@@ -452,8 +464,8 @@ retvalue config_gettimespan(struct configiterator *iter, const char *header, tim
 
 	do {
 		c = config_nextnonspace(iter);
-		if( c == EOF ) {
-			if( empty ) {
+		if (c == EOF) {
+			if (empty) {
 				configparser_errorlast(iter,
 "Unexpected end of %s header (value expected).", header);
 				return RET_ERROR;
@@ -464,7 +476,7 @@ retvalue config_gettimespan(struct configiterator *iter, const char *header, tim
 		iter->markerline = iter->line;
 		iter->markercolumn = iter->column;
 		currentnumber = 0;
-		if( c < '0' || c > '9' ) {
+		if (c < '0' || c > '9') {
 			configparser_errorlast(iter,
 "Unexpected character '%c' where a digit was expected in %s header.",
 					(char)c, header);
@@ -475,18 +487,18 @@ retvalue config_gettimespan(struct configiterator *iter, const char *header, tim
 			currentnumber *= 10;
 			currentnumber += (c - '0');
 			c = config_nextchar(iter);
-		} while( c >= '0' && c <= '9');
-		if( c == ' ' || c == '\t' || c == '\n' )
+		} while (c >= '0' && c <= '9');
+		if (c == ' ' || c == '\t' || c == '\n')
 			c = config_nextnonspace(iter);
-		if( c == 'y' ) {
+		if (c == 'y') {
 			currentnumber *= 365*24*60*60;
-		} else if( c == 'm' ) {
+		} else if (c == 'm') {
 			currentnumber *= 31*24*60*60;
-		} else if( c == 'd' ) {
+		} else if (c == 'd') {
 			currentnumber *= 24*60*60;
 		} else {
 			currentnumber *= 24*60*60;
-			if( c != EOF ) {
+			if (c != EOF) {
 				configparser_errorlast(iter,
 "Unexpected character '%c' where a 'd','m' or 'y' was expected in %s header.",
 					(char)c, header);
@@ -494,7 +506,7 @@ retvalue config_gettimespan(struct configiterator *iter, const char *header, tim
 			}
 		}
 		currentsum += currentnumber;
-	} while( true );
+	} while (true);
 }
 
 retvalue config_getonlyword(struct configiterator *iter, const char *header, checkfunc check, char **result_p) {
@@ -502,22 +514,22 @@ retvalue config_getonlyword(struct configiterator *iter, const char *header, che
 	retvalue r;
 
 	r = config_getword(iter, &value);
-	if( r == RET_NOTHING ) {
+	if (r == RET_NOTHING) {
 		configparser_errorlast(iter,
 "Unexpected end of %s header (value expected).", header);
 		return RET_ERROR;
 	}
-	if( RET_WAS_ERROR(r) )
+	if (RET_WAS_ERROR(r))
 		return r;
-	if( config_nextnonspace(iter) != EOF ) {
+	if (config_nextnonspace(iter) != EOF) {
 		configparser_error(iter,
 "End of %s header expected (but trailing garbage).", header);
 		free(value);
 		return RET_ERROR;
 	}
-	if( check != NULL ) {
+	if (check != NULL) {
 		const char *errormessage = check(value);
-		if( errormessage != NULL ) {
+		if (errormessage != NULL) {
 			configparser_errorlast(iter,
 "Malformed %s content '%s': %s", header, value, errormessage);
 			free(value);
@@ -532,14 +544,14 @@ retvalue config_getonlyword(struct configiterator *iter, const char *header, che
 retvalue config_getscript(struct configiterator *iter, const char *name, char **value_p) {
 	char *value, *fullvalue; retvalue r;
 	r = config_getonlyword(iter, name, NULL, &value);
-	if( RET_IS_OK(r) ) {
-		assert( value != NULL && value[0] != '\0' );
-		if( value[0] != '/' ) {
+	if (RET_IS_OK(r)) {
+		assert (value != NULL && value[0] != '\0');
+		if (value[0] != '/') {
 			fullvalue = calc_dirconcat(global.confdir, value);
 			free(value);
 		} else
 			fullvalue = value;
-		if( fullvalue == NULL )
+		if (FAILEDTOALLOC(fullvalue))
 			return RET_ERROR_OOM;
 		*value_p = fullvalue;
 	}
@@ -553,33 +565,33 @@ retvalue config_geturl(struct configiterator *iter, const char *header, char **r
 
 
 	r = config_getword(iter, &value);
-	if( r == RET_NOTHING ) {
+	if (r == RET_NOTHING) {
 		configparser_errorlast(iter,
 "Unexpected end of %s header (value expected).", header);
 		return RET_ERROR;
 	}
-	if( RET_WAS_ERROR(r) )
+	if (RET_WAS_ERROR(r))
 		return r;
 	// TODO: think about allowing (escaped) spaces...
-	if( config_nextnonspace(iter) != EOF ) {
+	if (config_nextnonspace(iter) != EOF) {
 		configparser_error(iter,
 "End of %s header expected (but trailing garbage).", header);
 		free(value);
 		return RET_ERROR;
 	}
 	p = value;
-	while( *p != '\0' && ( *p == '_' || *p == '-' ||
+	while (*p != '\0' && (*p == '_' || *p == '-' ||
 				(*p>='a' && *p<='z') || (*p>='A' && *p<='Z') ||
-				(*p>='0' && *p<='9') ) ) {
+				(*p>='0' && *p<='9'))) {
 		p++;
 	}
-	if( *p != ':' ) {
+	if (*p != ':') {
 		configparser_errorlast(iter,
 "Malformed %s field: no colon (must be method:path).", header);
 		free(value);
 		return RET_ERROR;
 	}
-	if( p == value ) {
+	if (p == value) {
 		configparser_errorlast(iter,
 "Malformed %s field: transport method name expected (colon is not allowed to be the first character)!", header);
 		free(value);
@@ -589,7 +601,7 @@ retvalue config_geturl(struct configiterator *iter, const char *header, char **r
 	l = strlen(p);
 	/* remove one leading slash, as we always add one and some apt-methods
 	 * are confused with //. (end with // if you really want it) */
-	if( l > 0 && p[l - 1] == '/' )
+	if (l > 0 && p[l - 1] == '/')
 		p[l - 1] = '\0';
 	*result_p = value;
 	return RET_OK;
@@ -602,18 +614,18 @@ retvalue config_getuniqwords(struct configiterator *iter, const char *header, ch
 	const char *errormessage;
 
 	strlist_init(&data);
-	while( (r = config_getword(iter, &value)) != RET_NOTHING ) {
-		if( RET_WAS_ERROR(r) ) {
+	while ((r = config_getword(iter, &value)) != RET_NOTHING) {
+		if (RET_WAS_ERROR(r)) {
 			strlist_done(&data);
 			return r;
 		}
-		if( strlist_in(&data, value) ) {
+		if (strlist_in(&data, value)) {
 			configparser_errorlast(iter,
 "Unexpected duplicate '%s' within %s header.", value, header);
 			free(value);
 			strlist_done(&data);
 			return RET_ERROR;
-		} else if( check != NULL && (errormessage = check(value)) != NULL ) {
+		} else if (check != NULL && (errormessage = check(value)) != NULL) {
 			configparser_errorlast(iter,
 "Malformed %s element '%s': %s", header, value, errormessage);
 			checkerror_free(errormessage);
@@ -622,7 +634,7 @@ retvalue config_getuniqwords(struct configiterator *iter, const char *header, ch
 			return RET_ERROR;
 		} else {
 			r = strlist_add(&data, value);
-			if( RET_WAS_ERROR(r) ) {
+			if (RET_WAS_ERROR(r)) {
 				strlist_done(&data);
 				return r;
 			}
@@ -640,12 +652,12 @@ retvalue config_getinternatomlist(struct configiterator *iter, const char *heade
 	atom_t atom;
 
 	atomlist_init(&data);
-	while( (r = config_getword(iter, &value)) != RET_NOTHING ) {
-		if( RET_WAS_ERROR(r) ) {
+	while ((r = config_getword(iter, &value)) != RET_NOTHING) {
+		if (RET_WAS_ERROR(r)) {
 			atomlist_done(&data);
 			return r;
 		}
-		if( check != NULL && (errormessage = check(value)) != NULL ) {
+		if (check != NULL && (errormessage = check(value)) != NULL) {
 			configparser_errorlast(iter,
 "Malformed %s element '%s': %s", header, value, errormessage);
 			checkerror_free(errormessage);
@@ -654,10 +666,10 @@ retvalue config_getinternatomlist(struct configiterator *iter, const char *heade
 			return RET_ERROR;
 		}
 		r = atom_intern(type, value, &atom);
-		if( RET_WAS_ERROR(r) )
+		if (RET_WAS_ERROR(r))
 			return r;
 		r = atomlist_add_uniq(&data, atom);
-		if( r == RET_NOTHING ) {
+		if (r == RET_NOTHING) {
 			configparser_errorlast(iter,
 "Unexpected duplicate '%s' within %s header.", value, header);
 			free(value);
@@ -665,7 +677,7 @@ retvalue config_getinternatomlist(struct configiterator *iter, const char *heade
 			return RET_ERROR;
 		}
 		free(value);
-		if( RET_WAS_ERROR(r) ) {
+		if (RET_WAS_ERROR(r)) {
 			atomlist_done(&data);
 			return r;
 		}
@@ -680,15 +692,15 @@ retvalue config_getatom(struct configiterator *iter, const char *header, enum at
 	atom_t atom;
 
 	r = config_getword(iter, &value);
-	if( r == RET_NOTHING ) {
+	if (r == RET_NOTHING) {
 		configparser_errorlast(iter,
 "Unexpected empty '%s' field.", header);
 		r = RET_ERROR_MISSING;
 	}
-	if( RET_WAS_ERROR(r) )
+	if (RET_WAS_ERROR(r))
 		return r;
 	atom = atom_find(type, value);
-	if( !atom_defined(atom) ) {
+	if (!atom_defined(atom)) {
 		configparser_errorlast(iter,
 "Not previously seen %s '%s' within '%s' field.", atomtypes[type], value, header);
 		free(value);
@@ -706,13 +718,13 @@ retvalue config_getatomlist(struct configiterator *iter, const char *header, enu
 	atom_t atom;
 
 	atomlist_init(&data);
-	while( (r = config_getword(iter, &value)) != RET_NOTHING ) {
-		if( RET_WAS_ERROR(r) ) {
+	while ((r = config_getword(iter, &value)) != RET_NOTHING) {
+		if (RET_WAS_ERROR(r)) {
 			atomlist_done(&data);
 			return r;
 		}
 		atom = atom_find(type, value);
-		if( !atom_defined(atom) ) {
+		if (!atom_defined(atom)) {
 			configparser_errorlast(iter,
 "Not previously seen %s '%s' within '%s' header.", atomtypes[type], value, header);
 			free(value);
@@ -720,7 +732,7 @@ retvalue config_getatomlist(struct configiterator *iter, const char *header, enu
 			return RET_ERROR;
 		}
 		r = atomlist_add_uniq(&data, atom);
-		if( r == RET_NOTHING ) {
+		if (r == RET_NOTHING) {
 			configparser_errorlast(iter,
 "Unexpected duplicate '%s' within %s header.", value, header);
 			free(value);
@@ -728,7 +740,7 @@ retvalue config_getatomlist(struct configiterator *iter, const char *header, enu
 			return RET_ERROR;
 		}
 		free(value);
-		if( RET_WAS_ERROR(r) ) {
+		if (RET_WAS_ERROR(r)) {
 			atomlist_done(&data);
 			return r;
 		}
@@ -745,21 +757,21 @@ retvalue config_getsplitatoms(struct configiterator *iter, const char *header, e
 
 	atomlist_init(&data_from);
 	atomlist_init(&data_into);
-	while( (r = config_getword(iter, &value)) != RET_NOTHING ) {
-		if( RET_WAS_ERROR(r) ) {
+	while ((r = config_getword(iter, &value)) != RET_NOTHING) {
+		if (RET_WAS_ERROR(r)) {
 			atomlist_done(&data_from);
 			atomlist_done(&data_into);
 			return r;
 		}
 		separator = strchr(value, '>');
-		if( separator == NULL ) {
+		if (separator == NULL) {
 			separator = value;
 			destination = atom_find(type, value);
 			origin = destination;;
-		} else if( separator == value ) {
+		} else if (separator == value) {
 			destination = atom_find(type, separator + 1);
 			origin = destination;;
-		} else if( separator[1] == '\0' ) {
+		} else if (separator[1] == '\0') {
 			*separator = '\0';
 			separator = value;
 			destination = atom_find(type, value);
@@ -770,7 +782,7 @@ retvalue config_getsplitatoms(struct configiterator *iter, const char *header, e
 			origin = atom_find(type, value);
 			destination = atom_find(type, separator);
 		}
-		if( !atom_defined(origin) ) {
+		if (!atom_defined(origin)) {
 			configparser_errorlast(iter,
 "Unknown %s '%s' in %s.", atomtypes[type], value, header);
 			free(value);
@@ -778,7 +790,7 @@ retvalue config_getsplitatoms(struct configiterator *iter, const char *header, e
 			atomlist_done(&data_into);
 			return RET_ERROR;
 		}
-		if( !atom_defined(destination) ) {
+		if (!atom_defined(destination)) {
 			configparser_errorlast(iter,
 "Unknown %s '%s' in %s.", atomtypes[type], separator, header);
 			free(value);
@@ -788,13 +800,13 @@ retvalue config_getsplitatoms(struct configiterator *iter, const char *header, e
 		}
 		free(value);
 		r = atomlist_add(&data_from, origin);
-		if( RET_WAS_ERROR(r) ) {
+		if (RET_WAS_ERROR(r)) {
 			atomlist_done(&data_from);
 			atomlist_done(&data_into);
 			return r;
 		}
 		r = atomlist_add(&data_into, destination);
-		if( RET_WAS_ERROR(r) ) {
+		if (RET_WAS_ERROR(r)) {
 			atomlist_done(&data_from);
 			atomlist_done(&data_into);
 			return r;
@@ -812,13 +824,13 @@ retvalue config_getatomsublist(struct configiterator *iter, const char *header, 
 	atom_t atom;
 
 	atomlist_init(&data);
-	while( (r = config_getword(iter, &value)) != RET_NOTHING ) {
-		if( RET_WAS_ERROR(r) ) {
+	while ((r = config_getword(iter, &value)) != RET_NOTHING) {
+		if (RET_WAS_ERROR(r)) {
 			atomlist_done(&data);
 			return r;
 		}
 		atom = atom_find(type, value);
-		if( !atom_defined(atom) || !atomlist_in(superset, atom) ) {
+		if (!atom_defined(atom) || !atomlist_in(superset, atom)) {
 			configparser_errorlast(iter,
 "'%s' not allowed in %s as it was not in %s.", value, header, superset_header);
 			free(value);
@@ -826,7 +838,7 @@ retvalue config_getatomsublist(struct configiterator *iter, const char *header, 
 			return RET_ERROR;
 		}
 		r = atomlist_add_uniq(&data, atom);
-		if( r == RET_NOTHING ) {
+		if (r == RET_NOTHING) {
 			configparser_errorlast(iter,
 "Unexpected duplicate '%s' within %s header.", value, header);
 			free(value);
@@ -834,7 +846,7 @@ retvalue config_getatomsublist(struct configiterator *iter, const char *header, 
 			return RET_ERROR;
 		}
 		free(value);
-		if( RET_WAS_ERROR(r) ) {
+		if (RET_WAS_ERROR(r)) {
 			atomlist_done(&data);
 			return r;
 		}
@@ -849,13 +861,13 @@ retvalue config_getwords(struct configiterator *iter, struct strlist *result_p) 
 	struct strlist data;
 
 	strlist_init(&data);
-	while( (r = config_getword(iter, &value)) != RET_NOTHING ) {
-		if( RET_WAS_ERROR(r) ) {
+	while ((r = config_getword(iter, &value)) != RET_NOTHING) {
+		if (RET_WAS_ERROR(r)) {
 			strlist_done(&data);
 			return r;
 		}
 		r = strlist_add(&data, value);
-		if( RET_WAS_ERROR(r) ) {
+		if (RET_WAS_ERROR(r)) {
 			strlist_done(&data);
 			return r;
 		}
@@ -873,24 +885,24 @@ retvalue config_getsignwith(struct configiterator *iter, const char *name, struc
 	strlist_init(&data);
 
 	c = config_nextnonspace(iter);
-	if( c == EOF ) {
+	if (c == EOF) {
 		configparser_errorlast(iter,
 "Missing value for %s field.", name);
 		return RET_ERROR;
 	}
 	/* if the first character is a '!', a script to start follows */
-	if( c == '!' ) {
+	if (c == '!') {
 		r = strlist_add_dup(&data, "!");
-		if( RET_WAS_ERROR(r) )
+		if (RET_WAS_ERROR(r))
 			return r;
 		r = config_getscript(iter, name, &value);
-		assert( r != RET_NOTHING );
-		if( RET_WAS_ERROR(r) ) {
+		assert (r != RET_NOTHING);
+		if (RET_WAS_ERROR(r)) {
 			strlist_done(&data);
 			return r;
 		}
 		r = strlist_add(&data, value);
-		if( RET_WAS_ERROR(r) ) {
+		if (RET_WAS_ERROR(r)) {
 			strlist_done(&data);
 			return r;
 		}
@@ -899,19 +911,19 @@ retvalue config_getsignwith(struct configiterator *iter, const char *name, struc
 	}
 	/* otherwise each word is stored in the strlist */
 	r = config_completeword(iter, c, &value);
-	assert( r != RET_NOTHING );
-	if( RET_WAS_ERROR(r) )
+	assert (r != RET_NOTHING);
+	if (RET_WAS_ERROR(r))
 		return r;
 	r = strlist_add(&data, value);
-	if( RET_WAS_ERROR(r) )
+	if (RET_WAS_ERROR(r))
 		return r;
-	while( (r = config_getword(iter, &value)) != RET_NOTHING ) {
-		if( RET_WAS_ERROR(r) ) {
+	while ((r = config_getword(iter, &value)) != RET_NOTHING) {
+		if (RET_WAS_ERROR(r)) {
 			strlist_done(&data);
 			return r;
 		}
 		r = strlist_add(&data, value);
-		if( RET_WAS_ERROR(r) ) {
+		if (RET_WAS_ERROR(r)) {
 			strlist_done(&data);
 			return r;
 		}
@@ -927,21 +939,21 @@ retvalue config_getsplitwords(struct configiterator *iter, UNUSED(const char *he
 
 	strlist_init(&data_from);
 	strlist_init(&data_into);
-	while( (r = config_getword(iter, &value)) != RET_NOTHING ) {
-		if( RET_WAS_ERROR(r) ) {
+	while ((r = config_getword(iter, &value)) != RET_NOTHING) {
+		if (RET_WAS_ERROR(r)) {
 			strlist_done(&data_from);
 			strlist_done(&data_into);
 			return r;
 		}
 		separator = strchr(value, '>');
-		if( separator == NULL ) {
+		if (separator == NULL) {
 			destination = strdup(value);
 			origin = value;
-		} else if( separator == value ) {
+		} else if (separator == value) {
 			destination = strdup(separator+1);
 			origin = strdup(separator+1);
 			free(value);
-		} else if( separator[1] == '\0' ) {
+		} else if (separator[1] == '\0') {
 			*separator = '\0';
 			destination = strdup(value);
 			origin = value;
@@ -950,21 +962,21 @@ retvalue config_getsplitwords(struct configiterator *iter, UNUSED(const char *he
 			destination = strdup(separator+1);
 			free(value);
 		}
-		if( origin == NULL || destination == NULL ) {
-			free(origin);free(destination);
+		if (FAILEDTOALLOC(origin) || FAILEDTOALLOC(destination)) {
+			free(origin); free(destination);
 			strlist_done(&data_from);
 			strlist_done(&data_into);
 			return RET_ERROR_OOM;
 		}
 		r = strlist_add(&data_from, origin);
-		if( RET_WAS_ERROR(r) ) {
+		if (RET_WAS_ERROR(r)) {
 			free(destination);
 			strlist_done(&data_from);
 			strlist_done(&data_into);
 			return r;
 		}
 		r = strlist_add(&data_into, destination);
-		if( RET_WAS_ERROR(r) ) {
+		if (RET_WAS_ERROR(r)) {
 			strlist_done(&data_from);
 			strlist_done(&data_into);
 			return r;
@@ -980,15 +992,16 @@ retvalue config_getconstant(struct configiterator *iter, const struct constant *
 	char *value;
 	const struct constant *c;
 
-	/* that could be done more in-situ, but is not runtime-critical at all */
+	/* that could be done more in-situ,
+	 * but is not runtime-critical at all */
 
 	r = config_getword(iter, &value);
-	if( r == RET_NOTHING )
+	if (r == RET_NOTHING)
 		return r;
-	if( RET_WAS_ERROR(r) )
+	if (RET_WAS_ERROR(r))
 		return r;
-	for( c = constants ; c->name != NULL ; c++ ) {
-		if( strcmp(c->name, value) == 0 ) {
+	for (c = constants ; c->name != NULL ; c++) {
+		if (strcmp(c->name, value) == 0) {
 			free(value);
 			*result_p = c->value;
 			return RET_OK;
@@ -1002,10 +1015,13 @@ retvalue config_getflags(struct configiterator *iter, const char *header, const 
 	retvalue r, result = RET_NOTHING;
 	int option = -1;
 
-	while( (r = config_getconstant(iter, constants, &option)) != RET_NOTHING ) {
-		if( r == RET_ERROR_UNKNOWNFIELD ) {
+	while (true) {
+		r = config_getconstant(iter, constants, &option);
+		if (r == RET_NOTHING)
+			break;
+		if (r == RET_ERROR_UNKNOWNFIELD) {
 // TODO: would be nice to have the wrong flag here to put it in the error message:
-			if( ignoreunknown ) {
+			if (ignoreunknown) {
 				fprintf(stderr,
 "Warning: ignored error parsing config file %s, line %u, column %u:\n"
 "Unknown flag in %s header.%s\n",
@@ -1023,9 +1039,9 @@ retvalue config_getflags(struct configiterator *iter, const char *header, const 
 					config_markercolumn(iter),
 					header, msg);
 		}
-		if( RET_WAS_ERROR(r) )
+		if (RET_WAS_ERROR(r))
 			return r;
-		assert( option >= 0 );
+		assert (option >= 0);
 		flags[option] = true;
 		result = RET_OK;
 		option = -1;
@@ -1039,14 +1055,14 @@ retvalue config_getall(struct configiterator *iter, char **result_p) {
 	int c;
 
 	c = config_nextnonspace(iter);
-	if( c == EOF )
+	if (c == EOF)
 		return RET_NOTHING;
 	iter->markerline = iter->line;
 	iter->markercolumn = iter->column;
 	do {
-		if( len + 2 >= size ) {
+		if (len + 2 >= size) {
 			nv = realloc(value, size+128);
-			if( nv == NULL ) {
+			if (FAILEDTOALLOC(nv)) {
 				free(value);
 				return RET_ERROR_OOM;
 			}
@@ -1055,20 +1071,20 @@ retvalue config_getall(struct configiterator *iter, char **result_p) {
 		}
 		value[len] = c;
 		len++;
-		if( iter->eol ) {
-			if( !config_nextline(iter) )
+		if (iter->eol) {
+			if (!config_nextline(iter))
 				break;
 		}
 		c = config_nextchar(iter);
-	} while( true );
-	assert( len > 0 );
-	assert( len < size );
-	while( len > 0 && ( value[len-1] == ' ' || value[len-1] == '\t' ||
-			    value[len-1] == '\n' || value[len-1] == '\r' ) )
+	} while (true);
+	assert (len > 0);
+	assert (len < size);
+	while (len > 0 && (value[len-1] == ' ' || value[len-1] == '\t' ||
+			    value[len-1] == '\n' || value[len-1] == '\r'))
 		len--;
 	value[len] = '\0';
 	nv = realloc(value, len+1);
-	if( nv == NULL )
+	if (nv == NULL)
 		*result_p = value;
 	else
 		*result_p = nv;
@@ -1082,30 +1098,30 @@ retvalue config_gettruth(struct configiterator *iter, const char *header, bool *
 	/* wastefull, but does not happen that often */
 
 	r = config_getword(iter, &value);
-	if( r == RET_NOTHING ) {
+	if (r == RET_NOTHING) {
 		configparser_errorlast(iter,
 "Unexpected empty boolean %s header (something like Yes or No expected).", header);
 		return RET_ERROR;
 	}
-	if( RET_WAS_ERROR(r) )
+	if (RET_WAS_ERROR(r))
 		return r;
 	// TODO: check against trailing garbage
-	if( strcasecmp(value, "Yes") == 0 ) {
+	if (strcasecmp(value, "Yes") == 0) {
 		*result_p = true;
 		free(value);
 		return RET_OK;
 	}
-	if( strcasecmp(value, "No") == 0 ) {
+	if (strcasecmp(value, "No") == 0) {
 		*result_p = false;
 		free(value);
 		return RET_OK;
 	}
-	if( strcmp(value, "1") == 0 ) {
+	if (strcmp(value, "1") == 0) {
 		*result_p = true;
 		free(value);
 		return RET_OK;
 	}
-	if( strcmp(value, "0") == 0 ) {
+	if (strcmp(value, "0") == 0) {
 		*result_p = false;
 		free(value);
 		return RET_OK;
@@ -1123,16 +1139,16 @@ retvalue config_getnumber(struct configiterator *iter, const char *name, long lo
 	char *e;
 
 	r = config_getword(iter, &word);
-	if( r == RET_NOTHING ) {
+	if (r == RET_NOTHING) {
 		configparser_errorlast(iter,
 "Unexpected end of line (%s number expected).", name);
 		return RET_ERROR;
 	}
-	if( RET_WAS_ERROR(r) )
+	if (RET_WAS_ERROR(r))
 		return r;
 
 	value = strtoll(word, &e, 10);
-	if( e == word ) {
+	if (e == word) {
 		fprintf(stderr,
 "Error parsing config file %s, line %u, column %u:\n"
 "Expected %s number but got '%s'\n",
@@ -1141,7 +1157,7 @@ retvalue config_getnumber(struct configiterator *iter, const char *name, long lo
 		free(word);
 		return RET_ERROR;
 	}
-	if( e != NULL && *e != '\0' ) {
+	if (e != NULL && *e != '\0') {
 		unsigned char digit1, digit2, digit3;
 		digit1 = ((unsigned char)(*e))&0x7;
 		digit2 = (((unsigned char)(*e)) >> 3)&0x7;
@@ -1156,7 +1172,7 @@ retvalue config_getnumber(struct configiterator *iter, const char *name, long lo
 		free(word);
 		return RET_ERROR;
 	}
-	if( value == LLONG_MAX || value > maxval) {
+	if (value == LLONG_MAX || value > maxval) {
 		fprintf(stderr,
 "Error parsing config file %s, line %u, column %u:\n"
 "Too large %s number '%s'\n",
@@ -1165,7 +1181,7 @@ retvalue config_getnumber(struct configiterator *iter, const char *name, long lo
 		free(word);
 		return RET_ERROR;
 	}
-	if( value == LLONG_MIN || value < minval ) {
+	if (value == LLONG_MIN || value < minval) {
 		fprintf(stderr,
 "Error parsing config file %s, line %u, column %u:\n"
 "Too small %s number '%s'\n",
@@ -1185,14 +1201,14 @@ static retvalue config_getline(struct configiterator *iter, /*@out@*/char **resu
 	int c;
 
 	c = config_nextnonspace(iter);
-	if( c == EOF )
+	if (c == EOF)
 		return RET_NOTHING;
 	iter->markerline = iter->line;
 	iter->markercolumn = iter->column;
 	do {
-		if( len + 2 >= size ) {
+		if (len + 2 >= size) {
 			nv = realloc(value, size+128);
-			if( nv == NULL ) {
+			if (FAILEDTOALLOC(nv)) {
 				free(value);
 				return RET_ERROR_OOM;
 			}
@@ -1202,17 +1218,16 @@ static retvalue config_getline(struct configiterator *iter, /*@out@*/char **resu
 		value[len] = c;
 		len++;
 		c = config_nextchar(iter);
-	} while( c != '\n' );
-	assert( len > 0 );
-	assert( len < size );
-	while( len > 0 &&
-			(value[len-1] == ' ' || value[len-1] == '\t'
-			 || value[len-1] == '\r' ) )
+	} while (c != '\n');
+	assert (len > 0);
+	assert (len < size);
+	while (len > 0 && (value[len-1] == ' ' || value[len-1] == '\t'
+			 || value[len-1] == '\r'))
 		len--;
-	assert( len > 0 );
+	assert (len > 0);
 	value[len] = '\0';
 	nv = realloc(value, len+1);
-	if( nv == NULL )
+	if (nv == NULL)
 		*result_p = value;
 	else
 		*result_p = nv;
@@ -1227,19 +1242,19 @@ retvalue config_getlines(struct configiterator *iter, struct strlist *result) {
 	strlist_init(&list);
 	do {
 		r = config_getline(iter, &line);
-		if( RET_WAS_ERROR(r) ) {
+		if (RET_WAS_ERROR(r)) {
 			strlist_done(&list);
 			return r;
 		}
-		if( r == RET_NOTHING )
+		if (r == RET_NOTHING)
 			r = strlist_add_dup(&list, "");
 		else
 			r = strlist_add(&list, line);
-		if( RET_WAS_ERROR(r) ) {
+		if (RET_WAS_ERROR(r)) {
 			strlist_done(&list);
 			return r;
 		}
-	} while( config_nextline(iter) );
+	} while (config_nextline(iter));
 	strlist_move(result, &list);
 	return RET_OK;
 }

@@ -1,13 +1,9 @@
-#!/bin/bash
-
-set -e
-if [ "x$TESTINCSETUP" != "xissetup" ] ; then
-	source $(dirname $0)/test.inc
-fi
+set -u
+. "$TESTSDIR"/test.inc
 
 dodo test ! -d db
 mkdir -p conf dists
-echo "export never" > conf/options
+echo "export silent-never" > conf/options
 cat > conf/updatelog.sh <<EOF
 #!/bin/sh
 echo "\$@" >> '$WORKDIR/updatelog'
@@ -23,7 +19,7 @@ cat > conf/distributions <<EOF
 Codename: boring
 Suite: unstable
 Components: main firmware
-Architectures: $FAKEARCHITECTURE coal source
+Architectures: abacus coal source
 Log:
 	--via update updatelog.sh
 	--via include shouldnothappen.sh
@@ -32,7 +28,7 @@ Update: - 1 2 3 4
 Codename: interesting
 Suite: experimental
 Components: main firmware
-Architectures: $FAKEARCHITECTURE coal source
+Architectures: abacus coal source
 Update: 5 6 - 7 8
 
 Codename: dummy
@@ -76,7 +72,7 @@ From: wa
 Name: 4
 Suite: suitename
 From: a
-Architectures: $FAKEARCHITECTURE coal
+Architectures: abacus coal
 #without this I do not get a warning, why?
 Components: main firmware
 
@@ -84,7 +80,7 @@ Name: pre1
 Flat: firmware
 From: b
 #without this I do not get a warning, why?
-Architectures: $FAKEARCHITECTURE coal
+Architectures: abacus coal
 FilterFormula: section (>=firmware/), section(<< firmware0)
 
 Name: 1
@@ -95,7 +91,7 @@ Name: 2
 Flat: main
 From: b
 #without this I do not get a warning, why?
-Architectures: $FAKEARCHITECTURE coal source
+Architectures: abacus coal source
 FilterFormula: section (<<firmware/) | section(>= firmware0) | !section
 Suite: x
 
@@ -141,50 +137,50 @@ rm sourcesections
 cat > source2/x/Release <<EOF
 Codename: x
 Suite: toostupidfornonflat
-Architectures: coal $FAKEARCHITECTURE
+Architectures: coal abacus
 MD5Sum:
  $(mdandsize source2/x/Sources) Sources
  $(mdandsize source2/x/Packages) Packages
 EOF
 
-mkdir -p source1/dists/suitename/main/binary-$FAKEARCHITECTURE
+mkdir -p source1/dists/suitename/main/binary-abacus
 mkdir source1/dists/suitename/main/binary-coal
 mkdir source1/dists/suitename/main/source
-mkdir -p source1/dists/suitename/firmware/binary-$FAKEARCHITECTURE
+mkdir -p source1/dists/suitename/firmware/binary-abacus
 mkdir source1/dists/suitename/firmware/binary-coal
 mkdir source1/dists/suitename/firmware/source
 
 cd source1
 dpkg-scansources pool/main /dev/null > dists/suitename/main/source/Sources
-dpkg-scanpackages pool/main /dev/null > dists/suitename/main/binary-$FAKEARCHITECTURE/Packages
+dpkg-scanpackages pool/main /dev/null > dists/suitename/main/binary-abacus/Packages
 dpkg-scanpackages -a coal pool/main /dev/null > dists/suitename/main/binary-coal/Packages
 dpkg-scansources pool/firmware /dev/null > dists/suitename/firmware/source/Sources
-dpkg-scanpackages pool/firmware /dev/null > dists/suitename/firmware/binary-$FAKEARCHITECTURE/Packages
+dpkg-scanpackages pool/firmware /dev/null > dists/suitename/firmware/binary-abacus/Packages
 dpkg-scanpackages -a coal pool/firmware /dev/null > dists/suitename/firmware/binary-coal/Packages
 cd ..
 
 cat > source1/dists/suitename/Release <<EOF
 Codename: hohoho
 Suite: suitename
-Architectures: coal $FAKEARCHITECTURE
+Architectures: coal abacus
 MD5Sum:
- 00000000000000000000000000000000 0 main/binary-$FAKEARCHITECTURE/Packages.lzma
- 00000000000000000000000000000000 0 main/binary-$FAKEARCHITECTURE/Packages.gz
+ 00000000000000000000000000000000 0 main/binary-abacus/Packages.lzma
+ 00000000000000000000000000000000 0 main/binary-abacus/Packages.gz
  00000000000000000000000000000000 0 main/binary-coal/Packages.lzma
  00000000000000000000000000000000 0 main/source/Sources.lzma
- 00000000000000000000000000000000 0 firmware/binary-$FAKEARCHITECTURE/Packages.lzma
+ 00000000000000000000000000000000 0 firmware/binary-abacus/Packages.lzma
  00000000000000000000000000000000 0 firmware/binary-coal/Packages.lzma
  00000000000000000000000000000000 0 firmware/source/Sources.lzma
  00000000000000000000000000000000 0 main/binary-coal/Packages.gz
  00000000000000000000000000000000 0 main/source/Sources.gz
- 00000000000000000000000000000000 0 firmware/binary-$FAKEARCHITECTURE/Packages.gz
+ 00000000000000000000000000000000 0 firmware/binary-abacus/Packages.gz
  00000000000000000000000000000000 0 firmware/binary-coal/Packages.gz
  00000000000000000000000000000000 0 firmware/source/Sources.gz
 EOF
 
 testrun - --unlzma=NONE update boring 3<<EOF
 stdout
--v2*=Created directory "./db"
+$(odb)
 -v2*=Created directory "./lists"
 stderr
 *=./conf/updates:5:126: Ignoring all but first 18 entries...
@@ -192,7 +188,7 @@ stderr
 -v6*=aptmethod start 'copy:$WORKDIR/source1/dists/suitename/Release'
 -v1*=aptmethod got 'copy:$WORKDIR/source2/x/Release'
 -v1*=aptmethod got 'copy:$WORKDIR/source1/dists/suitename/Release'
-*=Error: './lists/a_suitename_Release' only lists unusable or unrequested compressions of 'main/binary-${FAKEARCHITECTURE}/Packages'.
+*=Error: './lists/a_suitename_Release' only lists unusable or unrequested compressions of 'main/binary-abacus/Packages'.
 *=Try e.g the '--unlzma' option (or check what it is set to) to make more useable.
 *=Or change your DownloadListsAs to request e.g. '.gz'.
 -v0*=There have been errors!
@@ -202,12 +198,12 @@ EOF
 cat > source1/dists/suitename/Release <<EOF
 Codename: hohoho
 Suite: suitename
-Architectures: coal $FAKEARCHITECTURE
+Architectures: coal abacus
 MD5Sum:
- 00000000000000000000000000000000 0 main/binary-$FAKEARCHITECTURE/Packages.lzma
+ 00000000000000000000000000000000 0 main/binary-abacus/Packages.lzma
  00000000000000000000000000000000 0 main/binary-coal/Packages.lzma
  00000000000000000000000000000000 0 main/source/Sources.lzma
- 00000000000000000000000000000000 0 firmware/binary-$FAKEARCHITECTURE/Packages.lzma
+ 00000000000000000000000000000000 0 firmware/binary-abacus/Packages.lzma
  00000000000000000000000000000000 0 firmware/binary-coal/Packages.lzma
  00000000000000000000000000000000 0 firmware/source/Sources.lzma
 EOF
@@ -219,7 +215,7 @@ stderr
 -v6*=aptmethod start 'copy:$WORKDIR/source1/dists/suitename/Release'
 -v1*=aptmethod got 'copy:$WORKDIR/source2/x/Release'
 -v1*=aptmethod got 'copy:$WORKDIR/source1/dists/suitename/Release'
-*=Error: './lists/a_suitename_Release' only lists unusable compressions of 'main/binary-${FAKEARCHITECTURE}/Packages'.
+*=Error: './lists/a_suitename_Release' only lists unusable compressions of 'main/binary-abacus/Packages'.
 *=Try e.g the '--unlzma' option (or check what it is set to) to make more useable.
 -v0*=There have been errors!
 returns 255
@@ -228,12 +224,12 @@ EOF
 cat > source1/dists/suitename/Release <<EOF
 Codename: hohoho
 Suite: suitename
-Architectures: coal $FAKEARCHITECTURE
+Architectures: coal abacus
 MD5Sum:
- $(cd source1 ; md5releaseline suitename main/binary-$FAKEARCHITECTURE/Packages)
+ $(cd source1 ; md5releaseline suitename main/binary-abacus/Packages)
  $(cd source1 ; md5releaseline suitename main/binary-coal/Packages)
  $(cd source1 ; md5releaseline suitename main/source/Sources)
- $(cd source1 ; md5releaseline suitename firmware/binary-$FAKEARCHITECTURE/Packages)
+ $(cd source1 ; md5releaseline suitename firmware/binary-abacus/Packages)
  $(cd source1 ; md5releaseline suitename firmware/binary-coal/Packages)
  $(cd source1 ; md5releaseline suitename firmware/source/Sources)
 EOF
@@ -245,7 +241,7 @@ stderr
 -v6*=aptmethod start 'copy:$WORKDIR/source1/dists/suitename/Release'
 -v1*=aptmethod got 'copy:$WORKDIR/source2/x/Release'
 -v1*=aptmethod got 'copy:$WORKDIR/source1/dists/suitename/Release'
-*=Error: './lists/a_suitename_Release' only lists unrequested compressions of 'main/binary-${FAKEARCHITECTURE}/Packages'.
+*=Error: './lists/a_suitename_Release' only lists unrequested compressions of 'main/binary-abacus/Packages'.
 *=Try changing your DownloadListsAs to request e.g. '.'.
 -v0*=There have been errors!
 returns 255
@@ -264,18 +260,18 @@ stderr
 -v6*=aptmethod start 'copy:$WORKDIR/source2/x/Packages'
 -v6*=aptmethod start 'copy:$WORKDIR/source1/dists/suitename/Release'
 -v6*=aptmethod start 'copy:$WORKDIR/source1/dists/suitename/main/source/Sources'
--v6*=aptmethod start 'copy:$WORKDIR/source1/dists/suitename/main/binary-$FAKEARCHITECTURE/Packages'
+-v6*=aptmethod start 'copy:$WORKDIR/source1/dists/suitename/main/binary-abacus/Packages'
 -v6*=aptmethod start 'copy:$WORKDIR/source1/dists/suitename/main/binary-coal/Packages'
--v6*=aptmethod start 'copy:$WORKDIR/source1/dists/suitename/firmware/binary-$FAKEARCHITECTURE/Packages'
+-v6*=aptmethod start 'copy:$WORKDIR/source1/dists/suitename/firmware/binary-abacus/Packages'
 -v6*=aptmethod start 'copy:$WORKDIR/source1/dists/suitename/firmware/binary-coal/Packages'
 -v1*=aptmethod got 'copy:$WORKDIR/source2/x/Release'
 -v1*=aptmethod got 'copy:$WORKDIR/source2/x/Sources'
 -v1*=aptmethod got 'copy:$WORKDIR/source2/x/Packages'
 -v1*=aptmethod got 'copy:$WORKDIR/source1/dists/suitename/Release'
 -v1*=aptmethod got 'copy:$WORKDIR/source1/dists/suitename/main/source/Sources'
--v1*=aptmethod got 'copy:$WORKDIR/source1/dists/suitename/main/binary-$FAKEARCHITECTURE/Packages'
+-v1*=aptmethod got 'copy:$WORKDIR/source1/dists/suitename/main/binary-abacus/Packages'
 -v1*=aptmethod got 'copy:$WORKDIR/source1/dists/suitename/main/binary-coal/Packages'
--v1*=aptmethod got 'copy:$WORKDIR/source1/dists/suitename/firmware/binary-$FAKEARCHITECTURE/Packages'
+-v1*=aptmethod got 'copy:$WORKDIR/source1/dists/suitename/firmware/binary-abacus/Packages'
 -v1*=aptmethod got 'copy:$WORKDIR/source1/dists/suitename/firmware/binary-coal/Packages'
 stdout
 -v0*=Calculating packages to get...
@@ -284,41 +280,41 @@ stdout
 -v5*=  marking everything to be deleted
 -v3*=  processing updates for 'boring|firmware|coal'
 -v5*=  reading './lists/a_suitename_firmware_coal_Packages'
--v3*=  processing updates for 'boring|firmware|${FAKEARCHITECTURE}'
--v5*=  reading './lists/a_suitename_firmware_${FAKEARCHITECTURE}_Packages'
+-v3*=  processing updates for 'boring|firmware|abacus'
+-v5*=  reading './lists/a_suitename_firmware_abacus_Packages'
 -v3*=  processing updates for 'boring|main|source'
 -v5*=  reading './lists/b_x_Sources'
 -v5*=  reading './lists/a_suitename_main_Sources'
 -v3*=  processing updates for 'boring|main|coal'
 -v5*=  reading './lists/b_x_Packages'
 -v5*=  reading './lists/a_suitename_main_coal_Packages'
--v3*=  processing updates for 'boring|main|${FAKEARCHITECTURE}'
+-v3*=  processing updates for 'boring|main|abacus'
 #-v5*=  reading './lists/b_x_Packages'
--v5*=  reading './lists/a_suitename_main_${FAKEARCHITECTURE}_Packages'
+-v5*=  reading './lists/a_suitename_main_abacus_Packages'
 -v0*=Getting packages...
 stderr
 -v6*=aptmethod start 'copy:$WORKDIR/source2/./cc-addons_1-1000_all.deb'
 -v6*=aptmethod start 'copy:$WORKDIR/source2/./dd-addons_2-0_all.deb'
--v6*=aptmethod start 'copy:$WORKDIR/source2/./cc_1-1000_$FAKEARCHITECTURE.deb'
--v6*=aptmethod start 'copy:$WORKDIR/source2/./dd_2-0_$FAKEARCHITECTURE.deb'
+-v6*=aptmethod start 'copy:$WORKDIR/source2/./cc_1-1000_abacus.deb'
+-v6*=aptmethod start 'copy:$WORKDIR/source2/./dd_2-0_abacus.deb'
 -v6*=aptmethod start 'copy:$WORKDIR/source2/./cc_1-1000.tar.gz'
 -v6*=aptmethod start 'copy:$WORKDIR/source2/./cc_1-1000.dsc'
 -v1*=aptmethod got 'copy:$WORKDIR/source2/./cc-addons_1-1000_all.deb'
 -v1*=aptmethod got 'copy:$WORKDIR/source2/./dd-addons_2-0_all.deb'
--v1*=aptmethod got 'copy:$WORKDIR/source2/./cc_1-1000_$FAKEARCHITECTURE.deb'
--v1*=aptmethod got 'copy:$WORKDIR/source2/./dd_2-0_$FAKEARCHITECTURE.deb'
+-v1*=aptmethod got 'copy:$WORKDIR/source2/./cc_1-1000_abacus.deb'
+-v1*=aptmethod got 'copy:$WORKDIR/source2/./dd_2-0_abacus.deb'
 -v1*=aptmethod got 'copy:$WORKDIR/source2/./cc_1-1000.tar.gz'
 -v1*=aptmethod got 'copy:$WORKDIR/source2/./cc_1-1000.dsc'
 -v6*=aptmethod start 'copy:$WORKDIR/source1/pool/main/aa-addons_1-1000_all.deb'
 -v6*=aptmethod start 'copy:$WORKDIR/source1/pool/firmware/bb-addons_2-0_all.deb'
--v6*=aptmethod start 'copy:$WORKDIR/source1/pool/main/aa_1-1000_$FAKEARCHITECTURE.deb'
--v6*=aptmethod start 'copy:$WORKDIR/source1/pool/firmware/bb_2-0_$FAKEARCHITECTURE.deb'
+-v6*=aptmethod start 'copy:$WORKDIR/source1/pool/main/aa_1-1000_abacus.deb'
+-v6*=aptmethod start 'copy:$WORKDIR/source1/pool/firmware/bb_2-0_abacus.deb'
 -v6*=aptmethod start 'copy:$WORKDIR/source1/pool/main/aa_1-1000.tar.gz'
 -v6*=aptmethod start 'copy:$WORKDIR/source1/pool/main/aa_1-1000.dsc'
 -v1*=aptmethod got 'copy:$WORKDIR/source1/pool/main/aa-addons_1-1000_all.deb'
 -v1*=aptmethod got 'copy:$WORKDIR/source1/pool/firmware/bb-addons_2-0_all.deb'
--v1*=aptmethod got 'copy:$WORKDIR/source1/pool/main/aa_1-1000_$FAKEARCHITECTURE.deb'
--v1*=aptmethod got 'copy:$WORKDIR/source1/pool/firmware/bb_2-0_$FAKEARCHITECTURE.deb'
+-v1*=aptmethod got 'copy:$WORKDIR/source1/pool/main/aa_1-1000_abacus.deb'
+-v1*=aptmethod got 'copy:$WORKDIR/source1/pool/firmware/bb_2-0_abacus.deb'
 -v1*=aptmethod got 'copy:$WORKDIR/source1/pool/main/aa_1-1000.tar.gz'
 -v1*=aptmethod got 'copy:$WORKDIR/source1/pool/main/aa_1-1000.dsc'
 stdout
@@ -333,41 +329,34 @@ stdout
 -v2*=Created directory "./pool/main/c/cc"
 -v2*=Created directory "./pool/main/a"
 -v2*=Created directory "./pool/main/a/aa"
--d1*=db: 'pool/firmware/d/dd/dd-addons_2-0_all.deb' added to checksums.db(pool).
--d1*=db: 'pool/firmware/d/dd/dd_2-0_${FAKEARCHITECTURE}.deb' added to checksums.db(pool).
--d1*=db: 'pool/main/c/cc/cc-addons_1-1000_all.deb' added to checksums.db(pool).
--d1*=db: 'pool/main/c/cc/cc_1-1000_${FAKEARCHITECTURE}.deb' added to checksums.db(pool).
--d1*=db: 'pool/main/c/cc/cc_1-1000.dsc' added to checksums.db(pool).
--d1*=db: 'pool/main/c/cc/cc_1-1000.tar.gz' added to checksums.db(pool).
--d1*=db: 'pool/firmware/b/bb/bb-addons_2-0_all.deb' added to checksums.db(pool).
--d1*=db: 'pool/firmware/b/bb/bb_2-0_${FAKEARCHITECTURE}.deb' added to checksums.db(pool).
--d1*=db: 'pool/main/a/aa/aa-addons_1-1000_all.deb' added to checksums.db(pool).
--d1*=db: 'pool/main/a/aa/aa_1-1000_${FAKEARCHITECTURE}.deb' added to checksums.db(pool).
--d1*=db: 'pool/main/a/aa/aa_1-1000.dsc' added to checksums.db(pool).
--d1*=db: 'pool/main/a/aa/aa_1-1000.tar.gz' added to checksums.db(pool).
+$(ofa 'pool/firmware/d/dd/dd-addons_2-0_all.deb')
+$(ofa 'pool/firmware/d/dd/dd_2-0_abacus.deb')
+$(ofa 'pool/main/c/cc/cc-addons_1-1000_all.deb')
+$(ofa 'pool/main/c/cc/cc_1-1000_abacus.deb')
+$(ofa 'pool/main/c/cc/cc_1-1000.dsc')
+$(ofa 'pool/main/c/cc/cc_1-1000.tar.gz')
+$(ofa 'pool/firmware/b/bb/bb-addons_2-0_all.deb')
+$(ofa 'pool/firmware/b/bb/bb_2-0_abacus.deb')
+$(ofa 'pool/main/a/aa/aa-addons_1-1000_all.deb')
+$(ofa 'pool/main/a/aa/aa_1-1000_abacus.deb')
+$(ofa 'pool/main/a/aa/aa_1-1000.dsc')
+$(ofa 'pool/main/a/aa/aa_1-1000.tar.gz')
 -v1*=Shutting down aptmethods...
 -v0*=Installing (and possibly deleting) packages...
 -d1*=db: 'dd-addons' added to packages.db(boring|firmware|coal).
--d1*=db: 'dd' added to packages.db(boring|firmware|$FAKEARCHITECTURE).
--d1*=db: 'dd-addons' added to packages.db(boring|firmware|$FAKEARCHITECTURE).
+-d1*=db: 'dd' added to packages.db(boring|firmware|abacus).
+-d1*=db: 'dd-addons' added to packages.db(boring|firmware|abacus).
 -d1*=db: 'cc-addons' added to packages.db(boring|main|coal).
 -d1*=db: 'cc' added to packages.db(boring|main|source).
--d1*=db: 'cc' added to packages.db(boring|main|$FAKEARCHITECTURE).
--d1*=db: 'cc-addons' added to packages.db(boring|main|$FAKEARCHITECTURE).
+-d1*=db: 'cc' added to packages.db(boring|main|abacus).
+-d1*=db: 'cc-addons' added to packages.db(boring|main|abacus).
 -d1*=db: 'bb-addons' added to packages.db(boring|firmware|coal).
--d1*=db: 'bb' added to packages.db(boring|firmware|$FAKEARCHITECTURE).
--d1*=db: 'bb-addons' added to packages.db(boring|firmware|$FAKEARCHITECTURE).
+-d1*=db: 'bb' added to packages.db(boring|firmware|abacus).
+-d1*=db: 'bb-addons' added to packages.db(boring|firmware|abacus).
 -d1*=db: 'aa-addons' added to packages.db(boring|main|coal).
 -d1*=db: 'aa' added to packages.db(boring|main|source).
--d1*=db: 'aa' added to packages.db(boring|main|$FAKEARCHITECTURE).
--d1*=db: 'aa-addons' added to packages.db(boring|main|$FAKEARCHITECTURE).
-stderr
-*=Warning: database 'boring|main|${FAKEARCHITECTURE}' was modified but no index file was exported.
-*=Warning: database 'boring|main|coal' was modified but no index file was exported.
-*=Warning: database 'boring|main|source' was modified but no index file was exported.
-*=Warning: database 'boring|firmware|${FAKEARCHITECTURE}' was modified but no index file was exported.
-*=Warning: database 'boring|firmware|coal' was modified but no index file was exported.
-*=Changes will only be visible after the next 'export'!
+-d1*=db: 'aa' added to packages.db(boring|main|abacus).
+-d1*=db: 'aa-addons' added to packages.db(boring|main|abacus).
 EOF
 
 DISTRI=dummy PACKAGE=aa EPOCH="" VERSION=2 REVISION=-1 SECTION="base" genpackage.sh -sa
@@ -380,22 +369,22 @@ mv ee* bb* source1/pool/firmware
 
 cd source1
 dpkg-scansources pool/main /dev/null > dists/suitename/main/source/Sources
-dpkg-scanpackages pool/main /dev/null > dists/suitename/main/binary-$FAKEARCHITECTURE/Packages
+dpkg-scanpackages pool/main /dev/null > dists/suitename/main/binary-abacus/Packages
 dpkg-scanpackages -a coal pool/main /dev/null > dists/suitename/main/binary-coal/Packages
 dpkg-scansources pool/firmware /dev/null > dists/suitename/firmware/source/Sources
-dpkg-scanpackages pool/firmware /dev/null > dists/suitename/firmware/binary-$FAKEARCHITECTURE/Packages
+dpkg-scanpackages pool/firmware /dev/null > dists/suitename/firmware/binary-abacus/Packages
 dpkg-scanpackages -a coal pool/firmware /dev/null > dists/suitename/firmware/binary-coal/Packages
 cd ..
 
 cat > source1/dists/suitename/Release <<EOF
 Codename: hohoho
 Suite: suitename
-Architectures: coal $FAKEARCHITECTURE
+Architectures: coal abacus
 MD5Sum:
- $(cd source1 ; md5releaseline suitename main/binary-$FAKEARCHITECTURE/Packages)
+ $(cd source1 ; md5releaseline suitename main/binary-abacus/Packages)
  $(cd source1 ; md5releaseline suitename main/binary-coal/Packages)
  $(cd source1 ; md5releaseline suitename main/source/Sources)
- $(cd source1 ; md5releaseline suitename firmware/binary-$FAKEARCHITECTURE/Packages)
+ $(cd source1 ; md5releaseline suitename firmware/binary-abacus/Packages)
  $(cd source1 ; md5releaseline suitename firmware/binary-coal/Packages)
  $(cd source1 ; md5releaseline suitename firmware/source/Sources)
 EOF
@@ -414,65 +403,60 @@ stderr
 -v6*=aptmethod start 'copy:$WORKDIR/source2/x/Release'
 -v6*=aptmethod start 'copy:$WORKDIR/source1/dists/suitename/Release'
 -v6*=aptmethod start 'copy:$WORKDIR/source1/dists/suitename/main/source/Sources'
--v6*=aptmethod start 'copy:$WORKDIR/source1/dists/suitename/main/binary-$FAKEARCHITECTURE/Packages'
+-v6*=aptmethod start 'copy:$WORKDIR/source1/dists/suitename/main/binary-abacus/Packages'
 -v6*=aptmethod start 'copy:$WORKDIR/source1/dists/suitename/main/binary-coal/Packages'
--v6*=aptmethod start 'copy:$WORKDIR/source1/dists/suitename/firmware/binary-$FAKEARCHITECTURE/Packages'
+-v6*=aptmethod start 'copy:$WORKDIR/source1/dists/suitename/firmware/binary-abacus/Packages'
 -v6*=aptmethod start 'copy:$WORKDIR/source1/dists/suitename/firmware/binary-coal/Packages'
 -v1*=aptmethod got 'copy:$WORKDIR/source2/x/Release'
 -v1*=aptmethod got 'copy:$WORKDIR/source1/dists/suitename/Release'
 -v1*=aptmethod got 'copy:$WORKDIR/source1/dists/suitename/main/source/Sources'
--v1*=aptmethod got 'copy:$WORKDIR/source1/dists/suitename/main/binary-$FAKEARCHITECTURE/Packages'
+-v1*=aptmethod got 'copy:$WORKDIR/source1/dists/suitename/main/binary-abacus/Packages'
 -v1*=aptmethod got 'copy:$WORKDIR/source1/dists/suitename/main/binary-coal/Packages'
--v1*=aptmethod got 'copy:$WORKDIR/source1/dists/suitename/firmware/binary-$FAKEARCHITECTURE/Packages'
+-v1*=aptmethod got 'copy:$WORKDIR/source1/dists/suitename/firmware/binary-abacus/Packages'
 -v1*=aptmethod got 'copy:$WORKDIR/source1/dists/suitename/firmware/binary-coal/Packages'
 stdout
 -v0*=Calculating packages to get...
 -v4*=  nothing to do for 'boring|firmware|source'
 -v3*=  processing updates for 'boring|firmware|coal'
 -v5*=  reading './lists/a_suitename_firmware_coal_Packages'
--v3*=  processing updates for 'boring|firmware|${FAKEARCHITECTURE}'
--v5*=  reading './lists/a_suitename_firmware_${FAKEARCHITECTURE}_Packages'
+-v3*=  processing updates for 'boring|firmware|abacus'
+-v5*=  reading './lists/a_suitename_firmware_abacus_Packages'
 -v3*=  processing updates for 'boring|main|source'
 -v5*=  reading './lists/b_x_Sources'
 -v5*=  reading './lists/a_suitename_main_Sources'
 -v3*=  processing updates for 'boring|main|coal'
 -v5*=  reading './lists/b_x_Packages'
 -v5*=  reading './lists/a_suitename_main_coal_Packages'
--v3*=  processing updates for 'boring|main|${FAKEARCHITECTURE}'
+-v3*=  processing updates for 'boring|main|abacus'
 #-v5*=  reading './lists/b_x_Packages'
--v5*=  reading './lists/a_suitename_main_${FAKEARCHITECTURE}_Packages'
+-v5*=  reading './lists/a_suitename_main_abacus_Packages'
 -v0*=Getting packages...
 stderr
 -v6*=aptmethod start 'copy:$WORKDIR/source1/pool/main/aa-addons_2-1_all.deb'
--v6*=aptmethod start 'copy:$WORKDIR/source1/pool/main/aa_2-1_$FAKEARCHITECTURE.deb'
+-v6*=aptmethod start 'copy:$WORKDIR/source1/pool/main/aa_2-1_abacus.deb'
 -v6*=aptmethod start 'copy:$WORKDIR/source1/pool/main/aa_2-1.tar.gz'
 -v6*=aptmethod start 'copy:$WORKDIR/source1/pool/main/aa_2-1.dsc'
 -v1*=aptmethod got 'copy:$WORKDIR/source1/pool/main/aa-addons_2-1_all.deb'
--v1*=aptmethod got 'copy:$WORKDIR/source1/pool/main/aa_2-1_$FAKEARCHITECTURE.deb'
+-v1*=aptmethod got 'copy:$WORKDIR/source1/pool/main/aa_2-1_abacus.deb'
 -v1*=aptmethod got 'copy:$WORKDIR/source1/pool/main/aa_2-1.tar.gz'
 -v1*=aptmethod got 'copy:$WORKDIR/source1/pool/main/aa_2-1.dsc'
 stdout
--d1*=db: 'pool/main/a/aa/aa-addons_2-1_all.deb' added to checksums.db(pool).
--d1*=db: 'pool/main/a/aa/aa_2-1_${FAKEARCHITECTURE}.deb' added to checksums.db(pool).
--d1*=db: 'pool/main/a/aa/aa_2-1.dsc' added to checksums.db(pool).
--d1*=db: 'pool/main/a/aa/aa_2-1.tar.gz' added to checksums.db(pool).
+$(ofa 'pool/main/a/aa/aa-addons_2-1_all.deb')
+$(ofa 'pool/main/a/aa/aa_2-1_abacus.deb')
+$(ofa 'pool/main/a/aa/aa_2-1.dsc')
+$(ofa 'pool/main/a/aa/aa_2-1.tar.gz')
 -v1*=Shutting down aptmethods...
 -v0*=Installing (and possibly deleting) packages...
 -d1*=db: 'aa-addons' removed from packages.db(boring|main|coal).
 -d1*=db: 'aa-addons' added to packages.db(boring|main|coal).
 -d1*=db: 'aa' removed from packages.db(boring|main|source).
 -d1*=db: 'aa' added to packages.db(boring|main|source).
--d1*=db: 'aa' removed from packages.db(boring|main|$FAKEARCHITECTURE).
--d1*=db: 'aa' added to packages.db(boring|main|$FAKEARCHITECTURE).
--d1*=db: 'aa-addons' removed from packages.db(boring|main|$FAKEARCHITECTURE).
--d1*=db: 'aa-addons' added to packages.db(boring|main|$FAKEARCHITECTURE).
+-d1*=db: 'aa' removed from packages.db(boring|main|abacus).
+-d1*=db: 'aa' added to packages.db(boring|main|abacus).
+-d1*=db: 'aa-addons' removed from packages.db(boring|main|abacus).
+-d1*=db: 'aa-addons' added to packages.db(boring|main|abacus).
 -v1*=4 files lost their last reference.
 -v1*=(dumpunreferenced lists such files, use deleteunreferenced to delete them.)
-stderr
-*=Warning: database 'boring|main|${FAKEARCHITECTURE}' was modified but no index file was exported.
-*=Warning: database 'boring|main|coal' was modified but no index file was exported.
-*=Warning: database 'boring|main|source' was modified but no index file was exported.
-*=Changes will only be visible after the next 'export'!
 EOF
 
 #remove upgradeonly again, letting ee in
@@ -505,37 +489,33 @@ stdout
 -v4*=  nothing to do for 'boring|firmware|source'
 -v3*=  processing updates for 'boring|firmware|coal'
 -v5*=  reading './lists/a_suitename_firmware_coal_Packages'
--v3*=  processing updates for 'boring|firmware|${FAKEARCHITECTURE}'
--v5*=  reading './lists/a_suitename_firmware_${FAKEARCHITECTURE}_Packages'
+-v3*=  processing updates for 'boring|firmware|abacus'
+-v5*=  reading './lists/a_suitename_firmware_abacus_Packages'
 -v3*=  processing updates for 'boring|main|source'
 -v5*=  reading './lists/b_x_Sources'
 -v5*=  reading './lists/a_suitename_main_Sources'
 -v3*=  processing updates for 'boring|main|coal'
 -v5*=  reading './lists/b_x_Packages'
 -v5*=  reading './lists/a_suitename_main_coal_Packages'
--v3*=  processing updates for 'boring|main|${FAKEARCHITECTURE}'
+-v3*=  processing updates for 'boring|main|abacus'
 #-v5*=  reading './lists/b_x_Packages'
--v5*=  reading './lists/a_suitename_main_${FAKEARCHITECTURE}_Packages'
+-v5*=  reading './lists/a_suitename_main_abacus_Packages'
 -v0*=Getting packages...
 -v2*=Created directory "./pool/firmware/e"
 -v2*=Created directory "./pool/firmware/e/ee"
 stderr
 -v6*=aptmethod start 'copy:$WORKDIR/source1/pool/firmware/ee-addons_2-1_all.deb'
--v6*=aptmethod start 'copy:$WORKDIR/source1/pool/firmware/ee_2-1_$FAKEARCHITECTURE.deb'
+-v6*=aptmethod start 'copy:$WORKDIR/source1/pool/firmware/ee_2-1_abacus.deb'
 -v1*=aptmethod got 'copy:$WORKDIR/source1/pool/firmware/ee-addons_2-1_all.deb'
--v1*=aptmethod got 'copy:$WORKDIR/source1/pool/firmware/ee_2-1_$FAKEARCHITECTURE.deb'
+-v1*=aptmethod got 'copy:$WORKDIR/source1/pool/firmware/ee_2-1_abacus.deb'
 stdout
--d1*=db: 'pool/firmware/e/ee/ee-addons_2-1_all.deb' added to checksums.db(pool).
--d1*=db: 'pool/firmware/e/ee/ee_2-1_${FAKEARCHITECTURE}.deb' added to checksums.db(pool).
+$(ofa 'pool/firmware/e/ee/ee-addons_2-1_all.deb')
+$(ofa 'pool/firmware/e/ee/ee_2-1_abacus.deb')
 -v1*=Shutting down aptmethods...
 -v0*=Installing (and possibly deleting) packages...
 -d1*=db: 'ee-addons' added to packages.db(boring|firmware|coal).
--d1*=db: 'ee' added to packages.db(boring|firmware|$FAKEARCHITECTURE).
--d1*=db: 'ee-addons' added to packages.db(boring|firmware|$FAKEARCHITECTURE).
-stderr
-*=Warning: database 'boring|firmware|${FAKEARCHITECTURE}' was modified but no index file was exported.
-*=Warning: database 'boring|firmware|coal' was modified but no index file was exported.
-*=Changes will only be visible after the next 'export'!
+-d1*=db: 'ee' added to packages.db(boring|firmware|abacus).
+-d1*=db: 'ee-addons' added to packages.db(boring|firmware|abacus).
 EOF
 
 #  reinsert delete rule, this should cause a downgrade of bb
@@ -556,41 +536,37 @@ stdout
 -v5*=  marking everything to be deleted
 -v3*=  processing updates for 'boring|firmware|coal'
 -v5*=  reading './lists/a_suitename_firmware_coal_Packages'
--v3*=  processing updates for 'boring|firmware|${FAKEARCHITECTURE}'
--v5*=  reading './lists/a_suitename_firmware_${FAKEARCHITECTURE}_Packages'
+-v3*=  processing updates for 'boring|firmware|abacus'
+-v5*=  reading './lists/a_suitename_firmware_abacus_Packages'
 -v3*=  processing updates for 'boring|main|source'
 -v5*=  reading './lists/b_x_Sources'
 -v5*=  reading './lists/a_suitename_main_Sources'
 -v3*=  processing updates for 'boring|main|coal'
 -v5*=  reading './lists/b_x_Packages'
 -v5*=  reading './lists/a_suitename_main_coal_Packages'
--v3*=  processing updates for 'boring|main|${FAKEARCHITECTURE}'
+-v3*=  processing updates for 'boring|main|abacus'
 #-v5*=  reading './lists/b_x_Packages'
--v5*=  reading './lists/a_suitename_main_${FAKEARCHITECTURE}_Packages'
+-v5*=  reading './lists/a_suitename_main_abacus_Packages'
 -v0*=Getting packages...
 stderr
 -v6*=aptmethod start 'copy:$WORKDIR/source1/pool/firmware/bb-addons_1-1_all.deb'
--v6*=aptmethod start 'copy:$WORKDIR/source1/pool/firmware/bb_1-1_$FAKEARCHITECTURE.deb'
+-v6*=aptmethod start 'copy:$WORKDIR/source1/pool/firmware/bb_1-1_abacus.deb'
 -v1*=aptmethod got 'copy:$WORKDIR/source1/pool/firmware/bb-addons_1-1_all.deb'
--v1*=aptmethod got 'copy:$WORKDIR/source1/pool/firmware/bb_1-1_$FAKEARCHITECTURE.deb'
+-v1*=aptmethod got 'copy:$WORKDIR/source1/pool/firmware/bb_1-1_abacus.deb'
 *=Warning: downgrading 'bb-addons' from '2-0' to '1-1' in 'boring|firmware|coal'!
-*=Warning: downgrading 'bb' from '2-0' to '1-1' in 'boring|firmware|${FAKEARCHITECTURE}'!
-*=Warning: downgrading 'bb-addons' from '2-0' to '1-1' in 'boring|firmware|${FAKEARCHITECTURE}'!
+*=Warning: downgrading 'bb' from '2-0' to '1-1' in 'boring|firmware|abacus'!
+*=Warning: downgrading 'bb-addons' from '2-0' to '1-1' in 'boring|firmware|abacus'!
 stdout
--d1*=db: 'pool/firmware/b/bb/bb-addons_1-1_all.deb' added to checksums.db(pool).
--d1*=db: 'pool/firmware/b/bb/bb_1-1_${FAKEARCHITECTURE}.deb' added to checksums.db(pool).
+$(ofa 'pool/firmware/b/bb/bb-addons_1-1_all.deb')
+$(ofa 'pool/firmware/b/bb/bb_1-1_abacus.deb')
 -v1*=Shutting down aptmethods...
 -v0*=Installing (and possibly deleting) packages...
 -d1*=db: 'bb-addons' removed from packages.db(boring|firmware|coal).
--d1*=db: 'bb' removed from packages.db(boring|firmware|$FAKEARCHITECTURE).
--d1*=db: 'bb-addons' removed from packages.db(boring|firmware|$FAKEARCHITECTURE).
+-d1*=db: 'bb' removed from packages.db(boring|firmware|abacus).
+-d1*=db: 'bb-addons' removed from packages.db(boring|firmware|abacus).
 -d1*=db: 'bb-addons' added to packages.db(boring|firmware|coal).
--d1*=db: 'bb' added to packages.db(boring|firmware|$FAKEARCHITECTURE).
--d1*=db: 'bb-addons' added to packages.db(boring|firmware|$FAKEARCHITECTURE).
-stderr
-*=Warning: database 'boring|firmware|${FAKEARCHITECTURE}' was modified but no index file was exported.
-*=Warning: database 'boring|firmware|coal' was modified but no index file was exported.
-*=Changes will only be visible after the next 'export'!
+-d1*=db: 'bb' added to packages.db(boring|firmware|abacus).
+-d1*=db: 'bb-addons' added to packages.db(boring|firmware|abacus).
 stdout
 -v1*=2 files lost their last reference.
 -v1*=(dumpunreferenced lists such files, use deleteunreferenced to delete them.)
@@ -611,16 +587,16 @@ stderr
 -v6*=aptmethod start 'copy:$WORKDIR/source2/x/Release'
 -v6*=aptmethod start 'copy:$WORKDIR/source2/dists/x/Release'
 -v6*=aptmethod start 'copy:$WORKDIR/source2/dists/x/main/source/Sources'
--v6*=aptmethod start 'copy:$WORKDIR/source2/dists/x/main/binary-$FAKEARCHITECTURE/Packages'
+-v6*=aptmethod start 'copy:$WORKDIR/source2/dists/x/main/binary-abacus/Packages'
 -v6*=aptmethod start 'copy:$WORKDIR/source2/dists/x/main/binary-coal/Packages'
--v6*=aptmethod start 'copy:$WORKDIR/source2/dists/x/firmware/binary-$FAKEARCHITECTURE/Packages'
+-v6*=aptmethod start 'copy:$WORKDIR/source2/dists/x/firmware/binary-abacus/Packages'
 -v6*=aptmethod start 'copy:$WORKDIR/source2/dists/x/firmware/binary-coal/Packages'
 -v1*=aptmethod got 'copy:$WORKDIR/source2/x/Release'
 -v1*=aptmethod got 'copy:$WORKDIR/source2/dists/x/Release'
 -v1*=aptmethod got 'copy:$WORKDIR/source2/dists/x/main/source/Sources'
--v1*=aptmethod got 'copy:$WORKDIR/source2/dists/x/main/binary-$FAKEARCHITECTURE/Packages'
+-v1*=aptmethod got 'copy:$WORKDIR/source2/dists/x/main/binary-abacus/Packages'
 -v1*=aptmethod got 'copy:$WORKDIR/source2/dists/x/main/binary-coal/Packages'
--v1*=aptmethod got 'copy:$WORKDIR/source2/dists/x/firmware/binary-$FAKEARCHITECTURE/Packages'
+-v1*=aptmethod got 'copy:$WORKDIR/source2/dists/x/firmware/binary-abacus/Packages'
 -v1*=aptmethod got 'copy:$WORKDIR/source2/dists/x/firmware/binary-coal/Packages'
 stdout
 -v0*=Calculating packages to get...
@@ -629,17 +605,17 @@ stdout
 # 5 times:
 -v5*=  marking everything to be deleted
 -v5*=  reading './lists/b_x_firmware_coal_Packages'
--v3*=  processing updates for 'boring|firmware|${FAKEARCHITECTURE}'
--v5*=  reading './lists/b_x_firmware_${FAKEARCHITECTURE}_Packages'
+-v3*=  processing updates for 'boring|firmware|abacus'
+-v5*=  reading './lists/b_x_firmware_abacus_Packages'
 -v3*=  processing updates for 'boring|main|source'
 -v5*=  reading './lists/b_x_Sources'
 -v5*=  reading './lists/b_x_main_Sources'
 -v3*=  processing updates for 'boring|main|coal'
 -v5*=  reading './lists/b_x_Packages'
 -v5*=  reading './lists/b_x_main_coal_Packages'
--v3*=  processing updates for 'boring|main|${FAKEARCHITECTURE}'
+-v3*=  processing updates for 'boring|main|abacus'
 #-v5*=  reading './lists/b_x_Packages'
--v5*=  reading './lists/b_x_main_${FAKEARCHITECTURE}_Packages'
+-v5*=  reading './lists/b_x_main_abacus_Packages'
 stderr
 EOF
 
@@ -657,28 +633,28 @@ EOF
 cat > results.expected <<EOF
 add boring deb firmware coal bb-addons 2-0 -- pool/firmware/b/bb/bb-addons_2-0_all.deb
 add boring deb firmware coal dd-addons 2-0 -- pool/firmware/d/dd/dd-addons_2-0_all.deb
-add boring deb firmware ${FAKEARCHITECTURE} bb 2-0 -- pool/firmware/b/bb/bb_2-0_${FAKEARCHITECTURE}.deb
-add boring deb firmware ${FAKEARCHITECTURE} bb-addons 2-0 -- pool/firmware/b/bb/bb-addons_2-0_all.deb
-add boring deb firmware ${FAKEARCHITECTURE} dd 2-0 -- pool/firmware/d/dd/dd_2-0_${FAKEARCHITECTURE}.deb
-add boring deb firmware ${FAKEARCHITECTURE} dd-addons 2-0 -- pool/firmware/d/dd/dd-addons_2-0_all.deb
+add boring deb firmware abacus bb 2-0 -- pool/firmware/b/bb/bb_2-0_abacus.deb
+add boring deb firmware abacus bb-addons 2-0 -- pool/firmware/b/bb/bb-addons_2-0_all.deb
+add boring deb firmware abacus dd 2-0 -- pool/firmware/d/dd/dd_2-0_abacus.deb
+add boring deb firmware abacus dd-addons 2-0 -- pool/firmware/d/dd/dd-addons_2-0_all.deb
 add boring dsc main source aa 1-1000 -- pool/main/a/aa/aa_1-1000.dsc pool/main/a/aa/aa_1-1000.tar.gz
 add boring dsc main source cc 1-1000 -- pool/main/c/cc/cc_1-1000.dsc pool/main/c/cc/cc_1-1000.tar.gz
 add boring deb main coal aa-addons 1-1000 -- pool/main/a/aa/aa-addons_1-1000_all.deb
 add boring deb main coal cc-addons 1-1000 -- pool/main/c/cc/cc-addons_1-1000_all.deb
-add boring deb main ${FAKEARCHITECTURE} aa 1-1000 -- pool/main/a/aa/aa_1-1000_${FAKEARCHITECTURE}.deb
-add boring deb main ${FAKEARCHITECTURE} aa-addons 1-1000 -- pool/main/a/aa/aa-addons_1-1000_all.deb
-add boring deb main ${FAKEARCHITECTURE} cc 1-1000 -- pool/main/c/cc/cc_1-1000_${FAKEARCHITECTURE}.deb
-add boring deb main ${FAKEARCHITECTURE} cc-addons 1-1000 -- pool/main/c/cc/cc-addons_1-1000_all.deb
+add boring deb main abacus aa 1-1000 -- pool/main/a/aa/aa_1-1000_abacus.deb
+add boring deb main abacus aa-addons 1-1000 -- pool/main/a/aa/aa-addons_1-1000_all.deb
+add boring deb main abacus cc 1-1000 -- pool/main/c/cc/cc_1-1000_abacus.deb
+add boring deb main abacus cc-addons 1-1000 -- pool/main/c/cc/cc-addons_1-1000_all.deb
 replace boring dsc main source aa 2-1 1-1000 -- pool/main/a/aa/aa_2-1.dsc pool/main/a/aa/aa_2-1.tar.gz -- pool/main/a/aa/aa_1-1000.dsc pool/main/a/aa/aa_1-1000.tar.gz
 replace boring deb main coal aa-addons 2-1 1-1000 -- pool/main/a/aa/aa-addons_2-1_all.deb -- pool/main/a/aa/aa-addons_1-1000_all.deb
-replace boring deb main ${FAKEARCHITECTURE} aa 2-1 1-1000 -- pool/main/a/aa/aa_2-1_${FAKEARCHITECTURE}.deb -- pool/main/a/aa/aa_1-1000_${FAKEARCHITECTURE}.deb
-replace boring deb main ${FAKEARCHITECTURE} aa-addons 2-1 1-1000 -- pool/main/a/aa/aa-addons_2-1_all.deb -- pool/main/a/aa/aa-addons_1-1000_all.deb
+replace boring deb main abacus aa 2-1 1-1000 -- pool/main/a/aa/aa_2-1_abacus.deb -- pool/main/a/aa/aa_1-1000_abacus.deb
+replace boring deb main abacus aa-addons 2-1 1-1000 -- pool/main/a/aa/aa-addons_2-1_all.deb -- pool/main/a/aa/aa-addons_1-1000_all.deb
 add boring deb firmware coal ee-addons 2-1 -- pool/firmware/e/ee/ee-addons_2-1_all.deb
-add boring deb firmware ${FAKEARCHITECTURE} ee 2-1 -- pool/firmware/e/ee/ee_2-1_${FAKEARCHITECTURE}.deb
-add boring deb firmware ${FAKEARCHITECTURE} ee-addons 2-1 -- pool/firmware/e/ee/ee-addons_2-1_all.deb
+add boring deb firmware abacus ee 2-1 -- pool/firmware/e/ee/ee_2-1_abacus.deb
+add boring deb firmware abacus ee-addons 2-1 -- pool/firmware/e/ee/ee-addons_2-1_all.deb
 replace boring deb firmware coal bb-addons 1-1 2-0 -- pool/firmware/b/bb/bb-addons_1-1_all.deb -- pool/firmware/b/bb/bb-addons_2-0_all.deb
-replace boring deb firmware ${FAKEARCHITECTURE} bb 1-1 2-0 -- pool/firmware/b/bb/bb_1-1_${FAKEARCHITECTURE}.deb -- pool/firmware/b/bb/bb_2-0_${FAKEARCHITECTURE}.deb
-replace boring deb firmware ${FAKEARCHITECTURE} bb-addons 1-1 2-0 -- pool/firmware/b/bb/bb-addons_1-1_all.deb -- pool/firmware/b/bb/bb-addons_2-0_all.deb
+replace boring deb firmware abacus bb 1-1 2-0 -- pool/firmware/b/bb/bb_1-1_abacus.deb -- pool/firmware/b/bb/bb_2-0_abacus.deb
+replace boring deb firmware abacus bb-addons 1-1 2-0 -- pool/firmware/b/bb/bb-addons_1-1_all.deb -- pool/firmware/b/bb/bb-addons_2-0_all.deb
 EOF
 
 dodo test ! -f shouldnothappen

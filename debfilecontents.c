@@ -43,19 +43,19 @@ static retvalue read_data_tar(/*@out@*/char **list, /*@out@*/size_t *size, const
 	int a, e;
 
 	r = filelistcompressor_setup(&c);
-	if( RET_WAS_ERROR(r) )
+	if (RET_WAS_ERROR(r))
 		return r;
 
 	archive_read_support_format_tar(tar);
 	archive_read_support_format_gnutar(tar);
-	a = archive_read_open(tar,ar,
+	a = archive_read_open(tar, ar,
 			ar_archivemember_open,
 			ar_archivemember_read,
 			ar_archivemember_close);
-	if( a != ARCHIVE_OK ) {
+	if (a != ARCHIVE_OK) {
 		filelistcompressor_cancel(&c);
 		e = archive_errno(tar);
-		if( e == -EINVAL) /* special code to say there is none */
+		if (e == -EINVAL) /* special code to say there is none */
 			fprintf(stderr,
 "open data.tar within '%s' failed: %s\n",
 				debfile, archive_error_string(tar));
@@ -65,32 +65,32 @@ static retvalue read_data_tar(/*@out@*/char **list, /*@out@*/size_t *size, const
 				archive_error_string(tar));
 		return RET_ERROR;
 	}
-	while( (a=archive_read_next_header(tar, &entry)) == ARCHIVE_OK ) {
+	while ((a=archive_read_next_header(tar, &entry)) == ARCHIVE_OK) {
 		const char *name = archive_entry_pathname(entry);
 		mode_t mode;
 
-		if( name[0] == '.' )
+		if (name[0] == '.')
 			name++;
-		if( name[0] == '/' )
+		if (name[0] == '/')
 			name++;
-		if( name[0] == '\0' )
+		if (name[0] == '\0')
 			continue;
 		mode = archive_entry_mode(entry);
-		if( !S_ISDIR(mode) ) {
+		if (!S_ISDIR(mode)) {
 			r = filelistcompressor_add(&c, name, strlen(name));
-			if( RET_WAS_ERROR(r) ) {
+			if (RET_WAS_ERROR(r)) {
 				filelistcompressor_cancel(&c);
 				return r;
 			}
 		}
-		if( interrupted() ) {
+		if (interrupted()) {
 			filelistcompressor_cancel(&c);
 			return RET_ERROR_INTERRUPTED;
 		}
 		a = archive_read_data_skip(tar);
-		if( a != ARCHIVE_OK ) {
+		if (a != ARCHIVE_OK) {
 			e = archive_errno(tar);
-			if( e == -EINVAL ) {
+			if (e == -EINVAL) {
 				r = RET_ERROR;
 				fprintf(stderr,
 "Error skipping %s within data.tar from %s: %s\n",
@@ -101,7 +101,7 @@ static retvalue read_data_tar(/*@out@*/char **list, /*@out@*/size_t *size, const
 "Error %d skipping %s within data.tar from %s: %s\n",
 					e, archive_entry_pathname(entry),
 					debfile, archive_error_string(tar));
-				if( e != 0 )
+				if (e != 0)
 					r = RET_ERRNO(e);
 				else
 					r = RET_ERROR;
@@ -110,9 +110,9 @@ static retvalue read_data_tar(/*@out@*/char **list, /*@out@*/size_t *size, const
 			return r;
 		}
 	}
-	if( a != ARCHIVE_EOF ) {
+	if (a != ARCHIVE_EOF) {
 		e = archive_errno(tar);
-		if( e == -EINVAL ) {
+		if (e == -EINVAL) {
 			r = RET_ERROR;
 			fprintf(stderr,
 "Error reading data.tar from %s: %s\n", debfile, archive_error_string(tar));
@@ -120,7 +120,7 @@ static retvalue read_data_tar(/*@out@*/char **list, /*@out@*/size_t *size, const
 			fprintf(stderr,
 "Error %d reading data.tar from %s: %s\n",
 					e, debfile, archive_error_string(tar));
-			if( e != 0 )
+			if (e != 0)
 				r = RET_ERRNO(e);
 			else
 				r = RET_ERROR;
@@ -137,32 +137,32 @@ retvalue getfilelist(/*@out@*/char **filelist, size_t *size, const char *debfile
 	retvalue r;
 	bool hadcandidate = false;
 
-	r = ar_open(&ar,debfile);
-	if( RET_WAS_ERROR(r) )
+	r = ar_open(&ar, debfile);
+	if (RET_WAS_ERROR(r))
 		return r;
-	assert( r != RET_NOTHING);
+	assert (r != RET_NOTHING);
 	do {
 		char *filename;
 		enum compression c;
 
 		r = ar_nextmember(ar, &filename);
-		if( RET_IS_OK(r) ) {
-			if( strncmp(filename, "data.tar", 8) != 0 ) {
+		if (RET_IS_OK(r)) {
+			if (strncmp(filename, "data.tar", 8) != 0) {
 				free(filename);
 				continue;
 			}
 			hadcandidate = true;
-			for( c = 0 ; c < c_COUNT ; c++ ) {
-				if( strcmp(filename + 8,
+			for (c = 0 ; c < c_COUNT ; c++) {
+				if (strcmp(filename + 8,
 						uncompression_suffix[c]) == 0)
 					break;
 			}
-			if( c >= c_COUNT ) {
+			if (c >= c_COUNT) {
 				free(filename);
 				continue;
 			}
 			ar_archivemember_setcompression(ar, c);
-			if( uncompression_supported(c) ) {
+			if (uncompression_supported(c)) {
 				struct archive *tar;
 
 				tar = archive_read_new();
@@ -170,7 +170,7 @@ retvalue getfilelist(/*@out@*/char **filelist, size_t *size, const char *debfile
 						debfile, ar, tar);
 				// TODO: check how to get an error message here..
 				archive_read_finish(tar);
-				if( r != RET_NOTHING ) {
+				if (r != RET_NOTHING) {
 					ar_close(ar);
 					free(filename);
 					return r;
@@ -179,9 +179,9 @@ retvalue getfilelist(/*@out@*/char **filelist, size_t *size, const char *debfile
 			}
 			free(filename);
 		}
-	} while( RET_IS_OK(r) );
+	} while (RET_IS_OK(r));
 	ar_close(ar);
-	if( hadcandidate )
+	if (hadcandidate)
 		fprintf(stderr,
 "Could not find a suitable data.tar file within '%s'!\n", debfile);
 	else

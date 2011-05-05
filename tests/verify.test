@@ -1,18 +1,10 @@
-#!/bin/bash
-
-set -e
-
-if test "${MAINTESTOPTIONS+set}" != set ; then
-	source $(dirname $0)/test.inc
-	STANDALONE="true"
-else
-	STANDALONE=""
-fi
+set -u
+. "$TESTSDIR"/test.inc
 
 mkdir gpgtestdir
 chmod go-rwx gpgtestdir
 export GNUPGHOME="`pwd`/gpgtestdir"
-gpg --import $SRCDIR/tests/good.key $SRCDIR/tests/evil.key $SRCDIR/tests/expired.key $SRCDIR/tests/revoked.key $SRCDIR/tests/expiredwithsubkey-working.key $SRCDIR/tests/withsubkeys-works.key
+gpg --import $TESTSDIR/good.key $TESTSDIR/evil.key $TESTSDIR/expired.key $TESTSDIR/revoked.key $TESTSDIR/expiredwithsubkey-working.key $TESTSDIR/withsubkeys-works.key
 
 CURDATE="$(date +"%Y-%m-%d")"
 
@@ -39,7 +31,7 @@ CONFEND
 testrun - -b . update Test 3<<EOF
 return 255
 stdout
--v2*=Created directory "./db"
+$(odb)
 stderr
 *=Error: Too short key id '111' in VerifyRelease condition '111'!
 -v0*=There have been errors!
@@ -121,7 +113,7 @@ gpg --expert -a --sign -b -u evil@nowhere.tld --output test/dists/test/Release.g
 rm -r gpgtestdir
 mkdir gpgtestdir
 chmod go-rwx gpgtestdir
-gpg --import $SRCDIR/tests/good.key $SRCDIR/tests/evil.key $SRCDIR/tests/expired.key $SRCDIR/tests/revoked.key $SRCDIR/tests/revoked.pkey $SRCDIR/tests/expiredwithsubkey.key $SRCDIR/tests/withsubkeys.key
+gpg --import $TESTSDIR/good.key $TESTSDIR/evil.key $TESTSDIR/expired.key $TESTSDIR/revoked.key $TESTSDIR/revoked.pkey $TESTSDIR/expiredwithsubkey.key $TESTSDIR/withsubkeys.key
 gpg --list-keys
 
 testrun - -b . update Test 3<<EOF
@@ -461,10 +453,4 @@ EOF
 
 rm -rf db conf gpgtestdir gpgtestdir lists test
 
-if test x$STANDALONE = xtrue ; then
-	set +v +x
-	echo
-	echo "If the script is still running to show this,"
-	echo "all tested cases seem to work. (Though writing some tests more can never harm)."
-fi
-exit 0
+testsuccess

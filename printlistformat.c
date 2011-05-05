@@ -36,13 +36,13 @@ retvalue listformat_print(const char *listformat, const struct target *target, c
 	retvalue r;
 	const char *p, *q;
 
-	if( listformat == NULL ) {
+	if (listformat == NULL) {
 		char *version;
 
 		r = target->getversion(control, &version);
-		if( RET_IS_OK(r) ) {
-			printf(
-"%s: %s %s\n",	target->identifier, package, version);
+		if (RET_IS_OK(r)) {
+			printf( "%s: %s %s\n",
+					target->identifier, package, version);
 			free(version);
 		} else {
 			printf("Could not retrieve version from %s in %s\n",
@@ -51,16 +51,16 @@ retvalue listformat_print(const char *listformat, const struct target *target, c
 		return r;
 	}
 	/* try to produce the same output dpkg-query --show produces: */
-	for( p = listformat ; *p != '\0' ; p++ ) {
+	for (p = listformat ; *p != '\0' ; p++) {
 		long length;
 		char *value;
 		const char *v;
 
-		if( *p == '\\' ) {
+		if (*p == '\\') {
 			p++;
-			if( *p == '\0' )
+			if (*p == '\0')
 				break;
-			switch( *p ) {
+			switch (*p) {
 				case 'n':
 					putchar('\n');
 					break;
@@ -80,89 +80,89 @@ retvalue listformat_print(const char *listformat, const struct target *target, c
 			}
 			continue;
 		}
-		if( *p != '$' || p[1] != '{' ) {
+		if (*p != '$' || p[1] != '{') {
 			putchar(*p);
 			continue;
 		}
 		p++;
 		/* substitute veriable */
 		q = p;
-		while( *q != '\0' && *q != '}' && *q != ';' )
+		while (*q != '\0' && *q != '}' && *q != ';')
 			q++;
-		if( *q == '\0' || q == p ) {
+		if (*q == '\0' || q == p) {
 			putchar('$');
 			putchar('{');
 			continue;
 		}
-		if( q - p == 12 && strncasecmp(p, "{$identifier", 12) == 0 ) {
+		if (q - p == 12 && strncasecmp(p, "{$identifier", 12) == 0) {
 			value = NULL;
 			v = target->identifier;
-		} else if( q - p == 6 && strncasecmp(p, "{$type", 6) == 0 ) {
+		} else if (q - p == 6 && strncasecmp(p, "{$type", 6) == 0) {
 			value = NULL;
-			v = atoms_packagetypes[target->packagetype_atom];
-		} else if( q - p == 10 &&
-				strncasecmp(p, "{$codename", 10) == 0 ) {
+			v = atoms_packagetypes[target->packagetype];
+		} else if (q - p == 10 &&
+				strncasecmp(p, "{$codename", 10) == 0) {
 			value = NULL;
 			v = target->distribution->codename;
-		} else if( q - p == 14 &&
-				strncasecmp(p, "{$architecture", 14) == 0 ) {
+		} else if (q - p == 14 &&
+				strncasecmp(p, "{$architecture", 14) == 0) {
 			value = NULL;
-			v = atoms_architectures[target->architecture_atom];
-		} else if( q - p == 11 &&
-				strncasecmp(p, "{$component", 11) == 0 ) {
+			v = atoms_architectures[target->architecture];
+		} else if (q - p == 11 &&
+				strncasecmp(p, "{$component", 11) == 0) {
 			value = NULL;
-			v = atoms_components[target->component_atom];
-		} else if( q - p == 8 && strncasecmp(p, "{$source", 8) == 0 ) {
+			v = atoms_components[target->component];
+		} else if (q - p == 8 && strncasecmp(p, "{$source", 8) == 0) {
 			char *dummy = NULL;
 			r = target->getsourceandversion(control, package,
 					&value, &dummy);
-			if( RET_WAS_ERROR(r) )
+			if (RET_WAS_ERROR(r))
 				return r;
-			if( RET_IS_OK(r) ) {
+			if (RET_IS_OK(r)) {
 				free(dummy);
 				v = value;
 			} else {
 				value = NULL;
 				v = "";
 			}
-		} else if( q - p == 15 && strncasecmp(p, "{$sourceversion", 15) == 0 ) {
+		} else if (q - p == 15 && strncasecmp(p, "{$sourceversion", 15) == 0) {
 			char *dummy = NULL;
 			r = target->getsourceandversion(control, package,
 					&dummy, &value);
-			if( RET_WAS_ERROR(r) )
+			if (RET_WAS_ERROR(r))
 				return r;
-			if( RET_IS_OK(r) ) {
+			if (RET_IS_OK(r)) {
 				free(dummy);
 				v = value;
 			} else {
 				value = NULL;
 				v = "";
 			}
-		} else if( q - p == 8 && strncasecmp(p, "{package", 8) == 0 ) {
+		} else if (q - p == 8 && strncasecmp(p, "{package", 8) == 0) {
 			value = NULL;
 			v = package;
 		} else {
 			char *variable = strndup(p + 1, q - (p + 1));
-			if( FAILEDTOALLOC(variable) )
-			return RET_ERROR_OOM;
+			if (FAILEDTOALLOC(variable))
+				return RET_ERROR_OOM;
 			r = chunk_getwholedata(control, variable, &value);
 			free(variable);
-			if( RET_WAS_ERROR(r) )
+			if (RET_WAS_ERROR(r))
 				return r;
-			if( RET_IS_OK(r) ) {
+			if (RET_IS_OK(r)) {
 				v = value;
-				while( *v != '\0' && xisspace(*v) )
+				while (*v != '\0' && xisspace(*v))
 					v++;
 			} else {
 				value = NULL;
 				v = "";
 			}
 		}
-		if( *q == ';' ) {
+		if (*q == ';') {
 			/* dpkg-query allows octal an hexadecimal,
 			 * so we do, too */
 			length = strtol(q + 1, (char**)&p, 0);
-			if( *p != '}' ) {
+			if (*p != '}') {
 				free(value);
 				putchar('$');
 				putchar('{');
@@ -173,26 +173,26 @@ retvalue listformat_print(const char *listformat, const struct target *target, c
 			length = 0;
 		}
 		/* as in dpkg-query, length 0 means unlimited */
-		if( length == 0 ) {
+		if (length == 0) {
 			fputs(v, stdout);
 		} else {
 			long value_length = strlen(v);
 
-			if( length < 0 ) {
+			if (length < 0) {
 				length = -length;
-				while( value_length < length ) {
+				while (value_length < length) {
 					putchar(' ');
 					length--;
 				}
 			}
-			if( value_length > length ) {
+			if (value_length > length) {
 				fwrite(v, length, 1, stdout);
 				length = 0;
-			} else if( value_length > 0 ) {
+			} else if (value_length > 0) {
 				fwrite(v, value_length, 1, stdout);
 				length -= value_length;
 			}
-			while( length-- > 0 )
+			while (length-- > 0)
 				putchar(' ');
 		}
 		free(value);

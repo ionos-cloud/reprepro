@@ -38,7 +38,7 @@
    For each source package check:
 	- if tracking is enabled and there is a .log or .changes file
 	  for the given arch -> SKIP
-   	- if there is a binary package for the given architecture -> SKIP
+	- if there is a binary package for the given architecture -> SKIP
 	- if the package's Architecture field excludes this arch -> SKIP
 	- if the package's Binary field only lists existing ones
           (i.e. architecture all) -> SKIP
@@ -51,53 +51,53 @@ static retvalue tracked_source_needs_build(architecture_t architecture, const ch
 	int i;
 
 	memset(found_binary, 0, sizeof(bool)*binary->count);
-	for( i = 0 ; i < tp->filekeys.count ; i++ ) {
+	for (i = 0 ; i < tp->filekeys.count ; i++) {
 		enum filetype ft = tp->filetypes[i];
 		const char *fk = tp->filekeys.values[i];
 
-		if( ft == ft_XTRA_DATA )
+		if (ft == ft_XTRA_DATA)
 			continue;
-		if( ft == ft_ALL_BINARY ) {
+		if (ft == ft_ALL_BINARY) {
 			int j;
 
 			/* determine which binary files are arch all
 			   packages: */
-			for( j = 0 ; j < binary->count ; j++ ) {
+			for (j = 0 ; j < binary->count ; j++) {
 				const char *b = binary->values[j];
 				size_t l = strlen(b);
 
-				if( strncmp(fk, b, l) == 0 &&
-						fk[l] == '_' )
+				if (strncmp(fk, b, l) == 0 &&
+						fk[l] == '_')
 					found_binary[j] = true;
 			}
 			continue;
 		}
-		if( ft == ft_ARCH_BINARY ) {
+		if (ft == ft_ARCH_BINARY) {
 			const char *a = strrchr(fk, '_');
 
-			if( a == NULL )
+			if (a == NULL)
 				continue;
 			a++;
-			if( strncmp(a, archstring, archstringlen) != 0 ||
-					a[archstringlen] != '.' )
+			if (strncmp(a, archstring, archstringlen) != 0 ||
+					a[archstringlen] != '.')
 				continue;
 			/* found an .deb with this architecture,
 			   so nothing is to be done */
 			return RET_NOTHING;
 		}
-		if( ft == ft_LOG || ft == ft_CHANGES ) {
+		if (ft == ft_LOG || ft == ft_CHANGES) {
 			const char *a = strrchr(fk, '_');
 			const char *e;
 
-			if( a == NULL )
+			if (a == NULL)
 				continue;
 			a++;
-			while( (e = strchr(a, '+')) != NULL ) {
-				if( (size_t)(e-a) != archstringlen ) {
+			while ((e = strchr(a, '+')) != NULL) {
+				if ((size_t)(e-a) != archstringlen) {
 					a = e+1;
 					continue;
 				}
-				if( memcmp(a, archstring, archstringlen) != 0 ){
+				if (memcmp(a, archstring, archstringlen) != 0){
 					a = e+1;
 					continue;
 				}
@@ -105,13 +105,13 @@ static retvalue tracked_source_needs_build(architecture_t architecture, const ch
 					return RET_NOTHING;
 			}
 			e = strchr(a, '.');
-			if( e == NULL )
+			if (e == NULL)
 				continue;
-			if( (size_t)(e-a) != archstringlen ) {
+			if ((size_t)(e-a) != archstringlen) {
 				a = e+1;
 				continue;
 			}
-			if( memcmp(a, archstring, archstringlen) != 0 ){
+			if (memcmp(a, archstring, archstringlen) != 0){
 				a = e+1;
 				continue;
 			}
@@ -121,8 +121,8 @@ static retvalue tracked_source_needs_build(architecture_t architecture, const ch
 	}
 	/* nothing for this architecture was found, check if is has any binary
 	   packages that are lacking: */
-	for( i = 0 ; i < binary->count ; i++ ) {
-		if( !found_binary[i] ) {
+	for (i = 0 ; i < binary->count ; i++) {
+		if (!found_binary[i]) {
 			printf("%s %s %s\n",
 					sourcename, sourceversion,
 					dscfilename);
@@ -138,7 +138,7 @@ struct needbuild_data { architecture_t architecture;
 	/*@null@*/ const char *glob;
 };
 
-static retvalue check_source_needs_build(UNUSED(struct database *database), struct distribution *distribution, struct target *target, const char *sourcename, const char *control, void *data) {
+static retvalue check_source_needs_build(struct distribution *distribution, struct target *target, const char *sourcename, const char *control, void *data) {
 	struct needbuild_data *d = data;
 	char *sourceversion;
 	struct strlist binary, architectures, filekeys;
@@ -146,52 +146,52 @@ static retvalue check_source_needs_build(UNUSED(struct database *database), stru
 	int i;
 	retvalue r;
 
-	if( d->glob != NULL && !globmatch(sourcename, d->glob) )
+	if (d->glob != NULL && !globmatch(sourcename, d->glob))
 		return RET_NOTHING;
 
 	r = target->getversion(control, &sourceversion);
-	if( !RET_IS_OK(r) )
+	if (!RET_IS_OK(r))
 		return r;
 	r = chunk_getwordlist(control, "Architecture", &architectures);
-	if( RET_IS_OK(r) ) {
+	if (RET_IS_OK(r)) {
 		bool skip = true;
 
-		for( i = 0 ; i < architectures.count ; i++ ) {
+		for (i = 0 ; i < architectures.count ; i++) {
 			const char *a = architectures.values[i];
-			if( strcmp(a, "any") == 0 ) {
+			if (strcmp(a, "any") == 0) {
 				skip = false;
 				break;
 			}
-			if( strcmp(a, atoms_architectures[
-						d->architecture]) == 0 ) {
+			if (strcmp(a, atoms_architectures[
+						d->architecture]) == 0) {
 				skip = false;
 				break;
 			}
 		}
 		strlist_done(&architectures);
-		if( skip ) {
+		if (skip) {
 			free(sourceversion);
 			return RET_NOTHING;
 		}
 	}
 	r = chunk_getwordlist(control, "Binary", &binary);
-	if( !RET_IS_OK(r) ) {
+	if (!RET_IS_OK(r)) {
 		free(sourceversion);
 		return r;
 	}
 	r = target->getfilekeys(control, &filekeys);
-	if( !RET_IS_OK(r) ) {
+	if (!RET_IS_OK(r)) {
 		strlist_done(&binary);
 		free(sourceversion);
 		return r;
 	}
-	for( i = 0 ; i < filekeys.count ; i++ ) {
-		if( endswith(filekeys.values[i], ".dsc") ) {
+	for (i = 0 ; i < filekeys.count ; i++) {
+		if (endswith(filekeys.values[i], ".dsc")) {
 			dscfilename = filekeys.values[i];
 			break;
 		}
 	}
-	if( dscfilename == NULL ) {
+	if (dscfilename == NULL) {
 		fprintf(stderr,
 "Warning: source package '%s' in '%s' without dsc file!\n",
 				sourcename, target->identifier);
@@ -201,17 +201,17 @@ static retvalue check_source_needs_build(UNUSED(struct database *database), stru
 		return RET_NOTHING;
 	}
 
-	if( d->tracks != NULL ) {
+	if (d->tracks != NULL) {
 		struct trackedpackage *tp;
 
 		r = tracking_get(d->tracks, sourcename, sourceversion, &tp);
-		if( RET_WAS_ERROR(r) ) {
+		if (RET_WAS_ERROR(r)) {
 			free(sourceversion);
 			strlist_done(&binary);
 			strlist_done(&filekeys);
 			return r;
 		}
-		if( RET_IS_OK(r) ) {
+		if (RET_IS_OK(r)) {
 			r = tracked_source_needs_build(
 					d->architecture, sourcename,
 					sourceversion, dscfilename,
@@ -222,7 +222,10 @@ static retvalue check_source_needs_build(UNUSED(struct database *database), stru
 			strlist_done(&filekeys);
 			return r;
 		}
-		fprintf(stderr, "Warning: %s's tracking data of %s (%s) is out of date. Run retrack to repair!\n", distribution->codename, sourcename, sourceversion);
+		fprintf(stderr,
+"Warning: %s's tracking data of %s (%s) is out of date. Run retrack to repair!\n",
+				distribution->codename,
+				sourcename, sourceversion);
 	}
 	// TODO: implement without tracking
 	free(sourceversion);
@@ -232,14 +235,14 @@ static retvalue check_source_needs_build(UNUSED(struct database *database), stru
 }
 
 
-retvalue find_needs_build(struct database *database, struct distribution *distribution, architecture_t architecture, const struct atomlist *onlycomponents, const char *glob) {
+retvalue find_needs_build(struct distribution *distribution, architecture_t architecture, const struct atomlist *onlycomponents, const char *glob) {
 	retvalue result, r;
 	struct needbuild_data d;
 
 	d.architecture = architecture;
 	d.glob = glob;
 
-	if( distribution->tracking == dt_NONE ) {
+	if (distribution->tracking == dt_NONE) {
 		fprintf(stderr,
 "ERROR: '%s' has no source package Tracking enabled and\n"
 "build-needing is currently only implemented for distributions where\n"
@@ -250,16 +253,16 @@ retvalue find_needs_build(struct database *database, struct distribution *distri
 		return RET_ERROR;
 	}
 
-	if( distribution->tracking != dt_NONE ) {
-		r = tracking_initialize(&d.tracks, database, distribution, true);
-		if( RET_WAS_ERROR(r) )
+	if (distribution->tracking != dt_NONE) {
+		r = tracking_initialize(&d.tracks, distribution, true);
+		if (RET_WAS_ERROR(r))
 			return r;
-		if( r == RET_NOTHING )
+		if (r == RET_NOTHING)
 			d.tracks = NULL;
 	} else
 			d.tracks = NULL;
 
-	result = distribution_foreach_package_c(distribution, database,
+	result = distribution_foreach_package_c(distribution,
 			onlycomponents, architecture_source, pt_dsc,
 			check_source_needs_build, &d);
 

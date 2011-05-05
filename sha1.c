@@ -83,11 +83,11 @@ void SHA1_Transform(uint32_t state[5], const uint8_t buffer[64])
     int i;
 #endif
 
-    assert( sizeof(block) == 64*sizeof(uint8_t) );
+    assert (sizeof(block) == 64*sizeof(uint8_t));
 #ifdef WORDS_BIGENDIAN
     memcpy(block, buffer, sizeof(block));
 #else
-    for( i = 0 ; i < 16 ; i++ ) {
+    for (i = 0 ; i < 16 ; i++) {
 	    block[i] = (buffer[4*i]<<24) | (buffer[4*i+1]<<16) |
 		    (buffer[4*i+2]<<8) | buffer[4*i+3];
     }
@@ -151,15 +151,15 @@ void SHA1Update(struct SHA1_Context *context, const uint8_t* data, const size_t 
 
     j = context->count & 63;
     context->count += len;
-    if ( j == 0 ) {
-        for ( i = 0 ; len >= i + 64 ; i += 64) {
+    if (j == 0) {
+        for (i = 0 ; len >= i + 64 ; i += 64) {
             SHA1_Transform(context->state, data + i);
         }
         j = 0;
     } else if ((j + len) >= 64) {
         memcpy(&context->buffer[j], data, (i = 64-j));
         SHA1_Transform(context->state, context->buffer);
-        for ( ; len >= i + 64 ; i += 64) {
+        for (; len >= i + 64 ; i += 64) {
             SHA1_Transform(context->state, data + i);
         }
         j = 0;
@@ -180,14 +180,14 @@ void SHA1Final(struct SHA1_Context *context, uint8_t digest[SHA1_DIGEST_SIZE])
     i = context->count & 63;
     context->buffer[i] = '\200';
     i++;
-    if( i > 56 ) {
-	    if( i < 64 )
+    if (i > 56) {
+	    if (i < 64)
 		    memset(context->buffer + i, 0, 64-i);
 	    SHA1_Transform(context->state, context->buffer);
 	    i = 0;
     }
-    if( i < 56 ) {
-    	memset( context->buffer + i, 0, 56-i );
+    if (i < 56) {
+	memset(context->buffer + i, 0, 56-i);
     }
     for (j = 7; j >= 0; j--) {
 	    context->buffer[56 + j] = bitcount & 0xFF;

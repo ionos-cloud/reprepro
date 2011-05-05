@@ -9,6 +9,6 @@
 #include "atoms.h"
 #endif
 
-retvalue guess_component(const char *codename, const struct atomlist *components, const char *package, const char *section, component_t, /*@out@*/component_t *);
+retvalue guess_component(const char * /*codename*/, const struct atomlist * /*components*/, const char * /*package*/, const char * /*section*/, component_t, /*@out@*/component_t *);
 
 #endif

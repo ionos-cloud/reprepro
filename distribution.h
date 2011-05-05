@@ -34,7 +34,7 @@ struct distribution {
 	/* additional information for the Release-file to be
 	 * generated, may be NULL. only suite is sometimes used
 	 * (and only for sanity checks) */
-	/*@null@*/char *suite,*version;
+	/*@null@*/char *suite, *version;
 	/*@null@*/char *origin, *label, *description,
 		*notautomatic, *butautomaticupgrades;
 	/* What architectures and components are there */
@@ -46,18 +46,20 @@ struct distribution {
 	/* the key to sign with, may have no entries to mean unsigned: */
 	struct strlist signwith;
 	/* the override file to use by default */
-	/*@null@*/char *deb_override,*udeb_override,*dsc_override;
+	/*@null@*/char *deb_override, *udeb_override, *dsc_override;
 	/* fake component prefix (and codename antisuffix) for Release files: */
 	/*@null@*/char *fakecomponentprefix;
 	/* only loaded when you've done it yourself: */
 	struct {
 		/*@null@*/struct overridefile *dsc, *deb, *udeb;
 	} overrides;
-	/* the list of components containing a debian-installer dir, normally only "main" */
+	/* the list of components containing a debian-installer dir,
+	 * normally only "main" */
 	struct atomlist udebcomponents;
 	/* what kind of index files to generate */
-	struct exportmode dsc,deb,udeb;
-	/* is tracking enabled for this distribution? (NONE must be 0 so it is the default) */
+	struct exportmode dsc, deb, udeb;
+	/* is tracking enabled for this distribution?
+	 * (NONE must be 0 so it is the default) */
 	enum trackingtype { dt_NONE=0, dt_KEEP, dt_ALL, dt_MINIMAL } tracking;
 	struct trackingoptions { bool includechanges:1;
 		bool includebyhand:1;
@@ -107,48 +109,44 @@ struct distribution {
 	bool omitted;
 };
 
-retvalue distribution_get(struct distribution *all, const char *name, bool lookedat, /*@out@*/struct distribution **);
+retvalue distribution_get(struct distribution * /*all*/, const char *, bool /*lookedat*/, /*@out@*/struct distribution **);
 
 /* set lookedat, start logger, ... */
-retvalue distribution_prepareforwriting(struct distribution *distribution);
+retvalue distribution_prepareforwriting(struct distribution *);
 
-typedef retvalue distribution_each_action(void *data, struct target *t, struct distribution *d);
-
-typedef retvalue each_target_action(struct database *, struct distribution *, struct target *, void *);
-typedef retvalue each_package_action(struct database *, struct distribution *, struct target *, const char *, const char *, void *);
+typedef retvalue each_target_action(struct distribution *, struct target *, void *);
+typedef retvalue each_package_action(struct distribution *, struct target *, const char *, const char *, void *);
 
 /* call <action> for each package of <distribution> */
-retvalue distribution_foreach_package(struct distribution *, struct database *, /*@null@*/const struct atomlist *, /*@null@*/const struct atomlist *, /*@null@*/const struct atomlist *, each_package_action, /*@null@*/each_target_action, void *);
-retvalue distribution_foreach_package_c(struct distribution *, struct database *, /*@null@*/const struct atomlist *, architecture_t, packagetype_t, each_package_action, void *);
+retvalue distribution_foreach_package(struct distribution *, /*@null@*/const struct atomlist *, /*@null@*/const struct atomlist *, /*@null@*/const struct atomlist *, each_package_action, /*@null@*/each_target_action, void *);
+retvalue distribution_foreach_package_c(struct distribution *, /*@null@*/const struct atomlist *, architecture_t, packagetype_t, each_package_action, void *);
 
 /* delete every package decider returns RET_OK for */
-retvalue distribution_remove_packages(struct distribution *, struct database *, const struct atomlist *, const struct atomlist *, const struct atomlist *, each_package_action decider, struct trackingdata *, void *);
+retvalue distribution_remove_packages(struct distribution *, const struct atomlist *, const struct atomlist *, const struct atomlist *, each_package_action decider, struct trackingdata *, void *);
 
 /*@dependent@*/struct target *distribution_getpart(const struct distribution *distribution, component_t, architecture_t, packagetype_t);
 
 /* like distribtion_getpart, but returns NULL if there is no such target */
 /*@null@*//*@dependent@*/struct target *distribution_gettarget(const struct distribution *distribution, component_t, architecture_t, packagetype_t);
-// /*@null@*//*@dependent@*/struct target *distribution_gettarget(const struct distribution *distribution,const char *component,const char *architecture,const char *packagetype);
 
-retvalue distribution_fullexport(struct distribution *distribution, struct database *);
+retvalue distribution_fullexport(struct distribution *distribution);
 
-enum exportwhen {EXPORT_NEVER, EXPORT_CHANGED, EXPORT_NORMAL, EXPORT_FORCE };
-retvalue distribution_export(enum exportwhen, struct distribution *, struct database *);
+enum exportwhen {EXPORT_NEVER, EXPORT_SILENT_NEVER, EXPORT_CHANGED, EXPORT_NORMAL, EXPORT_FORCE };
+retvalue distribution_export(enum exportwhen, struct distribution *);
 
-retvalue distribution_snapshot(struct distribution *distribution, struct database *, const char *name);
+retvalue distribution_snapshot(struct distribution *distribution, const char *name);
 
 /* read the configuration from all distributions */
 retvalue distribution_readall(/*@out@*/struct distribution **distributions);
 
-/* mark all dists from <conf> fitting in the filter given in <argc,argv> */
-retvalue distribution_match(struct distribution *alldistributions, int argc, const char *argv[], bool lookedat, bool readonly);
+/* mark all dists from <conf> fitting in the filter given in <argc, argv> */
+retvalue distribution_match(struct distribution * /*alldistributions*/, int /*argc*/, const char * /*argv*/ [], bool /*lookedat*/, bool /*readonly*/);
 
 /* get a pointer to the apropiate part of the linked list */
-struct distribution *distribution_find(struct distribution *distributions, const char *name);
+struct distribution *distribution_find(struct distribution *, const char *);
 
 retvalue distribution_freelist(/*@only@*/struct distribution *distributions);
-retvalue distribution_exportandfreelist(enum exportwhen when, /*@only@*/struct distribution *distributions, struct database *);
-retvalue distribution_exportlist(enum exportwhen when, /*@only@*/struct distribution *distributions, struct database *);
+retvalue distribution_exportlist(enum exportwhen when, /*@only@*/struct distribution *distributions);
 
 retvalue distribution_loadalloverrides(struct distribution *);
 void distribution_unloadoverrides(struct distribution *distribution);

@@ -13,8 +13,8 @@
 
 struct configiterator;
 
-typedef retvalue configsetfunction(void *,const char *,void *,struct configiterator *);
-typedef retvalue configinitfunction(void *,void *,void **);
+typedef retvalue configsetfunction(void *, const char *, void *, struct configiterator *);
+typedef retvalue configinitfunction(void *, void *, void **);
 typedef retvalue configfinishfunction(void *, void *, void **, bool, struct configiterator *);
 
 retvalue linkedlistfinish(void *, void *, void **, bool, struct configiterator *);
@@ -41,10 +41,10 @@ unsigned int config_column(const struct configiterator *) __attribute__((pure));
 unsigned int config_firstline(const struct configiterator *) __attribute__((pure));
 unsigned int config_markerline(const struct configiterator *) __attribute__((pure));
 unsigned int config_markercolumn(const struct configiterator *) __attribute__((pure));
-retvalue config_getflags(struct configiterator *, const char *, const struct constant *, bool *, bool, const char *msg);
+retvalue config_getflags(struct configiterator *, const char *, const struct constant *, bool *, bool, const char *);
 int config_nextnonspaceinline(struct configiterator *iter);
-retvalue config_getlines(struct configiterator *,struct strlist *);
-retvalue config_getwords(struct configiterator *,struct strlist *);
+retvalue config_getlines(struct configiterator *, struct strlist *);
+retvalue config_getwords(struct configiterator *, struct strlist *);
 retvalue config_getall(struct configiterator *iter, /*@out@*/char **result_p);
 retvalue config_getword(struct configiterator *, /*@out@*/char **);
 retvalue config_getwordinline(struct configiterator *, /*@out@*/char **);
@@ -58,24 +58,24 @@ retvalue config_getatomsublist(struct configiterator *, const char *, enum atom_
 retvalue config_getsplitatoms(struct configiterator *, const char *, enum atom_type, struct atomlist *, struct atomlist *);
 retvalue config_getsplitwords(struct configiterator *, const char *, struct strlist *, struct strlist *);
 retvalue config_gettruth(struct configiterator *, const char *, bool *);
-retvalue config_getnumber(struct configiterator *, const char *, long long *, long long minval, long long maxval);
+retvalue config_getnumber(struct configiterator *, const char *, long long *, long long /*minvalue*/, long long /*maxvalue*/);
 retvalue config_getconstant(struct configiterator *, const struct constant *, int *);
-#define config_getenum(iter,type,constants,result) ({int _val;retvalue _r = config_getconstant(iter, type ## _ ## constants, &_val);*(result) = (enum type)_val;_r;})
+#define config_getenum(iter, type, constants, result) ({int _val;retvalue _r = config_getconstant(iter, type ## _ ## constants, &_val);*(result) = (enum type)_val;_r;})
 retvalue config_completeword(struct configiterator *, char, /*@out@*/char **);
 retvalue config_gettimespan(struct configiterator *, const char *, /*@out@*/time_t *);
 retvalue config_getscript(struct configiterator *, const char *, /*@out@*/char **);
 retvalue config_getsignwith(struct configiterator *, const char *, struct strlist *);
 void config_overline(struct configiterator *);
 bool config_nextline(struct configiterator *);
-retvalue configfile_parse(const char *filename, bool ignoreunknown, configinitfunction, configfinishfunction, const struct configfield *, size_t, void *privdata);
+retvalue configfile_parse(const char * /*filename*/, bool /*ignoreunknown*/, configinitfunction, configfinishfunction, const struct configfield *, size_t, void *);
 
 #define CFlinkedlistinit(sname) \
 static retvalue configparser_ ## sname ## _init(void *rootptr, void *lastitem, void **newptr) { \
 	struct sname *n, **root_p = rootptr, *last = lastitem; \
 	n = calloc(1, sizeof(struct sname)); \
-	if( n == NULL ) \
+	if (n == NULL) \
 		return RET_ERROR_OOM; \
-	if( last == NULL ) \
+	if (last == NULL) \
 		*root_p = n; \
 	else \
 		last->next = n; \
@@ -128,7 +128,7 @@ static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), co
 	struct sname *item = data; \
 	retvalue r; \
 	r = config_getuniqwords(iter, name, checker, &item->field); \
-	if( r == RET_NOTHING ) { \
+	if (r == RET_NOTHING) { \
 		fprintf(stderr, \
 "Error parsing %s, line %d, column %d:\n" \
 " An empty %s-field is not allowed.\n", config_filename(iter), \
@@ -144,7 +144,7 @@ static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), co
 	struct sname *item = data; \
 	retvalue r; \
 	r = config_getinternatomlist(iter, name, type, checker, &item->field); \
-	if( r == RET_NOTHING ) { \
+	if (r == RET_NOTHING) { \
 		fprintf(stderr, \
 "Error parsing %s, line %d, column %d:\n" \
 " An empty %s-field is not allowed.\n", config_filename(iter), \
@@ -161,7 +161,7 @@ static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), co
 	retvalue r; \
 	item->field ## _set = true; \
 	r = config_getatomlist(iter, name, type, &item->field); \
-	if( r == RET_NOTHING ) { \
+	if (r == RET_NOTHING) { \
 		fprintf(stderr, \
 "Error parsing %s, line %d, column %d:\n" \
 " An empty %s-field is not allowed.\n", config_filename(iter), \
@@ -182,7 +182,7 @@ static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), co
 	struct sname *item = data; \
 	retvalue r; \
 	item->field ## _set = true; \
-	if( item->superset.count == 0 ) { \
+	if (item->superset.count == 0) { \
 		fprintf(stderr, \
 "Error parsing %s, line %d, column %d:\n" \
 " A '%s'-field is only allowed after a '%s'-field.\n", config_filename(iter), \
@@ -191,8 +191,9 @@ static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), co
 					name, superset_header); \
 		return RET_ERROR; \
 	} \
-	r = config_getatomsublist(iter, name, type, &item->field, &item->superset, superset_header); \
-	if( r == RET_NOTHING ) { \
+	r = config_getatomsublist(iter, name, type, &item->field, \
+			&item->superset, superset_header); \
+	if (r == RET_NOTHING) { \
 		fprintf(stderr, \
 "Error parsing %s, line %d, column %d:\n" \
 " An empty %s-field is not allowed.\n", config_filename(iter), \
@@ -240,24 +241,25 @@ static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UN
 	struct sname *item = data; \
 	return exportmode_set(&item->field, iter); \
 }
-#define CFUSETPROC(sname,field) static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UNUSED(const char *name), void *thisdata_ ## sname, struct configiterator *iter)
-#define CFuSETPROC(sname,field) static retvalue configparser_ ## sname ## _set_ ## field(void *privdata_ ## sname, UNUSED(const char *name), void *thisdata_ ## sname, struct configiterator *iter)
-#define CFSETPROC(sname,field) static retvalue configparser_ ## sname ## _set_ ## field(void *privdata_ ## sname, const char *headername, void *thisdata_ ## sname, struct configiterator *iter)
-#define CFSETPROCVARS(sname,item,mydata) struct sname *item = thisdata_ ## sname; struct read_ ## sname ## _data *mydata = privdata_ ## sname
-#define CFSETPROCVAR(sname,item) struct sname *item = thisdata_ ## sname
+#define CFUSETPROC(sname, field) static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UNUSED(const char *name), void *thisdata_ ## sname, struct configiterator *iter)
+#define CFuSETPROC(sname, field) static retvalue configparser_ ## sname ## _set_ ## field(void *privdata_ ## sname, UNUSED(const char *name), void *thisdata_ ## sname, struct configiterator *iter)
+#define CFSETPROC(sname, field) static retvalue configparser_ ## sname ## _set_ ## field(void *privdata_ ## sname, const char *headername, void *thisdata_ ## sname, struct configiterator *iter)
+#define CFSETPROCVARS(sname, item, mydata) struct sname *item = thisdata_ ## sname; struct read_ ## sname ## _data *mydata = privdata_ ## sname
+#define CFSETPROCVAR(sname, item) struct sname *item = thisdata_ ## sname
 
 #define CFstartparse(sname) static retvalue startparse ## sname(UNUSED(void *dummyprivdata), UNUSED(void *lastdata), void **result_p_ ##sname)
-#define CFstartparseVAR(sname,r) struct sname **r = (void*)result_p_ ## sname
+#define CFstartparseVAR(sname, r) struct sname **r = (void*)result_p_ ## sname
 #define CFfinishparse(sname) static retvalue finishparse ## sname(void *privdata_ ## sname, void *thisdata_ ## sname, void **lastdata_p_ ##sname, bool complete, struct configiterator *iter)
-#define CFfinishparseVARS(sname,this,last,mydata) struct sname *this = thisdata_ ## sname, **last = (void*)lastdata_p_ ## sname; struct read_ ## sname ## _data *mydata = privdata_ ## sname
-#define CFUfinishparseVARS(sname,this,last,mydata) struct sname *this = thisdata_ ## sname
+#define CFfinishparseVARS(sname, this, last, mydata) struct sname *this = thisdata_ ## sname, **last = (void*)lastdata_p_ ## sname; struct read_ ## sname ## _data *mydata = privdata_ ## sname
+#define CFUfinishparseVARS(sname, this, last, mydata) struct sname *this = thisdata_ ## sname
 #define CFhashesSETPROC(sname, field) \
 static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), const char *name, void *data, struct configiterator *iter) { \
 	struct sname *item = data; \
 	retvalue r; \
 	item->field ## _set = true; \
-	r = config_getflags(iter, name, hashnames, item->field, false, "(allowed values: md5, sha1 and sha256)"); \
-	if( !RET_IS_OK(r) ) \
+	r = config_getflags(iter, name, hashnames, item->field, false, \
+			"(allowed values: md5, sha1 and sha256)"); \
+	if (!RET_IS_OK(r)) \
 		return r; \
 	return RET_OK; \
 }
@@ -269,7 +271,7 @@ static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UN
 	char *formula; \
 	retvalue r; \
 	r = config_getall(iter, &formula); \
-	if( ! RET_IS_OK(r) ) \
+	if (! RET_IS_OK(r)) \
 		return r; \
 	r = term_compilefortargetdecision(&item->field, formula); \
 	free(formula); \
@@ -281,7 +283,7 @@ static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UN
 	char *formula; \
 	retvalue r; \
 	r = config_getall(iter, &formula); \
-	if( ! RET_IS_OK(r) ) \
+	if (! RET_IS_OK(r)) \
 		return r; \
 	r = term_compilefortargetdecision(&item->field, formula); \
 	free(formula); \

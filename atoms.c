@@ -30,7 +30,9 @@ const char * const packagetypes[4] = { "!!NONE!!", "dsc", "deb", "udeb" };
 const char **atoms_packagetypes = (const char **)&packagetypes;
 const char **atoms_commands;
 static int command_count;
-static const char * const types[4] = {"architecture", "component", "packagetype", "command"};
+static const char * const types[4] = {
+	"architecture", "component", "packagetype", "command"
+};
 const char **atomtypes = (const char **)types;
 
 /* trivial implementation for now, perhaps make it more complicated later */
@@ -44,27 +46,27 @@ retvalue atoms_init(int count) {
 	/* add a 0th entry to all, so 0 means uninitialized */
 
 	r = strlist_add_dup(&architectures, "!!NONE!!");
-	if( RET_WAS_ERROR(r) )
+	if (RET_WAS_ERROR(r))
 		return r;
 	r = strlist_add_dup(&architectures, "source");
-	if( RET_WAS_ERROR(r) )
+	if (RET_WAS_ERROR(r))
 		return r;
 	r = strlist_add_dup(&architectures, "all");
-	if( RET_WAS_ERROR(r) )
+	if (RET_WAS_ERROR(r))
 		return r;
 	r = strlist_add_dup(&components, "!!NONE!!");
-	if( RET_WAS_ERROR(r) )
+	if (RET_WAS_ERROR(r))
 		return r;
 	/* a fallback component to put things without a component in */
 	r = strlist_add_dup(&components, "strange");
-	if( RET_WAS_ERROR(r) )
+	if (RET_WAS_ERROR(r))
 		return r;
 	atoms_components = (const char**)components.values;
 	atoms_architectures = (const char**)architectures.values;
 	command_count = count;
-	if( command_count > 0 ) {
-		atoms_commands = calloc(command_count + 1, sizeof(const char*));
-		if( FAILEDTOALLOC(atoms_commands) )
+	if (command_count > 0) {
+		atoms_commands = nzNEW(command_count + 1, const char*);
+		if (FAILEDTOALLOC(atoms_commands))
 			return RET_ERROR_OOM;
 	}
 	return RET_OK;
@@ -75,14 +77,14 @@ retvalue architecture_intern(const char *value, architecture_t *atom_p) {
 	int i;
 
 	i = strlist_ofs(&architectures, value);
-	if( i >= 0 ) {
+	if (i >= 0) {
 		*atom_p = (architecture_t)i;
 		return RET_OK;
 	}
 	i = architectures.count;
 	r = strlist_add_dup(&architectures, value);
 	atoms_architectures = (const char**)architectures.values;
-	if( RET_IS_OK(r) ) {
+	if (RET_IS_OK(r)) {
 		*atom_p = (architecture_t)i;
 		return RET_OK;
 	} else
@@ -93,14 +95,14 @@ retvalue component_intern(const char *value, component_t *atom_p) {
 	int i;
 
 	i = strlist_ofs(&components, value);
-	if( i >= 0 ) {
+	if (i >= 0) {
 		*atom_p = (component_t)i;
 		return RET_OK;
 	}
 	i = components.count;
 	r = strlist_add_dup(&components, value);
 	atoms_components = (const char**)components.values;
-	if( RET_IS_OK(r) ) {
+	if (RET_IS_OK(r)) {
 		*atom_p = (component_t)i;
 		return RET_OK;
 	} else
@@ -109,7 +111,7 @@ retvalue component_intern(const char *value, component_t *atom_p) {
 
 architecture_t architecture_find(const char *value) {
 	int i = strlist_ofs(&architectures, value);
-	if( i < 0 )
+	if (i < 0)
 		return atom_unknown;
 	else
 		return (architecture_t)i;
@@ -118,11 +120,11 @@ architecture_t architecture_find(const char *value) {
 architecture_t architecture_find_l(const char *value, size_t l) {
 	architecture_t a;
 
-	for( a = architectures.count - 1 ; a > 0 ; a-- ) {
+	for (a = architectures.count - 1 ; a > 0 ; a--) {
 		const char *name = atoms_architectures[a];
 		size_t len = strlen(name);
 
-		if( len == l && memcmp(name, value, len) == 0 )
+		if (len == l && memcmp(name, value, len) == 0)
 			return a;
 	}
 	return atom_unknown;
@@ -132,11 +134,11 @@ architecture_t architecture_find_l(const char *value, size_t l) {
 component_t component_find_l(const char *value, size_t l) {
 	component_t a;
 
-	for( a = components.count - 1 ; a > 0 ; a-- ) {
+	for (a = components.count - 1 ; a > 0 ; a--) {
 		const char *name = atoms_components[a];
 		size_t len = strlen(name);
 
-		if( len == l && memcmp(name, value, len) == 0 )
+		if (len == l && memcmp(name, value, len) == 0)
 			return a;
 	}
 	return atom_unknown;
@@ -144,30 +146,30 @@ component_t component_find_l(const char *value, size_t l) {
 
 component_t component_find(const char *value) {
 	int i = strlist_ofs(&components, value);
-	if( i < 0 )
+	if (i < 0)
 		return atom_unknown;
 	else
 		return (architecture_t)i;
 }
 
 packagetype_t packagetype_find(const char *value) {
-	if( strcmp(value, "dsc") == 0 )
+	if (strcmp(value, "dsc") == 0)
 		return pt_dsc;
-	else if( strcmp(value, "deb") == 0 )
+	else if (strcmp(value, "deb") == 0)
 		return pt_deb;
-	else if( strcmp(value, "udeb") == 0 )
+	else if (strcmp(value, "udeb") == 0)
 		return pt_udeb;
 	else
 		return atom_unknown;
 }
 
 packagetype_t packagetype_find_l(const char *value, size_t len) {
-	if( len == 3 ) {
-		if( strncmp(value, "dsc", 3) == 0 )
+	if (len == 3) {
+		if (strncmp(value, "dsc", 3) == 0)
 			return pt_dsc;
-		else if( strncmp(value, "deb",3) == 0 )
+		else if (strncmp(value, "deb", 3) == 0)
 			return pt_deb;
-	} else if( len == 4 && strncmp(value, "udeb",4) == 0 )
+	} else if (len == 4 && strncmp(value, "udeb", 4) == 0)
 		return pt_udeb;
 	return atom_unknown;
 }
@@ -175,15 +177,15 @@ packagetype_t packagetype_find_l(const char *value, size_t len) {
 static inline command_t command_find(const char *value) {
 	command_t c;
 
-	for( c = command_count ; c > 0 ; c-- ) {
-		if( strcmp(atoms_commands[c], value) == 0 )
+	for (c = command_count ; c > 0 ; c--) {
+		if (strcmp(atoms_commands[c], value) == 0)
 			return c;
 	}
 	return atom_unknown;
 }
 
 atom_t atom_find(enum atom_type type, const char *value) {
-	switch( type ) {
+	switch (type) {
 		case at_packagetype:
 			return packagetype_find(value);
 		case at_architecture:
@@ -198,8 +200,8 @@ atom_t atom_find(enum atom_type type, const char *value) {
 }
 
 retvalue atom_intern(enum atom_type type, const char *value, atom_t *atom_p) {
-	assert( type == at_architecture || type == at_component );
-	switch( type ) {
+	assert (type == at_architecture || type == at_component);
+	switch (type) {
 		case at_architecture:
 			return architecture_intern(value, atom_p);
 		case at_component:
@@ -215,8 +217,8 @@ void atomlist_init(struct atomlist *list) {
 }
 
 void atomlist_done(struct atomlist *list) {
-	if( list->size > 0 ) {
-		assert( list->atoms != 0 );
+	if (list->size > 0) {
+		assert (list->atoms != 0);
 		free(list->atoms);
 	}
 	/* reset atoms but not size, so reuse can be catched */
@@ -228,15 +230,15 @@ retvalue atomlist_add_uniq(struct atomlist *list, atom_t atom) {
 	int i;
 	atom_t *n;
 
-	assert( atom_defined(atom) );
+	assert (atom_defined(atom));
 
-	for( i = 0 ; i < list->count ; i++ ) {
-		if( list->atoms[i] == atom )
+	for (i = 0 ; i < list->count ; i++) {
+		if (list->atoms[i] == atom)
 			return RET_NOTHING;
 	}
-	if( list->size <= list->count ) {
-		n = realloc(list->atoms, (sizeof(atom_t))*(list->count + 8) );
-		if( FAILEDTOALLOC(n) )
+	if (list->size <= list->count) {
+		n = realloc(list->atoms, (sizeof(atom_t))*(list->count + 8));
+		if (FAILEDTOALLOC(n))
 			return RET_ERROR_OOM;
 		list->size = list->count + 8;
 		list->atoms = n;
@@ -248,11 +250,11 @@ retvalue atomlist_add_uniq(struct atomlist *list, atom_t atom) {
 retvalue atomlist_add(struct atomlist *list, atom_t atom) {
 	atom_t *n;
 
-	assert( atom_defined(atom) );
+	assert (atom_defined(atom));
 
-	if( list->size <= list->count ) {
-		n = realloc(list->atoms, (sizeof(atom_t))*(list->count + 8) );
-		if( FAILEDTOALLOC(n) )
+	if (list->size <= list->count) {
+		n = realloc(list->atoms, (sizeof(atom_t))*(list->count + 8));
+		if (FAILEDTOALLOC(n))
 			return RET_ERROR_OOM;
 		list->size = list->count + 8;
 		list->atoms = n;
@@ -273,8 +275,8 @@ void atomlist_move(struct atomlist *dest, struct atomlist *orig) {
 bool atomlist_hasexcept(const struct atomlist *list, atom_t atom) {
 	int i;
 
-	for( i = 0 ; i < list->count ; i++ ) {
-		if( list->atoms[i] != atom )
+	for (i = 0 ; i < list->count ; i++) {
+		if (list->atoms[i] != atom)
 			return true;
 	}
 	return false;
@@ -283,8 +285,8 @@ bool atomlist_hasexcept(const struct atomlist *list, atom_t atom) {
 bool atomlist_in(const struct atomlist *list, atom_t atom) {
 	int i;
 
-	for( i = 0 ; i < list->count ; i++ ) {
-		if( list->atoms[i] == atom )
+	for (i = 0 ; i < list->count ; i++) {
+		if (list->atoms[i] == atom)
 			return true;
 	}
 	return false;
@@ -292,8 +294,8 @@ bool atomlist_in(const struct atomlist *list, atom_t atom) {
 int atomlist_ofs(const struct atomlist *list, atom_t atom) {
 	int i;
 
-	for( i = 0 ; i < list->count ; i++ ) {
-		if( list->atoms[i] == atom )
+	for (i = 0 ; i < list->count ; i++) {
+		if (list->atoms[i] == atom)
 			return i;
 	}
 	return -1;
@@ -302,15 +304,15 @@ int atomlist_ofs(const struct atomlist *list, atom_t atom) {
 bool atomlist_subset(const struct atomlist *list, const struct atomlist *subset, atom_t *missing) {
 	int i, j;
 
-	for( j = 0 ; j < subset->count ; j++ ) {
+	for (j = 0 ; j < subset->count ; j++) {
 		atom_t atom = subset->atoms[j];
 
-		for( i = 0 ; i < list->count ; i++ ) {
-			if( list->atoms[i] == atom )
+		for (i = 0 ; i < list->count ; i++) {
+			if (list->atoms[i] == atom)
 				break;
 		}
-		if( i >= list->count ) {
-			if( missing != NULL )
+		if (i >= list->count) {
+			if (missing != NULL)
 				*missing = atom;
 			return false;
 		}
@@ -327,7 +329,7 @@ retvalue atomlist_fprint(FILE *file, enum atom_type type, const struct atomlist 
 	assert(list != NULL);
 	assert(file != NULL);
 
-	switch( type ) {
+	switch (type) {
 		case at_architecture:
 			atoms = atoms_architectures;
 			break;
@@ -346,10 +348,10 @@ retvalue atomlist_fprint(FILE *file, enum atom_type type, const struct atomlist 
 	c = list->count;
 	p = list->atoms;
 	result = RET_OK;
-	while( c > 0 ) {
-		if( fputs(atoms[*(p++)], file) == EOF )
+	while (c > 0) {
+		if (fputs(atoms[*(p++)], file) == EOF)
 			result = RET_ERROR;
-		if( --c > 0 && fputc(' ', file) == EOF )
+		if (--c > 0 && fputc(' ', file) == EOF)
 			result = RET_ERROR;
 	}
 	return result;
@@ -366,20 +368,20 @@ retvalue atomlist_filllist(enum atom_type type, struct atomlist *list, char *str
 	atom_t a;
 
 	atomlist_init(&l);
-	while( *string != '\0' ) {
+	while (*string != '\0') {
 		e = strchr(string, '|');
-		if( e == NULL )
+		if (e == NULL)
 			e = strchr(string, '\0');
 		else
 			*(e++) = '\0';
 		a = atom_find(type, string);
-		if( !atom_defined(a) ) {
+		if (!atom_defined(a)) {
 			atomlist_done(&l);
 			*missing = string;
 			return RET_NOTHING;
 		}
 		r = atomlist_add(&l, a);
-		if( RET_WAS_ERROR(r) ) {
+		if (RET_WAS_ERROR(r)) {
 			atomlist_done(&l);
 			return r;
 		}

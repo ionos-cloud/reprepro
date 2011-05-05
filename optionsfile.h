@@ -8,6 +8,6 @@
 #warning "What's hapening here?"
 #endif
 
-void optionsfile_parse(const char *directory, const struct option *longopts, void handle_option(int,const char *));
+void optionsfile_parse(const char * /*directory*/, const struct option *, void handle_option(int, const char *));
 
 #endif /*REPREPRO_OPTIONSFILE_H*/

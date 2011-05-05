@@ -1,24 +1,14 @@
-#!/bin/bash
-
-set -e
-
-if test "${MAINTESTOPTIONS+set}" != set ; then
-	source $(dirname $0)/test.inc
-	STANDALONE="true"
-else
-	STANDALONE=""
-fi
-
-rm -rf db dists pool lists conf gpgtestdir
+set -u
+. "$TESTSDIR"/test.inc
 
 mkdir -p gpgtestdir
 export GNUPGHOME="`pwd`/gpgtestdir"
-gpg --import $SRCDIR/tests/good.key
+gpg --import $TESTSDIR/good.key
 
 mkdir -p conf
 cat > conf/distributions <<CONFEND
 Codename: ATest
-Architectures: ${FAKEARCHITECTURE} source
+Architectures: abacus source
 Components: everything
 SignWith: good@nowhere.tld
 CONFEND
@@ -27,14 +17,14 @@ gpg --list-keys
 
 testrun - -b . export 3<<EOF
 stdout
--v2*=Created directory "./db"
+$(odb)
 -v1*=Exporting ATest...
 -v2*=Created directory "./dists"
 -v2*=Created directory "./dists/ATest"
 -v2*=Created directory "./dists/ATest/everything"
--v2*=Created directory "./dists/ATest/everything/binary-${FAKEARCHITECTURE}"
--v6*= exporting 'ATest|everything|${FAKEARCHITECTURE}'...
--v6*=  creating './dists/ATest/everything/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped)
+-v2*=Created directory "./dists/ATest/everything/binary-abacus"
+-v6*= exporting 'ATest|everything|abacus'...
+-v6*=  creating './dists/ATest/everything/binary-abacus/Packages' (uncompressed,gzipped)
 -v2*=Created directory "./dists/ATest/everything/source"
 -v6*= exporting 'ATest|everything|source'...
 -v6*=  creating './dists/ATest/everything/source/Sources' (gzipped)
@@ -75,10 +65,4 @@ dodiff dists/ATest/Release InRelease
 
 rm -r conf db dists gpgtestdir InRelease results results.expected
 
-if test x$STANDALONE = xtrue ; then
-	set +v +x
-	echo
-	echo "If the script is still running to show this,"
-	echo "all tested cases seem to work. (Though writing some tests more can never harm)."
-fi
-exit 0
+testsuccess

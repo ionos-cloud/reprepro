@@ -18,11 +18,11 @@
  * if overwrite is not NULL, it will be search for fields to reset for this
  * package. (forcesection and forcepriority have higher priority than the
  * information there), */
-retvalue deb_add(struct database *, component_t forcecomponent, const struct atomlist *forcearchitectures, /*@null@*/const char *forcesection, /*@null@*/const char *forcepriority, packagetype_t, struct distribution *, const char *debfilename, int delete, /*@null@*/trackingdb);
+retvalue deb_add(component_t, const struct atomlist * /*forcearchitectures*/, /*@null@*/const char * /*forcesection*/, /*@null@*/const char * /*forcepriority*/, packagetype_t, struct distribution *, const char * /*debfilename*/, int /*delete*/, /*@null@*/trackingdb);
 
 /* in two steps */
 struct debpackage;
-retvalue deb_addprepared(const struct debpackage *, struct database *, const struct atomlist *forcearchitecture, packagetype_t, struct distribution *, struct trackingdata *);
-retvalue deb_prepare(/*@out@*/struct debpackage **deb, component_t forcecomponent, architecture_t forcearchitecture, const char *forcesection, const char *forcepriority, packagetype_t, struct distribution *distribution, const char *debfilename, const char * const filekey, const struct checksums *checksums, const struct strlist *allowed_binaries, const char *expectedsourcename, const char *expectedsourceversion);
-void deb_free(/*@only@*/struct debpackage *pkg);
+retvalue deb_addprepared(const struct debpackage *, const struct atomlist * /*forcearchitectures*/, packagetype_t, struct distribution *, struct trackingdata *);
+retvalue deb_prepare(/*@out@*/struct debpackage **, component_t, architecture_t /*forcearchitectures*/, const char * /*forcesection*/, const char * /*forcepriority*/, packagetype_t, struct distribution *, const char * /*debfilename*/, const char * const /*filekey*/, const struct checksums *, const struct strlist * /*allowed_binaries*/, const char * /*expectedsourcename*/, const char * /*expectedsourceversion*/);
+void deb_free(/*@only@*/struct debpackage *);
 #endif

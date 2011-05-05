@@ -35,38 +35,38 @@ retvalue release_getchecksums(const char *releasefile, const bool ignore[cs_hash
 	bool foundanything = false;
 
 	r = readtextfile(releasefile, releasefile, &chunk, NULL);
-	assert( r != RET_NOTHING );
-	if( !RET_IS_OK(r) )
+	assert (r != RET_NOTHING);
+	if (!RET_IS_OK(r))
 		return r;
-	for( cs = cs_md5sum ; cs < cs_hashCOUNT ; cs++ ) {
-		if( ignore[cs] ) {
+	for (cs = cs_md5sum ; cs < cs_hashCOUNT ; cs++) {
+		if (ignore[cs]) {
 			strlist_init(&files[cs]);
 			continue;
 		}
-		assert( release_checksum_names[cs] != NULL );
+		assert (release_checksum_names[cs] != NULL);
 		r = chunk_getextralinelist(chunk, release_checksum_names[cs],
 				&files[cs]);
-		if( RET_WAS_ERROR(r) ) {
-			while( cs-- > cs_md5sum ) {
+		if (RET_WAS_ERROR(r)) {
+			while (cs-- > cs_md5sum) {
 				strlist_done(&files[cs]);
 			}
 			free(chunk);
 			return r;
-		} else if( r == RET_NOTHING )
+		} else if (r == RET_NOTHING)
 			strlist_init(&files[cs]);
 		else
 			foundanything = true;
 	}
 	free(chunk);
 
-	if( !foundanything ) {
+	if (!foundanything) {
 		fprintf(stderr, "Missing checksums in Release file '%s'!\n",
 				releasefile);
 		return RET_ERROR;
 	}
 
 	r = checksumsarray_parse(out, files, releasefile);
-	for( cs = cs_md5sum ; cs < cs_hashCOUNT ; cs++ ) {
+	for (cs = cs_md5sum ; cs < cs_hashCOUNT ; cs++) {
 		strlist_done(&files[cs]);
 	}
 	return r;

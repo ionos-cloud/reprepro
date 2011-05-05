@@ -1,0 +1,4 @@
+set -u
+. "$TESTSDIR"/test.inc
+
+testsuccess

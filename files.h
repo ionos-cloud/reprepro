@@ -16,23 +16,20 @@ struct checksums;
 struct checksumsarray;
 
 /* Add file's md5sum to database */
-retvalue files_add_checksums(struct database *, const char *, const struct checksums *);
+retvalue files_add_checksums(const char *, const struct checksums *);
 
 /* remove file's md5sum from database */
-retvalue files_remove(struct database *, const char *filekey);
+retvalue files_remove(const char * /*filekey*/);
 /* same but do not call pool_markremoved */
-retvalue files_removesilent(struct database *, const char *filekey);
+retvalue files_removesilent(const char * /*filekey*/);
 
 /* check for file in the database and if not found there in the pool */
-retvalue files_expect(struct database *, const char *, const struct checksums *, bool warnifreadded);
+retvalue files_expect(const char *, const struct checksums *, bool warnifreadded);
 /* same for multiple files */
-retvalue files_expectfiles(struct database *, const struct strlist *, struct checksums **);
+retvalue files_expectfiles(const struct strlist *, struct checksums **);
 
 /* check for several files in the database and update information */
-retvalue files_checkorimprove(struct database *, const struct strlist *, struct checksums **);
-
-/* print missing files */
-retvalue files_printmissing(struct database *, const struct strlist *filekeys, const struct checksumsarray *);
+retvalue files_checkorimprove(const struct strlist *, struct checksums **);
 
 /* what to do with files */
 /* file should already be there, just make sure it is in the database */
@@ -51,38 +48,39 @@ retvalue files_printmissing(struct database *, const struct strlist *filekeys, c
  * return RET_ERROR_WRONG_MD5 if wrong md5sum.
  *  (the original file is not deleted in that case, even if delete is positive)
  */
-retvalue files_preinclude(struct database *, const char *sourcefilename, const char *filekey, /*@null@*//*@out@*/struct checksums **);
-retvalue files_checkincludefile(struct database *, const char *directory, const char *sourcefilename, const char *filekey, struct checksums **);
+retvalue files_preinclude(const char *sourcefilename, const char *filekey, /*@null@*//*@out@*/struct checksums **);
+retvalue files_checkincludefile(const char *directory, const char *sourcefilename, const char *filekey, struct checksums **);
 
 typedef retvalue per_file_action(void *data, const char *filekey);
 
 /* callback for each registered file */
-retvalue files_foreach(struct database *,per_file_action action,void *data);
+retvalue files_foreach(per_file_action, void *);
 
 /* check if all files are corect. (skip md5sum if fast is true) */
-retvalue files_checkpool(struct database *, bool fast);
+retvalue files_checkpool(bool /*fast*/);
 /* calculate all missing hashes */
-retvalue files_collectnewchecksums(struct database *);
+retvalue files_collectnewchecksums(void);
 
 /* dump out all information */
-retvalue files_printmd5sums(struct database *);
-retvalue files_printchecksums(struct database *);
+retvalue files_printmd5sums(void);
+retvalue files_printchecksums(void);
 
 /* look for the given filekey and add it into the filesdatabase */
-retvalue files_detect(struct database *,const char *filekey);
+retvalue files_detect(const char *);
 
-retvalue files_regenerate_filelist(struct database *, bool redo);
+retvalue files_regenerate_filelist(bool redo);
 
 /* hardlink file with known checksums and add it to database */
-retvalue files_hardlinkandadd(struct database *, const char *tempfile, const char *filekey, const struct checksums *);
+retvalue files_hardlinkandadd(const char * /*tempfile*/, const char * /*filekey*/, const struct checksums *);
 
-/* check if file is already there (RET_NOTHING) or could be added (RET_OK)
- * or RET_ERROR_WRONG_MD5SUM if filekey is already there with different md5sum */
-retvalue files_canadd(struct database *, const char *filekey, const struct checksums *);
+/* RET_NOTHING: file is already there
+ * RET_OK : could be added
+ * RET_ERROR_WRONG_MD5SUM: filekey is already there with different md5sum */
+retvalue files_canadd(const char *filekey, const struct checksums *);
 
 /* make a filekey to a fullfilename. return NULL if OutOfMemory */
 static inline char *files_calcfullfilename(const char *filekey) {
 	return calc_dirconcat(global.outdir, filekey);
 }
-off_t files_getsize(struct database *, const char*);
+off_t files_getsize(const char *);
 #endif

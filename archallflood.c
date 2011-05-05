@@ -80,7 +80,7 @@ struct floodlist {
 };
 
 static void aa_package_data_free(/*@only@*/struct aa_package_data *data){
-	if( data == NULL )
+	if (data == NULL)
 		return;
 	free(data->name);
 	free(data->old_version);
@@ -95,21 +95,21 @@ static void floodlist_free(struct floodlist *list) {
 	struct aa_source_package *s;
 	struct aa_package_data *l;
 
-	if( list == NULL )
+	if (list == NULL)
 		return;
 
 	l = list->list;
-	while( l != NULL ) {
+	while (l != NULL) {
 		struct aa_package_data *n = l->next;
 		aa_package_data_free(l);
 		l = n;
 	}
 	s = list->sources;
-	while( s != NULL ) {
+	while (s != NULL) {
 		struct aa_source_package *n;
 
-		while( s->left_child != NULL || s->right_child != NULL ) {
-			if( s->left_child != NULL ) {
+		while (s->left_child != NULL || s->right_child != NULL) {
+			if (s->left_child != NULL) {
 				n = s->left_child;
 				s->left_child = NULL;
 				s = n;
@@ -120,7 +120,7 @@ static void floodlist_free(struct floodlist *list) {
 			}
 		}
 
-		while( s->nextversion != NULL ) {
+		while (s->nextversion != NULL) {
 			n = s->nextversion->nextversion;
 			/* do not free name, it is not malloced */
 			free(s->nextversion->version);
@@ -147,20 +147,20 @@ static retvalue find_or_add_source(struct floodlist *list, /*@only@*/char *sourc
 	/* if this gets too slow, make it a balanced tree,
 	 * but it seems fast enough even as simple tree */
 
-	while( *p != NULL ) {
+	while (*p != NULL) {
 		c = strcmp(source, (*p)->name);
-		if( c == 0 )
+		if (c == 0)
 			break;
 		parent = *p;
-		if( c > 0 )
+		if (c > 0)
 			p = &parent->right_child;
 		else
 			p = &parent->left_child;
 	}
-	if( *p == NULL ) {
+	if (*p == NULL) {
 		/* there is not even something with this name */
-		n = calloc(1, sizeof(struct aa_source_package));
-		if( FAILEDTOALLOC(n) ) {
+		n = zNEW(struct aa_source_package);
+		if (FAILEDTOALLOC(n)) {
 			free(source); free(sourceversion);
 			return RET_ERROR_OOM;
 		}
@@ -175,16 +175,16 @@ static retvalue find_or_add_source(struct floodlist *list, /*@only@*/char *sourc
 	source = (*p)->name;
 	/* source name found, now look for version: */
 	c = strcmp(sourceversion, (*p)->version);
-	if( c == 0 ) {
+	if (c == 0) {
 		free(sourceversion);
 		*src_p = *p;
 		return RET_OK;
 	}
-	if( c < 0 ) {
+	if (c < 0) {
 		/* before first item, do some swapping as this is
 		 * part of the name linked list */
-		n = calloc(1, sizeof(struct aa_source_package));
-		if( FAILEDTOALLOC(n) ) {
+		n = zNEW(struct aa_source_package);
+		if (FAILEDTOALLOC(n)) {
 			free(sourceversion);
 			return RET_ERROR_OOM;
 		}
@@ -204,19 +204,19 @@ static retvalue find_or_add_source(struct floodlist *list, /*@only@*/char *sourc
 	}
 	do {
 		p = &(*p)->nextversion;
-		if( *p == NULL )
+		if (*p == NULL)
 			break;
 		c = strcmp(sourceversion, (*p)->version);
-	} while( c > 0 );
+	} while (c > 0);
 
-	if( c == 0 ) {
-		assert( *p != NULL );
+	if (c == 0) {
+		assert (*p != NULL);
 		free(sourceversion);
 		*src_p = *p;
 		return RET_OK;
 	}
-	n = calloc(1, sizeof(struct aa_source_package));
-	if( FAILEDTOALLOC(n) ) {
+	n = zNEW(struct aa_source_package);
+	if (FAILEDTOALLOC(n)) {
 		free(sourceversion);
 		return RET_ERROR_OOM;
 	}
@@ -234,20 +234,20 @@ static struct aa_source_package *find_source(struct floodlist *list, const char 
 
 	p = list->sources;
 
-	while( p != NULL ) {
+	while (p != NULL) {
 		c = strcmp(source, p->name);
-		if( c == 0 )
+		if (c == 0)
 			break;
-		if( c > 0 )
+		if (c > 0)
 			p = p->right_child;
 		else
 			p = p->left_child;
 	}
-	if( p == NULL )
+	if (p == NULL)
 		return NULL;
-	while( p != NULL && (c = strcmp(sourceversion, p->version)) > 0 )
+	while (p != NULL && (c = strcmp(sourceversion, p->version)) > 0)
 		p = p->nextversion;
-	if( c < 0 )
+	if (c < 0)
 		return NULL;
 	else
 		return p;
@@ -264,38 +264,38 @@ static retvalue save_package_version(struct floodlist *list, const char *package
 	struct aa_package_data *package;
 
 	r = list->target->getarchitecture(chunk, &architecture);
-	if( RET_WAS_ERROR(r) )
+	if (RET_WAS_ERROR(r))
 		return r;
 
 	r = list->target->getsourceandversion(chunk, packagename,
 			&source, &sourceversion);
-	if( RET_WAS_ERROR(r) )
+	if (RET_WAS_ERROR(r))
 		return r;
 
 	r = find_or_add_source(list, source, sourceversion, &src);
 	source = NULL; sourceversion = NULL; // just to be sure
-	if( RET_WAS_ERROR(r) )
+	if (RET_WAS_ERROR(r))
 		return r;
 
 	r = list->target->getversion(chunk, &version);
-	if( RET_WAS_ERROR(r) )
+	if (RET_WAS_ERROR(r))
 		return r;
 
 
-	if( architecture != architecture_all ) {
+	if (architecture != architecture_all) {
 		free(version);
 		src->has_sibling = true;
 		return RET_NOTHING;
 	}
 
-	package = calloc(1,sizeof(struct aa_package_data));
-	if( package == NULL ) {
+	package = zNEW(struct aa_package_data);
+	if (FAILEDTOALLOC(package)) {
 		free(version);
 		return RET_ERROR_OOM;
 	}
 
 	package->name = strdup(packagename);
-	if( package->name == NULL ) {
+	if (FAILEDTOALLOC(package->name)) {
 		free(package);
 		free(version);
 		return RET_ERROR_OOM;
@@ -304,19 +304,20 @@ static retvalue save_package_version(struct floodlist *list, const char *package
 	version = NULL; // just to be sure...
 	package->old_source = src;
 
-	if( list->list == NULL ) {
+	if (list->list == NULL) {
 		/* first chunk to add: */
 		list->list = package;
 		list->last = package;
 	} else {
-		if( strcmp(packagename, list->last->name) > 0 ) {
+		if (strcmp(packagename, list->last->name) > 0) {
 			list->last->next = package;
 			list->last = package;
 		} else {
 			/* this should only happen if the underlying
 			 * database-method get changed, so just throwing
 			 * out here */
-			fprintf(stderr, "INTERNAL ERROR: Package database is not sorted!!!\n");
+			fprintf(stderr,
+"INTERNAL ERROR: Package database is not sorted!!!\n");
 			assert(false);
 			exit(EXIT_FAILURE);
 		}
@@ -324,35 +325,35 @@ static retvalue save_package_version(struct floodlist *list, const char *package
 	return RET_OK;
 }
 
-static retvalue floodlist_initialize(struct floodlist **fl, struct target *t, struct database *database) {
+static retvalue floodlist_initialize(struct floodlist **fl, struct target *t) {
 	struct floodlist *list;
-	retvalue r,r2;
+	retvalue r, r2;
 	const char *packagename, *controlchunk;
 	struct target_cursor iterator;
 
-	list = calloc(1,sizeof(struct floodlist));
-	if( list == NULL )
+	list = zNEW(struct floodlist);
+	if (FAILEDTOALLOC(list))
 		return RET_ERROR_OOM;
 
 	list->target = t;
 
 	/* Begin with the packages currently in the archive */
 
-	r = target_openiterator(t, database, READONLY, &iterator);
-	if( RET_WAS_ERROR(r) ) {
+	r = target_openiterator(t, READONLY, &iterator);
+	if (RET_WAS_ERROR(r)) {
 		floodlist_free(list);
 		return r;
 	}
-	while( target_nextpackage(&iterator, &packagename, &controlchunk) ) {
+	while (target_nextpackage(&iterator, &packagename, &controlchunk)) {
 		r2 = save_package_version(list, packagename, controlchunk);
 		RET_UPDATE(r, r2);
-		if( RET_WAS_ERROR(r2) )
+		if (RET_WAS_ERROR(r2))
 			break;
 	}
 	r2 = target_closeiterator(&iterator);
 	RET_UPDATE(r, r2);
 
-	if( RET_WAS_ERROR(r) ) {
+	if (RET_WAS_ERROR(r)) {
 		floodlist_free(list);
 		return r;
 	}
@@ -368,7 +369,7 @@ static retvalue floodlist_trypackage(struct floodlist *list, const char *package
 	/* insertafter = NULL will mean insert before list */
 	insertafter = list->last;
 	/* the next one to test, current = NULL will mean not found */
-	if( insertafter != NULL )
+	if (insertafter != NULL)
 		current = insertafter->next;
 	else
 		current = list->list;
@@ -376,34 +377,34 @@ static retvalue floodlist_trypackage(struct floodlist *list, const char *package
 	/* the algorithm assumes almost all packages are feed in
 	 * alphabetically. */
 
-	while( true ) {
+	while (true) {
 		int cmp;
 
-		assert( insertafter == NULL || insertafter->next == current );
-		assert( insertafter != NULL || current == list->list );
+		assert (insertafter == NULL || insertafter->next == current);
+		assert (insertafter != NULL || current == list->list);
 
-		if( current == NULL )
+		if (current == NULL)
 			cmp = -1; /* every package is before the end of list */
 		else
 			cmp = strcmp(packagename_const, current->name);
 
-		if( cmp == 0 )
+		if (cmp == 0)
 			break;
 
-		if( cmp < 0 ) {
+		if (cmp < 0) {
 			int precmp;
 
-			if( insertafter == NULL ) {
+			if (insertafter == NULL) {
 				/* if we are before the first
 				 * package, add us there...*/
 				current = NULL;
 				break;
 			}
 			precmp = strcmp(packagename_const, insertafter->name);
-			if( precmp == 0 ) {
+			if (precmp == 0) {
 				current = insertafter;
 				break;
-			} else if( precmp < 0 ) {
+			} else if (precmp < 0) {
 				/* restart at the beginning: */
 				current = list->list;
 				insertafter = NULL;
@@ -413,19 +414,19 @@ static retvalue floodlist_trypackage(struct floodlist *list, const char *package
 				current = NULL;
 				break;
 			}
-			assert( "This is not reached" == NULL );
+			assert ("This is not reached" == NULL);
 		}
 		/* cmp > 0 : may come later... */
-		assert( current != NULL );
+		assert (current != NULL);
 		insertafter = current;
 		current = current->next;
-		if( current == NULL ) {
+		if (current == NULL) {
 			/* add behind insertafter at end of list */
 			break;
 		}
 		/* otherwise repeat until place found */
 	}
-	if( current == NULL ) {
+	if (current == NULL) {
 		/* adding a package not yet known */
 		struct aa_package_data *new;
 		char *source, *sourceversion;
@@ -433,14 +434,14 @@ static retvalue floodlist_trypackage(struct floodlist *list, const char *package
 
 		r = list->target->getsourceandversion(chunk,
 				packagename_const, &source, &sourceversion);
-		if( ! RET_IS_OK(r) ) {
+		if (! RET_IS_OK(r)) {
 			free(version);
 			return r;
 		}
 		src = find_source(list, source, sourceversion);
 		free(source); free(sourceversion);
-		new = calloc(1,sizeof(struct aa_package_data));
-		if( new == NULL ) {
+		new = zNEW(struct aa_package_data);
+		if (FAILEDTOALLOC(new)) {
 			free(version);
 			return RET_ERROR_OOM;
 		}
@@ -448,7 +449,7 @@ static retvalue floodlist_trypackage(struct floodlist *list, const char *package
 		new->new_version = version;
 		version = NULL;
 		new->name = strdup(packagename_const);
-		if( FAILEDTOALLOC(new->name) ) {
+		if (FAILEDTOALLOC(new->name)) {
 			aa_package_data_free(new);
 			return RET_ERROR_OOM;
 		}
@@ -457,11 +458,11 @@ static retvalue floodlist_trypackage(struct floodlist *list, const char *package
 				architecture_all, chunk,
 				&new->new_control, &new->new_filekeys,
 				&new->new_origfiles);
-		if( RET_WAS_ERROR(r) ) {
+		if (RET_WAS_ERROR(r)) {
 			aa_package_data_free(new);
 			return r;
 		}
-		if( insertafter != NULL ) {
+		if (insertafter != NULL) {
 			new->next = insertafter->next;
 			insertafter->next = new;
 		} else {
@@ -480,30 +481,30 @@ static retvalue floodlist_trypackage(struct floodlist *list, const char *package
 
 		list->last = current;
 
-		if( current->new_has_sibling ) {
+		if (current->new_has_sibling) {
 			/* it has a new and that has a binary sibling,
 			 * which means this becomes the new version
 			 * exactly when it is newer than the old newest */
 			r = dpkgversions_cmp(version, current->new_version,
 					&versioncmp);
-			if( RET_WAS_ERROR(r) ) {
+			if (RET_WAS_ERROR(r)) {
 				free(version);
 				return r;
 			}
-			if( versioncmp <= 0 ) {
+			if (versioncmp <= 0) {
 				free(version);
 				return RET_NOTHING;
 			}
-		} else if( current->old_version != NULL ) {
+		} else if (current->old_version != NULL) {
 			/* if it is older than the old one, we will
 			 * always discard it */
 			r = dpkgversions_cmp(version, current->old_version,
 					&versioncmp);
-			if( RET_WAS_ERROR(r) ) {
+			if (RET_WAS_ERROR(r)) {
 				free(version);
 				return r;
 			}
-			if( versioncmp <= 0 ) {
+			if (versioncmp <= 0) {
 				free(version);
 				return RET_NOTHING;
 			}
@@ -512,33 +513,34 @@ static retvalue floodlist_trypackage(struct floodlist *list, const char *package
 
 		r = list->target->getsourceandversion(chunk,
 				packagename_const, &source, &sourceversion);
-		if( ! RET_IS_OK(r) ) {
+		if (! RET_IS_OK(r)) {
 			free(version);
 			return r;
 		}
 		src = find_source(list, source, sourceversion);
 		free(source); free(sourceversion);
-		if( src == NULL || !src->has_sibling ) {
+		if (src == NULL || !src->has_sibling) {
 			/* the new one has no sibling, only allowed
 			 * to override those that have: */
-			if( current->new_version == NULL ) {
-				if( current->old_source->has_sibling ) {
+			if (current->new_version == NULL) {
+				if (current->old_source->has_sibling) {
 					free(version);
 					return RET_NOTHING;
 				}
-			} else if( current->new_has_sibling ) {
+			} else if (current->new_has_sibling) {
 				free(version);
 				return RET_NOTHING;
 			} else {
 				/* the new one has no sibling and the old one
 				 * has not too, take the newer one: */
-				r = dpkgversions_cmp(version, current->new_version,
+				r = dpkgversions_cmp(version,
+						current->new_version,
 						&versioncmp);
-				if( RET_WAS_ERROR(r) ) {
+				if (RET_WAS_ERROR(r)) {
 					free(version);
 					return r;
 				}
-				if( versioncmp <= 0 ) {
+				if (versioncmp <= 0) {
 					free(version);
 					return RET_NOTHING;
 				}
@@ -549,7 +551,7 @@ static retvalue floodlist_trypackage(struct floodlist *list, const char *package
 				packagename_const, version,
 				architecture_all, chunk,
 				&control, &files, &origfiles);
-		if( RET_WAS_ERROR(r) ) {
+		if (RET_WAS_ERROR(r)) {
 			free(version);
 			return r;
 		}
@@ -567,76 +569,76 @@ static retvalue floodlist_trypackage(struct floodlist *list, const char *package
 	return RET_OK;
 }
 
-static retvalue floodlist_pull(struct floodlist *list, struct target *source, struct database *database) {
+static retvalue floodlist_pull(struct floodlist *list, struct target *source) {
 	retvalue result, r;
 	const char *package, *control;
 	struct target_cursor iterator;
 
 	list->last = NULL;
-	r = target_openiterator(source, database, READONLY, &iterator);
-	if( RET_WAS_ERROR(r) )
+	r = target_openiterator(source, READONLY, &iterator);
+	if (RET_WAS_ERROR(r))
 		return r;
 	result = RET_NOTHING;
-	while( target_nextpackage(&iterator, &package, &control) ) {
+	while (target_nextpackage(&iterator, &package, &control)) {
 		char *version;
 		architecture_t package_architecture;
 
-		r = list->target->getarchitecture(control, &package_architecture);
-		if( r == RET_NOTHING )
+		r = list->target->getarchitecture(control,
+				&package_architecture);
+		if (r == RET_NOTHING)
 			continue;
-		if( !RET_IS_OK(r) ) {
+		if (!RET_IS_OK(r)) {
 			RET_UPDATE(result, r);
 			break;
 		}
-		if( package_architecture != architecture_all )
+		if (package_architecture != architecture_all)
 			continue;
 
 		r = list->target->getversion(control, &version);
-		if( r == RET_NOTHING )
+		if (r == RET_NOTHING)
 			continue;
-		if( !RET_IS_OK(r) ) {
+		if (!RET_IS_OK(r)) {
 			RET_UPDATE(result, r);
 			break;
 		}
 		r = floodlist_trypackage(list, package, version, control);
 		RET_UPDATE(result, r);
-		if( RET_WAS_ERROR(r) )
+		if (RET_WAS_ERROR(r))
 			break;
-		if( interrupted() ) {
+		if (interrupted()) {
 			result = RET_ERROR_INTERRUPTED;
 			break;
 		}
 	}
 	r = target_closeiterator(&iterator);
-	RET_ENDUPDATE(result,r);
+	RET_ENDUPDATE(result, r);
 	return result;
 }
 
-static retvalue floodlist_install(struct floodlist *list, struct logger *logger, struct database *database, /*@NULL@*/struct trackingdata *td) {
+static retvalue floodlist_install(struct floodlist *list, struct logger *logger, /*@NULL@*/struct trackingdata *td) {
 	struct aa_package_data *pkg;
-	retvalue result,r;
+	retvalue result, r;
 
-	if( list->list == NULL )
+	if (list->list == NULL)
 		return RET_NOTHING;
 
-	result = target_initpackagesdb(list->target, database, READWRITE);
-	if( RET_WAS_ERROR(result) )
+	result = target_initpackagesdb(list->target, READWRITE);
+	if (RET_WAS_ERROR(result))
 		return result;
 	result = RET_NOTHING;
-	for( pkg = list->list ; pkg != NULL ; pkg = pkg->next ) {
-		if( pkg->new_version != NULL ) {
-			r = files_expectfiles(database,
-					&pkg->new_filekeys,
+	for (pkg = list->list ; pkg != NULL ; pkg = pkg->next) {
+		if (pkg->new_version != NULL) {
+			r = files_expectfiles(&pkg->new_filekeys,
 					pkg->new_origfiles.checksums);
 			RET_UPDATE(result, r);
-			if( RET_WAS_ERROR(r) )
+			if (RET_WAS_ERROR(r))
 				continue;
-			if( interrupted() ) {
+			if (interrupted()) {
 				r = RET_ERROR_INTERRUPTED;
 				break;
 			}
-			if( td != NULL ) {
-				if( pkg->new_source != NULL ) {
+			if (td != NULL) {
+				if (pkg->new_source != NULL) {
 					r = trackingdata_switch(td,
 						pkg->new_source->name,
 						pkg->new_source->version);
@@ -648,8 +650,8 @@ static retvalue floodlist_install(struct floodlist *list, struct logger *logger,
 							pkg->name,
 							&source,
 							&sourceversion);
-					assert( r != RET_NOTHING );
-					if( RET_WAS_ERROR(r) ) {
+					assert (r != RET_NOTHING);
+					if (RET_WAS_ERROR(r)) {
 						RET_UPDATE(result, r);
 						break;
 					}
@@ -658,19 +660,18 @@ static retvalue floodlist_install(struct floodlist *list, struct logger *logger,
 					free(source);
 					free(sourceversion);
 				}
-				if( RET_WAS_ERROR(r) ) {
+				if (RET_WAS_ERROR(r)) {
 					RET_UPDATE(result, r);
 					break;
 				}
 			}
 			r = target_addpackage(list->target,
-					logger, database,
-					pkg->name, pkg->new_version,
+					logger, pkg->name, pkg->new_version,
 					pkg->new_control, &pkg->new_filekeys,
-				       	false, td, architecture_all,
+					false, td, architecture_all,
 					NULL, NULL);
 			RET_UPDATE(result, r);
-			if( RET_WAS_ERROR(r) )
+			if (RET_WAS_ERROR(r))
 				break;
 		}
 	}
@@ -679,73 +680,72 @@ static retvalue floodlist_install(struct floodlist *list, struct logger *logger,
 	return result;
 }
 
-retvalue flood(struct distribution *d, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes, architecture_t architecture, struct database *database, trackingdb tracks) {
+retvalue flood(struct distribution *d, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes, architecture_t architecture, trackingdb tracks) {
 	struct target *t, *s;
 	retvalue result = RET_NOTHING, r;
 	struct trackingdata trackingdata;
 
-	if( tracks != NULL ) {
+	if (tracks != NULL) {
 		r = trackingdata_new(tracks, &trackingdata);
-		if( RET_WAS_ERROR(r) )
+		if (RET_WAS_ERROR(r))
 			return r;
 	}
 
-	for( t = d->targets ; t != NULL ; t = t->next ) {
+	for (t = d->targets ; t != NULL ; t = t->next) {
 		struct floodlist *fl = NULL;
 
-		if( atom_defined(architecture) ) {
-			if( architecture != t->architecture_atom )
+		if (atom_defined(architecture)) {
+			if (architecture != t->architecture)
 				continue;
-		} else if( limitations_missed(architectures,
-						t->architecture_atom) )
+		} else if (limitations_missed(architectures,
+					t->architecture))
 				continue;
-		if( limitations_missed(components, t->component_atom) )
+		if (limitations_missed(components, t->component))
 			continue;
-		if( limitations_missed(packagetypes, t->packagetype_atom) )
+		if (limitations_missed(packagetypes, t->packagetype))
 			continue;
-		if( t->packagetype_atom != pt_deb
-				&& t->packagetype_atom != pt_udeb )
+		if (t->packagetype != pt_deb && t->packagetype != pt_udeb)
 			continue;
 
-		r = floodlist_initialize(&fl, t, database);
-		if( RET_WAS_ERROR(r) ) {
-			if( tracks != NULL )
+		r = floodlist_initialize(&fl, t);
+		if (RET_WAS_ERROR(r)) {
+			if (tracks != NULL)
 				trackingdata_done(&trackingdata);
 			return r;
 		}
 
-		for( s = d->targets ; s != NULL ; s = s->next ) {
-			if( s->component_atom != t->component_atom )
+		for (s = d->targets ; s != NULL ; s = s->next) {
+			if (s->component != t->component)
 				continue;
-			if( s->packagetype_atom != t->packagetype_atom )
+			if (s->packagetype != t->packagetype)
 				continue;
 			/* no need to copy things from myself: */
-			if( s->architecture_atom == t->architecture_atom )
+			if (s->architecture == t->architecture)
 				continue;
-			if( limitations_missed(architectures,
-						s->architecture_atom) )
+			if (limitations_missed(architectures,
+						s->architecture))
 				continue;
-			r = floodlist_pull(fl, s, database);
+			r = floodlist_pull(fl, s);
 			RET_UPDATE(d->status, r);
-			if( RET_WAS_ERROR(r) ) {
-				if( tracks != NULL )
+			if (RET_WAS_ERROR(r)) {
+				if (tracks != NULL)
 					trackingdata_done(&trackingdata);
 				floodlist_free(fl);
 				return r;
 			}
 		}
-		r = floodlist_install(fl, d->logger, database,
+		r = floodlist_install(fl, d->logger,
 				(tracks != NULL)?&trackingdata:NULL);
 		RET_UPDATE(result, r);
 		floodlist_free(fl);
-		if( RET_WAS_ERROR(r) ) {
-			if( tracks != NULL )
+		if (RET_WAS_ERROR(r)) {
+			if (tracks != NULL)
 				trackingdata_done(&trackingdata);
 			return r;
 		}
 	}
-	if( tracks != NULL ) {
-		r = trackingdata_finish(tracks, &trackingdata, database);
+	if (tracks != NULL) {
+		r = trackingdata_finish(tracks, &trackingdata);
 		RET_ENDUPDATE(result, r);
 	}
 	return result;

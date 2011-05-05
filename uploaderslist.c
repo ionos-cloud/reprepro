@@ -76,19 +76,19 @@ static retvalue upload_conditions_add(struct upload_conditions **c_p, const stru
 	int newcount;
 	struct upload_conditions *n;
 
-	if( a->type == uc_REJECTED ) {
+	if (a->type == uc_REJECTED) {
 		/* due to groups, there can be empty conditions.
 		 * Don't include those in this list... */
 		return RET_OK;
 	}
 
-	if( *c_p == NULL )
+	if (*c_p == NULL)
 		newcount = 1;
 	else
 		newcount = (*c_p)->count + 1;
 	n = realloc(*c_p, sizeof(struct upload_conditions)
 			+ newcount * sizeof(const struct upload_condition*));
-	if( n == NULL )
+	if (FAILEDTOALLOC(n))
 		return RET_ERROR_OOM;
 	n->current = NULL;
 	n->count = newcount;
@@ -134,11 +134,11 @@ static struct uploaders {
 static void uploadpermission_release(struct upload_condition *p) {
 	struct upload_condition *h, *f = NULL;
 
-	assert( p != NULL );
+	assert (p != NULL);
 
 	do {
 		h = p->next;
-		switch( p->type ) {
+		switch (p->type) {
 			case uc_BINARIES:
 			case uc_SECTIONS:
 			case uc_SOURCENAME:
@@ -160,11 +160,11 @@ static void uploadpermission_release(struct upload_condition *p) {
 		f = h;
 		/* and processed: */
 		p = h;
-	} while( p != NULL );
+	} while (p != NULL);
 }
 
 static void uploadergroup_free(struct uploadergroup *u) {
-	if( u == NULL )
+	if (u == NULL)
 		return;
 	free(u->name);
 	free(u->memberof);
@@ -173,7 +173,7 @@ static void uploadergroup_free(struct uploadergroup *u) {
 }
 
 static void uploader_free(struct uploader *u) {
-	if( u == NULL )
+	if (u == NULL)
 		return;
 	free(u->reversed_fingerprint);
 	free(u->memberof);
@@ -182,15 +182,15 @@ static void uploader_free(struct uploader *u) {
 }
 
 static void uploaders_free(struct uploaders *u) {
-	if( u == NULL )
+	if (u == NULL)
 		return;
-	while( u->by_fingerprint != NULL ) {
+	while (u->by_fingerprint != NULL) {
 		struct uploader *next = u->by_fingerprint->next;
 
 		uploader_free(u->by_fingerprint);
 		u->by_fingerprint = next;
 	}
-	while( u->groups != NULL ) {
+	while (u->groups != NULL) {
 		struct uploadergroup *next = u->groups->next;
 
 		uploadergroup_free(u->groups);
@@ -204,20 +204,20 @@ static void uploaders_free(struct uploaders *u) {
 }
 
 void uploaders_unlock(struct uploaders *u) {
-	if( u->reference_count > 1 ) {
+	if (u->reference_count > 1) {
 		u->reference_count--;
 	} else {
 		struct uploaders **p = &uploaderslists;
 
-		assert( u->reference_count == 1);
+		assert (u->reference_count == 1);
 		/* avoid double free: */
-		if( u->reference_count == 0 )
+		if (u->reference_count == 0)
 			return;
 
-		while( *p != NULL && *p != u )
+		while (*p != NULL && *p != u)
 			p = &(*p)->next;
-		assert( p != NULL && *p == u );
-		if( *p == u ) {
+		assert (p != NULL && *p == u);
+		if (*p == u) {
 			*p = u->next;
 			uploaders_free(u);
 		}
@@ -228,11 +228,11 @@ static retvalue upload_conditions_add_group(struct upload_conditions **c_p, cons
 	const struct uploadergroup *group;
 	retvalue r;
 
-	while( (group = *(groups++)) != NULL ) {
+	while ((group = *(groups++)) != NULL) {
 		r = upload_conditions_add(c_p, &group->permissions);
-		if( !RET_WAS_ERROR(r) && group->memberof != NULL )
+		if (!RET_WAS_ERROR(r) && group->memberof != NULL)
 			r = upload_conditions_add_group(c_p, group->memberof);
-		if( RET_WAS_ERROR(r) )
+		if (RET_WAS_ERROR(r))
 			return r;
 	}
 	return RET_OK;
@@ -246,21 +246,21 @@ static retvalue find_key_and_add(struct uploaders *u, struct upload_conditions *
 	const struct uploader *uploader;
 	retvalue r;
 
-	assert( u != NULL );
+	assert (u != NULL);
 
 	fingerprint = s->keyid;
-	assert( fingerprint != NULL );
+	assert (fingerprint != NULL);
 	len = strlen(fingerprint);
 	reversed = alloca(len+1);
-	if( reversed == NULL )
+	if (FAILEDTOALLOC(reversed))
 		return RET_ERROR_OOM;
-	for( i = 0 ; i < len ; i++ ) {
+	for (i = 0 ; i < len ; i++) {
 		char c = fingerprint[len-i-1];
-		if( c >= 'a' && c <= 'f' )
+		if (c >= 'a' && c <= 'f')
 			c -= 'a' - 'A';
-		else if( c == 'x' && len-i-1 == 1 && fingerprint[0] == '0' )
+		else if (c == 'x' && len-i-1 == 1 && fingerprint[0] == '0')
 			break;
-		if( ( c < '0' || c > '9' ) && ( c <'A' && c > 'F') ) {
+		if ((c < '0' || c > '9') && (c <'A' && c > 'F')) {
 			fprintf(stderr,
 "Strange character '%c'(=%hhu) in fingerprint '%s'.\n"
 "Search for appropriate rules in the uploaders file might fail.\n",
@@ -276,17 +276,17 @@ static retvalue find_key_and_add(struct uploaders *u, struct upload_conditions *
 	primary_fingerprint = s->primary_keyid;
 	primary_len = strlen(primary_fingerprint);
 	reversed_primary_key = alloca(len+1);
-	if( FAILEDTOALLOC(reversed_primary_key) )
+	if (FAILEDTOALLOC(reversed_primary_key))
 		return RET_ERROR_OOM;
 
-	for( i = 0 ; i < primary_len ; i++ ) {
+	for (i = 0 ; i < primary_len ; i++) {
 		char c = primary_fingerprint[primary_len-i-1];
-		if( c >= 'a' && c <= 'f' )
+		if (c >= 'a' && c <= 'f')
 			c -= 'a' - 'A';
-		else if( c == 'x' && primary_len-i-1 == 1 &&
-				primary_fingerprint[0] == '0' )
+		else if (c == 'x' && primary_len-i-1 == 1 &&
+				primary_fingerprint[0] == '0')
 			break;
-		if( ( c < '0' || c > '9' ) && ( c <'A' && c > 'F') ) {
+		if ((c < '0' || c > '9') && (c <'A' && c > 'F')) {
 			fprintf(stderr,
 "Strange character '%c'(=%hhu) in fingerprint/key-id '%s'.\n"
 "Search for appropriate rules in the uploaders file might fail.\n",
@@ -298,28 +298,30 @@ static retvalue find_key_and_add(struct uploaders *u, struct upload_conditions *
 	primary_len = i;
 	reversed_primary_key[primary_len] = '\0';
 
-	for( uploader = u->by_fingerprint ; uploader != NULL ; uploader = uploader->next ) {
+	for (uploader = u->by_fingerprint ; uploader != NULL ;
+	                                    uploader = uploader->next) {
 		/* TODO: allow ignoring */
-		if( s->state != sist_valid )
+		if (s->state != sist_valid)
 			continue;
-		if( uploader->allow_subkeys ) {
-			if( uploader->len > primary_len )
+		if (uploader->allow_subkeys) {
+			if (uploader->len > primary_len)
 				continue;
-			if( memcmp(uploader->reversed_fingerprint,
+			if (memcmp(uploader->reversed_fingerprint,
 						reversed_primary_key,
-						uploader->len) != 0 )
+						uploader->len) != 0)
 				continue;
 		} else {
-			if( uploader->len > len )
+			if (uploader->len > len)
 				continue;
-			if( memcmp(uploader->reversed_fingerprint,
-						reversed, uploader->len) != 0 )
+			if (memcmp(uploader->reversed_fingerprint,
+						reversed, uploader->len) != 0)
 				continue;
 		}
 		r = upload_conditions_add(c_p, &uploader->permissions);
-		if( !RET_WAS_ERROR(r) && uploader->memberof != NULL )
-			r = upload_conditions_add_group(c_p, uploader->memberof);
-		if( RET_WAS_ERROR(r) )
+		if (!RET_WAS_ERROR(r) && uploader->memberof != NULL)
+			r = upload_conditions_add_group(c_p,
+					uploader->memberof);
+		if (RET_WAS_ERROR(r))
 			return r;
 		/* no break here, as a key might match
 		 * multiple specifications of different length */
@@ -334,33 +336,33 @@ retvalue uploaders_permissions(struct uploaders *u, const struct signatures *sig
 
 	r = upload_conditions_add(&conditions,
 			&u->anybodypermissions);
-	if( RET_WAS_ERROR(r) )
+	if (RET_WAS_ERROR(r))
 		return r;
-	if( signatures == NULL ) {
+	if (signatures == NULL) {
 		/* signatures.count might be 0 meaning there is
 		 * something lile a gpg header but we could not get
 		 * keys, because of a gpg error or because of being
 		 * compiling without libgpgme */
 		r = upload_conditions_add(&conditions,
 				&u->unsignedpermissions);
-		if( RET_WAS_ERROR(r) ) {
+		if (RET_WAS_ERROR(r)) {
 			free(conditions);
 			return r;
 		}
 	}
-	if( signatures != NULL && signatures->validcount > 0 ) {
+	if (signatures != NULL && signatures->validcount > 0) {
 		r = upload_conditions_add(&conditions,
 				&u->anyvalidkeypermissions);
-		if( RET_WAS_ERROR(r) ) {
+		if (RET_WAS_ERROR(r)) {
 			free(conditions);
 			return r;
 		}
 	}
-	if( signatures != NULL ) {
-		for( j = 0 ; j < signatures->count ; j++ ) {
+	if (signatures != NULL) {
+		for (j = 0 ; j < signatures->count ; j++) {
 			r = find_key_and_add(u, &conditions,
 					&signatures->signatures[j]);
-			if( RET_WAS_ERROR(r) ) {
+			if (RET_WAS_ERROR(r)) {
 				free(conditions);
 				return r;
 			}
@@ -373,30 +375,30 @@ retvalue uploaders_permissions(struct uploaders *u, const struct signatures *sig
 /* uc_FAILED means rejected, uc_ACCEPTED means can go in */
 enum upload_condition_type uploaders_nextcondition(struct upload_conditions *c) {
 
-	if( c->current != NULL ) {
-		if( c->matching && !c->needscandidate ) {
-			if( c->current->accept_if_true )
+	if (c->current != NULL) {
+		if (c->matching && !c->needscandidate) {
+			if (c->current->accept_if_true)
 				return uc_ACCEPTED;
 			c->current = c->current->next_if_true;
 		} else {
-			if( c->current->accept_if_false )
+			if (c->current->accept_if_false)
 				return uc_ACCEPTED;
 			c->current = c->current->next_if_false;
 		}
 	}
 
 	/* return the first non-trivial one left: */
-	while( true ) {
-		while( c->current != NULL ) {
-			assert( c->current->type > uc_REJECTED );
-			if( c->current->type == uc_ALWAYS ) {
-				if( c->current->accept_if_true )
+	while (true) {
+		while (c->current != NULL) {
+			assert (c->current->type > uc_REJECTED);
+			if (c->current->type == uc_ALWAYS) {
+				if (c->current->accept_if_true)
 					return uc_ACCEPTED;
 				c->current = c->current->next_if_true;
 			} else {
 				/* empty set fullfills all conditions,
 				   but not an exists condition */
-				switch( c->current->needs ) {
+				switch (c->current->needs) {
 					case needs_any:
 						c->matching = false;
 						c->needscandidate = false;
@@ -414,7 +416,7 @@ enum upload_condition_type uploaders_nextcondition(struct upload_conditions *c) 
 				return c->current->type;
 			}
 		}
-		if( c->count == 0 )
+		if (c->count == 0)
 			return uc_REJECTED;
 		c->count--;
 		c->current = c->conditions[c->count];
@@ -425,8 +427,8 @@ enum upload_condition_type uploaders_nextcondition(struct upload_conditions *c) 
 static bool match_namecheck(const struct strlist *strings, const char *name) {
 	int i;
 
-	for( i = 0 ; i < strings->count ; i++ ) {
-		if( globmatch(name, strings->values[i]) )
+	for (i = 0 ; i < strings->count ; i++) {
+		if (globmatch(name, strings->values[i]))
 			return true;
 	}
 	return false;
@@ -435,26 +437,26 @@ static bool match_namecheck(const struct strlist *strings, const char *name) {
 bool uploaders_verifystring(struct upload_conditions *conditions, const char *name) {
 	const struct upload_condition *c = conditions->current;
 
-	assert( c != NULL );
-	assert( c->type == uc_BINARIES || c->type == uc_SECTIONS ||
+	assert (c != NULL);
+	assert (c->type == uc_BINARIES || c->type == uc_SECTIONS ||
 		c->type == uc_CODENAME ||
-		c->type == uc_SOURCENAME || c->type == uc_BYHAND );
+		c->type == uc_SOURCENAME || c->type == uc_BYHAND);
 
 	conditions->needscandidate = false;
-	switch( conditions->current->needs ) {
+	switch (conditions->current->needs) {
 		case needs_all:
 		case needs_existsall:
 			/* once one condition is false, the case is settled */
 
-			if( conditions->matching &&
-					!match_namecheck(&c->strings, name) )
+			if (conditions->matching &&
+					!match_namecheck(&c->strings, name))
 				conditions->matching = false;
 			/* but while it is true, more info is needed */
 			return conditions->matching;
 		case needs_any:
 			/* once one condition is true, the case is settled */
-			if( !conditions->matching &&
-					match_namecheck(&c->strings, name) )
+			if (!conditions->matching &&
+					match_namecheck(&c->strings, name))
 				conditions->matching = true;
 			conditions->needscandidate = false;
 			/* but while it is false, more info is needed */
@@ -464,30 +466,30 @@ bool uploaders_verifystring(struct upload_conditions *conditions, const char *na
 			return false;
 	}
 	/* NOT REACHED */
-	assert( conditions->current->needs != conditions->current->needs );
+	assert (conditions->current->needs != conditions->current->needs);
 }
 
 bool uploaders_verifyatom(struct upload_conditions *conditions, atom_t atom) {
 	const struct upload_condition *c = conditions->current;
 
-	assert( c != NULL );
-	assert( c->type == uc_ARCHITECTURES );
+	assert (c != NULL);
+	assert (c->type == uc_ARCHITECTURES);
 
 	conditions->needscandidate = false;
-	switch( conditions->current->needs ) {
+	switch (conditions->current->needs) {
 		case needs_all:
 		case needs_existsall:
 			/* once one condition is false, the case is settled */
 
-			if( conditions->matching &&
-					!atomlist_in(&c->atoms, atom) )
+			if (conditions->matching &&
+					!atomlist_in(&c->atoms, atom))
 				conditions->matching = false;
 			/* but while it is true, more info is needed */
 			return conditions->matching;
 		case needs_any:
 			/* once one condition is true, the case is settled */
-			if( !conditions->matching &&
-					atomlist_in(&c->atoms, atom) )
+			if (!conditions->matching &&
+					atomlist_in(&c->atoms, atom))
 				conditions->matching = true;
 			/* but while it is false, more info is needed */
 			return !conditions->matching;
@@ -496,7 +498,7 @@ bool uploaders_verifyatom(struct upload_conditions *conditions, atom_t atom) {
 			return false;
 	}
 	/* NOT REACHED */
-	assert( conditions->current->needs != conditions->current->needs );
+	assert (conditions->current->needs != conditions->current->needs);
 }
 
 static struct uploader *addfingerprint(struct uploaders *u, const char *fingerprint, size_t len, bool allow_subkeys) {
@@ -504,30 +506,32 @@ static struct uploader *addfingerprint(struct uploaders *u, const char *fingerpr
 	char *reversed = malloc(len+1);
 	struct uploader *uploader, **last;
 
-	if( reversed == NULL )
+	if (FAILEDTOALLOC(reversed))
 		return NULL;
-	for( i = 0 ; i < len ; i++ ) {
+	for (i = 0 ; i < len ; i++) {
 		char c = fingerprint[len-i-1];
-		if( c >= 'a' && c <= 'f' )
+		if (c >= 'a' && c <= 'f')
 			c -= 'a' - 'A';
-		assert( ( c >= '0' && c <= '9' ) || ( c >= 'A' || c <= 'F') );
+		assert ((c >= '0' && c <= '9') || (c >= 'A' || c <= 'F'));
 		reversed[i] = c;
 	}
 	reversed[len] = '\0';
 	last = &u->by_fingerprint;
-	for( uploader = u->by_fingerprint ; uploader != NULL ; uploader = *(last = &uploader->next) ) {
-		if( uploader->len != len )
+	for (uploader = u->by_fingerprint ;
+	     uploader != NULL ;
+	     uploader = *(last = &uploader->next)) {
+		if (uploader->len != len)
 			continue;
-		if( memcmp(uploader->reversed_fingerprint, reversed, len) != 0 )
+		if (memcmp(uploader->reversed_fingerprint, reversed, len) != 0)
 			continue;
-		if( uploader->allow_subkeys != allow_subkeys )
+		if (uploader->allow_subkeys != allow_subkeys)
 			continue;
 		free(reversed);
 		return uploader;
 	}
-	assert( *last == NULL );
-	uploader = calloc(1,sizeof(struct uploader));
-	if( uploader == NULL )
+	assert (*last == NULL);
+	uploader = zNEW(struct uploader);
+	if (FAILEDTOALLOC(uploader))
 		return NULL;
 	*last = uploader;
 	uploader->reversed_fingerprint = reversed;
@@ -540,20 +544,21 @@ static struct uploadergroup *addgroup(struct uploaders *u, const char *name, siz
 	struct uploadergroup *group, **last;
 
 	last = &u->groups;
-	for( group = u->groups ; group != NULL ; group = *(last = &group->next) ) {
-		if( group->len != len )
+	for (group = u->groups ;
+	     group != NULL ; group = *(last = &group->next)) {
+		if (group->len != len)
 			continue;
-		if( memcmp(group->name, name, len) != 0 )
+		if (memcmp(group->name, name, len) != 0)
 			continue;
 		return group;
 	}
-	assert( *last == NULL );
-	group = calloc(1, sizeof(struct uploadergroup));
-	if( FAILEDTOALLOC(group) )
+	assert (*last == NULL);
+	group = zNEW(struct uploadergroup);
+	if (FAILEDTOALLOC(group))
 		return NULL;
 	group->name = strndup(name, len);
 	group->len = len;
-	if( FAILEDTOALLOC(group->name) ) {
+	if (FAILEDTOALLOC(group->name)) {
 		free(group);
 		return NULL;
 	}
@@ -562,8 +567,8 @@ static struct uploadergroup *addgroup(struct uploaders *u, const char *name, siz
 }
 
 static inline const char *overkey(const char *p) {
-	while( (*p >= '0' && *p <= '9') || (*p >= 'a' && *p <= 'f')
-			|| (*p >= 'A' && *p <= 'F') ) {
+	while ((*p >= '0' && *p <= '9') || (*p >= 'a' && *p <= 'f')
+			|| (*p >= 'A' && *p <= 'F')) {
 		p++;
 	}
 	return p;
@@ -578,41 +583,43 @@ static retvalue parse_stringpart(/*@out@*/struct strlist *strings, const char **
 		const char *startp, *endp;
 		char *n;
 
-		while( *p != '\0' && xisspace(*p) )
+		while (*p != '\0' && xisspace(*p))
 			p++;
-		if( *p != '\'' ) {
+		if (*p != '\'') {
 			fprintf(stderr,
 "%s:%lu:%u: starting \"'\" expected!\n",
-					filename, lineno, column + (int)(p-*pp));
+					filename, lineno,
+					column + (int)(p - *pp));
 			return RET_ERROR;
 		}
 		p++;
 		startp = p;
-		while( *p != '\0' && *p != '\'' )
+		while (*p != '\0' && *p != '\'')
 			p++;
-		if( *p == '\0' ) {
+		if (*p == '\0') {
 			fprintf(stderr,
 "%s:%lu:%u: closing \"'\" expected!\n",
-					filename, lineno, column + (int)(p-*pp));
+					filename, lineno,
+					column + (int)(p - *pp));
 			return RET_ERROR;
 		}
-		assert( *p == '\'' );
+		assert (*p == '\'');
 		endp = p;
 		p++;
 		n = strndup(startp, endp - startp);
-		if( FAILEDTOALLOC(n) )
+		if (FAILEDTOALLOC(n))
 			return RET_ERROR_OOM;
 		r = strlist_adduniq(strings, n);
-		if( RET_WAS_ERROR(r) )
+		if (RET_WAS_ERROR(r))
 			return r;
-		while( *p != '\0' && xisspace(*p) )
+		while (*p != '\0' && xisspace(*p))
 			p++;
 		column += (p - *pp);
 		*pp = p;
-		if( **pp == '|' ) {
+		if (**pp == '|') {
 			p++;
 		}
-	} while ( **pp == '|' );
+	} while (**pp == '|');
 	*pp = p;
 	return RET_OK;
 }
@@ -626,35 +633,38 @@ static retvalue parse_architectures(/*@out@*/struct atomlist *atoms, const char 
 		const char *startp, *endp;
 		atom_t atom;
 
-		while( *p != '\0' && xisspace(*p) )
+		while (*p != '\0' && xisspace(*p))
 			p++;
-		if( *p != '\'' ) {
+		if (*p != '\'') {
 			fprintf(stderr,
 "%s:%lu:%u: starting \"'\" expected!\n",
-					filename, lineno, column + (int)(p-*pp));
+					filename, lineno,
+					column + (int)(p - *pp));
 			return RET_ERROR;
 		}
 		p++;
 		startp = p;
-		while( *p != '\0' && *p != '\'' && *p != '*' && *p != '?' )
+		while (*p != '\0' && *p != '\'' && *p != '*' && *p != '?')
 			p++;
-		if( *p == '*' || *p == '?' ) {
+		if (*p == '*' || *p == '?') {
 			fprintf(stderr,
 "%s:%lu:%u: Wildcards are not allowed in architectures!\n",
-					filename, lineno, column + (int)(p-*pp));
+					filename, lineno,
+					column + (int)(p - *pp));
 			return RET_ERROR;
 		}
-		if( *p == '\0' ) {
+		if (*p == '\0') {
 			fprintf(stderr,
 "%s:%lu:%u: closing \"'\" expected!\n",
-					filename, lineno, column + (int)(p-*pp));
+					filename, lineno,
+					column + (int)(p - *pp));
 			return RET_ERROR;
 		}
-		assert( *p == '\'' );
+		assert (*p == '\'');
 		endp = p;
 		p++;
 		atom = architecture_find_l(startp, endp - startp);
-		if( !atom_defined(atom) ) {
+		if (!atom_defined(atom)) {
 			fprintf(stderr,
 "%s:%lu:%u: Unknown architecture '%.*s'! (Did you mistype?)\n",
 					filename, lineno,
@@ -663,16 +673,16 @@ static retvalue parse_architectures(/*@out@*/struct atomlist *atoms, const char 
 			return RET_ERROR;
 		}
 		r = atomlist_add_uniq(atoms, atom);
-		if( RET_WAS_ERROR(r) )
+		if (RET_WAS_ERROR(r))
 			return r;
-		while( *p != '\0' && xisspace(*p) )
+		while (*p != '\0' && xisspace(*p))
 			p++;
 		column += (p - *pp);
 		*pp = p;
-		if( **pp == '|' ) {
+		if (**pp == '|') {
 			p++;
 		}
-	} while ( **pp == '|' );
+	} while (**pp == '|');
 	*pp = p;
 	return RET_OK;
 }
@@ -681,14 +691,14 @@ static retvalue parse_condition(const char *filename, long lineno, int column, c
 	const char *p = *pp;
 	struct upload_condition *fallback, *last, *or_scope;
 
-	memset( condition, 0, sizeof(struct upload_condition));
+	memset(condition, 0, sizeof(struct upload_condition));
 
 	/* allocate a new fallback-node:
 	 * (this one is used to make it easier to concatenate those decision
 	 * trees, especially it keeps open the possibility to have deny
 	 * decisions) */
-	fallback = calloc(1, sizeof(struct upload_condition));
-	if( FAILEDTOALLOC(fallback) )
+	fallback = zNEW(struct upload_condition);
+	if (FAILEDTOALLOC(fallback))
 		return RET_ERROR_OOM;
 	fallback->type = uc_ALWAYS;
 	assert(!fallback->accept_if_true);
@@ -701,11 +711,11 @@ static retvalue parse_condition(const char *filename, long lineno, int column, c
 	last = condition;
 	or_scope = condition;
 
-	while( true ) {
-		if( strncmp(p, "not", 3) == 0 &&
-				xisspace(p[3]) ) {
+	while (true) {
+		if (strncmp(p, "not", 3) == 0 &&
+				xisspace(p[3])) {
 			p += 3;
-			while( *p != '\0' && xisspace(*p) )
+			while (*p != '\0' && xisspace(*p))
 				p++;
 			/* negate means false is good and true
 			 * is bad: */
@@ -719,20 +729,20 @@ static retvalue parse_condition(const char *filename, long lineno, int column, c
 			last->next_if_false = fallback;
 			last->next_if_true = NULL;
 		}
-		if( p[0] == '*' && xisspace(p[1]) ) {
+		if (p[0] == '*' && xisspace(p[1])) {
 			last->type = uc_ALWAYS;
 			p++;
-		} else if( strncmp(p, "architectures", 13) == 0 &&
-			   strchr(" \t'", p[13]) != NULL ) {
+		} else if (strncmp(p, "architectures", 13) == 0 &&
+			   strchr(" \t'", p[13]) != NULL) {
 			retvalue r;
 
 			last->type = uc_ARCHITECTURES;
 			last->needs = needs_all;
 			p += 13;
-			while( *p != '\0' && xisspace(*p) )
+			while (*p != '\0' && xisspace(*p))
 				p++;
-			if( strncmp(p, "contain", 7) == 0 &&
-					strchr(" \t'", p[7]) != NULL ) {
+			if (strncmp(p, "contain", 7) == 0 &&
+					strchr(" \t'", p[7]) != NULL) {
 				last->needs = needs_any;
 				p += 7;
 			}
@@ -740,21 +750,21 @@ static retvalue parse_condition(const char *filename, long lineno, int column, c
 			r = parse_architectures(&last->atoms, &p,
 					filename, lineno,
 					column + (p-*pp));
-			if( RET_WAS_ERROR(r) ) {
+			if (RET_WAS_ERROR(r)) {
 				uploadpermission_release(condition);
 				return r;
 			}
-		} else if( strncmp(p, "binaries", 8) == 0 &&
-			   strchr(" \t'", p[8]) != NULL ) {
+		} else if (strncmp(p, "binaries", 8) == 0 &&
+			   strchr(" \t'", p[8]) != NULL) {
 			retvalue r;
 
 			last->type = uc_BINARIES;
 			last->needs = needs_all;
 			p += 8;
-			while( *p != '\0' && xisspace(*p) )
+			while (*p != '\0' && xisspace(*p))
 				p++;
-			if( strncmp(p, "contain", 7) == 0 &&
-					strchr(" \t'", p[7]) != NULL ) {
+			if (strncmp(p, "contain", 7) == 0 &&
+					strchr(" \t'", p[7]) != NULL) {
 				last->needs = needs_any;
 				p += 7;
 			}
@@ -762,41 +772,41 @@ static retvalue parse_condition(const char *filename, long lineno, int column, c
 			r = parse_stringpart(&last->strings, &p,
 					filename, lineno,
 					column + (p-*pp));
-			if( RET_WAS_ERROR(r) ) {
+			if (RET_WAS_ERROR(r)) {
 				uploadpermission_release(condition);
 				return r;
 			}
-		} else if( strncmp(p, "byhand", 6) == 0 &&
-			   strchr(" \t'", p[6]) != NULL ) {
+		} else if (strncmp(p, "byhand", 6) == 0 &&
+			   strchr(" \t'", p[6]) != NULL) {
 			retvalue r;
 
 			last->type = uc_BYHAND;
 			last->needs = needs_existsall;
 			p += 8;
-			while( *p != '\0' && xisspace(*p) )
+			while (*p != '\0' && xisspace(*p))
 				p++;
-			if( *p != '\'' ) {
+			if (*p != '\'') {
 				strlist_init(&last->strings);
 				r = RET_OK;
 			} else
 				r = parse_stringpart(&last->strings, &p,
 						filename, lineno,
 						column + (p-*pp));
-			if( RET_WAS_ERROR(r) ) {
+			if (RET_WAS_ERROR(r)) {
 				uploadpermission_release(condition);
 				return r;
 			}
-		} else if( strncmp(p, "sections", 8) == 0 &&
-			   strchr(" \t'", p[8]) != NULL ) {
+		} else if (strncmp(p, "sections", 8) == 0 &&
+			   strchr(" \t'", p[8]) != NULL) {
 			retvalue r;
 
 			last->type = uc_SECTIONS;
 			last->needs = needs_all;
 			p += 8;
-			while( *p != '\0' && xisspace(*p) )
+			while (*p != '\0' && xisspace(*p))
 				p++;
-			if( strncmp(p, "contain", 7) == 0 &&
-					strchr(" \t'", p[7]) != NULL ) {
+			if (strncmp(p, "contain", 7) == 0 &&
+					strchr(" \t'", p[7]) != NULL) {
 				last->needs = needs_any;
 				p += 7;
 			}
@@ -804,12 +814,12 @@ static retvalue parse_condition(const char *filename, long lineno, int column, c
 			r = parse_stringpart(&last->strings, &p,
 					filename, lineno,
 					column + (p-*pp));
-			if( RET_WAS_ERROR(r) ) {
+			if (RET_WAS_ERROR(r)) {
 				uploadpermission_release(condition);
 				return r;
 			}
-		} else if( strncmp(p, "source", 6) == 0 &&
-			   strchr(" \t'", p[6]) != NULL ) {
+		} else if (strncmp(p, "source", 6) == 0 &&
+			   strchr(" \t'", p[6]) != NULL) {
 			retvalue r;
 
 			last->type = uc_SOURCENAME;
@@ -818,13 +828,13 @@ static retvalue parse_condition(const char *filename, long lineno, int column, c
 			r = parse_stringpart(&last->strings, &p,
 					filename, lineno,
 					column + (p-*pp));
-			if( RET_WAS_ERROR(r) ) {
+			if (RET_WAS_ERROR(r)) {
 				uploadpermission_release(condition);
 				return r;
 			}
 
-		} else if( strncmp(p, "distribution", 12) == 0 &&
-			   strchr(" \t'", p[12]) != NULL ) {
+		} else if (strncmp(p, "distribution", 12) == 0 &&
+			   strchr(" \t'", p[12]) != NULL) {
 			retvalue r;
 
 			last->type = uc_CODENAME;
@@ -833,36 +843,39 @@ static retvalue parse_condition(const char *filename, long lineno, int column, c
 			r = parse_stringpart(&last->strings, &p,
 					filename, lineno,
 					column + (p-*pp));
-			if( RET_WAS_ERROR(r) ) {
+			if (RET_WAS_ERROR(r)) {
 				uploadpermission_release(condition);
 				return r;
 			}
 
 		} else {
-			fprintf(stderr, "%s:%lu:%u: condition expected after 'allow' keyword!\n", filename, lineno, column + (int)(p-*pp));
+			fprintf(stderr,
+"%s:%lu:%u: condition expected after 'allow' keyword!\n",
+					filename, lineno,
+					column + (int)(p - *pp));
 			uploadpermission_release(condition);
 			return RET_ERROR;
 		}
-		while( *p != '\0' && xisspace(*p) )
+		while (*p != '\0' && xisspace(*p))
 			p++;
-		if( strncmp(p, "and", 3) == 0 && xisspace(p[3]) ) {
+		if (strncmp(p, "and", 3) == 0 && xisspace(p[3])) {
 			struct upload_condition *n, *c;
 
 			p += 3;
 
-			n = calloc(1, sizeof(struct upload_condition));
-			if( FAILEDTOALLOC(n) ) {
+			n = zNEW(struct upload_condition);
+			if (FAILEDTOALLOC(n)) {
 				uploadpermission_release(condition);
 				return RET_ERROR_OOM;
 			}
 			/* everything that yet made it succeed makes it need
 			 * to check this condition: */
-			for( c = condition ; c != NULL ; c = c->next ) {
-				if( c->accept_if_true ) {
+			for (c = condition ; c != NULL ; c = c->next) {
+				if (c->accept_if_true) {
 					c->next_if_true = n;
 					c->accept_if_true = false;
 				}
-				if( c->accept_if_false ) {
+				if (c->accept_if_false) {
 					c->next_if_false = n;
 					c->accept_if_false = false;
 				}
@@ -871,17 +884,17 @@ static retvalue parse_condition(const char *filename, long lineno, int column, c
 			or_scope = n;
 
 			/* add it to queue: */
-			assert( last->next == fallback );
+			assert (last->next == fallback);
 			n->next = fallback;
 			last->next = n;
 			last = n;
-		} else if( strncmp(p, "or", 2) == 0 && xisspace(p[2]) ) {
+		} else if (strncmp(p, "or", 2) == 0 && xisspace(p[2])) {
 			struct upload_condition *n, *c;
 
 			p += 2;
 
-			n = calloc(1, sizeof(struct upload_condition));
-			if( FAILEDTOALLOC(n) ) {
+			n = zNEW(struct upload_condition);
+			if (FAILEDTOALLOC(n)) {
 				uploadpermission_release(condition);
 				return RET_ERROR_OOM;
 			}
@@ -889,27 +902,30 @@ static retvalue parse_condition(const char *filename, long lineno, int column, c
 			 * now makes it check this: (currently that will
 			 * only be true at most for c == last, but with
 			 * parantheses this all will be needed) */
-			for( c = or_scope ; c != NULL ; c = c->next ) {
-				if( c->next_if_true == fallback )
+			for (c = or_scope ; c != NULL ; c = c->next) {
+				if (c->next_if_true == fallback)
 					c->next_if_true = n;
-				if( c->next_if_false == fallback )
+				if (c->next_if_false == fallback)
 					c->next_if_false = n;
 			}
 			/* add it to queue: */
-			assert( last->next == fallback );
+			assert (last->next == fallback);
 			n->next = fallback;
 			last->next = n;
 			last = n;
-		} else if( strncmp(p, "by", 2) == 0 && xisspace(p[2]) ) {
+		} else if (strncmp(p, "by", 2) == 0 && xisspace(p[2])) {
 			p += 2;
 			break;
 		} else {
-			fprintf(stderr, "%s:%lu:%u: 'by','and' or 'or' keyword expected!\n", filename, (long)lineno, column + (int)(p-*pp));
+			fprintf(stderr,
+"%s:%lu:%u: 'by','and' or 'or' keyword expected!\n",
+					filename, (long)lineno,
+					column + (int)(p - *pp));
 			uploadpermission_release(condition);
-			memset( condition, 0, sizeof(struct upload_condition));
+			memset(condition, 0, sizeof(struct upload_condition));
 			return RET_ERROR;
 		}
-		while( *p != '\0' && xisspace(*p) )
+		while (*p != '\0' && xisspace(*p))
 			p++;
 	}
 	*pp = p;
@@ -917,7 +933,7 @@ static retvalue parse_condition(const char *filename, long lineno, int column, c
 }
 
 static void condition_add(struct upload_condition *permissions, struct upload_condition *c) {
-	if( permissions->next == NULL ) {
+	if (permissions->next == NULL) {
 		/* first condition, as no fallback yet allocated */
 		*permissions = *c;
 		memset(c, 0, sizeof(struct upload_condition));
@@ -925,8 +941,8 @@ static void condition_add(struct upload_condition *permissions, struct upload_co
 		struct upload_condition *last;
 
 		last = permissions->next;
-		assert( last != NULL );
-		while( last->next != NULL )
+		assert (last != NULL);
+		while (last->next != NULL)
 			last = last->next;
 
 		/* the very last is always the fallback-node to which all
@@ -945,24 +961,26 @@ static retvalue find_group(struct uploadergroup **g, struct uploaders *u, const 
 
 	p = *pp;
 	q = p;
-	while( (*q >= 'a' && *q <= 'z') || (*q >= 'A' && *q <= 'Z') ||
+	while ((*q >= 'a' && *q <= 'z') || (*q >= 'A' && *q <= 'Z') ||
 			(*q >= '0' && *q <= '9') || *q == '-'
-			|| *q == '_' || *q == '.' )
+			|| *q == '_' || *q == '.')
 		q++;
-	if( *p == '\0' || ( q-p == 3 && memcmp(p, "add", 3) == 0 )
-			|| ( q-p == 5 && memcmp(p, "empty", 5) == 0 )
-			|| ( q-p == 6 && memcmp(p, "unused", 6) == 0 )
-			|| ( q-p == 8 && memcmp(p, "contains", 8) == 0 ) ) {
-		fprintf(stderr, "%s:%lu:%u: group name expected!\n", filename, (long)lineno, (int)(1+p-buffer));
+	if (*p == '\0' || (q-p == 3 && memcmp(p, "add", 3) == 0)
+			|| (q-p == 5 && memcmp(p, "empty", 5) == 0)
+			|| (q-p == 6 && memcmp(p, "unused", 6) == 0)
+			|| (q-p == 8 && memcmp(p, "contains", 8) == 0)) {
+		fprintf(stderr, "%s:%lu:%u: group name expected!\n", filename,
+				(long)lineno, (int)(1 + p - buffer));
 		return RET_ERROR;
 	}
-	if( *q != '\0' && *q != ' ' && *q != '\t' ) {
-		fprintf(stderr, "%s:%lu:%u: invalid group name!\n", filename, (long)lineno, (int)(1+p-buffer));
+	if (*q != '\0' && *q != ' ' && *q != '\t') {
+		fprintf(stderr, "%s:%lu:%u: invalid group name!\n",
+				filename, (long)lineno, (int)(1 +p -buffer));
 		return RET_ERROR;
 	}
 	*pp = q;
 	group = addgroup(u, p, q-p);
-	if( FAILEDTOALLOC(group) )
+	if (FAILEDTOALLOC(group))
 		return RET_ERROR_OOM;
 	*g = group;
 	return RET_OK;
@@ -973,30 +991,34 @@ static retvalue find_uploader(struct uploader **u_p, struct uploaders *u, const 
 	bool allow_subkeys = false;
 	const char *q, *qq;
 
-	if( p[0] == '0' && p[1] == 'x' )
+	if (p[0] == '0' && p[1] == 'x')
 		p += 2;
 	q = overkey(p);
-	if( *p == '\0' || (*q !='\0' && !xisspace(*q) && *q != '+') || q==p ) {
-		fprintf(stderr, "%s:%lu:%u: key id or fingerprint expected!\n", filename, (long)lineno, (int)(1+q-buffer));
+	if (*p == '\0' || (*q !='\0' && !xisspace(*q) && *q != '+') || q==p) {
+		fprintf(stderr, "%s:%lu:%u: key id or fingerprint expected!\n",
+				filename, (long)lineno, (int)(1 + q - buffer));
 		return RET_ERROR;
 	}
 	qq = q;
-	while( xisspace(*qq) )
+	while (xisspace(*qq))
 		qq++;
-	if( *qq == '+' ) {
+	if (*qq == '+') {
 		qq++;
 		allow_subkeys = true;
 	}
-	while( xisspace(*qq) )
+	while (xisspace(*qq))
 		qq++;
-	if( *qq != '\0' ) {
-		fprintf(stderr, "%s:%lu:%u: unexpected data after 'key <fingerprint>' statement!\n\n", filename, (long)lineno, (int)(1+qq-buffer));
-		if( *q == ' ' )
-			fprintf(stderr, " Hint: no spaces allowed in fingerprint specification.\n");
+	if (*qq != '\0') {
+		fprintf(stderr, 
+"%s:%lu:%u: unexpected data after 'key <fingerprint>' statement!\n\n",
+				filename, (long)lineno, (int)(1 +qq - buffer));
+		if (*q == ' ')
+			fprintf(stderr,
+" Hint: no spaces allowed in fingerprint specification.\n");
 		return RET_ERROR;
 	}
 	uploader = addfingerprint(u, p, q-p, allow_subkeys);
-	if( FAILEDTOALLOC(uploader) )
+	if (FAILEDTOALLOC(uploader))
 		return RET_ERROR_OOM;
 	*u_p = uploader;
 	return RET_OK;
@@ -1007,28 +1029,33 @@ static retvalue include_group(struct uploadergroup *group, const struct uploader
 	const struct uploadergroup **memberof = *memberof_p;
 
 	n = 0;
-	if( memberof != NULL ) {
-		while( memberof[n] != NULL ) {
-			if( memberof[n] == group ) {
-				fprintf(stderr, "%s:%lu: member added to group %s a second time!\n", filename, lineno, group->name);
+	if (memberof != NULL) {
+		while (memberof[n] != NULL) {
+			if (memberof[n] == group) {
+				fprintf(stderr,
+"%s:%lu: member added to group %s a second time!\n",
+						filename, lineno, group->name);
 				return RET_ERROR;
 			}
 			n++;
 		}
 	}
-	if( n == 0 || (n & 15) == 15 ) {
+	if (n == 0 || (n & 15) == 15) {
 		/* let's hope no static checker is confused here ;-> */
-		memberof = realloc(memberof, ((n+16)&~15) * sizeof(struct uploadergroup*));
-		if( memberof == NULL )
+		memberof = realloc(memberof,
+				((n+16)&~15) * sizeof(struct uploadergroup*));
+		if (FAILEDTOALLOC(memberof))
 			return RET_ERROR_OOM;
 		*memberof_p = memberof;
 	}
 	memberof[n] = group;
 	memberof[n+1] = NULL;
-	if( group->firstmemberat == 0 )
+	if (group->firstmemberat == 0)
 		group->firstmemberat = lineno;
-	if( group->emptyat != 0 ) {
-		fprintf(stderr, "%s:%lu: cannot add members to group '%s' marked empty in line %lu\n", filename, lineno, group->name, group->emptyat);
+	if (group->emptyat != 0) {
+		fprintf(stderr,
+"%s:%lu: cannot add members to group '%s' marked empty in line %lu\n",
+				filename, lineno, group->name, group->emptyat);
 		return RET_ERROR;
 	}
 	return RET_OK;
@@ -1037,12 +1064,12 @@ static retvalue include_group(struct uploadergroup *group, const struct uploader
 static bool is_included_in(const struct uploadergroup *needle, const struct uploadergroup *chair) {
 	const struct uploadergroup **g;
 
-	if( needle->memberof == NULL )
+	if (needle->memberof == NULL)
 		return false;
-	for( g = needle->memberof ; *g != NULL ; g++ ) {
-		if( *g == chair )
+	for (g = needle->memberof ; *g != NULL ; g++) {
+		if (*g == chair)
 			return true;
-		if( is_included_in(*g, chair) )
+		if (is_included_in(*g, chair))
 			return true;
 	}
 	return false;
@@ -1055,198 +1082,262 @@ static inline retvalue parseuploaderline(char *buffer, const char *filename, siz
 	struct upload_condition condition;
 
 	l = strlen(buffer);
-	if( l == 0 )
+	if (l == 0)
 		return RET_NOTHING;
-	if( buffer[l-1] != '\n' ) {
-		if( l >= 1024 )
-			fprintf(stderr, "%s:%lu:1024: Overlong line!\n", filename, (long)lineno);
+	if (buffer[l-1] != '\n') {
+		if (l >= 1024)
+			fprintf(stderr, "%s:%lu:1024: Overlong line!\n",
+					filename, (long)lineno);
 		else
-			fprintf(stderr, "%s:%lu:%lu: Unterminated line!\n", filename, (long)lineno,(long)l);
+			fprintf(stderr, "%s:%lu:%lu: Unterminated line!\n",
+					filename, (long)lineno, (long)l);
 		return RET_ERROR;
 	}
 	do {
 		buffer[--l] = '\0';
-	} while( l > 0 && xisspace(buffer[l-1]) );
+	} while (l > 0 && xisspace(buffer[l-1]));
 
 	p = buffer;
-	while( *p != '\0' && xisspace(*p) )
+	while (*p != '\0' && xisspace(*p))
 		p++;
-	if( *p == '\0' || *p == '#' )
+	if (*p == '\0' || *p == '#')
 		return RET_NOTHING;
 
-	if( strncmp(p, "group", 5) == 0 && (*p == '\0' || xisspace(p[5])) ) {
+	if (strncmp(p, "group", 5) == 0 && (*p == '\0' || xisspace(p[5]))) {
 		struct uploadergroup *group;
 
 		p += 5;
-		while( *p != '\0' && xisspace(*p) )
+		while (*p != '\0' && xisspace(*p))
 			p++;
 		r = find_group(&group, u, &p, filename, lineno, buffer);
-		if( RET_WAS_ERROR(r) )
+		if (RET_WAS_ERROR(r))
 			return r;
-		while( *p != '\0' && xisspace(*p) )
+		while (*p != '\0' && xisspace(*p))
 			p++;
-		if( strncmp(p, "add", 3) == 0) {
+		if (strncmp(p, "add", 3) == 0) {
 			struct uploader *uploader;
 
 			p += 3;
-			while( *p != '\0' && xisspace(*p) )
+			while (*p != '\0' && xisspace(*p))
 				p++;
-			r = find_uploader(&uploader, u, p, filename, lineno, buffer);
-			if( RET_WAS_ERROR(r) )
+			r = find_uploader(&uploader, u, p, filename,
+					lineno, buffer);
+			if (RET_WAS_ERROR(r))
 				return r;
-			r = include_group(group, &uploader->memberof, filename, lineno);
-			if( RET_WAS_ERROR(r) )
+			r = include_group(group, &uploader->memberof,
+					filename, lineno);
+			if (RET_WAS_ERROR(r))
 				return r;
 			return RET_OK;
-		} else if( strncmp(p, "contains", 8) == 0 ) {
+		} else if (strncmp(p, "contains", 8) == 0) {
 			struct uploadergroup *member;
 
 			p += 8;
-			while( *p != '\0' && xisspace(*p) )
+			while (*p != '\0' && xisspace(*p))
 				p++;
 			q = p;
-			r = find_group(&member, u, &q, filename, lineno, buffer);
-			if( RET_WAS_ERROR(r) )
+			r = find_group(&member, u, &q, filename,
+					lineno, buffer);
+			if (RET_WAS_ERROR(r))
 				return r;
-			if( group == member ) {
-				fprintf(stderr, "%s:%lu: cannot add group '%s' to itself!\n", filename, (unsigned long)lineno, member->name);
+			if (group == member) {
+				fprintf(stderr,
+"%s:%lu: cannot add group '%s' to itself!\n",
+						filename, (unsigned long)lineno,
+						member->name);
 				return RET_ERROR;
 			}
-			if( is_included_in(group, member) ) {
-				/* perhaps offer a winning coupon for the first one triggering this? */
-				fprintf(stderr, "%s:%lu: cannot add group '%s' to group '%s' as the later is already member of the former!\n", filename, (unsigned long)lineno, member->name, group->name);
+			if (is_included_in(group, member)) {
+				/* perhaps offer a winning coupon for the first
+				 * one triggering this? */
+				fprintf(stderr,
+"%s:%lu: cannot add group '%s' to group '%s' as the later is already member of the former!\n",
+						filename, (unsigned long)lineno,
+						member->name, group->name);
 				return RET_ERROR;
 			}
-			r = include_group(group, &member->memberof, filename, lineno);
-			if( RET_WAS_ERROR(r) )
+			r = include_group(group, &member->memberof,
+					filename, lineno);
+			if (RET_WAS_ERROR(r))
 				return r;
-			if( member->firstusedat == 0 )
+			if (member->firstusedat == 0)
 				member->firstusedat = lineno;
-			if( member->unusedat != 0 ) {
-				fprintf(stderr, "%s:%lu: cannot use group '%s' marked as unused in line %lu.\n", filename, (unsigned long)lineno, member->name, member->unusedat);
+			if (member->unusedat != 0) {
+				fprintf(stderr,
+"%s:%lu: cannot use group '%s' marked as unused in line %lu.\n",
+						filename, (unsigned long)lineno,
+						member->name, member->unusedat);
 				return RET_ERROR;
 			}
-		} else if( strncmp(p, "empty", 5) == 0 ) {
+		} else if (strncmp(p, "empty", 5) == 0) {
 			q = p + 5;
-			if( group->emptyat != 0 ) {
-				fprintf(stderr, "%s:%lu: group '%s' marked as empty again (already happened in line %lu).\n", filename, (unsigned long)lineno, group->name, group->emptyat);
+			if (group->emptyat != 0) {
+				fprintf(stderr,
+"%s:%lu: group '%s' marked as empty again (already happened in line %lu).\n",
+						filename, (unsigned long)lineno,
+						group->name, group->emptyat);
 			}
-			if( group->firstmemberat != 0 ) {
-				fprintf(stderr, "%s:%lu: group '%s' cannot be marked empty as it already has members (first in line %lu).\n", filename, (unsigned long)lineno, group->name, group->firstmemberat);
+			if (group->firstmemberat != 0) {
+				fprintf(stderr,
+"%s:%lu: group '%s' cannot be marked empty as it already has members (first in line %lu).\n",
+						filename, (unsigned long)lineno,
+						group->name,
+						group->firstmemberat);
 				return RET_ERROR;
 			}
 			group->emptyat = lineno;
-		} else if( strncmp(p, "unused", 6) == 0 ) {
+		} else if (strncmp(p, "unused", 6) == 0) {
 			q = p + 6;
-			if( group->unusedat != 0 ) {
-				fprintf(stderr, "%s:%lu: group '%s' marked as unused again (already happened in line %lu).\n", filename, (unsigned long)lineno, group->name, group->unusedat);
+			if (group->unusedat != 0) {
+				fprintf(stderr,
+"%s:%lu: group '%s' marked as unused again (already happened in line %lu).\n",
+						filename, (unsigned long)lineno,
+						group->name, group->unusedat);
 			}
-			if( group->firstusedat != 0 ) {
-				fprintf(stderr, "%s:%lu: group '%s' cannot be marked unused as it was already used (first in line %lu).\n", filename, (unsigned long)lineno, group->name, group->firstusedat);
+			if (group->firstusedat != 0) {
+				fprintf(stderr,
+"%s:%lu: group '%s' cannot be marked unused as it was already used (first in line %lu).\n",
+						filename, (unsigned long)lineno,
+						group->name,
+						group->firstusedat);
 				return RET_ERROR;
 			}
 			group->unusedat = lineno;
 		} else {
-			fprintf(stderr, "%s:%lu:%u: missing 'add', 'contains', 'unused' or 'empty' keyword.\n", filename, (long)lineno, (int)(1+p-buffer));
+			fprintf(stderr,
+"%s:%lu:%u: missing 'add', 'contains', 'unused' or 'empty' keyword.\n",
+					filename, (long)lineno,
+					(int)(1 + p - buffer));
 			return RET_ERROR;
 		}
-		while( *q != '\0' && xisspace(*q) )
+		while (*q != '\0' && xisspace(*q))
 			q++;
-		if( *q != '\0' ) {
-			fprintf(stderr, "%s:%lu:%u: unexpected data at end of group statement!\n", filename, (long)lineno, (int)(1+p-buffer));
+		if (*q != '\0') {
+			fprintf(stderr,
+"%s:%lu:%u: unexpected data at end of group statement!\n",
+					filename, (long)lineno,
+					(int)(1 + p - buffer));
 			return RET_ERROR;
 		}
 		return RET_OK;
 	}
-	if( strncmp(p,"allow",5) != 0 || !xisspace(p[5]) ) {
-		fprintf(stderr, "%s:%lu:%u: 'allow' or 'group' keyword expected! (no other statement has yet been implemented)\n", filename, (long)lineno, (int)(1+p-buffer));
+	if (strncmp(p, "allow", 5) != 0 || !xisspace(p[5])) {
+		fprintf(stderr,
+"%s:%lu:%u: 'allow' or 'group' keyword expected! (no other statement has yet been implemented)\n",
+					filename, (long)lineno,
+					(int)(1 +p - buffer));
 		return RET_ERROR;
 	}
 	p+=5;
-	while( *p != '\0' && xisspace(*p) )
+	while (*p != '\0' && xisspace(*p))
 		p++;
 	r = parse_condition(filename, lineno, (1+p-buffer), &p, &condition);
-	if( RET_WAS_ERROR(r) )
+	if (RET_WAS_ERROR(r))
 		return r;
-	while( *p != '\0' && xisspace(*p) )
+	while (*p != '\0' && xisspace(*p))
 		p++;
-	if( strncmp(p,"key",3) == 0 && (p[3] == '\0' || xisspace(p[3])) ) {
+	if (strncmp(p, "key", 3) == 0 && (p[3] == '\0' || xisspace(p[3]))) {
 		struct uploader *uploader;
 
 		p += 3;
-		while( *p != '\0' && xisspace(*p) )
+		while (*p != '\0' && xisspace(*p))
 			p++;
 		r = find_uploader(&uploader, u, p, filename, lineno, buffer);
-		assert( r != RET_NOTHING );
-		if( RET_WAS_ERROR(r) ) {
+		assert (r != RET_NOTHING);
+		if (RET_WAS_ERROR(r)) {
 			uploadpermission_release(&condition);
 			return r;
 		}
 		condition_add(&uploader->permissions, &condition);
-	} else if( strncmp(p, "group", 5) == 0 && (p[5] == '\0' || xisspace(p[5])) ) {
+	} else if (strncmp(p, "group", 5) == 0
+			&& (p[5] == '\0' || xisspace(p[5]))) {
 		struct uploadergroup *group;
 
 		p += 5;
-		while( *p != '\0' && xisspace(*p) )
+		while (*p != '\0' && xisspace(*p))
 			p++;
 		r = find_group(&group, u, &p, filename, lineno, buffer);
-		assert( r != RET_NOTHING );
-		if( RET_WAS_ERROR(r) ) {
+		assert (r != RET_NOTHING);
+		if (RET_WAS_ERROR(r)) {
 			uploadpermission_release(&condition);
 			return r;
 		}
-		assert( group != NULL );
-		while( *p != '\0' && xisspace(*p) )
+		assert (group != NULL);
+		while (*p != '\0' && xisspace(*p))
 			p++;
-		if( *p != '\0' ) {
-			fprintf(stderr, "%s:%lu:%u: unexpected data at end of group statement!\n", filename, (long)lineno, (int)(1+p-buffer));
+		if (*p != '\0') {
+			fprintf(stderr,
+"%s:%lu:%u: unexpected data at end of group statement!\n",
+					filename, (long)lineno,
+					(int)(1 + p - buffer));
 			uploadpermission_release(&condition);
 			return RET_ERROR;
 		}
-		if( group->firstusedat == 0 )
+		if (group->firstusedat == 0)
 			group->firstusedat = lineno;
-		if( group->unusedat != 0 ) {
-			fprintf(stderr, "%s:%lu: cannot use group '%s' marked as unused in line %lu.\n", filename, (unsigned long)lineno, group->name, group->unusedat);
+		if (group->unusedat != 0) {
+			fprintf(stderr,
+"%s:%lu: cannot use group '%s' marked as unused in line %lu.\n",
+					filename, (unsigned long)lineno,
+					group->name, group->unusedat);
 			uploadpermission_release(&condition);
 			return RET_ERROR;
 		}
 		condition_add(&group->permissions, &condition);
-	} else if( strncmp(p, "unsigned",8) == 0 && (p[8]=='\0' || xisspace(p[8])) ) {
+	} else if (strncmp(p, "unsigned", 8) == 0
+			&& (p[8]=='\0' || xisspace(p[8]))) {
 		p+=8;
-		if( *p != '\0' ) {
-			fprintf(stderr, "%s:%lu:%u: unexpected data after 'unsigned' statement!\n", filename, (long)lineno, (int)(1+p-buffer));
+		if (*p != '\0') {
+			fprintf(stderr,
+"%s:%lu:%u: unexpected data after 'unsigned' statement!\n",
+					filename, (long)lineno,
+					(int)(1 + p - buffer));
 			uploadpermission_release(&condition);
 			return RET_ERROR;
 		}
 		condition_add(&u->unsignedpermissions, &condition);
-	} else if( strncmp(p, "any",3) == 0 && xisspace(p[3]) ) {
+	} else if (strncmp(p, "any", 3) == 0 && xisspace(p[3])) {
 		p+=3;
-		while( *p != '\0' && xisspace(*p) )
+		while (*p != '\0' && xisspace(*p))
 			p++;
-		if( strncmp(p, "key", 3) != 0 || (p[3]!='\0' && !xisspace(p[3])) ) {
-			fprintf(stderr, "%s:%lu:%u: 'key' keyword expected after 'any' keyword!\n", filename, (long)lineno, (int)(1+p-buffer));
+		if (strncmp(p, "key", 3) != 0
+				|| (p[3]!='\0' && !xisspace(p[3]))) {
+			fprintf(stderr,
+"%s:%lu:%u: 'key' keyword expected after 'any' keyword!\n",
+					filename, (long)lineno,
+					(int)(1 + p - buffer));
 			uploadpermission_release(&condition);
 			return RET_ERROR;
 		}
 		p += 3;
-		if( *p != '\0' ) {
-			fprintf(stderr, "%s:%lu:%u: unexpected data after 'any key' statement!\n", filename, (long)lineno, (int)(1+p-buffer));
+		if (*p != '\0') {
+			fprintf(stderr,
+"%s:%lu:%u: unexpected data after 'any key' statement!\n",
+					filename, (long)lineno,
+					(int)(1 + p - buffer));
 			uploadpermission_release(&condition);
 			return RET_ERROR;
 		}
 		condition_add(&u->anyvalidkeypermissions, &condition);
-	} else if( strncmp(p, "anybody", 7) == 0 && (p[7] == '\0' || xisspace(p[7])) ) {
+	} else if (strncmp(p, "anybody", 7) == 0
+			&& (p[7] == '\0' || xisspace(p[7]))) {
 		p+=7;
-		while( *p != '\0' && xisspace(*p) )
+		while (*p != '\0' && xisspace(*p))
 			p++;
-		if( *p != '\0' ) {
-			fprintf(stderr, "%s:%lu:%u: unexpected data after 'anybody' statement!\n", filename, (long)lineno, (int)(1+p-buffer));
+		if (*p != '\0') {
+			fprintf(stderr,
+"%s:%lu:%u: unexpected data after 'anybody' statement!\n",
+					filename, (long)lineno,
+					(int)(1 + p - buffer));
 			uploadpermission_release(&condition);
 			return RET_ERROR;
 		}
 		condition_add(&u->anybodypermissions, &condition);
 	} else {
-		fprintf(stderr, "%s:%lu:%u: 'key', 'unsigned', 'anybody' or 'any key' expected!\n", filename, (long)lineno, (int)(1+p-buffer));
+		fprintf(stderr,
+"%s:%lu:%u: 'key', 'unsigned', 'anybody' or 'any key' expected!\n",
+					filename, (long)lineno,
+					(int)(1 + p - buffer));
 		uploadpermission_release(&condition);
 		return RET_ERROR;
 	}
@@ -1262,21 +1353,22 @@ static retvalue uploaders_load(/*@out@*/struct uploaders **list, const char *fil
 	struct uploadergroup *g;
 	retvalue r;
 
-	if( filename[0] != '/' ) {
+	if (filename[0] != '/') {
 		fullfilename = calc_conffile(filename);
-		if( fullfilename == NULL )
+		if (FAILEDTOALLOC(fullfilename))
 			return RET_ERROR_OOM;
 		filename = fullfilename;
 	}
 	f = fopen(filename, "r");
-	if( f == NULL ) {
+	if (f == NULL) {
 		int e = errno;
-		fprintf(stderr, "Error opening '%s': %s\n", filename, strerror(e));
+		fprintf(stderr, "Error opening '%s': %s\n",
+				filename, strerror(e));
 		free(fullfilename);
 		return RET_ERRNO(e);
 	}
-	u = calloc(1,sizeof(struct uploaders));
-	if( FAILEDTOALLOC(u) ) {
+	u = zNEW(struct uploaders);
+	if (FAILEDTOALLOC(u)) {
 		(void)fclose(f);
 		free(fullfilename);
 		return RET_ERROR_OOM;
@@ -1286,30 +1378,35 @@ static retvalue uploaders_load(/*@out@*/struct uploaders **list, const char *fil
 	u->anyvalidkeypermissions.type = uc_ALWAYS;
 	u->anybodypermissions.type = uc_ALWAYS;
 
-	while( fgets(buffer,1024,f) != NULL ) {
+	while (fgets(buffer, 1024, f) != NULL) {
 		lineno++;
-		r = parseuploaderline(buffer,filename,lineno,u);
-		if( RET_WAS_ERROR(r) ) {
+		r = parseuploaderline(buffer, filename, lineno, u);
+		if (RET_WAS_ERROR(r)) {
 			(void)fclose(f);
 			free(fullfilename);
 			uploaders_free(u);
 			return r;
 		}
 	}
-	if( fclose(f) != 0 ) {
+	if (fclose(f) != 0) {
 		int e = errno;
-		fprintf(stderr, "Error reading '%s': %s\n", filename, strerror(e));
+		fprintf(stderr, "Error reading '%s': %s\n",
+				filename, strerror(e));
 		free(fullfilename);
 		uploaders_free(u);
 		return RET_ERRNO(e);
 	}
-	for( g = u->groups ; g != NULL ; g = g->next ) {
-		if( (g->firstmemberat == 0 && g->emptyat == 0) &&
-				g->firstusedat != 0 )
-			fprintf(stderr, "%s:%lu: Warning: group '%s' gets used but never gets any members\n", filename, g->firstusedat, g->name);
-		if( (g->firstusedat == 0 && g->unusedat == 0) &&
-				g->firstmemberat != 0 )
-			fprintf(stderr, "%s:%lu: Warning: group '%s' gets members but is not used in any rule\n", filename, g->firstmemberat, g->name);
+	for (g = u->groups ; g != NULL ; g = g->next) {
+		if ((g->firstmemberat == 0 && g->emptyat == 0) &&
+				g->firstusedat != 0)
+			fprintf(stderr,
+"%s:%lu: Warning: group '%s' gets used but never gets any members\n",
+					filename, g->firstusedat, g->name);
+		if ((g->firstusedat == 0 && g->unusedat == 0) &&
+				g->firstmemberat != 0)
+			fprintf(stderr,
+"%s:%lu: Warning: group '%s' gets members but is not used in any rule\n",
+					filename, g->firstmemberat, g->name);
 	}
 	free(fullfilename);
 	*list = u;
@@ -1321,20 +1418,20 @@ retvalue uploaders_get(/*@out@*/struct uploaders **list, const char *filename) {
 	struct uploaders *u;
 	size_t len;
 
-	assert( filename != NULL );
+	assert (filename != NULL);
 
 	len = strlen(filename);
 	u = uploaderslists;
-	while( u != NULL && ( u->filename_len != len ||
-	                      memcmp(u->filename,filename,len) != 0 ) )
+	while (u != NULL && (u->filename_len != len ||
+	                      memcmp(u->filename, filename, len) != 0))
 		u = u->next;
-	if( u == NULL ) {
+	if (u == NULL) {
 		r = uploaders_load(&u, filename);
-		if( !RET_IS_OK(r) )
+		if (!RET_IS_OK(r))
 			return r;
-		assert( u != NULL );
+		assert (u != NULL);
 		u->filename = strdup(filename);
-		if( u->filename == NULL ) {
+		if (FAILEDTOALLOC(u->filename)) {
 			uploaders_free(u);
 			return RET_ERROR_OOM;
 		}

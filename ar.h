@@ -3,11 +3,11 @@
 
 struct ar_archive;
 
-retvalue ar_open(/*@out@*/struct ar_archive **, const char *filename);
+retvalue ar_open(/*@out@*/struct ar_archive **, const char *);
 void ar_close(/*@only@*/struct ar_archive *);
 
 /* RET_OK = next is there, RET_NOTHING = eof, < 0 = error */
-retvalue ar_nextmember(struct ar_archive *,/*@out@*/char **filename);
+retvalue ar_nextmember(struct ar_archive *, /*@out@*/char ** /*filename*/);
 
 /* set compression for the next member */
 void ar_archivemember_setcompression(struct ar_archive *, enum compression);

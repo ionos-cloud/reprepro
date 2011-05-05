@@ -6,7 +6,7 @@
 # define true (1==1)
 # define false (0==42)
 /* avoid problems with __builtin_expect being long instead of boolean */
-# define __builtin_expect(a,b) (a)
+# define __builtin_expect(a, b) (a)
 # define __builtin_constant_p(a) (__builtin_constant_p(a) != 0)
 #else
 # if HAVE_STDBOOL_H
@@ -27,8 +27,8 @@ typedef int _Bool;
 #define READONLY true
 #define READWRITE false
 
-#define ISSET(a,b) ((a&b)!=0)
-#define NOTSET(a,b) ((a&b)==0)
+#define ISSET(a, b) ((a & b) != 0)
+#define NOTSET(a, b) ((a & b) == 0)
 
 #ifdef STUPIDCC
 #define IFSTUPIDCC(a) a
@@ -85,5 +85,10 @@ extern struct global_config {
 } global;
 
 enum compression { c_none, c_gzip, c_bzip2, c_lzma, c_xz, c_lunzip, c_COUNT };
+
+#define NEW(type) ((type *)malloc(sizeof(type)))
+#define nNEW(num, type) ((type *)malloc((num) * sizeof(type)))
+#define zNEW(type) ((type *)calloc(1, sizeof(type)))
+#define nzNEW(num, type) ((type *)calloc(num, sizeof(type)))
 
 #endif

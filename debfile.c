@@ -44,50 +44,59 @@ static retvalue read_control_file(char **control, const char *debfile, struct ar
 	ssize_t got;
 
 	size = archive_entry_size(entry);
-	if( size <= 0 ) {
-		fprintf(stderr, "Error: Empty control file within %s!\n", debfile);
+	if (size <= 0) {
+		fprintf(stderr, "Error: Empty control file within %s!\n",
+				debfile);
 		return RET_ERROR;
 	}
-	if( size > 10*1024*1024 ) {
-		fprintf(stderr, "Error: Ridiculously long control file within %s!\n", debfile);
+	if (size > 10*1024*1024) {
+		fprintf(stderr,
+"Error: Ridiculously long control file within %s!\n",
+				debfile);
 		return RET_ERROR;
 	}
-	buffer = malloc(size+2);
+	buffer = malloc(size + 2);
+	if (FAILEDTOALLOC(buffer))
+		return RET_ERROR_OOM;
 	len = 0;
-	while( (got = archive_read_data(tar, buffer+len, ((size_t)size+1)-len)) > 0
-			&& !interrupted() ) {
+	while ((got = archive_read_data(tar, buffer+len, ((size_t)size+1)-len)) > 0
+			&& !interrupted()) {
 		len += got;
-		if( len > (size_t)size ) {
-			fprintf(stderr, "Internal Error: libarchive miscalculated length of the control file inside '%s',\n"
-			" perhaps the file is corrupt, perhaps libarchive!\n", debfile);
+		if (len > (size_t)size) {
+			fprintf(stderr,
+"Internal Error: libarchive miscalculated length of the control file inside '%s',\n"
+" perhaps the file is corrupt, perhaps libarchive!\n", debfile);
 			free(buffer);
 			return RET_ERROR;
 		}
 	}
-	if( interrupted() ) {
+	if (interrupted()) {
 		free(buffer);
 		return RET_ERROR_INTERRUPTED;
 	}
-	if( got < 0 ) {
+	if (got < 0) {
 		free(buffer);
-		fprintf(stderr, "Error reading control file from %s\n", debfile);
+		fprintf(stderr, "Error reading control file from %s\n",
+				debfile);
 		return RET_ERROR;
 	}
-	if( len < (size_t)size )
-		fprintf(stderr, "Warning: libarchive miscalculated length of the control file inside '%s'.\n"
-			"Maybe the file is corrupt, perhaps libarchive!\n", debfile);
+	if (len < (size_t)size)
+		fprintf(stderr,
+"Warning: libarchive miscalculated length of the control file inside '%s'.\n"
+"Maybe the file is corrupt, perhaps libarchive!\n", debfile);
 	buffer[len] = '\0';
 
 	controllen = chunk_extract(buffer, buffer, &afterchanges);
 
-	if( controllen == 0 ) {
-		fprintf(stderr,"Could only find spaces within control file of '%s'!\n",
+	if (controllen == 0) {
+		fprintf(stderr,
+"Could only find spaces within control file of '%s'!\n",
 				debfile);
 		free(buffer);
 		return RET_ERROR;
 	}
-	if( (size_t)(afterchanges - buffer) < len ) {
-		if( *afterchanges == '\0' )
+	if ((size_t)(afterchanges - buffer) < len) {
+		if (*afterchanges == '\0')
 			fprintf(stderr,
 "Unexpected \\0 character within control file of '%s'!\n", debfile);
 		else
@@ -96,9 +105,9 @@ static retvalue read_control_file(char **control, const char *debfile, struct ar
 		free(buffer);
 		return RET_ERROR;
 	}
-	assert( buffer[controllen] == '\0' );
+	assert (buffer[controllen] == '\0');
 	n = realloc(buffer, controllen+1);
-	if( n == NULL ) {
+	if (FAILEDTOALLOC(n)) {
 		free(buffer);
 		return RET_ERROR_OOM;
 	}
@@ -117,82 +126,86 @@ static retvalue read_control_tar(char **control, const char *debfile, struct ar_
 			ar_archivemember_open,
 			ar_archivemember_read,
 			ar_archivemember_close);
-	if( a != ARCHIVE_OK ) {
-		fprintf(stderr,"open control.tar.gz within '%s' failed: %d:%d:%s\n",
+	if (a != ARCHIVE_OK) {
+		fprintf(stderr,
+"open control.tar.gz within '%s' failed: %d:%d:%s\n",
 				debfile,
-				a,archive_errno(tar),
+				a, archive_errno(tar),
 				archive_error_string(tar));
 		return RET_ERROR;
 	}
-	while( (a=archive_read_next_header(tar, &entry)) == ARCHIVE_OK ) {
-		if( strcmp(archive_entry_pathname(entry),"./control") != 0 &&
-		    strcmp(archive_entry_pathname(entry),"control") != 0 ) {
+	while ((a=archive_read_next_header(tar, &entry)) == ARCHIVE_OK) {
+		if (strcmp(archive_entry_pathname(entry), "./control") != 0 &&
+		    strcmp(archive_entry_pathname(entry), "control") != 0) {
 			a = archive_read_data_skip(tar);
-			if( a != ARCHIVE_OK ) {
+			if (a != ARCHIVE_OK) {
 				int e = archive_errno(tar);
-				printf("Error skipping %s within data.tar.gz from %s: %d=%s\n",
+				printf(
+"Error skipping %s within data.tar.gz from %s: %d=%s\n",
 						archive_entry_pathname(entry),
 						debfile,
 						e, archive_error_string(tar));
 				return (e!=0)?(RET_ERRNO(e)):RET_ERROR;
 			}
-			if( interrupted() )
+			if (interrupted())
 				return RET_ERROR_INTERRUPTED;
 		} else {
 			r = read_control_file(control, debfile, tar, entry);
-			if( r != RET_NOTHING )
+			if (r != RET_NOTHING)
 				return r;
 		}
 	}
-	if( a != ARCHIVE_EOF ) {
+	if (a != ARCHIVE_EOF) {
 		int e = archive_errno(tar);
 		printf("Error reading control.tar.gz from %s: %d=%s\n",
 				debfile,
 				e, archive_error_string(tar));
 		return (e!=0)?(RET_ERRNO(e)):RET_ERROR;
 	}
-	fprintf(stderr,"Could not find a control file within control.tar.gz within '%s'!\n",debfile);
+	fprintf(stderr,
+"Could not find a control file within control.tar.gz within '%s'!\n",
+			debfile);
 	return RET_ERROR_MISSING;
 }
 
-retvalue extractcontrol(char **control,const char *debfile) {
+retvalue extractcontrol(char **control, const char *debfile) {
 	struct ar_archive *ar;
 	retvalue r;
 	bool hadcandidate = false;
 
-	r = ar_open(&ar,debfile);
-	if( RET_WAS_ERROR(r) )
+	r = ar_open(&ar, debfile);
+	if (RET_WAS_ERROR(r))
 		return r;
-	assert( r != RET_NOTHING);
+	assert (r != RET_NOTHING);
 	do {
 		char *filename;
 		enum compression c;
 
 		r = ar_nextmember(ar, &filename);
-		if( RET_IS_OK(r) ) {
-			if( strncmp(filename, "control.tar", 11) != 0 ) {
+		if (RET_IS_OK(r)) {
+			if (strncmp(filename, "control.tar", 11) != 0) {
 				free(filename);
 				continue;
 			}
 			hadcandidate = true;
-			for( c = 0 ; c < c_COUNT ; c++ ) {
-				if( strcmp(filename + 11,
+			for (c = 0 ; c < c_COUNT ; c++) {
+				if (strcmp(filename + 11,
 						uncompression_suffix[c]) == 0)
 					break;
 			}
-			if( c >= c_COUNT ) {
+			if (c >= c_COUNT) {
 				free(filename);
 				continue;
 			}
 			ar_archivemember_setcompression(ar, c);
-			if( uncompression_supported(c) ) {
+			if (uncompression_supported(c)) {
 				struct archive *tar;
 
 				tar = archive_read_new();
 				r = read_control_tar(control, debfile, ar, tar);
 				// TODO run archive_read_close to get error messages?
 				archive_read_finish(tar);
-				if( r != RET_NOTHING ) {
+				if (r != RET_NOTHING) {
 					ar_close(ar);
 					free(filename);
 					return r;
@@ -201,9 +214,9 @@ retvalue extractcontrol(char **control,const char *debfile) {
 			}
 			free(filename);
 		}
-	} while( RET_IS_OK(r) );
+	} while (RET_IS_OK(r));
 	ar_close(ar);
-	if( hadcandidate )
+	if (hadcandidate)
 		fprintf(stderr,
 "Could not find a suitable control.tar file within '%s'!\n", debfile);
 	else

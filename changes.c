@@ -31,12 +31,12 @@
 
 retvalue changes_parsefileline(const char *fileline, /*@out@*/filetype *result_type, /*@out@*/char **result_basename, /*@out@*/struct hash_data *hash_p, /*@out@*/struct hash_data *size_p, /*@out@*/char **result_section, /*@out@*/char **result_priority, /*@out@*/architecture_t *result_architecture, /*@out@*/char **result_name) {
 
-	const char *p,*md5start,*md5end;
-	const char *sizestart,*sizeend;
-	const char *sectionstart,*sectionend;
-	const char *priostart,*prioend;
-	const char *filestart,*nameend,*fileend;
-	const char *archstart,*archend;
+	const char *p, *md5start, *md5end;
+	const char *sizestart, *sizeend;
+	const char *sectionstart, *sectionend;
+	const char *priostart, *prioend;
+	const char *filestart, *nameend, *fileend;
+	const char *archstart, *archend;
 	const char *versionstart;
 	filetype type;
 	char *section, *priority, *basefilename, *name;
@@ -45,75 +45,79 @@ retvalue changes_parsefileline(const char *fileline, /*@out@*/filetype *result_t
 	bool checkfilename = false;
 
 	p = fileline;
-	while( *p !='\0' && xisspace(*p) )
+	while (*p !='\0' && xisspace(*p))
 		p++;
 	md5start = p;
-	while( (*p >= '0' && *p <= '9') || (*p >= 'a' && *p <= 'f') )
+	while ((*p >= '0' && *p <= '9') || (*p >= 'a' && *p <= 'f'))
 		p++;
-	if( *p == '\0' ) {
-		fprintf(stderr,"Missing md5sum in '%s'!\n", fileline);
+	if (*p == '\0') {
+		fprintf(stderr, "Missing md5sum in '%s'!\n", fileline);
 		return RET_ERROR;
 	}
-	if( !xisspace(*p) ) {
-		fprintf(stderr,"Malformed md5 hash in '%s'!\n", fileline);
+	if (!xisspace(*p)) {
+		fprintf(stderr, "Malformed md5 hash in '%s'!\n", fileline);
 		return RET_ERROR;
 	}
 	md5end = p;
-	while( *p !='\0' && xisspace(*p) )
+	while (*p !='\0' && xisspace(*p))
 		p++;
-	while( *p == '0' && p[1] >= '0' && p[1] <= '9' )
+	while (*p == '0' && p[1] >= '0' && p[1] <= '9')
 		p++;
 	sizestart = p;
-	while( *p >= '0' && *p <= '9' )
+	while (*p >= '0' && *p <= '9')
 		p++;
-	if( *p == '\0' ) {
-		fprintf(stderr,"Missing size (second argument) in '%s'!\n", fileline);
+	if (*p == '\0') {
+		fprintf(stderr,
+"Missing size (second argument) in '%s'!\n", fileline);
 		return RET_ERROR;
 	}
-	if( !xisspace(*p) ) {
-		fprintf(stderr,"Malformed size (second argument) in '%s'!\n", fileline);
+	if (!xisspace(*p)) {
+		fprintf(stderr,
+"Malformed size (second argument) in '%s'!\n", fileline);
 		return RET_ERROR;
 	}
 	sizeend = p;
-	while( *p !='\0' && xisspace(*p) )
+	while (*p !='\0' && xisspace(*p))
 		p++;
 	sectionstart = p;
-	while( *p !='\0' && !xisspace(*p) )
+	while (*p !='\0' && !xisspace(*p))
 		p++;
 	sectionend = p;
-	while( *p !='\0' && xisspace(*p) )
+	while (*p !='\0' && xisspace(*p))
 		p++;
 	priostart = p;
-	while( *p !='\0' && !xisspace(*p) )
+	while (*p !='\0' && !xisspace(*p))
 		p++;
 	prioend = p;
-	while( *p !='\0' && xisspace(*p) )
+	while (*p !='\0' && xisspace(*p))
 		p++;
 	filestart = p;
-	while( *p !='\0' && !xisspace(*p) )
+	while (*p !='\0' && !xisspace(*p))
 		p++;
 	fileend = p;
-	while( *p !='\0' && xisspace(*p) )
+	while (*p !='\0' && xisspace(*p))
 		p++;
-	if( *p != '\0' ) {
-		fprintf(stderr,"Unexpected sixth argument in '%s'!\n",fileline);
+	if (*p != '\0') {
+		fprintf(stderr,
+"Unexpected sixth argument in '%s'!\n", fileline);
 		return RET_ERROR;
 	}
-	if( *md5start == '\0' || *sizestart == '\0' || *sectionstart == '\0'
-			|| *priostart == '\0' || *filestart == '\0' ) {
-		fprintf(stderr, "Wrong number of arguments in '%s' (5 expected)!\n",
+	if (*md5start == '\0' || *sizestart == '\0' || *sectionstart == '\0'
+			|| *priostart == '\0' || *filestart == '\0') {
+		fprintf(stderr,
+"Wrong number of arguments in '%s' (5 expected)!\n",
 				fileline);
 		return RET_ERROR;
 	}
-	if( (sectionend - sectionstart == 6 &&
+	if ((sectionend - sectionstart == 6 &&
 				strncmp(sectionstart, "byhand", 6) == 0) ||
 	    (sectionend - sectionstart > 4 &&
 				strncmp(sectionstart, "raw-", 4) == 0)) {
 		section = strndup(sectionstart, sectionend - sectionstart);
 		priority = strndup(priostart, prioend - priostart);
 		basefilename = strndup(filestart, fileend - filestart);
-		if( FAILEDTOALLOC(section) || FAILEDTOALLOC(priority) ||
-		    FAILEDTOALLOC(basefilename) ) {
+		if (FAILEDTOALLOC(section) || FAILEDTOALLOC(priority) ||
+		    FAILEDTOALLOC(basefilename)) {
 			free(section); free(priority);
 			free(basefilename);
 			return RET_ERROR_OOM;
@@ -132,14 +136,16 @@ retvalue changes_parsefileline(const char *fileline, /*@out@*/filetype *result_t
 	}
 
 	p = filestart;
-	while( *p != '\0' && *p != '_' && !xisspace(*p) )
+	while (*p != '\0' && *p != '_' && !xisspace(*p))
 		p++;
-	if( *p != '_' ) {
-		if( *p == '\0' )
-			fprintf(stderr, "No underscore found in file name in '%s'!\n",
+	if (*p != '_') {
+		if (*p == '\0')
+			fprintf(stderr,
+"No underscore found in file name in '%s'!\n",
 					fileline);
 		else
-			fprintf(stderr, "Unexpected character '%c' in file name in '%s'!\n",
+			fprintf(stderr,
+"Unexpected character '%c' in file name in '%s'!\n",
 					*p, fileline);
 		return RET_ERROR;
 	}
@@ -150,43 +156,45 @@ retvalue changes_parsefileline(const char *fileline, /*@out@*/filetype *result_t
 	/* changing 3.0 format to now also allow _ in source files
 	 * makes this parsing quite more ugly... */
 
-	while( *p !='\0' && !xisspace(*p) )
+	while (*p !='\0' && !xisspace(*p))
 		p++;
 	l = p - versionstart;
 
 	/* identify the binary types (they have no compression
 	 * and will need a _ */
 
-	if( l >= 4 && memcmp(p-4, ".deb", 4) == 0 )
+	if (l >= 4 && memcmp(p-4, ".deb", 4) == 0)
 		type = fe_DEB;
-	else if( l >= 5 && memcmp(p-5, ".udeb", 5) == 0 )
+	else if (l >= 5 && memcmp(p-5, ".udeb", 5) == 0)
 		type = fe_UDEB;
 	else
 		type = fe_UNKNOWN;
 
-	if( type != fe_UNKNOWN ) {
+	if (type != fe_UNKNOWN) {
 		/* a _ should separate the version from the rest */
 		p = versionstart;
 		names_overversion(&p, true);
-		if( *p != '\0' && *p != '_' ) {
-			fprintf(stderr, "Unexpected character '%c' in file name within '%s'!\n",
-					*p, fileline);
+		if (*p != '\0' && *p != '_') {
+			fprintf(stderr,
+"Unexpected character '%c' in file name within '%s'!\n", *p, fileline);
 			return RET_ERROR;
 		}
-		if( *p != '_' ) {
-			fprintf(stderr, "Cannot cope with .[u]deb filename not containing an underscore (in '%s')!", fileline);
+		if (*p != '_') {
+			fprintf(stderr,
+"Cannot cope with .[u]deb filename not containing an underscore (in '%s')!",
+					fileline);
 			return RET_ERROR;
 		}
 		p++;
 		archstart = p;
-		if( type == fe_DEB )
+		if (type == fe_DEB)
 			archend = versionstart + l - 4;
 		else {
-			assert( type == fe_UDEB );
+			assert (type == fe_UDEB);
 			archend = versionstart + l - 5;
 		}
-		if( archend - archstart == 6 &&
-				strncmp(archstart,"source",6) == 0 ) {
+		if (archend - archstart == 6 &&
+				strncmp(archstart, "source", 6) == 0) {
 			fprintf(stderr,
 "Architecture 'source' not allowed for .[u]debs ('%s')!\n", filestart);
 			return RET_ERROR;
@@ -207,32 +215,33 @@ retvalue changes_parsefileline(const char *fileline, /*@out@*/filetype *result_t
 
 		archstart = "source";
 		archend = archstart + 6;
-		if( l > 9 && strncmp(p-9, ".orig.tar", 9) == 0 ) {
+		if (l > 9 && strncmp(p-9, ".orig.tar", 9) == 0) {
 			type = fe_ORIG;
 			eoi = p - 9;
-		} else if( l > 4 && strncmp(p-4, ".tar", 4) == 0 ) {
+		} else if (l > 4 && strncmp(p-4, ".tar", 4) == 0) {
 			type = fe_TAR;
 			eoi = p - 4;
-		} else if( l > 5 && strncmp(p-5,".diff", 5) == 0 ) {
+		} else if (l > 5 && strncmp(p-5, ".diff", 5) == 0) {
 			type = fe_DIFF;
 			eoi = p - 5;
-		} else if( l > 4 && strncmp(p-4,".dsc",4) == 0 && c == c_none ) {
+		} else if (l > 4 && strncmp(p-4, ".dsc", 4) == 0
+				&& c == c_none) {
 			type = fe_DSC;
 			eoi = p - 4;
-		} else if( l > 4 && strncmp(p-4, ".log", 4) == 0 ) {
+		} else if (l > 4 && strncmp(p-4, ".log", 4) == 0) {
 			type = fe_LOG;
 			eoi = p - 4;
-		} else if( l > 6 && strncmp(p-6, ".build", 6) == 0 ) {
+		} else if (l > 6 && strncmp(p-6, ".build", 6) == 0) {
 			type = fe_LOG;
 			eoi = p - 6;
 		}
-		if( type != fe_UNKNOWN ) {
+		if (type != fe_UNKNOWN) {
 			/* check for a proper version */
 			p = versionstart;
 			names_overversion(&p, true);
-			if( p >= eoi ) {
+			if (p >= eoi) {
 				/* all well */
-			} else if( type == fe_TAR ) {
+			} else if (type == fe_TAR) {
 				/* a tar might be a component with ugly
 				 * data between .orig- and the .tar.c */
 				const char *o = strstr(versionstart, ".orig-");
@@ -243,8 +252,8 @@ retvalue changes_parsefileline(const char *fileline, /*@out@*/filetype *result_t
 					return RET_ERROR;
 				}
 				checkfilename = true;
-			} else if( type == fe_LOG ) {
-				if( *p == '_' ) {
+			} else if (type == fe_LOG) {
+				if (*p == '_') {
 					archstart = p + 1;
 					archend = eoi;
 					checkfilename = true;
@@ -274,21 +283,21 @@ retvalue changes_parsefileline(const char *fileline, /*@out@*/filetype *result_t
 	// list multiple..
 	architecture = architecture_find_l(archstart, archend - archstart);
 	name = strndup(filestart, nameend - filestart);
-	if( FAILEDTOALLOC(section) || FAILEDTOALLOC(priority) ||
-	    FAILEDTOALLOC(basefilename) || FAILEDTOALLOC(name) ) {
+	if (FAILEDTOALLOC(section) || FAILEDTOALLOC(priority) ||
+	    FAILEDTOALLOC(basefilename) || FAILEDTOALLOC(name)) {
 		free(section); free(priority);
 		free(basefilename); free(name);
 		return RET_ERROR_OOM;
 	}
-	if( checkfilename || !atom_defined(architecture)) {
+	if (checkfilename || !atom_defined(architecture)) {
 		retvalue r;
 
 		/* as we no longer run properversion over the whole
 		 * rest of the string, at least make sure nothing evil
 		 * is in this name */
 		r = properfilename(basefilename);
-		if( !RET_IS_OK(r) ) {
-			assert( r != RET_NOTHING );
+		if (!RET_IS_OK(r)) {
+			assert (r != RET_NOTHING);
 			free(section); free(priority);
 			free(basefilename); free(name);
 			return r;
