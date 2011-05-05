@@ -1,8 +1,11 @@
 Build-Dependencies:
-	libgpgme >= 0.4.1 (In Debian libgpgme11-dev, NOT libgpgme-dev)
-	libdb3
+	libdb3, libdb4.x or libdb5.x
 	libz
-When Building from cvs:
+Optional Dependencies:
+	libgpgme >= 0.4.1 (In Debian libgpgme11-dev, NOT libgpgme-dev)
+	libbz2
+	libarchive
+When Building from git:
 	autoconf2.50 (autoconf 2.13 will not work)
 
 Basic Installation

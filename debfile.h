@@ -6,11 +6,10 @@
 #warning "What's hapening here?"
 #endif
 
-/* Read the control information of <debfile> and put it's only chunk
- * into <control> */
-retvalue extractcontrol(/*@out@*/char **control,const char *debfile);
+/* Read the control information of a .deb file */
+retvalue extractcontrol(/*@out@*/char **, const char *);
 
-/* Read a list of files of <debfile> */
-retvalue getfilelist(/*@out@*/char **filelist, /*@out@*/ size_t *size, const char *debfile);
+/* Read a list of files from a .deb file */
+retvalue getfilelist(/*@out@*/char **, /*@out@*/ size_t *, const char *);
 
 #endif

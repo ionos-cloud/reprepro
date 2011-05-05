@@ -13,13 +13,13 @@ struct aptmethod;
 
 enum queue_action { qa_abort, qa_got, qa_error };
 
-typedef retvalue queue_callback(enum queue_action, void *privdata, void *privdata2, const char *uri, const char *gotfilename, const char *wantedfilename, /*@null@*/const struct checksums *, const char *methodname);
+typedef retvalue queue_callback(enum queue_action, void *, void *, const char * /*uri*/, const char * /*gotfilename*/, const char * /*wantedfilename*/, /*@null@*/const struct checksums *, const char * /*methodname*/);
 
-retvalue aptmethod_initialize_run(/*@out@*/struct aptmethodrun **run);
-retvalue aptmethod_newmethod(struct aptmethodrun *, const char *uri, const char *fallbackuri, const struct strlist *config, /*@out@*/struct aptmethod **);
+retvalue aptmethod_initialize_run(/*@out@*/struct aptmethodrun **);
+retvalue aptmethod_newmethod(struct aptmethodrun *, const char * /*uri*/, const char * /*fallbackuri*/, const struct strlist * /*config*/, /*@out@*/struct aptmethod **);
 
-retvalue aptmethod_enqueue(struct aptmethod *, const char *origfile, /*@only@*/char *destfile, queue_callback *, void *, void *);
-retvalue aptmethod_enqueueindex(struct aptmethod *, const char *suite, const char *origfile, const char *, const char *destfile, const char *, queue_callback *, void *, void *);
+retvalue aptmethod_enqueue(struct aptmethod *, const char * /*origfile*/, /*@only@*/char */*destfile*/, queue_callback *, void *, void *);
+retvalue aptmethod_enqueueindex(struct aptmethod *, const char * /*suite*/, const char * /*origfile*/, const char *, const char * /*destfile*/, const char *, queue_callback *, void *, void *);
 
 retvalue aptmethod_download(struct aptmethodrun *);
 retvalue aptmethod_shutdown(/*@only@*/struct aptmethodrun *);

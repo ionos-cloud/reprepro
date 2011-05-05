@@ -54,10 +54,10 @@ struct devices {
 void space_free(struct devices *devices) {
 	struct device *d;
 
-	if( devices == NULL )
+	if (devices == NULL)
 		return;
 
-	while( (d = devices->root) != NULL ) {
+	while ((d = devices->root) != NULL) {
 		devices->root = d->next;
 
 		free(d->somepath);
@@ -73,16 +73,16 @@ static retvalue device_find_or_create(struct devices *devices, dev_t id, const c
 
 	d = devices->root;
 
-	while( d != NULL && d->id != id )
+	while (d != NULL && d->id != id)
 		d = d->next;
 
-	if( d != NULL ) {
+	if (d != NULL) {
 		*result = d;
 		return RET_OK;
 	}
 
 	ret = statvfs(dirname, &s);
-	if( ret != 0 ) {
+	if (ret != 0) {
 		int e = errno;
 		fprintf(stderr,
 "Error judging free space for the fileystem '%s' belongs to: %d=%s\n"
@@ -91,13 +91,13 @@ static retvalue device_find_or_create(struct devices *devices, dev_t id, const c
 		return RET_ERRNO(e);
 	}
 
-	d = malloc(sizeof(struct device));
-	if( d == NULL )
+	d = NEW(struct device);
+	if (FAILEDTOALLOC(d))
 		return RET_ERROR_OOM;
 	d->next = devices->root;
 	d->id = id;
 	d->somepath = strdup(dirname);
-	if( d->somepath == NULL ) {
+	if (FAILEDTOALLOC(d->somepath)) {
 		free(d);
 		return RET_ERROR_OOM;
 	}
@@ -119,19 +119,19 @@ retvalue space_prepare(struct devices **devices, enum spacecheckmode mode, off_t
 	int ret;
 	retvalue r;
 
-	if( mode == scm_NONE ) {
+	if (mode == scm_NONE) {
 		*devices = NULL;
 		return RET_OK;
 	}
-	assert( mode == scm_FULL );
-	n = malloc(sizeof(struct devices));
-	if( n == NULL )
+	assert (mode == scm_FULL);
+	n = NEW(struct devices);
+	if (FAILEDTOALLOC(n))
 		return RET_ERROR_OOM;
 	n->root = NULL;
 	n->reserved = reservedforothers;
 
 	ret = stat(global.dbdir, &s);
-	if( ret != 0 ) {
+	if (ret != 0) {
 		int e = errno;
 		fprintf(stderr, "Error stat'ing %s: %d=%s\n",
 				global.dbdir, e, strerror(e));
@@ -139,7 +139,7 @@ retvalue space_prepare(struct devices **devices, enum spacecheckmode mode, off_t
 		return RET_ERRNO(e);
 	}
 	r = device_find_or_create(n, s.st_dev, global.dbdir, &d);
-	if( RET_WAS_ERROR(r) ) {
+	if (RET_WAS_ERROR(r)) {
 		space_free(n);
 		return r;
 	}
@@ -158,24 +158,24 @@ retvalue space_needed(struct devices *devices, const char *filename, const struc
 	fsblkcnt_t blocks;
 	off_t filesize;
 
-	if( devices == NULL )
+	if (devices == NULL)
 		return RET_NOTHING;
 
-	while( l > 0 && filename[l-1] != '/' )
+	while (l > 0 && filename[l-1] != '/')
 		l--;
-	assert( l > 0 );
+	assert (l > 0);
 	memcpy(buffer, filename, l);
 	buffer[l] = '\0';
 
-	ret = stat(buffer ,&s);
-	if( ret != 0 ) {
+	ret = stat(buffer, &s);
+	if (ret != 0) {
 		int e = errno;
 		fprintf(stderr, "Error stat'ing %s: %d=%s\n", filename,
 						e, strerror(e));
 		return RET_ERRNO(e);
 	}
 	r = device_find_or_create(devices, s.st_dev, buffer, &device);
-	if( RET_WAS_ERROR(r) )
+	if (RET_WAS_ERROR(r))
 		return r;
 	filesize = checksums_getfilesize(checksums);
 	blocks = (filesize + device->blocksize - 1) / device->blocksize;
@@ -191,15 +191,15 @@ retvalue space_check(struct devices *devices) {
 	retvalue result = RET_OK;
 
 
-	if( devices == NULL )
+	if (devices == NULL)
 		return RET_NOTHING;
 
-	for( device = devices->root ; device != NULL ; device = device->next ) {
+	for (device = devices->root ; device != NULL ; device = device->next) {
 		/* recalculate free space, as created directories
 		 * and other stuff might have changed it */
 
 		ret = statvfs(device->somepath, &s);
-		if( ret != 0 ) {
+		if (ret != 0) {
 			int e = errno;
 			fprintf(stderr,
 "Error judging free space for the fileystem '%s' belongs to: %d=%s\n"
@@ -208,7 +208,7 @@ retvalue space_check(struct devices *devices) {
 					e, strerror(e));
 			return RET_ERRNO(e);
 		}
-		if( device->blocksize != s.f_bsize ) {
+		if (device->blocksize != s.f_bsize) {
 			fprintf(stderr,
 "The block size of the filesystem belonging to '%s' has changed.\n"
 "Either something was mounted or unmounted while reprepro was running,\n"
@@ -216,7 +216,7 @@ retvalue space_check(struct devices *devices) {
 					device->somepath);
 		}
 		device->available = s.f_bavail;
-		if( device->needed >= device->available ) {
+		if (device->needed >= device->available) {
 			fprintf(stderr,
 "NOT ENOUGH FREE SPACE on filesystem 0x%lx (the filesystem '%s' is on)\n"
 "available blocks %llu, needed blocks %llu, block size is %llu.\n",
@@ -225,8 +225,8 @@ retvalue space_check(struct devices *devices) {
 				(unsigned long long)device->needed,
 				(unsigned long long)device->blocksize);
 			result = RET_ERROR;
-		} else if( device->reserved >= device->available ||
-		           device->needed >= device->available - device->reserved ) {
+		} else if (device->reserved >= device->available ||
+		           device->needed >= device->available - device->reserved) {
 			fprintf(stderr,
 "NOT ENOUGH FREE SPACE on filesystem 0x%lx (the filesystem '%s' is on)\n"
 "available blocks %llu, needed blocks %llu (+%llu safety margin), block size is %llu.\n"

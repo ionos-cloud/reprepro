@@ -1,14 +1,10 @@
-#!/bin/bash
-
-set -e
-if [ "x$TESTINCSETUP" != "xissetup" ] ; then
-	source $(dirname $0)/test.inc
-fi
+set -u
+. "$TESTSDIR"/test.inc
 
 mkdir conf
 cat > conf/options <<EOF
 morguedir ./morgue
-export never
+export silent-never
 EOF
 cat > conf/distributions <<EOF
 Codename: test
@@ -29,35 +25,27 @@ EOF
 
 
 testrun - -C main includedsc test fake.dsc 3<<EOF
-stderr
-=Data seems not to be signed trying to use directly...
-*=Warning: database 'test|main|source' was modified but no index file was exported.
-*=Changes will only be visible after the next 'export'!
 stdout
+$(odb)
 -v2*=Created directory "./pool"
 -v2*=Created directory "./pool/main"
 -v2*=Created directory "./pool/main/b"
 -v2*=Created directory "./pool/main/b/bla"
--v2*=Created directory "./db"
--d1*=db: 'pool/main/b/bla/bla_1.7.dsc' added to checksums.db(pool).
+$(ofa 'pool/main/b/bla/bla_1.7.dsc')
 -d1*=db: 'bla' added to packages.db(test|main|source).
 EOF
 
 testrun - remove test bla 3<<EOF
-stderr
-*=Warning: database 'test|main|source' was modified but no index file was exported.
-*=Changes will only be visible after the next 'export'!
 stdout
 -v1*=removing 'bla' from 'test|main|source'...
 -d1*=db: 'bla' removed from packages.db(test|main|source).
 -v0*=Deleting files no longer referenced...
--v1*=deleting and forgetting pool/main/b/bla/bla_1.7.dsc
 -v2*=Created directory "./morgue"
 -v2*=removed now empty directory ./pool/main/b/bla
 -v2*=removed now empty directory ./pool/main/b
 -v2*=removed now empty directory ./pool/main
 -v2*=removed now empty directory ./pool
--d1*=db: 'pool/main/b/bla/bla_1.7.dsc' removed from checksums.db(pool).
+$(ofd 'pool/main/b/bla/bla_1.7.dsc')
 EOF
 
 ls -la morgue
@@ -70,23 +58,16 @@ mkdir morgue
 chmod a-w morgue
 
 testrun - -C main includedsc test fake.dsc 3<<EOF
-stderr
-=Data seems not to be signed trying to use directly...
-*=Warning: database 'test|main|source' was modified but no index file was exported.
-*=Changes will only be visible after the next 'export'!
 stdout
 -v2*=Created directory "./pool"
 -v2*=Created directory "./pool/main"
 -v2*=Created directory "./pool/main/b"
 -v2*=Created directory "./pool/main/b/bla"
--d1*=db: 'pool/main/b/bla/bla_1.7.dsc' added to checksums.db(pool).
+$(ofa 'pool/main/b/bla/bla_1.7.dsc')
 -d1*=db: 'bla' added to packages.db(test|main|source).
 EOF
 
 testrun - remove test bla 3<<EOF
-stderr
-*=Warning: database 'test|main|source' was modified but no index file was exported.
-*=Changes will only be visible after the next 'export'!
 stdout
 -v1*=removing 'bla' from 'test|main|source'...
 -d1*=db: 'bla' removed from packages.db(test|main|source).
@@ -130,12 +111,11 @@ chmod u+w morgue
 # now it should work:
 testrun - deleteunreferenced 3<<EOF
 stdout
--v1*=deleting and forgetting pool/main/b/bla/bla_1.7.dsc
 -v2*=removed now empty directory ./pool/main/b/bla
 -v2*=removed now empty directory ./pool/main/b
 -v2*=removed now empty directory ./pool/main
 -v2*=removed now empty directory ./pool
--d1*=db: 'pool/main/b/bla/bla_1.7.dsc' removed from checksums.db(pool).
+$(ofd 'pool/main/b/bla/bla_1.7.dsc')
 EOF
 find morgue -mindepth 1 | sort > results
 cat > results.expected <<EOF
@@ -154,34 +134,26 @@ dodo test ! -e pool
 # Next test: what if the file is missing?
 
 testrun - -C main includedsc test fake.dsc 3<<EOF
-stderr
-=Data seems not to be signed trying to use directly...
-*=Warning: database 'test|main|source' was modified but no index file was exported.
-*=Changes will only be visible after the next 'export'!
 stdout
 -v2*=Created directory "./pool"
 -v2*=Created directory "./pool/main"
 -v2*=Created directory "./pool/main/b"
 -v2*=Created directory "./pool/main/b/bla"
--d1*=db: 'pool/main/b/bla/bla_1.7.dsc' added to checksums.db(pool).
+$(ofa 'pool/main/b/bla/bla_1.7.dsc')
 -d1*=db: 'bla' added to packages.db(test|main|source).
 EOF
 
 dodo rm pool/main/b/bla/bla_1.7.dsc
 
 testrun - remove test bla 3<<EOF
-stderr
-*=Warning: database 'test|main|source' was modified but no index file was exported.
-*=Changes will only be visible after the next 'export'!
 stdout
 -v1*=removing 'bla' from 'test|main|source'...
 -d1*=db: 'bla' removed from packages.db(test|main|source).
 -v0*=Deleting files no longer referenced...
--v1*=deleting and forgetting pool/main/b/bla/bla_1.7.dsc
 stderr
 *=./pool/main/b/bla/bla_1.7.dsc not found, forgetting anyway
 stdout
--d1*=db: 'pool/main/b/bla/bla_1.7.dsc' removed from checksums.db(pool).
+$(ofd 'pool/main/b/bla/bla_1.7.dsc')
 EOF
 
 find morgue -mindepth 1 | sort > results
@@ -193,21 +165,14 @@ dodiff results.expected results
 # Next test: file cannot be moved
 
 testrun - -C main includedsc test fake.dsc 3<<EOF
-stderr
-=Data seems not to be signed trying to use directly...
-*=Warning: database 'test|main|source' was modified but no index file was exported.
-*=Changes will only be visible after the next 'export'!
 stdout
--d1*=db: 'pool/main/b/bla/bla_1.7.dsc' added to checksums.db(pool).
+$(ofa 'pool/main/b/bla/bla_1.7.dsc')
 -d1*=db: 'bla' added to packages.db(test|main|source).
 EOF
 
 dodo chmod a-w pool/main/b/bla
 
 testrun - remove test bla 3<<EOF
-stderr
-*=Warning: database 'test|main|source' was modified but no index file was exported.
-*=Changes will only be visible after the next 'export'!
 stdout
 -v1*=removing 'bla' from 'test|main|source'...
 -d1*=db: 'bla' removed from packages.db(test|main|source).
@@ -234,12 +199,11 @@ EOF
 # now it should work:
 testrun - deleteunreferenced 3<<EOF
 stdout
--v1*=deleting and forgetting pool/main/b/bla/bla_1.7.dsc
 -v2*=removed now empty directory ./pool/main/b/bla
 -v2*=removed now empty directory ./pool/main/b
 -v2*=removed now empty directory ./pool/main
 -v2*=removed now empty directory ./pool
--d1*=db: 'pool/main/b/bla/bla_1.7.dsc' removed from checksums.db(pool).
+$(ofd 'pool/main/b/bla/bla_1.7.dsc')
 EOF
 find morgue -mindepth 1 | sort > results
 cat > results.expected <<EOF
@@ -252,16 +216,12 @@ testrun empty dumpunreferenced
 
 # Test symbolic link:
 testrun - -C main includedsc test fake.dsc 3<<EOF
-stderr
-=Data seems not to be signed trying to use directly...
-*=Warning: database 'test|main|source' was modified but no index file was exported.
-*=Changes will only be visible after the next 'export'!
 stdout
 -v2*=Created directory "./pool"
 -v2*=Created directory "./pool/main"
 -v2*=Created directory "./pool/main/b"
 -v2*=Created directory "./pool/main/b/bla"
--d1*=db: 'pool/main/b/bla/bla_1.7.dsc' added to checksums.db(pool).
+$(ofa 'pool/main/b/bla/bla_1.7.dsc')
 -d1*=db: 'bla' added to packages.db(test|main|source).
 EOF
 
@@ -269,15 +229,11 @@ dodo mv pool/main/b/bla/bla_1.7.dsc pool/main/b/bla/bla_1.7.dscc
 dodo ln -s bla_1.7.dscc pool/main/b/bla/bla_1.7.dsc
 
 testrun - remove test bla 3<<EOF
-stderr
-*=Warning: database 'test|main|source' was modified but no index file was exported.
-*=Changes will only be visible after the next 'export'!
 stdout
 -v1*=removing 'bla' from 'test|main|source'...
 -d1*=db: 'bla' removed from packages.db(test|main|source).
 -v0*=Deleting files no longer referenced...
--v1*=deleting and forgetting pool/main/b/bla/bla_1.7.dsc
--d1*=db: 'pool/main/b/bla/bla_1.7.dsc' removed from checksums.db(pool).
+$(ofd 'pool/main/b/bla/bla_1.7.dsc')
 EOF
 
 ls -l morgue
@@ -291,7 +247,7 @@ dodiff results.expected results
 dodo mv pool/main/b/bla/bla_1.7.dscc pool/main/b/bla/bla_1.7.dsc
 testrun - _detect pool/main/b/bla/bla_1.7.dsc 3<<EOF
 stdout
--d1*=db: 'pool/main/b/bla/bla_1.7.dsc' added to checksums.db(pool).
+$(ofa 'pool/main/b/bla/bla_1.7.dsc')
 -v0*=1 files were added but not used.
 -v0*=The next deleteunreferenced call will delete them.
 EOF
@@ -299,8 +255,7 @@ EOF
 dodo chmod a-r pool/main/b/bla/bla_1.7.dsc
 testrun - deleteunreferenced 3<<EOF
 stdout
--v1*=deleting and forgetting pool/main/b/bla/bla_1.7.dsc
--d1*=db: 'pool/main/b/bla/bla_1.7.dsc' removed from checksums.db(pool).
+$(ofd 'pool/main/b/bla/bla_1.7.dsc')
 -v2*=removed now empty directory ./pool/main/b/bla
 -v2*=removed now empty directory ./pool/main/b
 -v2*=removed now empty directory ./pool/main

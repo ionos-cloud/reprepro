@@ -1,9 +1,5 @@
-#!/bin/bash
-
-set -e
-if [ "x$TESTINCSETUP" != "xissetup" ] ; then
-	source $(dirname $0)/test.inc
-fi
+set -u
+. "$TESTSDIR"/test.inc
 
 dodo test ! -d db
 mkdir -p conf db pool
@@ -13,7 +9,7 @@ Components: c
 Architectures: a
 EOF
 cat > conf/options <<EOF
-export never
+export silent-never
 EOF
 
 echo "fake-deb1" > fake1.deb
@@ -57,7 +53,7 @@ cp fake2.deb pool/c/p/pseudo/fake_0_all.deb
 testrun - -b . _detect pool/c/p/pseudo/fake_0_all.deb 3<<EOF
 stderr
 stdout
--d1*=db: 'pool/c/p/pseudo/fake_0_all.deb' added to checksums.db(pool).
+$(ofa 'pool/c/p/pseudo/fake_0_all.deb')
 -v0*=1 files were added but not used.
 -v0*=The next deleteunreferenced call will delete them.
 EOF
@@ -75,7 +71,7 @@ EOF
 testrun - -b . _forget pool/c/p/pseudo/fake_0_all.deb 3<<EOF
 stderr
 stdout
--d1*=db: 'pool/c/p/pseudo/fake_0_all.deb' removed from checksums.db(pool).
+$(ofd 'pool/c/p/pseudo/fake_0_all.deb' false)
 EOF
 
 cp fake1.deb pool/c/p/pseudo/fake_0_all.deb
@@ -83,15 +79,12 @@ cp fake1.deb pool/c/p/pseudo/fake_0_all.deb
 testrun - -b . _detect pool/c/p/pseudo/fake_0_all.deb 3<<EOF
 stderr
 stdout
--d1*=db: 'pool/c/p/pseudo/fake_0_all.deb' added to checksums.db(pool).
+$(ofa 'pool/c/p/pseudo/fake_0_all.deb')
 -v0*=1 files were added but not used.
 -v0*=The next deleteunreferenced call will delete them.
 EOF
 
 testrun - -b . -C c -A a -T deb _addpackage n fakeindex fake  3<<EOF
-stderr
-*=Warning: database 'n|c|a' was modified but no index file was exported.
-*=Changes will only be visible after the next 'export'!
 stdout
 -d1*=db: 'fake' added to packages.db(n|c|a).
 -v1*=Adding 'fake' '0' to 'n|c|a'.
@@ -130,13 +123,13 @@ EOF
 testrun - -b . _forget pool/c/p/pseudo/fake_0_all.deb 3<<EOF
 stderr
 stdout
--d1*=db: 'pool/c/p/pseudo/fake_0_all.deb' removed from checksums.db(pool).
+$(ofd 'pool/c/p/pseudo/fake_0_all.deb' false)
 EOF
 
 testrun - -b . _detect pool/c/p/pseudo/fake_0_all.deb 3<<EOF
 stderr
 stdout
--d1*=db: 'pool/c/p/pseudo/fake_0_all.deb' added to checksums.db(pool).
+$(ofa 'pool/c/p/pseudo/fake_0_all.deb')
 EOF
 
 testrun - -b . checkpool 3<<EOF
@@ -158,7 +151,7 @@ EOF
 testrun - -b . _forget pool/c/p/pseudo/fake_0_all.deb 3<<EOF
 stderr
 stdout
--d1*=db: 'pool/c/p/pseudo/fake_0_all.deb' removed from checksums.db(pool).
+$(ofd 'pool/c/p/pseudo/fake_0_all.deb' false)
 EOF
 
 # Correct size but wrong checksum:
@@ -194,7 +187,7 @@ stderr
 -v0*=Warning: readded existing file 'pool/c/p/pseudo/fake_0_all.deb' mysteriously missing from the checksum database.
 stdout
 -v1*=Checking n...
--d1*=db: 'pool/c/p/pseudo/fake_0_all.deb' added to checksums.db(pool).
+$(ofa 'pool/c/p/pseudo/fake_0_all.deb')
 stderr
 EOF
 

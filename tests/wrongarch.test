@@ -1,9 +1,5 @@
-#!/bin/bash
-
-set -e
-if [ "x$TESTINCSETUP" != "xissetup" ] ; then
-	source $(dirname $0)/test.inc
-fi
+set -u
+. "$TESTSDIR"/test.inc
 
 mkdir conf
 cat > conf/distributions <<EOF
@@ -67,7 +63,7 @@ stderr
 -v1*=aptmethod got 'file:${WORKDIR}/test/dists/test/main/source/Sources'
 -v2*=Copy file '${WORKDIR}/test/dists/test/main/source/Sources' to './lists/update_test_main_Sources'...
 stdout
--v2*=Created directory "./db"
+$(odb)
 -v2*=Created directory "./lists"
 *=Updates needed for 'test|main|source':
 *=add 'fake1' - '0s' 'update'

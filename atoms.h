@@ -39,7 +39,7 @@ packagetype_t packagetype_find_l(const char *, size_t);
 atom_t atom_find(enum atom_type, const char *);
 retvalue atom_intern(enum atom_type, const char *, /*@out@*/atom_t *);
 
-#define limitation_missed(a, b) ((atom_defined(a) && (a) != (b) ))
+#define limitation_missed(a, b) ((atom_defined(a) && (a) != (b)))
 #define limitations_missed(a, b) ((a) != NULL && !atomlist_in(a, b))
 
 
@@ -65,10 +65,10 @@ bool atomlist_in(const struct atomlist *, atom_t);
 int atomlist_ofs(const struct atomlist *, atom_t);
 
 /* if missing != NULL And subset no subset of atomlist, set *missing to the first missing one */
-bool atomlist_subset(const struct atomlist *, const struct atomlist *subset, /*@null@*/atom_t *missing);
+bool atomlist_subset(const struct atomlist *, const struct atomlist * /*subset*/, /*@null@*/atom_t * /*missing*/ );
 
 /* print a space separated list of elements */
 retvalue atomlist_fprint(FILE *, enum atom_type, const struct atomlist *);
 
-retvalue atomlist_filllist(enum atom_type, /*@out@*/struct atomlist *, char *string, /*@out@*/const char **missing);
+retvalue atomlist_filllist(enum atom_type, /*@out@*/struct atomlist *, char * /*string*/, /*@out@*/const char ** /*missing*/);
 #endif

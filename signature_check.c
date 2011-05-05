@@ -38,57 +38,57 @@ static retvalue parse_condition_part(bool *allow_subkeys_p, bool *allow_bad_p, c
 	*allow_bad_p = false;
 	*allow_subkeys_p = false;
 
-	while( *key != '\0' && xisspace(*key) )
+	while (*key != '\0' && xisspace(*key))
 		key++;
-	if( *key == '\0' ) {
-		fprintf(stderr, "Error: unexpected end of VerifyRelease condition '%s'!\n",
+	if (*key == '\0') {
+		fprintf(stderr,
+"Error: unexpected end of VerifyRelease condition '%s'!\n",
 				full_condition);
 		return RET_ERROR;
 	}
 
 	p = key;
-	while( (*p >= 'A' && *p <= 'F')
-			|| (*p >= 'a' && *p <= 'f')
-			|| (*p >= '0' && *p <= '9') )
+	while ((*p >= 'A' && *p <= 'F') || (*p >= 'a' && *p <= 'f')
+			|| (*p >= '0' && *p <= '9'))
 		p++;
-	if( *p != '\0' && !xisspace(*p) && *p != '|' && *p != '!' && *p != '+' ) {
+	if (*p != '\0' && !xisspace(*p) && *p != '|' && *p != '!' && *p != '+') {
 		fprintf(stderr,
 "Error: Unexpected character 0x%02hhx='%c' in VerifyRelease condition '%s'!\n",
 				*p, *p, full_condition);
 		return RET_ERROR;
 	}
 	kl = p - key;
-	if( kl < 8 ) {
+	if (kl < 8) {
 		fprintf(stderr,
 "Error: Too short key id '%.*s' in VerifyRelease condition '%s'!\n",
 				(int)kl, key, full_condition);
 		return RET_ERROR;
 	}
 	next_key = strndup(key, kl);
-	if( FAILEDTOALLOC(next_key) )
+	if (FAILEDTOALLOC(next_key))
 		return RET_ERROR_OOM;
 	key = p;
-	for( q = next_key ; *q != '\0' ; q++ ) {
-		if( *q >= 'a' && *q <= 'f' )
+	for (q = next_key ; *q != '\0' ; q++) {
+		if (*q >= 'a' && *q <= 'f')
 			*q -= 'a' - 'A';
 	}
-	while( *key != '\0' && xisspace(*key) )
+	while (*key != '\0' && xisspace(*key))
 		key++;
-	if( *key == '!' ) {
+	if (*key == '!') {
 		*allow_bad_p = true;
 		key++;
 	}
-	while( *key != '\0' && xisspace(*key) )
+	while (*key != '\0' && xisspace(*key))
 		key++;
-	if( *key == '+' ) {
+	if (*key == '+') {
 		*allow_subkeys_p = true;
 		key++;
 	}
-	while( *key != '\0' && xisspace(*key) )
+	while (*key != '\0' && xisspace(*key))
 		key++;
-	if( (*key >= 'A' && *key <= 'F')
+	if ((*key >= 'A' && *key <= 'F')
 			|| (*key >= 'a' && *key <= 'f')
-			|| (*key >= '0' && *key <= '9') ) {
+			|| (*key >= '0' && *key <= '9')) {
 		free(next_key);
 		fprintf(stderr,
 "Error: Space separated key-ids in VerifyRelease condition '%s'!\n"
@@ -96,14 +96,14 @@ static retvalue parse_condition_part(bool *allow_subkeys_p, bool *allow_bad_p, c
 				full_condition);
 		return RET_ERROR;
 	}
-	if( *key != '\0' && *key != '|' ) {
+	if (*key != '\0' && *key != '|') {
 		free(next_key);
 		fprintf(stderr,
 "Error: Unexpected character 0x%02hhx='%c' in VerifyRelease condition '%s'!\n",
 				*key, *key, full_condition);
 		return RET_ERROR;
 	}
-	if( *key == '|' )
+	if (*key == '|')
 		key++;
 	*next_key_p = next_key;
 	*condition_p = key;
@@ -136,30 +136,30 @@ struct requested_key {
 	bool allow_bad;
 };
 
-static retvalue found_key(struct known_key *k, int i, bool allow_subkeys, bool allow_bad, const char *full_condition, const struct known_key **key_found, int *index_found ) {
-	if( !allow_bad && k->subkeys[i].revoked ) {
+static retvalue found_key(struct known_key *k, int i, bool allow_subkeys, bool allow_bad, const char *full_condition, const struct known_key **key_found, int *index_found) {
+	if (!allow_bad && k->subkeys[i].revoked) {
 		fprintf(stderr,
 "VerifyRelease condition '%s' lists revoked key '%s'.\n"
 "(To use it anyway, append it with a '!' to force usage).\n",
 			full_condition, k->subkeys[i].name);
 		return RET_ERROR;
 	}
-	if( !allow_bad && k->subkeys[i].expired ) {
+	if (!allow_bad && k->subkeys[i].expired) {
 		fprintf(stderr,
 "VerifyRelease condition '%s' lists expired key '%s'.\n"
 "(To use it anyway, append it with a '!' to force usage).\n",
 			full_condition, k->subkeys[i].name);
 		return RET_ERROR;
 	}
-	if( !allow_bad && !k->subkeys[i].cansign ) {
+	if (!allow_bad && !k->subkeys[i].cansign) {
 		fprintf(stderr,
 "VerifyRelease condition '%s' lists non-signing key '%s'.\n"
 "(To use it anyway, append it with a '!' to force usage).\n",
 			full_condition, k->subkeys[i].name);
 		return RET_ERROR;
 	}
-	if( allow_subkeys ) {
-		if( i != 0 ) {
+	if (allow_subkeys) {
+		if (i != 0) {
 			fprintf(stderr,
 "VerifyRelease condition '%s' lists non-primary key '%s' with '+'.\n",
 			full_condition, k->subkeys[i].name);
@@ -173,7 +173,7 @@ static retvalue found_key(struct known_key *k, int i, bool allow_subkeys, bool a
 }
 
 /* name must already be upper-case */
-static retvalue load_key(const char *name, bool allow_subkeys, bool allow_bad, const char *full_condition, const struct known_key **key_found, int *index_found ) {
+static retvalue load_key(const char *name, bool allow_subkeys, bool allow_bad, const char *full_condition, const struct known_key **key_found, int *index_found) {
 	gpg_error_t err;
 	gpgme_key_t gpgme_key = NULL;
 	gpgme_subkey_t subkey;
@@ -183,13 +183,13 @@ static retvalue load_key(const char *name, bool allow_subkeys, bool allow_bad, c
 	size_t l = strlen(name);
 
 	/* first look if this key was already retrieved: */
-	for( k = known_keys ; k != NULL ; k = k->next ) {
-		for(i = 0 ; i < k->count ; i++ ) {
+	for (k = known_keys ; k != NULL ; k = k->next) {
+		for(i = 0 ; i < k->count ; i++) {
 			struct known_subkey *s = &k->subkeys[i];
 
-			if( s->name_len < l )
+			if (s->name_len < l)
 				continue;
-			if( memcmp(name, s->name + (s->name_len - l), l) != 0 )
+			if (memcmp(name, s->name + (s->name_len - l), l) != 0)
 				continue;
 			return found_key(k, i, allow_subkeys, allow_bad,
 					full_condition,
@@ -198,27 +198,28 @@ static retvalue load_key(const char *name, bool allow_subkeys, bool allow_bad, c
 	}
 	/* If not yet found, request it: */
 	err = gpgme_get_key(context, name, &gpgme_key, 0);
-	if( (gpg_err_code(err) == GPG_ERR_EOF) && gpgme_key == NULL ) {
+	if ((gpg_err_code(err) == GPG_ERR_EOF) && gpgme_key == NULL) {
 		fprintf(stderr, "Error: unknown key '%s'!\n", name);
 		return RET_ERROR_MISSING;
 	}
-	if( err != 0 ) {
+	if (err != 0) {
 		fprintf(stderr, "gpgme error %s:%d retrieving key '%s': %s\n",
 				gpg_strsource(err), (int)gpg_err_code(err),
-			       	name, gpg_strerror(err));
-		if( gpg_err_code(err) == GPG_ERR_ENOMEM )
+				name, gpg_strerror(err));
+		if (gpg_err_code(err) == GPG_ERR_ENOMEM)
 			return RET_ERROR_OOM;
 		else
 			return RET_ERROR_GPGME;
 	}
 	i = 0;
 	subkey = gpgme_key->subkeys;
-	while( subkey != NULL ) {
+	while (subkey != NULL) {
 		subkey = subkey->next;
 		i++;
 	}
-	k = calloc(1, sizeof(struct known_key) + i * sizeof(struct known_subkey) );
-	if( FAILEDTOALLOC(k) ) {
+	k = calloc(1, sizeof(struct known_key)
+			+ i * sizeof(struct known_subkey));
+	if (FAILEDTOALLOC(k)) {
 		gpgme_key_unref(gpgme_key);
 		return RET_ERROR_OOM;
 	}
@@ -227,30 +228,30 @@ static retvalue load_key(const char *name, bool allow_subkeys, bool allow_bad, c
 	known_keys = k;
 
 	subkey = gpgme_key->subkeys;
-	for( i = 0 ; i < k->count ; i++ , subkey = subkey->next ) {
+	for (i = 0 ; i < k->count ; i++ , subkey = subkey->next) {
 		struct known_subkey *s = &k->subkeys[i];
 
-		assert( subkey != NULL );
+		assert (subkey != NULL);
 
 		s->revoked = subkey->revoked;
 		s->expired = subkey->expired;
 		s->cansign = subkey->can_sign && !subkey->invalid;
 		s->name = strdup(subkey->keyid);
-		if( FAILEDTOALLOC(s->name) ) {
+		if (FAILEDTOALLOC(s->name)) {
 			gpgme_key_unref(gpgme_key);
 			return RET_ERROR_OOM;
 		}
-		for( char *p = s->name ; *p != '\0' ; p++ ) {
-			if( *p >= 'a' && *p <= 'z' )
+		for (char *p = s->name ; *p != '\0' ; p++) {
+			if (*p >= 'a' && *p <= 'z')
 				*p -= 'a'-'A';
 		}
 		s->name_len = strlen(s->name);
-		if( memcmp(name, s->name + (s->name_len - l), l) == 0 )
+		if (memcmp(name, s->name + (s->name_len - l), l) == 0)
 			found = i;
 	}
-	assert( subkey == NULL );
+	assert (subkey == NULL);
 	gpgme_key_unref(gpgme_key);
-	if( found < 0 ) {
+	if (found < 0) {
 		fprintf(stderr, "Error: not a valid key id '%s'!\n"
 "Use hex-igits from the end of the key as identifier\n", name);
 		return RET_ERROR;
@@ -262,14 +263,14 @@ static retvalue load_key(const char *name, bool allow_subkeys, bool allow_bad, c
 static void free_known_key(/*@only@*/struct known_key *k) {
 	int i;
 
-	for( i = 0 ; i < k->count ; i++ ) {
+	for (i = 0 ; i < k->count ; i++) {
 		free(k->subkeys[i].name);
 	}
 	free(k);
 }
 
 void free_known_keys(void) {
-	while( known_keys != NULL ) {
+	while (known_keys != NULL) {
 		struct known_key *k = known_keys;
 		known_keys = k->next;
 		free_known_key(k);
@@ -293,7 +294,7 @@ struct signature_requirement {
 #define sizeof_requirement(n) (sizeof(struct signature_requirement) + (n) * sizeof(struct requested_key))
 
 void signature_requirements_free(struct signature_requirement *list) {
-	while( list != NULL ) {
+	while (list != NULL) {
 		struct signature_requirement *p = list;
 		list = p->next;
 
@@ -306,7 +307,7 @@ static bool key_good(const struct requested_key *req, const gpgme_signature_t si
 	const struct known_key *k = req->key;
 	gpgme_signature_t sig;
 
-	for( sig = signatures ; sig != NULL ; sig = sig->next ) {
+	for (sig = signatures ; sig != NULL ; sig = sig->next) {
 		const char *fpr = sig->fpr;
 		size_t l = strlen(sig->fpr);
 		int i;
@@ -315,36 +316,36 @@ static bool key_good(const struct requested_key *req, const gpgme_signature_t si
 		   so we use this here... */
 		bool key_expired = false;
 
-		if( req->subkey < 0 ) {
+		if (req->subkey < 0) {
 			/* any subkey is allowed */
-			for(i = 0 ; i < k->count ; i++ ) {
+			for(i = 0 ; i < k->count ; i++) {
 				const struct known_subkey *s = &k->subkeys[i];
 
-				if( s->name_len > l )
+				if (s->name_len > l)
 					continue;
-				if( memcmp(s->name, fpr + (l - s->name_len),
-							s->name_len) != 0 )
+				if (memcmp(s->name, fpr + (l - s->name_len),
+							s->name_len) != 0)
 					continue;
 				key_expired = k->subkeys[i].expired;
 				break;
 			}
-			if( i >= k->count )
+			if (i >= k->count)
 				continue;
 		} else {
 			const struct known_subkey *s;
 
-			assert( req->subkey < k->count );
-		       	s = &k->subkeys[req->subkey];
-			if( memcmp(s->name, fpr + (l - s->name_len),
-						s->name_len) != 0 )
+			assert (req->subkey < k->count);
+			s = &k->subkeys[req->subkey];
+			if (memcmp(s->name, fpr + (l - s->name_len),
+						s->name_len) != 0)
 				continue;
 			key_expired = k->subkeys[req->subkey].expired;
 		}
 		/* only accept perfectly good signatures and silently
 		   ignore everything else. Those are warned about or
 		   even accepted in the run with key_good_enough */
-		if( gpg_err_code(sig->status) == GPG_ERR_NO_ERROR
-				&& !key_expired )
+		if (gpg_err_code(sig->status) == GPG_ERR_NO_ERROR
+				&& !key_expired)
 			return true;
 		/* we have to continue otherwise,
 		   as another subkey might still follow */
@@ -358,46 +359,47 @@ static bool key_good_enough(const struct requested_key *req, const gpgme_signatu
 	const struct known_key *k = req->key;
 	gpgme_signature_t sig;
 
-	for( sig = signatures ; sig != NULL ; sig = sig->next ) {
+	for (sig = signatures ; sig != NULL ; sig = sig->next) {
 		const char *fpr = sig->fpr;
 		size_t l = strlen(sig->fpr);
 		int i;
 		bool key_expired = false; /* dito */
 
-		if( req->subkey < 0 ) {
+		if (req->subkey < 0) {
 			/* any subkey is allowed */
-			for(i = 0 ; i < k->count ; i++ ) {
+			for(i = 0 ; i < k->count ; i++) {
 				const struct known_subkey *s = &k->subkeys[i];
 
-				if( s->name_len > l )
+				if (s->name_len > l)
 					continue;
-				if( memcmp(s->name, fpr + (l - s->name_len),
-							s->name_len) != 0 )
+				if (memcmp(s->name, fpr + (l - s->name_len),
+							s->name_len) != 0)
 					continue;
 				key_expired = k->subkeys[i].expired;
 				break;
 			}
-			if( i >= k->count )
+			if (i >= k->count)
 				continue;
 		} else {
 			const struct known_subkey *s;
 
-			assert( req->subkey < k->count );
-		       	s = &k->subkeys[req->subkey];
-			if( memcmp(s->name, fpr + (l - s->name_len),
-						s->name_len) != 0 )
+			assert (req->subkey < k->count);
+			s = &k->subkeys[req->subkey];
+			if (memcmp(s->name, fpr + (l - s->name_len),
+						s->name_len) != 0)
 				continue;
 			key_expired = k->subkeys[req->subkey].expired;
 		}
 		/* this key we look for. if it is acceptable, we are finished.
 		   if it is not acceptable, we still have to look at the other
-		   signatures, as a signature with another subkey is following  */
-		switch( gpg_err_code(sig->status) ) {
+		   signatures, as a signature with another subkey is following
+		 */
+		switch (gpg_err_code(sig->status)) {
 			case GPG_ERR_NO_ERROR:
-				if( ! key_expired )
+				if (! key_expired)
 					return true;
-				if( req->allow_bad && IGNORABLE(expiredkey) ) {
-					if( verbose >= 0 )
+				if (req->allow_bad && IGNORABLE(expiredkey)) {
+					if (verbose >= 0)
 						fprintf(stderr,
 "WARNING: valid signature in '%s' with parent-expired '%s' is accepted as requested!\n",
 							releasegpg, fpr);
@@ -405,14 +407,14 @@ static bool key_good_enough(const struct requested_key *req, const gpgme_signatu
 				}
 				fprintf(stderr,
 "Not accepting valid signature in '%s' with parent-EXPIRED '%s'\n", releasegpg, fpr);
-				if( verbose >= 0 )
+				if (verbose >= 0)
 					fprintf(stderr,
 "(To ignore it append a ! to the key and run reprepro with --ignore=expiredkey)\n");
 				/* not accepted */
 				continue;
 			case GPG_ERR_KEY_EXPIRED:
-				if( req->allow_bad && IGNORABLE(expiredkey) ) {
-					if( verbose >= 0 )
+				if (req->allow_bad && IGNORABLE(expiredkey)) {
+					if (verbose >= 0)
 						fprintf(stderr,
 "WARNING: valid signature in '%s' with expired '%s' is accepted as requested!\n",
 							releasegpg, fpr);
@@ -420,14 +422,14 @@ static bool key_good_enough(const struct requested_key *req, const gpgme_signatu
 				}
 				fprintf(stderr,
 "Not accepting valid signature in '%s' with EXPIRED '%s'\n", releasegpg, fpr);
-				if( verbose >= 0 )
+				if (verbose >= 0)
 					fprintf(stderr,
 "(To ignore it append a ! to the key and run reprepro with --ignore=expiredkey)\n");
 				/* not accepted */
 				continue;
 			case GPG_ERR_CERT_REVOKED:
-				if( req->allow_bad && IGNORABLE(revokedkey) ) {
-					if( verbose >= 0 )
+				if (req->allow_bad && IGNORABLE(revokedkey)) {
+					if (verbose >= 0)
 						fprintf(stderr,
 "WARNING: valid signature in '%s' with revoked '%s' is accepted as requested!\n",
 							releasegpg, fpr);
@@ -435,14 +437,14 @@ static bool key_good_enough(const struct requested_key *req, const gpgme_signatu
 				}
 				fprintf(stderr,
 "Not accepting valid signature in '%s' with REVOKED '%s'\n", releasegpg, fpr);
-				if( verbose >= 0 )
+				if (verbose >= 0)
 					fprintf(stderr,
 "(To ignore it append a ! to the key and run reprepro with --ignore=revokedkey)\n");
 				/* not accepted */
 				continue;
 			case GPG_ERR_SIG_EXPIRED:
-				if( req->allow_bad && IGNORABLE(expiredsignature) ) {
-					if( verbose >= 0 )
+				if (req->allow_bad && IGNORABLE(expiredsignature)) {
+					if (verbose >= 0)
 						fprintf(stderr,
 "WARNING: valid but expired signature in '%s' with '%s' is accepted as requested!\n",
 							releasegpg, fpr);
@@ -450,7 +452,7 @@ static bool key_good_enough(const struct requested_key *req, const gpgme_signatu
 				}
 				fprintf(stderr,
 "Not accepting valid but EXPIRED signature in '%s' with '%s'\n", releasegpg, fpr);
-				if( verbose >= 0 )
+				if (verbose >= 0)
 					fprintf(stderr,
 "(To ignore it append a ! to the key and run reprepro with --ignore=expiredsignature)\n");
 				/* not accepted */
@@ -487,24 +489,24 @@ retvalue signature_requirement_add(struct signature_requirement **list_p, const 
 	retvalue r;
 
 	r = signature_init(false);
-	if( RET_WAS_ERROR(r) )
+	if (RET_WAS_ERROR(r))
 		return r;
 
-	if( condition == NULL || strcmp(condition, "blindtrust") == 0 )
+	if (condition == NULL || strcmp(condition, "blindtrust") == 0)
 		return RET_NOTHING;
 
 	/* no need to add the same condition multiple times */
-	for( req = *list_p ; req != NULL ; req = req->next ) {
-		if( strcmp(req->condition, condition) == 0 )
+	for (req = *list_p ; req != NULL ; req = req->next) {
+		if (strcmp(req->condition, condition) == 0)
 			return RET_NOTHING;
 	}
 
 	req = malloc(sizeof_requirement(1));
-	if( FAILEDTOALLOC(req) )
+	if (FAILEDTOALLOC(req))
 		return RET_ERROR_OOM;
 	req->next = NULL;
 	req->condition = strdup(condition);
-	if( FAILEDTOALLOC(req->condition) ) {
+	if (FAILEDTOALLOC(req->condition)) {
 		free(req);
 		return RET_ERROR_OOM;
 	}
@@ -516,7 +518,7 @@ retvalue signature_requirement_add(struct signature_requirement **list_p, const 
 		r = parse_condition_part(&allow_subkeys, &allow_bad,
 				full_condition, &condition, &next_key);
 		ASSERT_NOT_NOTHING(r);
-		if( RET_WAS_ERROR(r) ) {
+		if (RET_WAS_ERROR(r)) {
 			signature_requirements_free(req);
 			return r;
 		}
@@ -526,24 +528,24 @@ retvalue signature_requirement_add(struct signature_requirement **list_p, const 
 				&req->keys[req->num_keys].key,
 				&req->keys[req->num_keys].subkey);
 		free(next_key);
-		if( RET_WAS_ERROR(r) ) {
+		if (RET_WAS_ERROR(r)) {
 			signature_requirements_free(req);
 			return r;
 		}
 		req->num_keys++;
 
-		if( *condition != '\0' ) {
+		if (*condition != '\0') {
 			struct signature_requirement *h;
 
 			h = realloc(req, sizeof_requirement(req->num_keys+1));
-			if( FAILEDTOALLOC(h) ) {
+			if (FAILEDTOALLOC(h)) {
 				signature_requirements_free(req);
 				return r;
 			}
 			req = h;
 		} else
 			break;
-	} while( true );
+	} while (true);
 	req->next = *list_p;
 	*list_p = req;
 	return RET_OK;
@@ -554,7 +556,7 @@ static void print_signatures(FILE *f, gpgme_signature_t s, const char *releasegp
 	struct tm *tm;
 	time_t t;
 
-	if( s == NULL ) {
+	if (s == NULL) {
 		fprintf(f, "gpgme reported no signatures in '%s':\n"
 "Either there are really none or something else is strange.\n"
 "One known reason for this effect is forgeting -b when signing.\n",
@@ -563,11 +565,11 @@ static void print_signatures(FILE *f, gpgme_signature_t s, const char *releasegp
 	}
 
 	fprintf(f, "Signatures in '%s':\n", releasegpg);
-	for( ; s != NULL ; s = s->next ) {
+	for (; s != NULL ; s = s->next) {
 		t = s->timestamp; tm = localtime(&t);
 		strftime(timebuffer, 19, "%Y-%m-%d", tm);
 		fprintf(f, "'%s' (signed %s): ", s->fpr, timebuffer);
-		switch( gpg_err_code(s->status) ) {
+		switch (gpg_err_code(s->status)) {
 			case GPG_ERR_NO_ERROR:
 				fprintf(f, "valid\n");
 				continue;
@@ -605,35 +607,37 @@ retvalue signature_check(const struct signature_requirement *requirements, const
 	int i;
 	const struct signature_requirement *req;
 
-	assert( requirements != NULL );
+	assert (requirements != NULL);
 
-	if( release == NULL || releasegpg == NULL )
+	if (FAILEDTOALLOC(release) || FAILEDTOALLOC(releasegpg))
 		return RET_ERROR_OOM;
 
-	assert( context != NULL );
+	assert (context != NULL);
 
 	/* Read the file and its signature into memory: */
 	gpgfd = open(releasegpg, O_RDONLY|O_NOCTTY);
-	if( gpgfd < 0 ) {
+	if (gpgfd < 0) {
 		int e = errno;
-		fprintf(stderr, "Error opening '%s': %s\n", releasegpg, strerror(e));
+		fprintf(stderr, "Error opening '%s': %s\n",
+				releasegpg, strerror(e));
 		return RET_ERRNO(e);
 	}
 	fd = open(release, O_RDONLY|O_NOCTTY);
-	if( fd < 0 ) {
+	if (fd < 0) {
 		int e = errno;
 		(void)close(gpgfd);
-		fprintf(stderr, "Error opening '%s': %s\n", release, strerror(e));
+		fprintf(stderr, "Error opening '%s': %s\n",
+			       release, strerror(e));
 		return RET_ERRNO(e);
 	}
 	err = gpgme_data_new_from_fd(&dh_gpg, gpgfd);
-	if( err != 0 ) {
+	if (err != 0) {
 		(void)close(gpgfd); (void)close(fd);
 		fprintf(stderr, "Error reading '%s':\n", releasegpg);
 		return gpgerror(err);
 	}
 	err = gpgme_data_new_from_fd(&dh, fd);
-	if( err != 0 ) {
+	if (err != 0) {
 		gpgme_data_release(dh_gpg);
 		(void)close(gpgfd); (void)close(fd);
 		fprintf(stderr, "Error reading '%s':\n", release);
@@ -645,61 +649,64 @@ retvalue signature_check(const struct signature_requirement *requirements, const
 	err = gpgme_op_verify(context, dh_gpg, dh, NULL);
 	gpgme_data_release(dh_gpg);
 	gpgme_data_release(dh);
-	close(gpgfd);close(fd);
-	if( err != 0 ) {
+	close(gpgfd); close(fd);
+	if (err != 0) {
 		fprintf(stderr, "Error verifying '%s':\n", releasegpg);
 		return gpgerror(err);
 	}
 
 	result = gpgme_op_verify_result(context);
-	if( result == NULL ) {
-		fprintf(stderr, "Internal error communicating with libgpgme: no result record!\n\n");
+	if (result == NULL) {
+		fprintf(stderr,
+"Internal error communicating with libgpgme: no result record!\n\n");
 		return RET_ERROR_GPGME;
 	}
 
-	for( req = requirements ; req != NULL ; req = req->next ) {
+	for (req = requirements ; req != NULL ; req = req->next) {
 		bool fullfilled = false;
 
 		/* check first for good signatures, and then for good enough
 		   signatures, to not pester the user with warnings of one
 		   of the alternate keys, if the last one is good enough */
 
-		for( i = 0 ; (size_t)i < req->num_keys ; i++ ) {
+		for (i = 0 ; (size_t)i < req->num_keys ; i++) {
 
-			if( key_good(&req->keys[i], result->signatures) ) {
+			if (key_good(&req->keys[i], result->signatures)) {
 				fullfilled = true;
 				break;
 			}
 		}
-		for( i = 0 ; !fullfilled && (size_t)i < req->num_keys ; i++ ) {
+		for (i = 0 ; !fullfilled && (size_t)i < req->num_keys ; i++) {
 
-			if( key_good_enough(&req->keys[i], result->signatures,
-						releasegpg, release) ) {
+			if (key_good_enough(&req->keys[i], result->signatures,
+						releasegpg, release)) {
 				fullfilled = true;
 				break;
 			}
 		}
-		if( !fullfilled ) {
-			fprintf(stderr, "ERROR: Condition '%s' not fullfilled for '%s'.\n",
+		if (!fullfilled) {
+			fprintf(stderr,
+"ERROR: Condition '%s' not fullfilled for '%s'.\n",
 					req->condition, releasegpg);
-			print_signatures(stderr, result->signatures, releasegpg);
+			print_signatures(stderr, result->signatures,
+					releasegpg);
 			return RET_ERROR_BADSIG;
 		}
-		if( verbose > 10 ) {
+		if (verbose > 10) {
 			fprintf(stdout, "Condition '%s' fullfilled for '%s'.\n",
 					req->condition, releasegpg);
 		}
 	}
-	if( verbose > 20 )
+	if (verbose > 20)
 		print_signatures(stdout, result->signatures, releasegpg);
 	return RET_OK;
 }
 #else /* HAVE_LIBGPGME */
 
 retvalue signature_check(const struct signature_requirement *requirements, const char *releasegpg, const char *release) {
-	assert( requirements != NULL );
+	assert (requirements != NULL);
 
-	if( release == NULL || releasegpg == NULL )
+	if (FAILEDTOALLOC(release) || FAILEDTOALLOC(releasegpg))
 		return RET_ERROR_OOM;
 	fprintf(stderr,
 "ERROR: Cannot check signatures as this reprepro binary is compiled with support\n"

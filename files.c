@@ -39,55 +39,55 @@
 #include "pool.h"
 #include "database_p.h"
 
-static retvalue files_get_checksums(struct database *database, const char *filekey, /*@out@*/struct checksums **checksums_p) {
+static retvalue files_get_checksums(const char *filekey, /*@out@*/struct checksums **checksums_p) {
 	const char *checksums;
 	size_t checksumslen;
 	retvalue r;
 
-	r = table_gettemprecord(database->checksums, filekey,
+	r = table_gettemprecord(rdb_checksums, filekey,
 		&checksums, &checksumslen);
-	if( !RET_IS_OK(r) )
+	if (!RET_IS_OK(r))
 		return r;
 	return checksums_setall(checksums_p, checksums, checksumslen);
 }
 
-retvalue files_add_checksums(struct database *database, const char *filekey, const struct checksums *checksums) {
+retvalue files_add_checksums(const char *filekey, const struct checksums *checksums) {
 	retvalue r;
 	const char *combined;
 	size_t combinedlen;
 
-	assert( database->checksums != NULL );
+	assert (rdb_checksums != NULL);
 	r = checksums_getcombined(checksums, &combined, &combinedlen);
-	if( !RET_IS_OK(r) )
+	if (!RET_IS_OK(r))
 		return r;
-	r = table_adduniqsizedrecord(database->checksums, filekey,
+	r = table_adduniqsizedrecord(rdb_checksums, filekey,
 			combined, combinedlen + 1, true, false);
-	if( !RET_IS_OK(r) )
+	if (!RET_IS_OK(r))
 		return r;
 	return pool_markadded(filekey);
 }
 
-static retvalue files_replace_checksums(struct database *database, const char *filekey, const struct checksums *checksums) {
+static retvalue files_replace_checksums(const char *filekey, const struct checksums *checksums) {
 	retvalue r;
 	const char *combined;
 	size_t combinedlen;
 
-	assert( database->checksums != NULL );
+	assert (rdb_checksums != NULL);
 	r = checksums_getcombined(checksums, &combined, &combinedlen);
-	if( !RET_IS_OK(r) )
+	if (!RET_IS_OK(r))
 		return r;
-	return table_adduniqsizedrecord(database->checksums, filekey,
+	return table_adduniqsizedrecord(rdb_checksums, filekey,
 			combined, combinedlen + 1, true, false);
 }
 
 /* remove file's md5sum from database */
-retvalue files_removesilent(struct database *database, const char *filekey) {
+retvalue files_removesilent(const char *filekey) {
 	retvalue r;
 
-	if( database->contents != NULL )
-		(void)table_deleterecord(database->contents, filekey, true);
-	r = table_deleterecord(database->checksums, filekey, true);
-	if( r == RET_NOTHING ) {
+	if (rdb_contents != NULL)
+		(void)table_deleterecord(rdb_contents, filekey, true);
+	r = table_deleterecord(rdb_checksums, filekey, true);
+	if (r == RET_NOTHING) {
 		fprintf(stderr, "Unable to forget unknown filekey '%s'.\n",
 				filekey);
 		return RET_ERROR_MISSING;
@@ -95,44 +95,44 @@ retvalue files_removesilent(struct database *database, const char *filekey) {
 	return r;
 }
 
-retvalue files_remove(struct database *database, const char *filekey) {
+retvalue files_remove(const char *filekey) {
 	retvalue r;
 
-	r = files_removesilent(database, filekey);
-	if( RET_IS_OK(r) )
+	r = files_removesilent(filekey);
+	if (RET_IS_OK(r))
 		return pool_markdeleted(filekey);
 	return r;
 }
 
 /* hardlink file with known checksums and add it to database */
-retvalue files_hardlinkandadd(struct database *database, const char *tempfile, const char *filekey, const struct checksums *checksums) {
+retvalue files_hardlinkandadd(const char *tempfile, const char *filekey, const struct checksums *checksums) {
 	retvalue r;
 
 	/* an additional check to make sure nothing tricks us into
 	 * overwriting it by another file */
-	r = files_canadd(database, filekey, checksums);
-	if( !RET_IS_OK(r) )
+	r = files_canadd(filekey, checksums);
+	if (!RET_IS_OK(r))
 		return r;
 	r = checksums_hardlink(global.outdir, filekey, tempfile, checksums);
-	if( RET_WAS_ERROR(r) )
+	if (RET_WAS_ERROR(r))
 		return r;
 
-	return files_add_checksums(database, filekey, checksums);
+	return files_add_checksums(filekey, checksums);
 }
 
 /* check if file is already there (RET_NOTHING) or could be added (RET_OK)
- * or RET_ERROR_WRONG_MD5SUM if filekey is already there with different md5sum */
-retvalue files_canadd(struct database *database, const char *filekey, const struct checksums *checksums) {
+ * or RET_ERROR_WRONG_MD5SUM if filekey  already has different md5sum */
+retvalue files_canadd(const char *filekey, const struct checksums *checksums) {
 	retvalue r;
 	struct checksums *indatabase;
 	bool improves;
 
-	r = files_get_checksums(database, filekey, &indatabase);
-	if( r == RET_NOTHING )
+	r = files_get_checksums(filekey, &indatabase);
+	if (r == RET_NOTHING)
 		return RET_OK;
-	if( RET_WAS_ERROR(r) )
+	if (RET_WAS_ERROR(r))
 		return r;
-	if( !checksums_check(indatabase, checksums, &improves) ) {
+	if (!checksums_check(indatabase, checksums, &improves)) {
 		fprintf(stderr,
 "File \"%s\" is already registered with different checksums!\n",
 				filekey);
@@ -150,31 +150,31 @@ retvalue files_canadd(struct database *database, const char *filekey, const stru
 
 
 /* check for file in the database and if not found there, if it can be detected */
-retvalue files_expect(struct database *database, const char *filekey, const struct checksums *checksums, bool warnifadded) {
+retvalue files_expect(const char *filekey, const struct checksums *checksums, bool warnifadded) {
 	retvalue r;
 	char *filename;
 	struct checksums *improvedchecksums = NULL;
 
-	r = files_canadd(database, filekey, checksums);
-	if( r == RET_NOTHING )
+	r = files_canadd(filekey, checksums);
+	if (r == RET_NOTHING)
 		return RET_OK;
-	if( RET_WAS_ERROR(r) )
+	if (RET_WAS_ERROR(r))
 		return r;
 
 	/* ready to add means missing, so have to look for the file itself: */
 	filename = files_calcfullfilename(filekey);
-	if( filename == NULL )
+	if (FAILEDTOALLOC(filename))
 		return RET_ERROR_OOM;
 
 	/* first check if a possible manually put (or left over from previous
 	 * downloads attepts) file is there and is correct */
 	r = checksums_test(filename, checksums, &improvedchecksums);
-	if( r == RET_ERROR_WRONG_MD5) {
+	if (r == RET_ERROR_WRONG_MD5) {
 		fprintf(stderr,
 "Deleting unexpected file '%s'!\n"
 "(not in database and wrong in pool)\n ",
 				filename);
-		if( unlink(filename) == 0 )
+		if (unlink(filename) == 0)
 			r = RET_NOTHING;
 		else {
 			int e = errno;
@@ -183,38 +183,40 @@ retvalue files_expect(struct database *database, const char *filekey, const stru
 		}
 	}
 	free(filename);
-	if( !RET_IS_OK(r) )
+	if (!RET_IS_OK(r))
 		return r;
 
-	if( warnifadded )
-		fprintf(stderr, "Warning: readded existing file '%s' mysteriously missing from the checksum database.\n", filekey);
+	if (warnifadded)
+		fprintf(stderr,
+"Warning: readded existing file '%s' mysteriously missing from the checksum database.\n",
+				filekey);
 
 	// TODO: some callers might want the updated checksum when
 	// improves is true, how to get them there?
 
 	/* add found file to database */
-	if( improvedchecksums != NULL ) {
-		r = files_add_checksums(database, filekey, improvedchecksums);
+	if (improvedchecksums != NULL) {
+		r = files_add_checksums(filekey, improvedchecksums);
 		checksums_free(improvedchecksums);
 	} else
-		r = files_add_checksums(database, filekey, checksums);
-	assert( r != RET_NOTHING );
+		r = files_add_checksums(filekey, checksums);
+	assert (r != RET_NOTHING);
 	return r;
 }
 
 /* check for several files in the database and in the pool if missing */
-retvalue files_expectfiles(struct database *database, const struct strlist *filekeys, struct checksums *checksumsarray[]) {
+retvalue files_expectfiles(const struct strlist *filekeys, struct checksums *checksumsarray[]) {
 	int i;
 	retvalue r;
 
-	for( i = 0 ; i < filekeys->count ; i++ ) {
+	for (i = 0 ; i < filekeys->count ; i++) {
 		const char *filekey = filekeys->values[i];
 		const struct checksums *checksums = checksumsarray[i];
 
-		r = files_expect(database, filekey, checksums, verbose >= 0);
-		if( RET_WAS_ERROR(r) )
+		r = files_expect(filekey, checksums, verbose >= 0);
+		if (RET_WAS_ERROR(r))
 			return r;
-		if( r == RET_NOTHING ) {
+		if (r == RET_NOTHING) {
 			/* File missing */
 			fprintf(stderr, "Missing file %s\n", filekey);
 			return RET_ERROR_MISSING;
@@ -223,146 +225,119 @@ retvalue files_expectfiles(struct database *database, const struct strlist *file
 	return RET_OK;
 }
 
-/* check for several files in the database and update information */
-retvalue files_checkorimprove(struct database *database, const struct strlist *filekeys, struct checksums *checksumsarray[]) {
-	int i;
+static inline retvalue checkorimprove(const char *filekey, struct checksums **checksums_p) {
+	const struct checksums *checksums = *checksums_p;
+	struct checksums *indatabase;
+	bool improves;
 	retvalue r;
 
-	for( i = 0 ; i < filekeys->count ; i++ ) {
-		const char *filekey = filekeys->values[i];
-		const struct checksums *checksums = checksumsarray[i];
-		struct checksums *indatabase;
-		bool improves;
-
-		r = files_get_checksums(database, filekey, &indatabase);
-		if( r == RET_NOTHING ) {
-			fprintf(stderr, "Missing file %s\n", filekey);
-			return RET_ERROR_MISSING;
-		}
-		if( RET_WAS_ERROR(r) )
-			return r;
-		if( !checksums_check(checksums, indatabase, &improves) ) {
-			fprintf(stderr,
+	r = files_get_checksums(filekey, &indatabase);
+	if (r == RET_NOTHING) {
+		fprintf(stderr, "Missing file %s\n", filekey);
+		return RET_ERROR_MISSING;
+	}
+	if (RET_WAS_ERROR(r))
+		return r;
+	if (!checksums_check(checksums, indatabase, &improves)) {
+		fprintf(stderr,
 "File \"%s\" is already registered with different checksums!\n",
 				filekey);
-			checksums_printdifferences(stderr, indatabase, checksums);
-			r = RET_ERROR_WRONG_MD5;
-		} else if( improves ) {
-			r = checksums_combine(&checksumsarray[i], indatabase, NULL);
-		}
-		checksums_free(indatabase);
-		if( RET_WAS_ERROR(r) )
+		checksums_printdifferences(stderr, indatabase, checksums);
+		r = RET_ERROR_WRONG_MD5;
+	} else if (improves) {
+		r = checksums_combine(checksums_p, indatabase, NULL);
+	}
+	checksums_free(indatabase);
+	return r;
+}
+
+
+/* check for several files in the database and update information */
+retvalue files_checkorimprove(const struct strlist *filekeys, struct checksums *checksumsarray[]) {
+	int i;
+	retvalue r;
+
+	for (i = 0 ; i < filekeys->count ; i++) {
+		r = checkorimprove(filekeys->values[i],
+				&checksumsarray[i]);
+		if (RET_WAS_ERROR(r))
 			return r;
 	}
 	return RET_OK;
-}
-
-/* print missing files */
-retvalue files_printmissing(struct database *database, const struct strlist *filekeys, const struct checksumsarray *origfiles) {
-	int i;
-	retvalue ret,r;
-
-	ret = RET_NOTHING;
-	assert( filekeys->count == origfiles->names.count );
-	for( i = 0 ; i < filekeys->count ; i++ ) {
-		const char *filekey = filekeys->values[i];
-		const char *origfile = origfiles->names.values[i];
-		const struct checksums *checksums = origfiles->checksums[i];
-
-		r = files_expect(database, filekey, checksums, false);
-		if( RET_WAS_ERROR(r) ) {
-			return r;
-		}
-		if( r == RET_NOTHING ) {
-			/* File missing */
-			(void)fputs(origfile, stdout);
-			(void)putchar(' ');
-			(void)fputs(global.outdir, stdout);
-			(void)putchar('/');
-			(void)fputs(filekey, stdout);
-			(void)putchar('\n');
-			RET_UPDATE(ret,RET_OK);
-		} else
-			RET_UPDATE(ret,r);
-	}
-	return ret;
 }
 
 /* dump out all information */
-retvalue files_printmd5sums(struct database *database) {
+retvalue files_printmd5sums(void) {
 	retvalue result, r;
 	struct cursor *cursor;
 	const char *filekey, *checksum;
 
-	r = table_newglobalcursor(database->checksums, &cursor);
-	if( !RET_IS_OK(r) )
+	r = table_newglobalcursor(rdb_checksums, &cursor);
+	if (!RET_IS_OK(r))
 		return r;
 	result = RET_NOTHING;
-	while( cursor_nexttemp(database->checksums, cursor,
-				&filekey, &checksum) ) {
+	while (cursor_nexttemp(rdb_checksums, cursor, &filekey, &checksum)) {
 		result = RET_OK;
 		(void)fputs(filekey, stdout);
 		(void)putchar(' ');
-		while( *checksum == ':' ) {
-			while( *checksum != ' ' && *checksum != '\0' )
+		while (*checksum == ':') {
+			while (*checksum != ' ' && *checksum != '\0')
 				checksum++;
-			if( *checksum == ' ' )
+			if (*checksum == ' ')
 				checksum++;
 		}
 		(void)fputs(checksum, stdout);
 		(void)putchar('\n');
 	}
-	r = cursor_close(database->checksums, cursor);
+	r = cursor_close(rdb_checksums, cursor);
 	RET_ENDUPDATE(result, r);
 	return result;
 }
 
-retvalue files_printchecksums(struct database *database) {
+retvalue files_printchecksums(void) {
 	retvalue result, r;
 	struct cursor *cursor;
 	const char *filekey, *checksum;
 
-	r = table_newglobalcursor(database->checksums, &cursor);
-	if( !RET_IS_OK(r) )
+	r = table_newglobalcursor(rdb_checksums, &cursor);
+	if (!RET_IS_OK(r))
 		return r;
 	result = RET_NOTHING;
-	while( cursor_nexttemp(database->checksums, cursor,
-				&filekey, &checksum) ) {
+	while (cursor_nexttemp(rdb_checksums, cursor, &filekey, &checksum)) {
 		result = RET_OK;
 		(void)fputs(filekey, stdout);
 		(void)putchar(' ');
 		(void)fputs(checksum, stdout);
 		(void)putchar('\n');
-		if( interrupted() ) {
+		if (interrupted()) {
 			result = RET_ERROR_INTERRUPTED;
 			break;
 		}
 	}
-	r = cursor_close(database->checksums, cursor);
+	r = cursor_close(rdb_checksums, cursor);
 	RET_ENDUPDATE(result, r);
 	return result;
 }
 
 /* callback for each registered file */
-retvalue files_foreach(struct database *database,per_file_action action,void *privdata) {
+retvalue files_foreach(per_file_action action, void *privdata) {
 	retvalue result, r;
 	struct cursor *cursor;
 	const char *filekey, *checksum;
 
-	r = table_newglobalcursor(database->checksums, &cursor);
-	if( !RET_IS_OK(r) )
+	r = table_newglobalcursor(rdb_checksums, &cursor);
+	if (!RET_IS_OK(r))
 		return r;
 	result = RET_NOTHING;
-	while( cursor_nexttemp(database->checksums, cursor,
-				&filekey, &checksum) ) {
-		if( interrupted() ) {
+	while (cursor_nexttemp(rdb_checksums, cursor, &filekey, &checksum)) {
+		if (interrupted()) {
 			RET_UPDATE(result, RET_ERROR_INTERRUPTED);
 			break;
 		}
 		r = action(privdata, filekey);
 		RET_UPDATE(result, r);
 	}
-	r = cursor_close(database->checksums, cursor);
+	r = cursor_close(rdb_checksums, cursor);
 	RET_ENDUPDATE(result, r);
 	return result;
 }
@@ -373,20 +348,20 @@ static retvalue checkpoolfile(const char *fullfilename, const struct checksums *
 	bool improves;
 
 	r = checksums_read(fullfilename, &actual);
-	if( RET_IS_OK(r) ) {
-		if( !checksums_check(expected, actual, &improves) ) {
+	if (RET_IS_OK(r)) {
+		if (!checksums_check(expected, actual, &improves)) {
 			fprintf(stderr, "WRONG CHECKSUMS of '%s':\n",
 					fullfilename);
 			checksums_printdifferences(stderr, expected, actual);
 			r = RET_ERROR_WRONG_MD5;
-		} else if( improves )
+		} else if (improves)
 			*improveable = true;
 		checksums_free(actual);
 	}
 	return r;
 }
 
-retvalue files_checkpool(struct database *database, bool fast) {
+retvalue files_checkpool(bool fast) {
 	retvalue result, r;
 	struct cursor *cursor;
 	const char *filekey, *combined;
@@ -396,27 +371,27 @@ retvalue files_checkpool(struct database *database, bool fast) {
 	bool improveable = false;
 
 	result = RET_NOTHING;
-	r = table_newglobalcursor(database->checksums, &cursor);
-	if( !RET_IS_OK(r) )
+	r = table_newglobalcursor(rdb_checksums, &cursor);
+	if (!RET_IS_OK(r))
 		return r;
-	while( cursor_nexttempdata(database->checksums, cursor,
-				&filekey, &combined, &combinedlen) ) {
+	while (cursor_nexttempdata(rdb_checksums, cursor,
+				&filekey, &combined, &combinedlen)) {
 		r = checksums_setall(&expected, combined, combinedlen);
-		if( RET_WAS_ERROR(r) ) {
+		if (RET_WAS_ERROR(r)) {
 			RET_UPDATE(result, r);
 			continue;
 		}
 		fullfilename = files_calcfullfilename(filekey);
-		if( fullfilename == NULL ) {
+		if (FAILEDTOALLOC(fullfilename)) {
 			result = RET_ERROR_OOM;
 			checksums_free(expected);
 			break;
 		}
-		if( fast )
+		if (fast)
 			r = checksums_cheaptest(fullfilename, expected, true);
 		else
 			r = checkpoolfile(fullfilename, expected, &improveable);
-		if( r == RET_NOTHING ) {
+		if (r == RET_NOTHING) {
 			fprintf(stderr, "Missing file '%s'!\n", fullfilename);
 			r = RET_ERROR_MISSING;
 		}
@@ -424,16 +399,16 @@ retvalue files_checkpool(struct database *database, bool fast) {
 		checksums_free(expected);
 		RET_UPDATE(result, r);
 	}
-	r = cursor_close(database->checksums, cursor);
+	r = cursor_close(rdb_checksums, cursor);
 	RET_ENDUPDATE(result, r);
-	if( improveable && verbose >= 0 )
+	if (improveable && verbose >= 0)
 		printf(
 "There were files with only some of the checksums this version of reprepro\n"
 "can compute recorded. To add those run reprepro collectnewchecksums.\n");
 	return result;
 }
 
-retvalue files_collectnewchecksums(struct database *database) {
+retvalue files_collectnewchecksums(void) {
 	retvalue result, r;
 	struct cursor *cursor;
 	const char *filekey, *all;
@@ -442,79 +417,75 @@ retvalue files_collectnewchecksums(struct database *database) {
 	char *fullfilename;
 
 	result = RET_NOTHING;
-	r = table_newglobalcursor(database->checksums, &cursor);
-	if( !RET_IS_OK(r) )
+	r = table_newglobalcursor(rdb_checksums, &cursor);
+	if (!RET_IS_OK(r))
 		return r;
-	while( cursor_nexttempdata(database->checksums, cursor,
-				&filekey, &all, &alllen) ) {
+	while (cursor_nexttempdata(rdb_checksums, cursor,
+				&filekey, &all, &alllen)) {
 		r = checksums_setall(&expected, all, alllen);
-		if( !RET_IS_OK(r) ) {
+		if (!RET_IS_OK(r)) {
 			RET_UPDATE(result, r);
 			continue;
 		}
-		if( checksums_iscomplete(expected) ) {
+		if (checksums_iscomplete(expected)) {
 			checksums_free(expected);
 			continue;
 		}
 
 		fullfilename = files_calcfullfilename(filekey);
-		if( fullfilename == NULL ) {
+		if (FAILEDTOALLOC(fullfilename)) {
 			result = RET_ERROR_OOM;
 			checksums_free(expected);
 			break;
 		}
 		r = checksums_complete(&expected, fullfilename);
-		if( r == RET_NOTHING ) {
+		if (r == RET_NOTHING) {
 			fprintf(stderr, "Missing file '%s'!\n", fullfilename);
 			r = RET_ERROR_MISSING;
 		}
-		if( r == RET_ERROR_WRONG_MD5 ) {
+		if (r == RET_ERROR_WRONG_MD5) {
 			fprintf(stderr,
 "ERROR: Cannot collect missing checksums for '%s'\n"
 "as the file in the pool does not match the already recorded checksums\n",
 					filekey);
 		}
 		free(fullfilename);
-		if( RET_IS_OK(r) )
-			r = files_replace_checksums(database,
-					filekey, expected);
+		if (RET_IS_OK(r))
+			r = files_replace_checksums(filekey, expected);
 		checksums_free(expected);
 		RET_UPDATE(result, r);
 	}
-	r = cursor_close(database->checksums, cursor);
+	r = cursor_close(rdb_checksums, cursor);
 	RET_ENDUPDATE(result, r);
 	return result;
 }
 
-retvalue files_detect(struct database *database, const char *filekey) {
+retvalue files_detect(const char *filekey) {
 	struct checksums *checksums;
 	char *fullfilename;
 	retvalue r;
 
 	fullfilename = files_calcfullfilename(filekey);
-	if( fullfilename == NULL )
+	if (FAILEDTOALLOC(fullfilename))
 		return RET_ERROR_OOM;
 	r = checksums_read(fullfilename, &checksums);
-	if( r == RET_NOTHING ) {
+	if (r == RET_NOTHING) {
 		fprintf(stderr, "Error opening '%s'!\n", fullfilename);
 		r = RET_ERROR_MISSING;
 	}
-	if( RET_WAS_ERROR(r) ) {
+	if (RET_WAS_ERROR(r)) {
 		free(fullfilename);
 		return r;
 	}
 	free(fullfilename);
-	r = files_add_checksums(database, filekey, checksums);
+	r = files_add_checksums(filekey, checksums);
 	checksums_free(checksums);
 	return r;
 }
 
-struct rfd { bool reread;
-	/*@temp@*/struct database *database;
-};
+struct rfd { bool reread; };
 
 static retvalue regenerate_filelist(void *data, const char *filekey) {
-	struct database *database = ((struct rfd*)data)->database;
 	bool reread = ((struct rfd*)data)->reread;
 	size_t l = strlen(filekey);
 	char *debfilename;
@@ -522,84 +493,81 @@ static retvalue regenerate_filelist(void *data, const char *filekey) {
 	size_t fls;
 	retvalue r;
 
-	if( l <= 4 || memcmp(filekey+l-4, ".deb", 4) != 0 )
+	if (l <= 4 || memcmp(filekey+l-4, ".deb", 4) != 0)
 		return RET_NOTHING;
 
-	if( !reread && !table_recordexists(database->contents, filekey) )
+	if (!reread && !table_recordexists(rdb_contents, filekey))
 		return RET_NOTHING;
 
 	debfilename = files_calcfullfilename(filekey);
-	if( debfilename == NULL )
+	if (FAILEDTOALLOC(debfilename))
 		return RET_ERROR_OOM;
 
 	r = getfilelist(&filelist, &fls, debfilename);
 	free(debfilename);
-	if( RET_IS_OK(r) ) {
-		if( verbose > 0 )
+	if (RET_IS_OK(r)) {
+		if (verbose > 0)
 			(void)puts(filekey);
-		if( verbose > 6 ) {
+		if (verbose > 6) {
 			const char *p = filelist;
-			while( *p != '\0' ) {
+			while (*p != '\0') {
 				(void)putchar(' ');
 				(void)puts(p);
 				p += strlen(p)+1;
 			}
 		}
-		r = table_adduniqsizedrecord(
-				database->contents,
-				filekey, filelist, fls,
-				true, true);
+		r = table_adduniqsizedrecord(rdb_contents,
+				filekey, filelist, fls, true, true);
 		free(filelist);
 	}
 	return r;
 }
 
-retvalue files_regenerate_filelist(struct database *database, bool reread) {
+retvalue files_regenerate_filelist(bool reread) {
 	struct rfd d;
 
-	d.database = database;
 	d.reread = reread;
-	return files_foreach(database, regenerate_filelist, &d);
+	return files_foreach(regenerate_filelist, &d);
 }
 
 /* Include a yet unknown file into the pool */
-retvalue files_preinclude(struct database *database, const char *sourcefilename, const char *filekey, struct checksums **checksums_p) {
+retvalue files_preinclude(const char *sourcefilename, const char *filekey, struct checksums **checksums_p) {
 	retvalue r;
 	struct checksums *checksums, *realchecksums;
 	bool improves;
 	char *fullfilename;
 
-	r = files_get_checksums(database, filekey, &checksums);
-	if( RET_WAS_ERROR(r) )
+	r = files_get_checksums(filekey, &checksums);
+	if (RET_WAS_ERROR(r))
 		return r;
-	if( RET_IS_OK(r) ) {
+	if (RET_IS_OK(r)) {
 		r = checksums_read(sourcefilename, &realchecksums);
-		if( r == RET_NOTHING )
+		if (r == RET_NOTHING)
 			r = RET_ERROR_MISSING;
-		if( RET_WAS_ERROR(r) ) {
+		if (RET_WAS_ERROR(r)) {
 			checksums_free(checksums);
 			return r;
 		}
-		if( !checksums_check(checksums, realchecksums, &improves) ) {
+		if (!checksums_check(checksums, realchecksums, &improves)) {
 			fprintf(stderr,
 "ERROR: '%s' cannot be included as '%s'.\n"
 "Already existing files can only be included again, if they are the same, but:\n",
 				sourcefilename, filekey);
-			checksums_printdifferences(stderr, checksums, realchecksums);
+			checksums_printdifferences(stderr, checksums,
+					realchecksums);
 			checksums_free(checksums);
 			checksums_free(realchecksums);
 			return RET_ERROR_WRONG_MD5;
 		}
-		if( improves ) {
+		if (improves) {
 			r = checksums_combine(&checksums, realchecksums, NULL);
-			if( RET_WAS_ERROR(r) ) {
+			if (RET_WAS_ERROR(r)) {
 				checksums_free(realchecksums);
 				checksums_free(checksums);
 				return r;
 			}
-			r = files_replace_checksums(database, filekey,
-					checksums);
-			if( RET_WAS_ERROR(r) ) {
+			r = files_replace_checksums(filekey, checksums);
+			if (RET_WAS_ERROR(r)) {
 				checksums_free(realchecksums);
 				checksums_free(checksums);
 				return r;
@@ -607,38 +575,39 @@ retvalue files_preinclude(struct database *database, const char *sourcefilename,
 		}
 		checksums_free(realchecksums);
 		// args, this breaks retvalue semantics!
-		if( checksums_p != NULL )
+		if (checksums_p != NULL)
 			*checksums_p = checksums;
 		else
 			checksums_free(checksums);
 		return RET_NOTHING;
 	}
-	assert( sourcefilename != NULL );
+	assert (sourcefilename != NULL);
 	fullfilename = files_calcfullfilename(filekey);
-	if( fullfilename == NULL )
+	if (FAILEDTOALLOC(fullfilename))
 		return RET_ERROR_OOM;
 	(void)dirs_make_parent(fullfilename);
 	r = checksums_copyfile(fullfilename, sourcefilename, true, &checksums);
-	if( r == RET_ERROR_EXIST ) {
+	if (r == RET_ERROR_EXIST) {
 		// TODO: deal with already existing files!
-		fprintf(stderr, "File '%s' does already exist!\n", fullfilename);
+		fprintf(stderr, "File '%s' does already exist!\n",
+				fullfilename);
 	}
-	if( r == RET_NOTHING ) {
+	if (r == RET_NOTHING) {
 		fprintf(stderr, "Could not open '%s'!\n", sourcefilename);
 		r = RET_ERROR_MISSING;
 	}
-	if( RET_WAS_ERROR(r) ) {
+	if (RET_WAS_ERROR(r)) {
 		free(fullfilename);
 		return r;
 	}
 	free(fullfilename);
 
-	r = files_add_checksums(database, filekey, checksums);
-	if( RET_WAS_ERROR(r) ) {
+	r = files_add_checksums(filekey, checksums);
+	if (RET_WAS_ERROR(r)) {
 		checksums_free(checksums);
 		return r;
 	}
-	if( checksums_p != NULL )
+	if (checksums_p != NULL)
 		*checksums_p = checksums;
 	else
 		checksums_free(checksums);
@@ -651,26 +620,26 @@ static retvalue checkimproveorinclude(const char *sourcedir, const char *basefil
 	bool improves, copied = false;
 	char *fullfilename = files_calcfullfilename(filekey);
 
-	if( fullfilename == NULL )
+	if (FAILEDTOALLOC(fullfilename))
 		return RET_ERROR_OOM;
 
-	if( checksums_iscomplete(*checksums_p) ) {
+	if (checksums_iscomplete(*checksums_p)) {
 		r = checksums_cheaptest(fullfilename, *checksums_p, true);
-		if( r != RET_NOTHING ) {
+		if (r != RET_NOTHING) {
 			free(fullfilename);
 			return r;
 		}
 	} else {
 		r = checksums_read(fullfilename, &checksums);
-		if( RET_WAS_ERROR(r) ) {
+		if (RET_WAS_ERROR(r)) {
 			free(fullfilename);
 			return r;
 		}
 	}
-	if( r == RET_NOTHING ) {
+	if (r == RET_NOTHING) {
 		char *sourcefilename = calc_dirconcat(sourcedir, basefilename);
 
-		if( sourcefilename == NULL ) {
+		if (FAILEDTOALLOC(sourcefilename)) {
 			free(fullfilename);
 			return RET_ERROR_OOM;
 		}
@@ -683,27 +652,29 @@ static retvalue checkimproveorinclude(const char *sourcedir, const char *basefil
 		(void)dirs_make_parent(fullfilename);
 		r = checksums_copyfile(fullfilename, sourcefilename, false,
 				&checksums);
-		if( r == RET_ERROR_EXIST ) {
+		if (r == RET_ERROR_EXIST) {
 			fprintf(stderr,
 "File '%s' seems to be missing and existing at the same time!\n"
-"To confused to continue...\n", 		fullfilename);
+"To confused to continue...\n",
+					fullfilename);
 		}
-		if( r == RET_NOTHING ) {
-			fprintf(stderr, "Could not open '%s'!\n", sourcefilename);
+		if (r == RET_NOTHING) {
+			fprintf(stderr, "Could not open '%s'!\n",
+					sourcefilename);
 			r = RET_ERROR_MISSING;
 		}
 		free(sourcefilename);
-		if( RET_WAS_ERROR(r) ) {
+		if (RET_WAS_ERROR(r)) {
 			free(fullfilename);
 			return r;
 		}
 		copied = true;
 	}
 
-	assert( checksums != NULL );
+	assert (checksums != NULL);
 
-	if( !checksums_check(*checksums_p, checksums, &improves) ) {
-		if( copied ) {
+	if (!checksums_check(*checksums_p, checksums, &improves)) {
+		if (copied) {
 			deletefile(fullfilename);
 			fprintf(stderr,
 "ERROR: Unexpected content of file '%s/%s'!\n", sourcedir, basefilename);
@@ -722,9 +693,9 @@ static retvalue checkimproveorinclude(const char *sourcedir, const char *basefil
 		checksums_printdifferences(stderr, *checksums_p, checksums);
 		r = RET_ERROR_WRONG_MD5;
 	}
-	if( improves ) {
+	if (improves) {
 		r = checksums_combine(checksums_p, checksums, NULL);
-		if( RET_IS_OK(r) )
+		if (RET_IS_OK(r))
 			*improving = true;
 	}
 	checksums_free(checksums);
@@ -732,18 +703,18 @@ static retvalue checkimproveorinclude(const char *sourcedir, const char *basefil
 	return r;
 }
 
-retvalue files_checkincludefile(struct database *database, const char *sourcedir, const char *basefilename, const char *filekey, struct checksums **checksums_p) {
+retvalue files_checkincludefile(const char *sourcedir, const char *basefilename, const char *filekey, struct checksums **checksums_p) {
 	char *sourcefilename, *fullfilename;
 	struct checksums *checksums;
 	retvalue r;
 	bool improves;
 
-	assert( *checksums_p != NULL );
+	assert (*checksums_p != NULL);
 
-	r = files_get_checksums(database, filekey, &checksums);
-	if( RET_WAS_ERROR(r) )
+	r = files_get_checksums(filekey, &checksums);
+	if (RET_WAS_ERROR(r))
 		return r;
-	if( RET_IS_OK(r) ) {
+	if (RET_IS_OK(r)) {
 		/* there are three sources now:
 		 *  - the checksums from the database (may have some we
 		 *    do not even know about, and may miss some we can
@@ -757,25 +728,25 @@ retvalue files_checkincludefile(struct database *database, const char *sourcedir
 		 *  And it can happen the file got lost in the pool, then
 		 *  this is the best place to replace it.
 		 */
-		if( !checksums_check(checksums, *checksums_p, &improves) ) {
+		if (!checksums_check(checksums, *checksums_p, &improves)) {
 			fprintf(stderr,
 "ERROR: '%s/%s' cannot be included as '%s'.\n"
 "Already existing files can only be included again, if they are the same, but:\n",
 				sourcedir, basefilename, filekey);
-			checksums_printdifferences(stderr, checksums, *checksums_p);
+			checksums_printdifferences(stderr, checksums,
+					*checksums_p);
 			checksums_free(checksums);
 			return RET_ERROR_WRONG_MD5;
 		}
 		r = RET_NOTHING;
-		if( improves )
+		if (improves)
 			r = checksums_combine(&checksums, *checksums_p, NULL);
-		if( !RET_WAS_ERROR(r) )
+		if (!RET_WAS_ERROR(r))
 			r = checkimproveorinclude(sourcedir,
 				basefilename, filekey, &checksums, &improves);
-		if( !RET_WAS_ERROR(r) && improves )
-			r = files_replace_checksums(database, filekey,
-					checksums);
-		if( RET_IS_OK(r) )
+		if (!RET_WAS_ERROR(r) && improves)
+			r = files_replace_checksums(filekey, checksums);
+		if (RET_IS_OK(r))
 			r = RET_NOTHING;
 		/* return the combined checksum */
 		checksums_free(*checksums_p);
@@ -783,56 +754,57 @@ retvalue files_checkincludefile(struct database *database, const char *sourcedir
 		return r;
 	}
 
-	assert( sourcedir != NULL );
+	assert (sourcedir != NULL);
 	sourcefilename = calc_dirconcat(sourcedir, basefilename);
-	if( sourcefilename == NULL )
+	if (FAILEDTOALLOC(sourcefilename))
 		return RET_ERROR_OOM;
 
 	fullfilename = files_calcfullfilename(filekey);
-	if( fullfilename == NULL ) {
+	if (FAILEDTOALLOC(fullfilename)) {
 		free(sourcefilename);
 		return RET_ERROR_OOM;
 	}
 
 	(void)dirs_make_parent(fullfilename);
 	r = checksums_copyfile(fullfilename, sourcefilename, true, &checksums);
-	if( r == RET_NOTHING ) {
+	if (r == RET_NOTHING) {
 		fprintf(stderr, "Could not open '%s'!\n", sourcefilename);
 		r = RET_ERROR_MISSING;
 	}
-	if( RET_WAS_ERROR(r) ) {
+	if (RET_WAS_ERROR(r)) {
 		free(fullfilename);
 		free(sourcefilename);
 		return r;
 	}
-	if( !checksums_check(*checksums_p, checksums, &improves) ) {
+	if (!checksums_check(*checksums_p, checksums, &improves)) {
 		deletefile(fullfilename);
-		fprintf(stderr, "ERROR: Unexpected content of file '%s'!\n", sourcefilename);
+		fprintf(stderr, "ERROR: Unexpected content of file '%s'!\n",
+				sourcefilename);
 		checksums_printdifferences(stderr, *checksums_p, checksums);
 		r = RET_ERROR_WRONG_MD5;
 	}
 	free(sourcefilename);
 	free(fullfilename);
-	if( RET_WAS_ERROR(r) ) {
+	if (RET_WAS_ERROR(r)) {
 		return r;
 	}
-	if( improves ) {
+	if (improves) {
 		r = checksums_combine(checksums_p, checksums, NULL);
 		checksums_free(checksums);
-		if( RET_WAS_ERROR(r) )
+		if (RET_WAS_ERROR(r))
 			return r;
 	} else
 		checksums_free(checksums);
 
-	return files_add_checksums(database, filekey, *checksums_p);
+	return files_add_checksums(filekey, *checksums_p);
 }
 
-off_t files_getsize(struct database *database, const char *filekey) {
+off_t files_getsize(const char *filekey) {
 	retvalue r;
 	off_t s;
 	struct checksums *checksums;
 
-	r = files_get_checksums(database, filekey, &checksums);
+	r = files_get_checksums(filekey, &checksums);
 	if (!RET_IS_OK(r))
 		return -1;
 	s = checksums_getfilesize(checksums);

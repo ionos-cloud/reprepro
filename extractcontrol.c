@@ -43,46 +43,46 @@ static retvalue try_extractcontrol(char **control, const char *debfile, bool bro
 	int pipe1[2];
 	int pipe2[2];
 	int ret;
-	pid_t ar,tar,pid;
+	pid_t ar, tar, pid;
 	int status;
 	char *controlchunk;
 
-	retvalue result,r;
+	retvalue result, r;
 
 	result = RET_OK;
 
 	ret = pipe(pipe1);
-	if( ret < 0 ) {
+	if (ret < 0) {
 		int e = errno;
 		fprintf(stderr, "Error %d creating pipe: %s\n", e, strerror(e));
 		return RET_ERRNO(e);
 	}
 
 	ret = pipe(pipe2);
-	if( ret < 0 ) {
+	if (ret < 0) {
 		int e = errno;
-		close(pipe1[0]);close(pipe1[1]);
+		close(pipe1[0]); close(pipe1[1]);
 		fprintf(stderr, "Error %d creating pipe: %s\n", e, strerror(e));
 		return RET_ERRNO(e);
 	}
 
 	ar = fork();
-	if( ar < 0 ) {
+	if (ar < 0) {
 		int e = errno;
 		fprintf(stderr, "Error %d forking: %s\n", e, strerror(e));
 		result = RET_ERRNO(e);
-		close(pipe1[0]);close(pipe1[1]);
-		close(pipe2[0]);close(pipe2[1]);
+		close(pipe1[0]); close(pipe1[1]);
+		close(pipe2[0]); close(pipe2[1]);
 		return result;
 	}
 
-	if( ar == 0 ) {
+	if (ar == 0) {
 		int e;
 		/* calling ar */
-		if( dup2(pipe1[1],1) < 0 )
+		if (dup2(pipe1[1], 1) < 0)
 			exit(255);
-		close(pipe1[0]);close(pipe1[1]);
-		close(pipe2[0]);close(pipe2[1]);
+		close(pipe1[0]); close(pipe1[1]);
+		close(pipe2[0]); close(pipe2[1]);
 		//TODO without explicit path
 		ret = execl("/usr/bin/ar",
 				"ar", "p", debfile, "control.tar.gz",
@@ -94,22 +94,22 @@ static retvalue try_extractcontrol(char **control, const char *debfile, bool bro
 	}
 
 	tar = fork();
-	if( tar < 0 ) {
+	if (tar < 0) {
 		int e = errno;
 		result = RET_ERRNO(e);
 		fprintf(stderr, "Error %d forking: %s\n", e, strerror(e));
-		close(pipe1[0]);close(pipe1[1]);
-		close(pipe2[0]);close(pipe2[1]);
+		close(pipe1[0]); close(pipe1[1]);
+		close(pipe2[0]); close(pipe2[1]);
 		tar = -1;
-	} else if( tar == 0 ) {
+	} else if (tar == 0) {
 		int e;
 		/* calling tar */
-		if( dup2(pipe1[0],0) < 0 )
+		if (dup2(pipe1[0], 0) < 0)
 			exit(255);
-		if( dup2(pipe2[1],1) < 0 )
+		if (dup2(pipe2[1], 1) < 0)
 			exit(255);
-		close(pipe1[0]);close(pipe1[1]);
-		close(pipe2[0]);close(pipe2[1]);
+		close(pipe1[0]); close(pipe1[1]);
+		close(pipe2[0]); close(pipe2[1]);
 		//TODO without explicit path
 		execl("/bin/tar", "tar", "-xOzf", "-",
 				brokentar?"control":"./control",
@@ -127,19 +127,20 @@ static retvalue try_extractcontrol(char **control, const char *debfile, bool bro
 	controlchunk = NULL;
 
 	/* read data: */
-	if( RET_IS_OK(result) ) {
+	if (RET_IS_OK(result)) {
 		size_t len; char *afterchanges;
 
 		r = readtextfilefd(pipe2[0],
 				brokentar?
-				"output from ar p <debfile> control.tar.gz | tar -XOzf - control":
-				"output from ar p <debfile> control.tar.gz | tar -XOzf - ./control",
+"output from ar p <debfile> control.tar.gz | tar -XOzf - control":
+"output from ar p <debfile> control.tar.gz | tar -XOzf - ./control",
 				&controlchunk, NULL);
-		if( RET_IS_OK(r) ) {
-			len = chunk_extract(controlchunk, controlchunk, &afterchanges);
-			if( len == 0 )
+		if (RET_IS_OK(r)) {
+			len = chunk_extract(controlchunk, controlchunk,
+					&afterchanges);
+			if (len == 0)
 				r = RET_NOTHING;
-			if( *afterchanges != '\0' ) {
+			if (*afterchanges != '\0') {
 				fprintf(stderr,
 "Unexpected emtpy line in control information within '%s'\n"
 "(obtained via 'ar p %s control.tar.gz | tar -XOzf - %scontrol')\n",
@@ -150,57 +151,63 @@ static retvalue try_extractcontrol(char **control, const char *debfile, bool bro
 				r = RET_ERROR;
 			}
 		}
-		if( r == RET_NOTHING ) {
+		if (r == RET_NOTHING) {
 			free(controlchunk);
 			controlchunk = NULL;
-			fprintf(stderr, "No control information found in .deb!\n");
-			/* only report error now if we haven't try everything yet */
-			if( brokentar )
+			fprintf(stderr,
+"No control information found in .deb!\n");
+			/* only report error now,
+			 * if we haven't try everything yet */
+			if (brokentar)
 				r = RET_ERROR_MISSING;
 		}
-		RET_UPDATE(result,r);
+		RET_UPDATE(result, r);
 
 	}
 
-	while( ar != -1 || tar != -1 ) {
+	while (ar != -1 || tar != -1) {
 		pid=wait(&status);
-		if( pid < 0 ) {
-			if( errno != EINTR )
-				RET_UPDATE(result,RET_ERRNO(errno));
+		if (pid < 0) {
+			if (errno != EINTR)
+				RET_UPDATE(result, RET_ERRNO(errno));
 		} else {
-			if( pid == ar ) {
+			if (pid == ar) {
 				ar = -1;
-				if( !WIFEXITED(status) ) {
-					fprintf(stderr,"Ar exited unnaturally!\n");
+				if (!WIFEXITED(status)) {
+					fprintf(stderr,
+"Ar exited unnaturally!\n");
 					result = RET_ERROR;
-				} else if( WEXITSTATUS(status) != 0) {
-					fprintf(stderr,"Error from ar for '%s': %d\n",
-							debfile, WEXITSTATUS(status));
+				} else if (WEXITSTATUS(status) != 0) {
+					fprintf(stderr,
+"Error from ar for '%s': %d\n", debfile, WEXITSTATUS(status));
 					result = RET_ERROR;
 				}
-			} else if( pid == tar ) {
+			} else if (pid == tar) {
 				tar = -1;
-				if( !WIFEXITED(status) ) {
-					fprintf(stderr,"Tar exited unnaturally!\n");
+				if (!WIFEXITED(status)) {
+					fprintf(stderr,
+"Tar exited unnaturally!\n");
 					result = RET_ERROR;
-				} else if( !brokentar && WEXITSTATUS(status) == 2 ) {
-					if( RET_IS_OK(result) )
+				} else if (!brokentar && WEXITSTATUS(status) == 2) {
+					if (RET_IS_OK(result))
 						result = RET_NOTHING;
-				} else if( WEXITSTATUS(status) != 0 ) {
-					fprintf(stderr,"Error from tar for control.tar.gz within '%s': %d\n",
+				} else if (WEXITSTATUS(status) != 0) {
+					fprintf(stderr,
+"Error from tar for control.tar.gz within '%s': %d\n",
 							debfile,
 							WEXITSTATUS(status));
 					result = RET_ERROR;
 				}
 			} else {
 				// WTH?
-				fprintf(stderr,"Who is %d, and why does this bother me?\n",(int)pid);
+				fprintf(stderr,
+"Who is %d, and why does this bother me?\n", (int)pid);
 			}
 		}
 
 	}
-	if( RET_IS_OK(result) ) {
-		if( controlchunk == NULL )
+	if (RET_IS_OK(result)) {
+		if (controlchunk == NULL)
 			/* we got not data but tar gave not error.. */
 			return RET_ERROR_MISSING;
 		else
@@ -210,31 +217,34 @@ static retvalue try_extractcontrol(char **control, const char *debfile, bool bro
 	return result;
 }
 
-retvalue extractcontrol(char **control,const char *debfile) {
+retvalue extractcontrol(char **control, const char *debfile) {
 	retvalue r;
 
 	r = try_extractcontrol(control, debfile, false);
-	if( r != RET_NOTHING )
+	if (r != RET_NOTHING)
 		return r;
 	/* perhaps the control.tar.gz is packaged by hand wrongly,
 	 * try again: */
 	r = try_extractcontrol(control, debfile, true);
-	if( RET_IS_OK(r) ) {
-		fprintf(stderr, "WARNING: '%s' contains a broken/unusual control.tar.gz.\n"
-				"reprepro was able to work around this but other tools or versions might not.\n", debfile);
+	if (RET_IS_OK(r)) {
+		fprintf(stderr,
+"WARNING: '%s' contains a broken/unusual control.tar.gz.\n"
+"reprepro was able to work around this but other tools or versions might not.\n",
+				debfile);
 	}
-	assert( r != RET_NOTHING );
+	assert (r != RET_NOTHING);
 	return r;
 }
 
 retvalue getfilelist(/*@out@*/char **filelist, /*@out@*/size_t *size, const char *debfile) {
-	fprintf(stderr, "Extraction of file list without libarchive currently not implemented.\n");
+	fprintf(stderr,
+"Extraction of file list without libarchive currently not implemented.\n");
 	return RET_ERROR;
 #if 0
 	int pipe1[2];
 	int pipe2[2];
 	int ret;
-	pid_t ar,tar,pid;
+	pid_t ar, tar, pid;
 	int status;
 	struct filelistcompressor c;
 	size_t last = 0;
@@ -242,13 +252,13 @@ retvalue getfilelist(/*@out@*/char **filelist, /*@out@*/size_t *size, const char
 
 #error this still needs to be reimplemented...
 	result = filelistcompressor_setup(&c);
-	if( RET_WAS_ERROR(result) )
+	if (RET_WAS_ERROR(result))
 		return result;
 
 	result = RET_OK;
 
 	ret = pipe(pipe1);
-	if( ret < 0 ) {
+	if (ret < 0) {
 		int e = errno;
 		fprintf(stderr, "Error %d creating pipe: %s\n", e, strerror(e));
 		filelistcompressor_cancel(&c);
@@ -256,32 +266,32 @@ retvalue getfilelist(/*@out@*/char **filelist, /*@out@*/size_t *size, const char
 	}
 
 	ret = pipe(pipe2);
-	if( ret < 0 ) {
+	if (ret < 0) {
 		int e = errno;
 		fprintf(stderr, "Error %d creating pipe: %s\n", e, strerror(e));
-		close(pipe1[0]);close(pipe1[1]);
+		close(pipe1[0]); close(pipe1[1]);
 		filelistcompressor_cancel(&c);
 		return RET_ERRNO(e);
 	}
 
 	ar = fork();
-	if( ar < 0 ) {
+	if (ar < 0) {
 		int e = errno;
 		fprintf(stderr, "Error %d forking: %s\n", e, strerror(e));
 		result = RET_ERRNO(e);
-		close(pipe1[0]);close(pipe1[1]);
-		close(pipe2[0]);close(pipe2[1]);
+		close(pipe1[0]); close(pipe1[1]);
+		close(pipe2[0]); close(pipe2[1]);
 		filelistcompressor_cancel(&c);
 		return result;
 	}
 
-	if( ar == 0 ) {
+	if (ar == 0) {
 		int e;
 		/* calling ar */
-		if( dup2(pipe1[1],1) < 0 )
+		if (dup2(pipe1[1], 1) < 0)
 			exit(255);
-		close(pipe1[0]);close(pipe1[1]);
-		close(pipe2[0]);close(pipe2[1]);
+		close(pipe1[0]); close(pipe1[1]);
+		close(pipe2[0]); close(pipe2[1]);
 		//TODO without explicit path
 		ret = execl("/usr/bin/ar",
 				"ar", "p", debfile, "data.tar.gz",
@@ -293,22 +303,22 @@ retvalue getfilelist(/*@out@*/char **filelist, /*@out@*/size_t *size, const char
 	}
 
 	tar = fork();
-	if( tar < 0 ) {
+	if (tar < 0) {
 		int e = errno;
 		result = RET_ERRNO(e);
 		fprintf(stderr, "Error %d forking: %s\n", e, strerror(e));
-		close(pipe1[0]);close(pipe1[1]);
-		close(pipe2[0]);close(pipe2[1]);
+		close(pipe1[0]); close(pipe1[1]);
+		close(pipe2[0]); close(pipe2[1]);
 		tar = -1;
-	} else if( tar == 0 ) {
+	} else if (tar == 0) {
 		int e;
 		/* calling tar */
-		if( dup2(pipe1[0],0) < 0 )
+		if (dup2(pipe1[0], 0) < 0)
 			exit(255);
-		if( dup2(pipe2[1],1) < 0 )
+		if (dup2(pipe2[1], 1) < 0)
 			exit(255);
-		close(pipe1[0]);close(pipe1[1]);
-		close(pipe2[0]);close(pipe2[1]);
+		close(pipe1[0]); close(pipe1[1]);
+		close(pipe2[0]); close(pipe2[1]);
 		//TODO without explicit path
 		execl("/bin/tar", "tar", "-tzf", "-", ENDOFARGUMENTS);
 		e = errno;
@@ -318,20 +328,20 @@ retvalue getfilelist(/*@out@*/char **filelist, /*@out@*/size_t *size, const char
 
 	}
 
-	close(pipe1[0]);close(pipe1[1]);
+	close(pipe1[0]); close(pipe1[1]);
 	close(pipe2[1]);
 
 	/* read data: */
-	if( RET_IS_OK(result) ) do {
+	if (RET_IS_OK(result)) do {
 		ssize_t bytes_read;
 		size_t ignore;
 
-		if( listsize <= len + 512 ) {
+		if (listsize <= len + 512) {
 			char *n;
 
 			listsize = len + 1024;
 			n = realloc(list, listsize);
-			if( n == NULL ) {
+			if (FAILEDTOALLOC(n)) {
 				result = RET_ERROR_OOM;
 				break;
 			}
@@ -340,22 +350,22 @@ retvalue getfilelist(/*@out@*/char **filelist, /*@out@*/size_t *size, const char
 
 		ignore = 0;
 		bytes_read = read(pipe2[0], list+len, listsize-len-1);
-		if( bytes_read < 0 ) {
+		if (bytes_read < 0) {
 			int e = errno;
 			fprintf(stderr, "Error %d reading from pipe: %s\n",
 					e, strerror(e));
 			result = RET_ERRNO(e);
 			break;
-		} else if( bytes_read == 0 )
+		} else if (bytes_read == 0)
 			break;
-		else while( bytes_read > 0 ) {
-			if( list[len] == '\0' ) {
+		else while (bytes_read > 0) {
+			if (list[len] == '\0') {
 				fprintf(stderr,
 "Unexpected NUL character from tar while getting file list from %s!\n", debfile);
 				result = RET_ERROR;
 				break;
-			} else if( list[len] == '\n' ) {
-				if( len > last+ignore && list[len-1] != '/' ) {
+			} else if (list[len] == '\n') {
+				if (len > last+ignore && list[len-1] != '/') {
 					list[len] = '\0';
 					len++;
 					bytes_read--;
@@ -367,10 +377,10 @@ retvalue getfilelist(/*@out@*/char **filelist, /*@out@*/size_t *size, const char
 					bytes_read--;
 					ignore = len-last;
 				}
-			} else if( list[len] == '.' && len == last+ignore ) {
+			} else if (list[len] == '.' && len == last+ignore) {
 				len++; ignore++;
 				bytes_read--;
-			} else if( list[len] == '/' && len == last+ignore ) {
+			} else if (list[len] == '/' && len == last+ignore) {
 				len++; ignore++;
 				bytes_read--;
 			} else {
@@ -378,8 +388,8 @@ retvalue getfilelist(/*@out@*/char **filelist, /*@out@*/size_t *size, const char
 				bytes_read--;
 			}
 		}
-		if( ignore > 0 ) {
-			if( len <= last+ignore )
+		if (ignore > 0) {
+			if (len <= last+ignore)
 				len = last;
 			else {
 				memmove(list+last, list+last+ignore,
@@ -387,8 +397,8 @@ retvalue getfilelist(/*@out@*/char **filelist, /*@out@*/size_t *size, const char
 				len -= ignore;
 			}
 		}
-	} while( true );
-	if( len != last ) {
+	} while (true);
+	if (len != last) {
 		fprintf(stderr,
 "WARNING: unterminated output from tar pipe while extracting file list of %s\n", debfile);
 		list[len] = '\0';
@@ -396,8 +406,8 @@ retvalue getfilelist(/*@out@*/char **filelist, /*@out@*/size_t *size, const char
 				list+last);
 		result = RET_ERROR;
 	} else {
-		char *n = realloc(list,len+1);
-		if( n == NULL )
+		char *n = realloc(list, len+1);
+		if (FAILEDTOALLOC(n))
 			result = RET_ERROR_OOM;
 		else {
 			list = n;
@@ -406,37 +416,38 @@ retvalue getfilelist(/*@out@*/char **filelist, /*@out@*/size_t *size, const char
 	}
 	close(pipe2[0]);
 
-	while( ar != -1 || tar != -1 ) {
+	while (ar != -1 || tar != -1) {
 		pid=wait(&status);
-		if( pid < 0 ) {
-			if( errno != EINTR )
-				RET_UPDATE(result,RET_ERRNO(errno));
+		if (pid < 0) {
+			if (errno != EINTR)
+				RET_UPDATE(result, RET_ERRNO(errno));
 		} else {
-			if( pid == ar ) {
+			if (pid == ar) {
 				ar = -1;
-				if( !WIFEXITED(status) ||
+				if (!WIFEXITED(status) ||
 						WEXITSTATUS(status) != 0) {
-					fprintf(stderr,"Error from ar for '%s': %d\n",
-							debfile,
-							WEXITSTATUS(status));
+					fprintf(stderr,
+"Error from ar for '%s': %d\n", debfile, WEXITSTATUS(status));
 					result = RET_ERROR;
 				}
-			} else if( pid == tar ) {
+			} else if (pid == tar) {
 				tar = -1;
-				if( !WIFEXITED(status) ||
-						WEXITSTATUS(status) != 0 ) {
-					fprintf(stderr,"Error from tar for data.tar.gz within '%s': %d\n",
+				if (!WIFEXITED(status) ||
+						WEXITSTATUS(status) != 0) {
+					fprintf(stderr,
+"Error from tar for data.tar.gz within '%s': %d\n",
 							debfile,
 							WEXITSTATUS(status));
 					result = RET_ERROR;
 				}
 			} else {
 				// WTH?
-				fprintf(stderr,"Who is %d, and why does this bother me?\n",pid);
+				fprintf(stderr,
+"Who is %d, and why does this bother me?\n", pid);
 			}
 		}
 	}
-	if( RET_IS_OK(result) )
+	if (RET_IS_OK(result))
 		return filelistcompressor_finish(&c, filelist);
 	else
 		filelistcompressor_cancel(&c);

@@ -2,7 +2,6 @@
 #define REPREPRO_UPLOADERSLIST_H
 
 
-struct upload_condition;
 struct upload_conditions;
 struct uploaders;
 
@@ -23,7 +22,5 @@ enum upload_condition_type uploaders_nextcondition(struct upload_conditions *);
 /* true means, give more if more to check, false means enough */
 bool uploaders_verifystring(struct upload_conditions *, const char *);
 bool uploaders_verifyatom(struct upload_conditions *, atom_t);
-
-void upload_conditions_free(/*@only@*/struct upload_conditions *);
 
 #endif

@@ -60,31 +60,32 @@ bool checksums_getpart(const struct checksums *, enum checksumtype, /*@out@*/con
 bool checksums_gethashpart(const struct checksums *, enum checksumtype, /*@out@*/const char **hash_p, /*@out@*/size_t *hashlen_p, /*@out@*/const char **size_p, /*@out@*/size_t *sizelen_p);
 
 /* check if a single checksum fits */
-bool checksums_matches(const struct checksums *,enum checksumtype, const char *);
+bool checksums_matches(const struct checksums *, enum checksumtype, const char *);
 
 /* Copy file <origin> to file <destination>, calculating checksums */
-retvalue checksums_copyfile(const char *destination, const char *origin, bool deletetarget, /*@out@*/struct checksums **);
-retvalue checksums_hardlink(const char *directory, const char *filekey, const char *sourcefilename, const struct checksums *);
+retvalue checksums_copyfile(const char * /*destination*/, const char * /*origin*/, bool /*deletetarget*/, /*@out@*/struct checksums **);
+retvalue checksums_hardlink(const char * /*directory*/, const char * /*filekey*/, const char * /*sourcefilename*/, const struct checksums *);
 
-retvalue checksums_linkorcopyfile(const char *destination, const char *origin, /*@out@*/struct checksums **);
+retvalue checksums_linkorcopyfile(const char * /*destination*/, const char * /*origin*/, /*@out@*/struct checksums **);
 
 /* calculare checksums of a file: */
-retvalue checksums_read(const char *fullfilename, /*@out@*/struct checksums **);
+retvalue checksums_read(const char * /*fullfilename*/, /*@out@*/struct checksums **);
 
 /* replace the contents of a file with data and calculate the new checksums */
-retvalue checksums_replace(const char *filename, const char *, size_t len, /*@out@*//*@null@*/struct checksums **);
+retvalue checksums_replace(const char * /*filename*/, const char *, size_t, /*@out@*//*@null@*/struct checksums **);
 
 /* check if the file has the given md5sum (only cheap tests like size),
- * RET_NOTHING means file does not exist, RET_ERROR_WRONG_MD5 means wrong size */
-retvalue checksums_cheaptest(const char *fullfilename, const struct checksums *, bool);
+ * RET_NOTHING means file does not exist,
+ * RET_ERROR_WRONG_MD5 means wrong size */
+retvalue checksums_cheaptest(const char * /*fullfilename*/, const struct checksums *, bool);
 
 /* check if filename has specified checksums, if not return RET_ERROR_WRONG_MD5,
- * if it has, and checksums_p put the improved checksum there (*checksums_p should
- * either be NULL or checksums */
+ * if it has, and checksums_p put the improved checksum there
+ * (*checksums_p should either be NULL or checksums) */
 retvalue checksums_test(const char *, const struct checksums *, /*@null@*/struct checksums **);
 
 /* check if checksum of filekey in database and checksum of actual file, set improve if some new has is in the last */
-bool checksums_check(const struct checksums *, const struct checksums *, /*@out@*/bool *improves);
+bool checksums_check(const struct checksums *, const struct checksums *, /*@out@*/bool * /*improves_p*/);
 
 /* return true, iff all supported checksums are available */
 bool checksums_iscomplete(const struct checksums *);
@@ -92,11 +93,11 @@ bool checksums_iscomplete(const struct checksums *);
 /* Collect missing checksums (if all are there always RET_OK without checking).
  * if the file is not there, return RET_NOTHING,
  * if it is but not matches, return RET_ERROR_WRONG_MD5 */
-retvalue checksums_complete(struct checksums **, const char *fullfilename);
+retvalue checksums_complete(struct checksums **, const char * /*fullfilename*/);
 
-void checksums_printdifferences(FILE *,const struct checksums *expected, const struct checksums *got);
+void checksums_printdifferences(FILE *, const struct checksums * /*expected*/, const struct checksums * /*got*/);
 
-retvalue checksums_combine(struct checksums **checksums, const struct checksums *by, /*@null@*/bool improvedhashes[cs_hashCOUNT]);
+retvalue checksums_combine(struct checksums **, const struct checksums *, /*@null@*/bool[cs_hashCOUNT]);
 
 typedef /*@only@*/ struct checksums *ownedchecksums;
 struct checksumsarray {
@@ -105,15 +106,14 @@ struct checksumsarray {
 };
 void checksumsarray_move(/*@out@*/struct checksumsarray *, /*@special@*/struct checksumsarray *array)/*@requires maxSet(array->names.values) >= array->names.count /\ maxSet(array->checksums) >= array->names.count @*/ /*@releases array->checksums, array->names.values @*/;
 void checksumsarray_done(/*@special@*/struct checksumsarray *array) /*@requires maxSet(array->names.values) >= array->names.count /\ maxSet(array->checksums) >= array->names.count @*/ /*@releases array->checksums, array->names.values @*/;
-retvalue checksumsarray_parse(/*@out@*/struct checksumsarray *, const struct strlist [cs_hashCOUNT], const char *filenametoshow);
+retvalue checksumsarray_parse(/*@out@*/struct checksumsarray *, const struct strlist [cs_hashCOUNT], const char * /*filenametoshow*/);
 retvalue checksumsarray_genfilelist(const struct checksumsarray *, /*@out@*/char **, /*@out@*/char **, /*@out@*/char **);
 retvalue checksumsarray_include(struct checksumsarray *, /*@only@*/char *, const struct checksums *);
 void checksumsarray_resetunsupported(const struct checksumsarray *, bool[cs_hashCOUNT]);
 
-retvalue hashline_parse(const char *filenametoshow, const char *line, enum checksumtype cs, /*@out@*/const char **basename_p, /*@out@*/struct hash_data *data_p, /*@out@*/struct hash_data *size_p);
+retvalue hashline_parse(const char * /*filenametoshow*/, const char * /*line*/, enum checksumtype, /*@out@*/const char ** /*basename_p*/, /*@out@*/struct hash_data *, /*@out@*/struct hash_data *);
 
 struct configiterator;
-retvalue checksums_parseignorelist(bool ignorelist[cs_hashCOUNT], const char *, struct configiterator *);
 
 #ifdef CHECKSUMS_CONTEXT
 #ifndef MD5_H

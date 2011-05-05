@@ -32,7 +32,6 @@ struct trackingdata {
 };
 
 struct distribution;
-struct database;
 typedef retvalue tracking_foreach_ro_action(struct distribution *, const struct trackedpackage *);
-retvalue tracking_foreach_ro(struct database *, struct distribution *, tracking_foreach_ro_action *);
+retvalue tracking_foreach_ro(struct distribution *, tracking_foreach_ro_action *);
 #endif /*REPREPRO_TRACKINGT_H*/

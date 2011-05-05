@@ -64,18 +64,18 @@ static bool fromdist(struct distribution_sizes *dist, const char *data, size_t l
 	return memcmp(data, dist->codename, dist->codename_len) == 0;
 }
 
-static retvalue count_sizes(struct database *database, struct cursor *cursor, bool specific, struct distribution_sizes *ds, unsigned long long *all_p, unsigned long long *onlyall_p) {
+static retvalue count_sizes(struct cursor *cursor, bool specific, struct distribution_sizes *ds, unsigned long long *all_p, unsigned long long *onlyall_p) {
 	const char *key, *data;
 	size_t len;
 	char *last_file = NULL;
 	unsigned long long filesize = 0;
-	bool usedotherwise = false, onlyone = true;
+	bool onlyone = true;
 	struct distribution_sizes *last_dist;
 	struct distribution_sizes *s;
 	bool snapshot;
 	unsigned long long all = 0, onlyall = 0;
 
-	while (cursor_nexttempdata(database->references, cursor,
+	while (cursor_nexttempdata(rdb_references, cursor,
 				&key, &data, &len)) {
 		if (last_file == NULL || strcmp(last_file, key) != 0) {
 			if (last_file != NULL) {
@@ -90,7 +90,6 @@ static retvalue count_sizes(struct database *database, struct cursor *cursor, bo
 				return RET_ERROR_OOM;
 			onlyone = true;
 			filesize = 0;
-			usedotherwise = false;
 			last_dist = NULL;
 		}
 		if (data[0] == 'u' && data[1] == '|') {
@@ -128,13 +127,14 @@ static retvalue count_sizes(struct database *database, struct cursor *cursor, bo
 				const char *p;
 
 				p = data;
-				while (*p != '\0' && *p != ' ' && *p != '|' && *p != '=')
+				while (*p != '\0' && *p != ' ' && *p != '|'
+						&& *p != '=')
 					p++;
 				if (*p == '\0')
 					continue;
 				while (*s_p != NULL)
 					s_p = &(*s_p)->next;
-				s = calloc(1, sizeof(struct distribution_sizes));
+				s = zNEW(struct distribution_sizes);
 				if (FAILEDTOALLOC(s)) {
 					free(last_file);
 					return RET_ERROR_OOM;
@@ -176,8 +176,9 @@ static retvalue count_sizes(struct database *database, struct cursor *cursor, bo
 			}
 			assert (filesize != 0);
 		} else {
-			/* and this is the first time we are interested in the file */
-			filesize = files_getsize(database, key);
+			/* and this is the first time
+			 * we are interested in the file */
+			filesize = files_getsize(key);
 			assert (filesize != 0);
 			if (onlyone)
 				onlyall += filesize;
@@ -202,7 +203,7 @@ static retvalue count_sizes(struct database *database, struct cursor *cursor, bo
 	return RET_OK;
 }
 
-retvalue sizes_distributions(struct database *database, struct distribution *alldistributions, bool specific) {
+retvalue sizes_distributions(struct distribution *alldistributions, bool specific) {
 	struct cursor *cursor;
 	retvalue result, r;
 	struct distribution_sizes *ds = NULL, **lds = &ds, *s;
@@ -212,7 +213,7 @@ retvalue sizes_distributions(struct database *database, struct distribution *all
 	for (d = alldistributions ; d != NULL ; d = d->next) {
 		if (!d->selected)
 			continue;
-		s = calloc(1, sizeof(struct distribution_sizes));
+		s = zNEW(struct distribution_sizes);
 		if (FAILEDTOALLOC(s)) {
 			distribution_sizes_freelist(ds);
 			return RET_ERROR_OOM;
@@ -224,16 +225,18 @@ retvalue sizes_distributions(struct database *database, struct distribution *all
 	}
 	if (ds == NULL)
 		return RET_NOTHING;
-	r = table_newglobalcursor(database->references, &cursor);
+	r = table_newglobalcursor(rdb_references, &cursor);
 	if (!RET_IS_OK(r)) {
 		distribution_sizes_freelist(ds);
 		return r;
 	}
-	result = count_sizes(database, cursor, specific, ds, &all, &onlyall);
-	r = cursor_close(database->references, cursor);
+	result = count_sizes(cursor, specific, ds, &all, &onlyall);
+	r = cursor_close(rdb_references, cursor);
 	RET_ENDUPDATE(result, r);
 	if (RET_IS_OK(result)) {
-		printf("%-15s %13s %13s %13s %13s\n", "Codename", "Size", "Only", "Size(+s)", "Only(+s)");
+		printf("%-15s %13s %13s %13s %13s\n",
+				"Codename", "Size", "Only", "Size(+s)",
+				"Only(+s)");
 		for (s = ds ; s != NULL ; s = s->next) {
 			printf("%-15s %13llu %13llu %13llu %13llu\n",
 					s->codename,

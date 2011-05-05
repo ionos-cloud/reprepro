@@ -36,8 +36,8 @@ retvalue guess_component(const char *codename, const struct atomlist *components
 	int i;
 	size_t section_len;
 
-	if( atom_defined(givencomponent) ) {
-		if( !atomlist_in(components, givencomponent) ) {
+	if (atom_defined(givencomponent)) {
+		if (!atomlist_in(components, givencomponent)) {
 			(void)fprintf(stderr,
 "Could not find '%s' in components of '%s': ",
 					atoms_components[givencomponent],
@@ -50,50 +50,54 @@ retvalue guess_component(const char *codename, const struct atomlist *components
 		*guess = givencomponent;
 		return RET_OK;
 	}
-	if( section == NULL ) {
-		fprintf(stderr,"Found no section for '%s', so I cannot guess the component to put it in!\n",package);
+	if (section == NULL) {
+		fprintf(stderr,
+"Found no section for '%s', so I cannot guess the component to put it in!\n",
+				package);
 		return RET_ERROR;
 	}
-	if( components->count <= 0 ) {
-		fprintf(stderr,"I do not find any components in '%s', so there is no chance I cannot even take one by guessing!\n",codename);
+	if (components->count <= 0) {
+		fprintf(stderr,
+"I do not find any components in '%s', so there is no chance I cannot even take one by guessing!\n",
+				codename);
 		return RET_ERROR;
 	}
 	section_len = strlen(section);
 
-	for( i = 0 ; i < components->count ; i++ ) {
+	for (i = 0 ; i < components->count ; i++) {
 		const char *component = atoms_components[components->atoms[i]];
 
-		if( strcmp(section, component) == 0 ) {
+		if (strcmp(section, component) == 0) {
 			*guess = components->atoms[i];
 			return RET_OK;
 		}
 	}
-	for( i = 0 ; i < components->count ; i++ ) {
+	for (i = 0 ; i < components->count ; i++) {
 		const char *component = atoms_components[components->atoms[i]];
 		size_t len = strlen(component);
 
-		if( len<section_len && section[len] == '/' &&
-				strncmp(section, component, len) == 0 ) {
+		if (len<section_len && section[len] == '/' &&
+				strncmp(section, component, len) == 0) {
 			*guess = components->atoms[i];
 			return RET_OK;
 		}
 	}
-	for( i = 0 ; i < components->count ; i++ ) {
+	for (i = 0 ; i < components->count ; i++) {
 		const char *component = atoms_components[components->atoms[i]];
 		size_t len = strlen(component);
 
-		if( len<section_len && section[section_len-len-1] == '/' &&
+		if (len<section_len && section[section_len-len-1] == '/' &&
 				strncmp(section+section_len-len, component, len)
-				== 0 ) {
+				== 0) {
 			*guess = components->atoms[i];
 			return RET_OK;
 		}
 	}
-	for( i = 0 ; i < components->count ; i++ ) {
+	for (i = 0 ; i < components->count ; i++) {
 		const char *component = atoms_components[components->atoms[i]];
 
-		if( strncmp(section, component, section_len) == 0 &&
-				component[section_len] == '/' ) {
+		if (strncmp(section, component, section_len) == 0 &&
+				component[section_len] == '/') {
 			*guess = components->atoms[i];
 			return RET_OK;
 		}

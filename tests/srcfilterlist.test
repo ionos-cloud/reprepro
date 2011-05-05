@@ -1,0 +1,221 @@
+set -u
+. "$TESTSDIR"/test.inc
+
+mkdir conf
+cat > conf/options <<EOF
+export silent-never
+EOF
+
+cat > conf/distributions <<EOF
+Codename: test
+Architectures: abacus source
+Components: main
+
+Codename: a
+Architectures: abacus source
+Components: main
+Pull: a
+
+Codename: b
+Architectures: abacus source
+Components: main
+Pull: b
+
+Codename: c
+Architectures: abacus source
+Components: main
+Pull: c
+
+Codename: d
+Architectures: abacus source
+Components: main
+Pull: d
+
+Codename: e
+Architectures: abacus source
+Components: main
+Pull: e
+
+Codename: f
+Architectures: abacus source
+Components: main
+Pull: f
+EOF
+
+DISTRI=test PACKAGE=a VERSION=1 REVISION=-1 FAKEVER=7-1 SECTION=base genpackage.sh
+mkdir -p pool/main/a/a
+testrun - --delete include test test.changes 3<<EOF
+stdout
+$(odb)
+$(ofa pool/main/a/a/a_1-1.tar.gz)
+$(ofa pool/main/a/a/a_1-1.dsc)
+$(ofa pool/main/a/a/a_1-1_abacus.deb)
+$(ofa pool/main/a/a/a-addons_7-1_all.deb)
+$(opa a 1-1 test main source dsc)
+$(opa a 1-1 test main abacus deb)
+$(opa a-addons 7-1 test main abacus deb)
+EOF
+DISTRI=test PACKAGE=b VERSION=1 REVISION=-1 FAKEVER=7-1 SECTION=base genpackage.sh
+mkdir -p pool/main/b/b
+testrun - --delete include test test.changes 3<<EOF
+stdout
+$(ofa pool/main/b/b/b_1-1.tar.gz)
+$(ofa pool/main/b/b/b_1-1.dsc)
+$(ofa pool/main/b/b/b_1-1_abacus.deb)
+$(ofa pool/main/b/b/b-addons_7-1_all.deb)
+$(opa b 1-1 test main source dsc)
+$(opa b 1-1 test main abacus deb)
+$(opa b-addons 7-1 test main abacus deb)
+EOF
+
+dodo test ! -d dists
+
+cat > conf/pulls <<EOF
+Name: a
+From: test
+FilterList: deinstall bin
+
+Name: b
+From: test
+FilterSrcList: deinstall src
+
+Name: c
+From: test
+FilterList: deinstall bin
+FilterSrcList: deinstall src
+
+Name: d
+From: test
+
+Name: e
+From: test
+FilterList: hold
+
+Name: f
+From: test
+FilterList: deinstall
+EOF
+cat > conf/bin <<EOF
+a = 1-1
+a-addons = 7-1
+b-addons = 1-1
+b = 7-1
+EOF
+cat > conf/src <<EOF
+b = 1-1
+a = 7-1
+a-addons = 7-1
+EOF
+
+testout - --restrict-bin a=1-1 dumppull 3</dev/null
+cat > results.expected <<EOF
+Updates needed for 'a|main|source':
+Updates needed for 'a|main|abacus':
+add 'a' - '1-1' 'a'
+Updates needed for 'b|main|source':
+Updates needed for 'b|main|abacus':
+Updates needed for 'c|main|source':
+Updates needed for 'c|main|abacus':
+add 'a' - '1-1' 'c'
+Updates needed for 'd|main|source':
+Updates needed for 'd|main|abacus':
+add 'a' - '1-1' 'd'
+Updates needed for 'e|main|source':
+Updates needed for 'e|main|abacus':
+add 'a' - '1-1' 'e'
+Updates needed for 'f|main|source':
+Updates needed for 'f|main|abacus':
+EOF
+dodiff results.expected results
+
+testout - --restrict-file-bin /dev/stdin dumppull 3</dev/null <<EOF
+a = 1-1
+EOF
+cat > results.expected <<EOF
+Updates needed for 'a|main|source':
+Updates needed for 'a|main|abacus':
+add 'a' - '1-1' 'a'
+Updates needed for 'b|main|source':
+Updates needed for 'b|main|abacus':
+Updates needed for 'c|main|source':
+Updates needed for 'c|main|abacus':
+add 'a' - '1-1' 'c'
+Updates needed for 'd|main|source':
+Updates needed for 'd|main|abacus':
+add 'a' - '1-1' 'd'
+Updates needed for 'e|main|source':
+Updates needed for 'e|main|abacus':
+add 'a' - '1-1' 'e'
+Updates needed for 'f|main|source':
+Updates needed for 'f|main|abacus':
+EOF
+dodiff results.expected results
+
+testout - --restrict a=1-1 --restrict-bin b=1-1 dumppull 3</dev/null
+cat > results.expected <<EOF
+Updates needed for 'a|main|source':
+add 'a' - '1-1' 'a'
+Updates needed for 'a|main|abacus':
+add 'a' - '1-1' 'a'
+add 'a-addons' - '7-1' 'a'
+Updates needed for 'b|main|source':
+Updates needed for 'b|main|abacus':
+add 'b' - '1-1' 'b'
+Updates needed for 'c|main|source':
+Updates needed for 'c|main|abacus':
+add 'a' - '1-1' 'c'
+add 'a-addons' - '7-1' 'c'
+Updates needed for 'd|main|source':
+add 'a' - '1-1' 'd'
+Updates needed for 'd|main|abacus':
+add 'a' - '1-1' 'd'
+add 'a-addons' - '7-1' 'd'
+add 'b' - '1-1' 'd'
+Updates needed for 'e|main|source':
+add 'a' - '1-1' 'e'
+Updates needed for 'e|main|abacus':
+add 'a' - '1-1' 'e'
+add 'a-addons' - '7-1' 'e'
+add 'b' - '1-1' 'e'
+Updates needed for 'f|main|source':
+Updates needed for 'f|main|abacus':
+EOF
+dodiff results.expected results
+
+testrun - pull 3<<EOF
+stdout
+-v0*=Calculating packages to pull...
+-v3*=  pulling into 'a|main|source'
+-v5*=  looking what to get from 'test|main|source'
+-v3*=  pulling into 'a|main|abacus'
+-v5*=  looking what to get from 'test|main|abacus'
+-v3*=  pulling into 'b|main|source'
+-v3*=  pulling into 'b|main|abacus'
+-v3*=  pulling into 'c|main|source'
+-v3*=  pulling into 'c|main|abacus'
+-v3*=  pulling into 'd|main|source'
+-v3*=  pulling into 'd|main|abacus'
+-v3*=  pulling into 'e|main|source'
+-v3*=  pulling into 'e|main|abacus'
+-v3*=  pulling into 'f|main|source'
+-v3*=  pulling into 'f|main|abacus'
+-v0*=Installing (and possibly deleting) packages...
+$(opa a 1-1 d main source dsc)
+$(opa a 1-1 d main abacus deb)
+$(opa a-addons 7-1 d main abacus deb)
+$(opa b 1-1 d main source dsc)
+$(opa b 1-1 d main abacus deb)
+$(opa b-addons 7-1 d main abacus deb)
+$(opa a 1-1 a main source dsc)
+$(opa a 1-1 a main abacus deb)
+$(opa a-addons 7-1 a main abacus deb)
+$(opa b 1-1 b main source dsc)
+$(opa b 1-1 b main abacus deb)
+$(opa b-addons 7-1 b main abacus deb)
+$(opa a 1-1 c main abacus deb)
+$(opa a-addons 7-1 c main abacus deb)
+$(opa b 1-1 c main source dsc)
+EOF
+
+rm -r db pool
+testsuccess

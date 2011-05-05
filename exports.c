@@ -38,7 +38,7 @@
 #include "configparser.h"
 #include "filecntl.h"
 
-static const char *exportdescription(const struct exportmode *mode,char *buffer,size_t buffersize) {
+static const char *exportdescription(const struct exportmode *mode, char *buffer, size_t buffersize) {
 	char *result = buffer;
 	enum indexcompression ic;
 	static const char* compression_names[ic_count] = {
@@ -51,14 +51,14 @@ static const char *exportdescription(const struct exportmode *mode,char *buffer,
 	bool needcomma = false,
 	     needellipsis = false;
 
-	assert( buffersize > 50 );
+	assert (buffersize > 50);
 	*buffer++ = ' '; buffersize--;
 	*buffer++ = '('; buffersize--;
-	for( ic = ic_first ; ic < ic_count ; ic++ ) {
-		if( (mode->compressions & IC_FLAG(ic)) != 0 ) {
+	for (ic = ic_first ; ic < ic_count ; ic++) {
+		if ((mode->compressions & IC_FLAG(ic)) != 0) {
 			size_t l = strlen(compression_names[ic]);
-			assert( buffersize > l+3 );
-			if( needcomma ) {
+			assert (buffersize > l+3);
+			if (needcomma) {
 				*buffer++ = ','; buffersize--;
 			}
 			memcpy(buffer, compression_names[ic], l);
@@ -67,31 +67,30 @@ static const char *exportdescription(const struct exportmode *mode,char *buffer,
 		}
 	}
 	/* should be long enough for the previous things in all cases */
-	assert( buffersize > 10 );
-	if( mode->hooks.count > 0 ) {
+	assert (buffersize > 10);
+	if (mode->hooks.count > 0) {
 		int i, left;
 
-		if( needcomma ) {
+		if (needcomma) {
 			*buffer++ = ','; buffersize--;
 		}
 		strcpy(buffer, "script: ");
 		buffer += 8; buffersize -= 8;
 		needcomma = false;
 
-		for( i = 0 ; i < mode->hooks.count ; i++ ) {
+		for (i = 0 ; i < mode->hooks.count ; i++) {
 			const char *hook = dirs_basename(mode->hooks.values[i]);
 			size_t l = strlen(hook);
-			left = buffersize - 2 - (mode->hooks.count - i - 1);
 
-			if( buffersize < 6 ) {
+			if (buffersize < 6) {
 				needellipsis = true;
 				break;
 			}
-			if( needcomma ) {
+			if (needcomma) {
 				*buffer++ = ','; buffersize--;
 			}
 
-			if( l > buffersize - 5 ) {
+			if (l > buffersize - 5) {
 				memcpy(buffer, hook, buffersize-5);
 				buffer += (buffersize-5);
 				buffersize -= (buffersize-5);
@@ -100,14 +99,14 @@ static const char *exportdescription(const struct exportmode *mode,char *buffer,
 			} else {
 				memcpy(buffer, hook, l);
 				buffer += l; buffersize -= l;
-				assert( buffersize >= 2 );
+				assert (buffersize >= 2);
 			}
 			needcomma = true;
 		}
 	}
-	if( needellipsis ) {
+	if (needellipsis) {
 		/* moveing backward here is easier than checking above */
-		if( buffersize < 5 ) {
+		if (buffersize < 5) {
 			buffer -= (5 - buffersize);
 			buffersize = 5;
 		}
@@ -115,7 +114,7 @@ static const char *exportdescription(const struct exportmode *mode,char *buffer,
 		*buffer++ = '.'; buffersize--;
 		*buffer++ = '.'; buffersize--;
 	}
-	assert( buffersize >= 2  );
+	assert (buffersize >= 2);
 	*buffer++ = ')'; buffersize--;
 	*buffer = '\0';
 	return result;
@@ -123,15 +122,16 @@ static const char *exportdescription(const struct exportmode *mode,char *buffer,
 
 retvalue exportmode_init(/*@out@*/struct exportmode *mode, bool uncompressed, /*@null@*/const char *release, const char *indexfile) {
 	strlist_init(&mode->hooks);
-	mode->compressions = IC_FLAG(ic_gzip) | (uncompressed?IC_FLAG(ic_uncompressed):0);
+	mode->compressions = IC_FLAG(ic_gzip) | (uncompressed
+			? IC_FLAG(ic_uncompressed) : 0);
 	mode->filename = strdup(indexfile);
-	if( mode->filename == NULL )
+	if (FAILEDTOALLOC(mode->filename))
 		return RET_ERROR_OOM;
-	if( release == NULL )
+	if (release == NULL)
 		mode->release = NULL;
 	else {
 		mode->release = strdup(release);
-		if( mode->release == NULL )
+		if (FAILEDTOALLOC(mode->release))
 			return RET_ERROR_OOM;
 	}
 	return RET_OK;
@@ -143,9 +143,9 @@ retvalue exportmode_set(struct exportmode *mode, struct configiterator *iter) {
 	char *word;
 
 	r = config_getword(iter, &word);
-	if( RET_WAS_ERROR(r) )
+	if (RET_WAS_ERROR(r))
 		return r;
-	if( r == RET_NOTHING ) {
+	if (r == RET_NOTHING) {
 		fprintf(stderr,
 "Error parsing %s, line %u, column %u: Unexpected end of field!\n"
 "Filename to use for index files (Packages, Sources, ...) missing.\n",
@@ -153,9 +153,9 @@ retvalue exportmode_set(struct exportmode *mode, struct configiterator *iter) {
 			config_markerline(iter), config_markercolumn(iter));
 		return RET_ERROR_MISSING;
 	}
-	assert( word[0] != '\0' );
+	assert (word[0] != '\0');
 
-	if( word[0] == '.' ) {
+	if (word[0] == '.') {
 		free(word);
 		fprintf(stderr,
 "Error parsing %s, line %u, column %u: filename for index files expected!\n",
@@ -168,19 +168,19 @@ retvalue exportmode_set(struct exportmode *mode, struct configiterator *iter) {
 	mode->filename = word;
 
 	r = config_getword(iter, &word);
-	if( RET_WAS_ERROR(r) )
+	if (RET_WAS_ERROR(r))
 		return r;
-	if( r == RET_NOTHING )
+	if (r == RET_NOTHING)
 		word = NULL;
-	if( r != RET_NOTHING && word[0] != '.' ) {
-		assert( word[0] != '\0' );
+	if (r != RET_NOTHING && word[0] != '.') {
+		assert (word[0] != '\0');
 		free(mode->release);
 		mode->release = word;
 		r = config_getword(iter, &word);
-		if( RET_WAS_ERROR(r) )
+		if (RET_WAS_ERROR(r))
 			return r;
 	}
-	if( r == RET_NOTHING ) {
+	if (r == RET_NOTHING) {
 		fprintf(stderr,
 "Error parsing %s, line %u, column %u: Unexpected end of field!\n"
 "Compression identifiers ('.', '.gz' or '.bz2') missing.\n",
@@ -188,7 +188,7 @@ retvalue exportmode_set(struct exportmode *mode, struct configiterator *iter) {
 			config_markerline(iter), config_markercolumn(iter));
 		return RET_ERROR;
 	}
-	if( word[0] != '.' ) {
+	if (word[0] != '.') {
 		fprintf(stderr,
 "Error parsing %s, line %u, column %u:\n"
 "Compression extension ('.', '.gz' or '.bz2') expected.\n",
@@ -198,14 +198,14 @@ retvalue exportmode_set(struct exportmode *mode, struct configiterator *iter) {
 		return RET_ERROR;
 	}
 	mode->compressions = 0;
-	while( r != RET_NOTHING && word[0] == '.' ) {
-		if( word[1] == '\0' )
+	while (r != RET_NOTHING && word[0] == '.') {
+		if (word[1] == '\0')
 			mode->compressions |= IC_FLAG(ic_uncompressed);
-		else if( word[1] == 'g' && word[2] == 'z' &&
+		else if (word[1] == 'g' && word[2] == 'z' &&
 				word[3] == '\0')
 			mode->compressions |= IC_FLAG(ic_gzip);
 #ifdef HAVE_LIBBZ2
-		else if( word[1] == 'b' && word[2] == 'z' && word[3] == '2' &&
+		else if (word[1] == 'b' && word[2] == 'z' && word[3] == '2' &&
 				word[4] == '\0')
 			mode->compressions |= IC_FLAG(ic_bzip2);
 #endif
@@ -222,11 +222,11 @@ retvalue exportmode_set(struct exportmode *mode, struct configiterator *iter) {
 		}
 		free(word);
 		r = config_getword(iter, &word);
-		if( RET_WAS_ERROR(r) )
+		if (RET_WAS_ERROR(r))
 			return r;
 	}
-	while( r != RET_NOTHING ) {
-		if( word[0] == '.' ) {
+	while (r != RET_NOTHING) {
+		if (word[0] == '.') {
 			fprintf(stderr,
 "Error parsing %s, line %u, column %u:\n"
 "Scripts starting with dot are forbidden to avoid ambiguity ('%s')!\n"
@@ -237,21 +237,21 @@ retvalue exportmode_set(struct exportmode *mode, struct configiterator *iter) {
 					word);
 			free(word);
 			return RET_ERROR;
-		} else if( word[0] == '/' ) {
+		} else if (word[0] == '/') {
 			r = strlist_add(&mode->hooks, word);
-			if( RET_WAS_ERROR(r) )
+			if (RET_WAS_ERROR(r))
 				return r;
 		} else {
 			char *fullfilename = calc_conffile(word);
 			free(word);
-			if( FAILEDTOALLOC(fullfilename) )
+			if (FAILEDTOALLOC(fullfilename))
 				return RET_ERROR_OOM;
 			r = strlist_add(&mode->hooks, fullfilename);
-			if( RET_WAS_ERROR(r) )
+			if (RET_WAS_ERROR(r))
 				return r;
 		}
 		r = config_getword(iter, &word);
-		if( RET_WAS_ERROR(r) )
+		if (RET_WAS_ERROR(r))
 			return r;
 	}
 	return RET_OK;
@@ -259,69 +259,70 @@ retvalue exportmode_set(struct exportmode *mode, struct configiterator *iter) {
 
 static retvalue gotfilename(const char *relname, size_t l, struct release *release) {
 
-	if( l > 12 && memcmp(relname+l-12,".tobedeleted",12) == 0) {
+	if (l > 12 && memcmp(relname+l-12, ".tobedeleted", 12) == 0) {
 		char *filename;
 
-		filename = strndup(relname,l-12);
-		if( filename == NULL )
+		filename = strndup(relname, l - 12);
+		if (FAILEDTOALLOC(filename))
 			return RET_ERROR_OOM;
-		return release_adddel(release,filename);
+		return release_adddel(release, filename);
 
-	} else if( l > 4 && memcmp(relname+(l-4),".new",4) == 0 ) {
-		char *filename,*tmpfilename;
+	} else if (l > 4 && memcmp(relname+(l-4), ".new", 4) == 0) {
+		char *filename, *tmpfilename;
 
-		filename = strndup(relname,l-4);
-		if( filename == NULL )
+		filename = strndup(relname, l - 4);
+		if (FAILEDTOALLOC(filename))
 			return RET_ERROR_OOM;
-		tmpfilename = strndup(relname,l);
-		if( tmpfilename == NULL ) {
+		tmpfilename = strndup(relname, l);
+		if (FAILEDTOALLOC(tmpfilename)) {
 			free(filename);
 			return RET_ERROR_OOM;
 		}
-		return release_addnew(release,tmpfilename,filename);
-	} else if( l > 5 && memcmp(relname + (l-5), ".new.", 5) == 0 ) {
+		return release_addnew(release, tmpfilename, filename);
+	} else if (l > 5 && memcmp(relname + (l-5), ".new.", 5) == 0) {
 		char *filename, *tmpfilename;
 
 		filename = strndup(relname, l-5);
-		if( FAILEDTOALLOC(filename) )
+		if (FAILEDTOALLOC(filename))
 			return RET_ERROR_OOM;
 		tmpfilename = strndup(relname, l-1);
-		if( FAILEDTOALLOC(tmpfilename) ) {
+		if (FAILEDTOALLOC(tmpfilename)) {
 			free(filename);
 			return RET_ERROR_OOM;
 		}
 		return release_addsilentnew(release, tmpfilename, filename);
-	} else if( l > 5 && memcmp(relname + (l-5), ".keep", 5) == 0 ) {
+	} else if (l > 5 && memcmp(relname + (l-5), ".keep", 5) == 0) {
 		return RET_OK;
 	} else {
 		char *filename;
 
-		filename = strndup(relname,l);
-		if( filename == NULL )
+		filename = strndup(relname, l);
+		if (FAILEDTOALLOC(filename))
 			return RET_ERROR_OOM;
-		return release_addold(release,filename);
+		return release_addold(release, filename);
 	}
 }
 
 static retvalue callexporthook(/*@null@*/const char *hook, const char *relfilename, const char *mode, struct release *release) {
-	pid_t f,c;
+	pid_t f, c;
 	int status;
 	int io[2];
 	char buffer[1000];
 	int already = 0;
 
-	if( hook == NULL )
+	if (hook == NULL)
 		return RET_NOTHING;
 
 	status = pipe(io);
-	if( status < 0 ) {
+	if (status < 0) {
 		int e = errno;
-		fprintf(stderr, "Error %d creating pipe: %s!\n", e, strerror(e));
+		fprintf(stderr, "Error %d creating pipe: %s!\n",
+				e, strerror(e));
 		return RET_ERRNO(e);
 	}
 
 	f = fork();
-	if( f < 0 ) {
+	if (f < 0) {
 		int e = errno;
 		(void)close(io[0]);
 		(void)close(io[1]);
@@ -329,25 +330,25 @@ static retvalue callexporthook(/*@null@*/const char *hook, const char *relfilena
 				e, strerror(e));
 		return RET_ERRNO(e);
 	}
-	if( f == 0 ) {
+	if (f == 0) {
 		char *reltmpfilename;
 		int e;
 
-		if( dup2(io[1],3) < 0 ) {
+		if (dup2(io[1], 3) < 0) {
 			e = errno;
 			fprintf(stderr, "Error %d dup2'ing fd %d to 3: %s\n",
 					e, io[1], strerror(e));
 			exit(255);
 		}
 		/* "Doppelt haelt besser": */
-		if( io[0] != 3 )
+		if (io[0] != 3)
 			(void)close(io[0]);
-		if( io[1] != 3 )
+		if (io[1] != 3)
 			(void)close(io[1]);
 		closefrom(4);
 		/* backward compatibilty */
-		reltmpfilename = calc_addsuffix(relfilename,"new");
-		if( reltmpfilename == NULL ) {
+		reltmpfilename = calc_addsuffix(relfilename, "new");
+		if (reltmpfilename == NULL) {
 			exit(255);
 		}
 		setenv("REPREPRO_BASE_DIR", global.basedir, true);
@@ -366,91 +367,98 @@ static retvalue callexporthook(/*@null@*/const char *hook, const char *relfilena
 	close(io[1]);
 	markcloseonexec(io[0]);
 
-	if( verbose > 6 )
+	if (verbose > 6)
 		printf("Called %s '%s' '%s.new' '%s' '%s'\n",
-			hook,release_dirofdist(release),relfilename,relfilename,mode);
+			hook, release_dirofdist(release),
+			relfilename, relfilename, mode);
 	/* read what comes from the client */
-	while( true ) {
+	while (true) {
 		ssize_t r;
-		int last,j;
+		int last, j;
 
-		r = read(io[0],buffer+already,999-already);
-		if( r < 0 ) {
+		r = read(io[0], buffer + already, 999 - already);
+		if (r < 0) {
 			int e = errno;
-			fprintf(stderr, "Error %d reading from exporthook: %s!\n",
+			fprintf(stderr,
+"Error %d reading from exporthook: %s!\n",
 					e, strerror(e));
 			break;
 		}
 
 		already += r;
-		if( r == 0 ) {
+		if (r == 0) {
 			buffer[already] = '\0';
 			already++;
 		}
 		last = 0;
-		for( j = 0 ; j < already ; j++ ) {
-			if( buffer[j] == '\n' || buffer[j] == '\0' ) {
+		for (j = 0 ; j < already ; j++) {
+			if (buffer[j] == '\n' || buffer[j] == '\0') {
 				int next = j+1;
 				int e = (j>0)?(j-1):j;
 				retvalue ret;
 
-				while( last < j && xisspace(buffer[last]) )
+				while (last < j && xisspace(buffer[last]))
 						last++;
-				if( last >= j ) {
+				if (last >= j) {
 					last = next;
 					continue;
 				}
-				while( xisspace(buffer[e]) ) {
+				while (xisspace(buffer[e])) {
 					e--;
-					assert( e >= last );
+					assert (e >= last);
 				}
 
-				ret = gotfilename(buffer+last,e-last+1,release);
-				if( RET_WAS_ERROR(ret) ) {
+				ret = gotfilename(buffer + last, e - last + 1,
+						release);
+				if (RET_WAS_ERROR(ret)) {
 					(void)close(io[0]);
 					return ret;
 				}
 				last = next;
 			}
 		}
-		if( last > 0 ) {
-			if( already > last )
-				memmove(buffer,buffer+last,already-last);
+		if (last > 0) {
+			if (already > last)
+				memmove(buffer, buffer + last, already - last);
 			already -= last;
 		}
-		if( r == 0 )
+		if (r == 0)
 			break;
 	}
 	(void)close(io[0]);
 	do {
-		c = waitpid(f,&status,WUNTRACED);
-		if( c < 0 ) {
+		c = waitpid(f, &status, WUNTRACED);
+		if (c < 0) {
 			int e = errno;
 			fprintf(stderr,
 "Error %d while waiting for hook '%s' to finish: %s\n", e, hook, strerror(e));
 			return RET_ERRNO(e);
 		}
-	} while( c != f );
-	if( WIFEXITED(status) ) {
-		if( WEXITSTATUS(status) == 0 ) {
-			if( verbose > 6 )
+	} while (c != f);
+	if (WIFEXITED(status)) {
+		if (WEXITSTATUS(status) == 0) {
+			if (verbose > 6)
 				printf("Exporthook successfully returned!\n");
 			return RET_OK;
 		} else {
-			fprintf(stderr,"Exporthook failed with exitcode %d!\n",(int)WEXITSTATUS(status));
+			fprintf(stderr,
+"Exporthook failed with exitcode %d!\n",
+					(int)WEXITSTATUS(status));
 			return RET_ERROR;
 		}
-	} else if( WIFSIGNALED(status) ) {
-		fprintf(stderr,"Exporthook killed by signal %d!\n",
+	} else if (WIFSIGNALED(status)) {
+		fprintf(stderr, "Exporthook killed by signal %d!\n",
 				(int)(WTERMSIG(status)));
 		return RET_ERROR;
 	} else {
-		fprintf(stderr,"Exporthook terminated abnormally. (status is %x)!\n",status);
+		fprintf(stderr,
+"Exporthook terminated abnormally. (status is %x)!\n",
+				status);
 		return RET_ERROR;
 	}
 }
 
-retvalue export_target(const char *relativedir, struct target *target, struct database *database,  const struct exportmode *exportmode, struct release *release, bool onlyifmissing, bool snapshot) {
+retvalue export_target(const char *relativedir, struct target *target,  const struct exportmode *exportmode, struct release *release, bool onlyifmissing, bool snapshot) {
 	retvalue r;
 	struct filetorelease *file;
 	const char *status;
@@ -460,70 +468,71 @@ retvalue export_target(const char *relativedir, struct target *target, struct da
 	size_t chunk_len;
 	struct target_cursor iterator;
 
-	relfilename = calc_dirconcat(relativedir,exportmode->filename);
-	if( relfilename == NULL )
+	relfilename = calc_dirconcat(relativedir, exportmode->filename);
+	if (FAILEDTOALLOC(relfilename))
 		return RET_ERROR_OOM;
 
-	r = release_startfile(release,relfilename,exportmode->compressions,onlyifmissing,&file);
-	if( RET_WAS_ERROR(r) ) {
+	r = release_startfile(release, relfilename, exportmode->compressions,
+		       onlyifmissing, &file);
+	if (RET_WAS_ERROR(r)) {
 		free(relfilename);
 		return r;
 	}
-	if( RET_IS_OK(r) ) {
-		if( release_oldexists(file) ) {
-			if( verbose > 5 )
+	if (RET_IS_OK(r)) {
+		if (release_oldexists(file)) {
+			if (verbose > 5)
 				printf("  replacing '%s/%s'%s\n",
 					release_dirofdist(release), relfilename,
 					exportdescription(exportmode, buffer, 100));
 			status = "change";
 		} else {
-			if( verbose > 5 )
+			if (verbose > 5)
 				printf("  creating '%s/%s'%s\n",
 					release_dirofdist(release), relfilename,
 					exportdescription(exportmode, buffer, 100));
 			status = "new";
 		}
-		r = target_openiterator(target, database, READONLY, &iterator);
-		if( RET_WAS_ERROR(r) ) {
+		r = target_openiterator(target, READONLY, &iterator);
+		if (RET_WAS_ERROR(r)) {
 			release_abortfile(file);
 			free(relfilename);
 			return r;
 		}
-		while( target_nextpackage_len(&iterator, NULL,
-					&chunk, &chunk_len) ) {
-			if( chunk_len == 0 )
+		while (target_nextpackage_len(&iterator, NULL,
+					&chunk, &chunk_len)) {
+			if (chunk_len == 0)
 				continue;
 			(void)release_writedata(file, chunk, chunk_len);
 			(void)release_writestring(file, "\n");
-			if( chunk[chunk_len-1] != '\n' )
+			if (chunk[chunk_len-1] != '\n')
 				(void)release_writestring(file, "\n");
 		}
 		r = target_closeiterator(&iterator);
-		if( RET_WAS_ERROR(r) ) {
+		if (RET_WAS_ERROR(r)) {
 			release_abortfile(file);
 			free(relfilename);
 			return r;
 		}
-		r = release_finishfile(release,file);
-		if( RET_WAS_ERROR(r) ) {
+		r = release_finishfile(release, file);
+		if (RET_WAS_ERROR(r)) {
 			free(relfilename);
 			return r;
 		}
 	} else {
-		if( verbose > 9 )
+		if (verbose > 9)
 			printf("  keeping old '%s/%s'%s\n",
 				release_dirofdist(release), relfilename,
 				exportdescription(exportmode, buffer, 100));
 		status = "old";
 	}
-	if( !snapshot ) {
+	if (!snapshot) {
 		int i;
 
-		for( i = 0 ; i < exportmode->hooks.count ; i++ ) {
+		for (i = 0 ; i < exportmode->hooks.count ; i++) {
 			const char *hook = exportmode->hooks.values[i];
 
 			r = callexporthook(hook, relfilename, status, release);
-			if( RET_WAS_ERROR(r) ) {
+			if (RET_WAS_ERROR(r)) {
 				free(relfilename);
 				return r;
 			}
@@ -534,7 +543,7 @@ retvalue export_target(const char *relativedir, struct target *target, struct da
 }
 
 void exportmode_done(struct exportmode *mode) {
-	assert( mode != NULL);
+	assert (mode != NULL);
 	free(mode->filename);
 	strlist_done(&mode->hooks);
 	free(mode->release);

@@ -43,19 +43,19 @@ struct indexfile {
 };
 
 retvalue indexfile_open(struct indexfile **file_p, const char *filename, enum compression compression) {
-	struct indexfile *f = calloc(1, sizeof(struct indexfile));
+	struct indexfile *f = zNEW(struct indexfile);
 	retvalue r;
 
-	if( FAILEDTOALLOC(f) )
+	if (FAILEDTOALLOC(f))
 		return RET_ERROR_OOM;
 	f->filename = strdup(filename);
-	if( FAILEDTOALLOC(f->filename) ) {
+	if (FAILEDTOALLOC(f->filename)) {
 		free(f);
 		return RET_ERROR_OOM;
 	}
 	r = uncompress_open(&f->f, filename, compression);
-	assert( r != RET_NOTHING );
-	if( RET_WAS_ERROR(r) ) {
+	assert (r != RET_NOTHING);
+	if (RET_WAS_ERROR(r)) {
 		free(f->filename);
 		free(f);
 		return RET_ERRNO(errno);
@@ -68,7 +68,7 @@ retvalue indexfile_open(struct indexfile **file_p, const char *filename, enum co
 	f->content = 0;
 	/* +1 for *d = '\0' in eof case */
 	f->buffer = malloc(f->size + 1);
-	if( FAILEDTOALLOC(f->buffer) ) {
+	if (FAILEDTOALLOC(f->buffer)) {
 		uncompress_abort(f->f);
 		free(f->filename);
 		free(f);
@@ -96,7 +96,7 @@ static retvalue indexfile_get(struct indexfile *f) {
 	bool afternewline, nothingyet;
 	int bytes_read;
 
-	if( f->failed )
+	if (f->failed)
 		return RET_ERROR;
 
 	d = f->buffer;
@@ -111,23 +111,23 @@ static retvalue indexfile_get(struct indexfile *f) {
 		// input, this could be kept in-situ and only chunk_edit
 		// beautifying this chunk...
 
-		while( p < e ) {
+		while (p < e) {
 			/* just ignore '\r', even if not line-end... */
-			if( *p == '\r' ) {
+			if (*p == '\r') {
 				p++;
 				continue;
 			}
-			if( *p == '\n' ) {
+			if (*p == '\n') {
 				f->linenumber++;
-				if( afternewline ) {
+				if (afternewline) {
 					p++;
 					f->content -= (p - start);
 					f->ofs += (p - start);
-					assert( f->ofs == (p - f->buffer));
-					if( nothingyet )
+					assert (f->ofs == (p - f->buffer));
+					if (nothingyet)
 						/* restart */
 						return indexfile_get(f);
-					if( d > f->buffer && *(d-1) == '\n' )
+					if (d > f->buffer && *(d-1) == '\n')
 						d--;
 					*d = '\0';
 					return RET_OK;
@@ -136,7 +136,7 @@ static retvalue indexfile_get(struct indexfile *f) {
 				nothingyet = false;
 			} else
 				afternewline = false;
-			if( unlikely(*p == '\0') ) {
+			if (unlikely(*p == '\0')) {
 				*(d++) = ' ';
 				p++;
 			} else
@@ -148,7 +148,7 @@ static retvalue indexfile_get(struct indexfile *f) {
 		f->ofs = (d - f->buffer);
 		f->content = 0;
 
-		if( f->size - f->ofs <= 2048 ) {
+		if (f->size - f->ofs <= 2048) {
 			/* Adding code to enlarge the buffer in this case
 			 * is risky as hard to test properly.
 			 *
@@ -166,20 +166,20 @@ static retvalue indexfile_get(struct indexfile *f) {
 		}
 
 		bytes_read = uncompress_read(f->f, d, f->size - f->ofs);
-		if( bytes_read < 0 )
+		if (bytes_read < 0)
 			return RET_ERROR;
-		else if( bytes_read == 0 )
+		else if (bytes_read == 0)
 			break;
 		f->content = bytes_read;
-	} while( true );
+	} while (true);
 
-	if( d == f->buffer )
+	if (d == f->buffer)
 		return RET_NOTHING;
 
 	/* end of file reached, return what we got so far */
-	assert( f->content == 0 );
-	assert( d-f->buffer <= f->size );
-	if( d > f->buffer && *(d-1) == '\n' )
+	assert (f->content == 0);
+	assert (d-f->buffer <= f->size);
+	if (d > f->buffer && *(d-1) == '\n')
 		d--;
 	*d = '\0';
 	return RET_OK;
@@ -198,76 +198,76 @@ bool indexfile_getnext(struct indexfile *f, char **name_p, char **version_p, con
 		free(version); version = NULL;
 		f->startlinenumber = f->linenumber + 1;
 		r = indexfile_get(f);
-		if( !RET_IS_OK(r) )
+		if (!RET_IS_OK(r))
 			break;
 		control = f->buffer;
 		r = chunk_getvalue(control, "Package", &packagename);
-		if( r == RET_NOTHING ) {
+		if (r == RET_NOTHING) {
 			fprintf(stderr,
 "Error parsing %s line %d to %d: Chunk without 'Package:' field!\n",
 					f->filename,
 					f->startlinenumber, f->linenumber);
-			if( !ignorecruft )
+			if (!ignorecruft)
 				r = RET_ERROR_MISSING;
 			else
 				continue;
 		}
-		if( RET_WAS_ERROR(r) )
+		if (RET_WAS_ERROR(r))
 			break;
 
 		r = chunk_getvalue(control, "Version", &version);
-		if( r == RET_NOTHING ) {
+		if (r == RET_NOTHING) {
 			fprintf(stderr,
 "Error parsing %s line %d to %d: Chunk without 'Version:' field!\n",
 					f->filename,
 					f->startlinenumber, f->linenumber);
-			if( !ignorecruft )
+			if (!ignorecruft)
 				r = RET_ERROR_MISSING;
 			else
 				continue;
 		}
-		if( RET_WAS_ERROR(r) )
+		if (RET_WAS_ERROR(r))
 			break;
 		r = chunk_getvalue(control, "Architecture", &architecture);
-		if( RET_WAS_ERROR(r) )
+		if (RET_WAS_ERROR(r))
 			break;
-		if( r == RET_NOTHING )
+		if (r == RET_NOTHING)
 			architecture = NULL;
-		if( target->packagetype_atom == pt_dsc ) {
+		if (target->packagetype == pt_dsc) {
 			free(architecture);
 			atom = architecture_source;
 		} else {
 			/* check if architecture fits for target and error
 			    out if not ignorewrongarchitecture */
-			if( architecture == NULL ) {
+			if (architecture == NULL) {
 				fprintf(stderr,
 "Error parsing %s line %d to %d: Chunk without 'Architecture:' field!\n",
 						f->filename,
 						f->startlinenumber, f->linenumber);
-				if( !ignorecruft ) {
+				if (!ignorecruft) {
 					r = RET_ERROR_MISSING;
 					break;
 				} else
 					continue;
-			} else if( strcmp(architecture, "all") == 0 ) {
+			} else if (strcmp(architecture, "all") == 0) {
 				atom = architecture_all;
-			} else if( strcmp(architecture,
+			} else if (strcmp(architecture,
 					   atoms_architectures[
-						target->architecture_atom
+						target->architecture
 						]) == 0) {
-				atom = target->architecture_atom;
-			} else if( !allowwrongarchitecture
-					&& !ignore[IGN_wrongarchitecture] ) {
+				atom = target->architecture;
+			} else if (!allowwrongarchitecture
+					&& !ignore[IGN_wrongarchitecture]) {
 				fprintf(stderr,
 "Warning: ignoring package because of wrong 'Architecture:' field '%s'"
 " (expected 'all' or '%s') in %s lines %d to %d!\n",
 						architecture,
 						atoms_architectures[
-						target->architecture_atom],
+						target->architecture],
 						f->filename,
 						f->startlinenumber,
 						f->linenumber);
-				if( ignored[IGN_wrongarchitecture] == 0 ) {
+				if (ignored[IGN_wrongarchitecture] == 0) {
 					fprintf(stderr,
 "This either mean the repository you get packages from is of an extremly\n"
 "low quality, or something went wrong. Trying to ignore it now, though.\n"
@@ -284,14 +284,14 @@ bool indexfile_getnext(struct indexfile *f, char **name_p, char **version_p, con
 			}
 			free(architecture);
 		}
-		if( RET_WAS_ERROR(r) )
+		if (RET_WAS_ERROR(r))
 			break;
 		*control_p = control;
 		*name_p = packagename;
 		*version_p = version;
 		*architecture_p = atom;
 		return true;
-	} while( true );
+	} while (true);
 	free(packagename);
 	free(version);
 	RET_UPDATE(f->status, r);

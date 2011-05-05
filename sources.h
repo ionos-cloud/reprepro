@@ -9,9 +9,6 @@
 #include "target.h"
 #endif
 
-/* Calculate the filelines in a form suitable for chunk_replacefields: */
-retvalue sources_calcfilelines(const struct checksumsarray *, /*@out@*/char **item);
-
 /* Functions for the target.h-stuff: */
 get_version sources_getversion;
 get_installdata sources_getinstalldata;

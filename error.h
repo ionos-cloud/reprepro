@@ -36,10 +36,10 @@ typedef enum retvalue_enum retvalue;
 
 /* update a return value, so that it contains the first error-code
  * and otherwise is RET_OK, if anything was RET_OK */
-#define RET_UPDATE(ret,update) { if( (update)!=RET_NOTHING && RET_WAS_NO_ERROR(ret) ) ret=update;}
+#define RET_UPDATE(ret, update) { if ((update)!=RET_NOTHING && RET_WAS_NO_ERROR(ret)) ret=update;}
 
-/* like RET_UPDATE, but RET_ENDUPDATE(RET_NOTHING,RET_OK) keeps RET_NOTHING */
-#define RET_ENDUPDATE(ret,update) {if(RET_WAS_ERROR(update)&&RET_WAS_NO_ERROR(ret)) ret=update;}
+/* like RET_UPDATE, but RET_ENDUPDATE(RET_NOTHING, RET_OK) keeps RET_NOTHING */
+#define RET_ENDUPDATE(ret, update) {if (RET_WAS_ERROR(update) && RET_WAS_NO_ERROR(ret)) ret=update;}
 
 /* code a errno in a error */
 #define RET_ERRNO(err) ((err>0)?((retvalue)-err):RET_ERROR)
@@ -48,7 +48,7 @@ typedef enum retvalue_enum retvalue;
 // TODO: to be implemented...
 #define RET_DBERR(e) RET_ERROR
 
-#define ASSERT_NOT_NOTHING(r) {assert( r != RET_NOTHING ); if ( r == RET_NOTHING ) r = RET_ERROR_INTERNAL; }
+#define ASSERT_NOT_NOTHING(r) {assert (r != RET_NOTHING); if (r == RET_NOTHING) r = RET_ERROR_INTERNAL;}
 
 #define EXIT_RET(ret) (RET_WAS_NO_ERROR(ret)?((nothingiserror&&ret==RET_NOTHING)?EXIT_FAILURE:EXIT_SUCCESS):(int)ret)
 

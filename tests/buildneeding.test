@@ -1,9 +1,5 @@
-#!/bin/bash
-
-set -e
-if [ "x$TESTINCSETUP" != "xissetup" ] ; then
-	source $(dirname $0)/test.inc
-fi
+set -u
+. "$TESTSDIR"/test.inc
 
 mkdir conf
 mkdir package-1.0
@@ -26,7 +22,7 @@ Description: a package not build
  .
 
 Package: troettroet
-Architecture: $FAKEARCHITECTURE
+Architecture: abacus
 Description: some test-package
  .
 END
@@ -44,7 +40,7 @@ cat > conf/distributions <<EOF
 Codename: bla
 Suite: test
 Components: main
-Architectures: source $FAKEARCHITECTURE another
+Architectures: source abacus another
 Tracking: all
 
 Codename: blub
@@ -52,23 +48,20 @@ Components: main
 Architectures: notinbla
 EOF
 cat >> conf/options <<EOF
-export never
+export silent-never
 EOF
 
 testrun - includedsc test package_1.0-1.dsc 3<<EOF
 stderr
-=Data seems not to be signed trying to use directly...
 -v1*=package_1.0-1.dsc: component guessed as 'main'
-*=Warning: database 'bla|main|source' was modified but no index file was exported.
-*=Changes will only be visible after the next 'export'!
 stdout
--v2*=Created directory "./db"
+$(odb)
 -v2*=Created directory "./pool"
 -v2*=Created directory "./pool/main"
 -v2*=Created directory "./pool/main/p"
 -v2*=Created directory "./pool/main/p/package"
-*=db: 'pool/main/p/package/package_1.0-1.dsc' added to checksums.db(pool).
-*=db: 'pool/main/p/package/package_1.0-1.tar.gz' added to checksums.db(pool).
+$(ofa 'pool/main/p/package/package_1.0-1.dsc')
+$(ofa 'pool/main/p/package/package_1.0-1.tar.gz')
 *=db: 'package' added to packages.db(bla|main|source).
 *=db: 'package' added to tracking.db(bla).
 EOF
@@ -78,7 +71,7 @@ testrun - build-needing test another 3<<EOF
 stdout
 *=package 1.0-1 pool/main/p/package/package_1.0-1.dsc
 EOF
-testrun - build-needing test $FAKEARCHITECTURE 3<<EOF
+testrun - build-needing test abacus 3<<EOF
 stdout
 *=package 1.0-1 pool/main/p/package/package_1.0-1.dsc
 EOF
@@ -118,12 +111,9 @@ cd ..
 
 testrun - -C main includedeb test rumsrumsrums_1.0-1_all.deb 3<<EOF
 stderr
-*=Warning: database 'bla|main|${FAKEARCHITECTURE}' was modified but no index file was exported.
-*=Warning: database 'bla|main|another' was modified but no index file was exported.
-*=Changes will only be visible after the next 'export'!
 stdout
-*=db: 'pool/main/p/package/rumsrumsrums_1.0-1_all.deb' added to checksums.db(pool).
-*=db: 'rumsrumsrums' added to packages.db(bla|main|${FAKEARCHITECTURE}).
+$(ofa 'pool/main/p/package/rumsrumsrums_1.0-1_all.deb')
+*=db: 'rumsrumsrums' added to packages.db(bla|main|abacus).
 *=db: 'rumsrumsrums' added to packages.db(bla|main|another).
 EOF
 
@@ -131,7 +121,7 @@ testrun - build-needing test another 3<<EOF
 stdout
 *=package 1.0-1 pool/main/p/package/package_1.0-1.dsc
 EOF
-testrun - build-needing test $FAKEARCHITECTURE 3<<EOF
+testrun - build-needing test abacus 3<<EOF
 stdout
 *=package 1.0-1 pool/main/p/package/package_1.0-1.dsc
 EOF
@@ -141,20 +131,18 @@ dpkg-gencontrol -ptroettroet
 dpkg --build debian/tmp ..
 cd ..
 
-testrun - -C main includedeb test troettroet_1.0-1_${FAKEARCHITECTURE}.deb 3<<EOF
+testrun - -C main includedeb test troettroet_1.0-1_abacus.deb 3<<EOF
 stderr
-*=Warning: database 'bla|main|${FAKEARCHITECTURE}' was modified but no index file was exported.
-*=Changes will only be visible after the next 'export'!
 stdout
-*=db: 'pool/main/p/package/troettroet_1.0-1_${FAKEARCHITECTURE}.deb' added to checksums.db(pool).
-*=db: 'troettroet' added to packages.db(bla|main|${FAKEARCHITECTURE}).
+$(ofa 'pool/main/p/package/troettroet_1.0-1_abacus.deb')
+*=db: 'troettroet' added to packages.db(bla|main|abacus).
 EOF
 
 testrun - build-needing test another 3<<EOF
 stdout
 *=package 1.0-1 pool/main/p/package/package_1.0-1.dsc
 EOF
-testrun - build-needing test $FAKEARCHITECTURE 3<<EOF
+testrun - build-needing test abacus 3<<EOF
 stdout
 EOF
 
@@ -168,7 +156,6 @@ cd ..
 
 testrun - -C main include test package_1.0-1_another.changes 3<<EOF
 stderr
-=Data seems not to be signed trying to use directly...
 *=Ignoring log file: 'package_1.0-1_another.log'!
 *=package_1.0-1_another.changes: Not enough files in .changes!
 -v0*=There have been errors!
@@ -179,13 +166,12 @@ sed -i -e 's/Tracking: all/Tracking: all includelogs/' conf/distributions
 
 testrun - -C main include test package_1.0-1_another.changes 3<<EOF
 stderr
-=Data seems not to be signed trying to use directly...
 stdout
-*=db: 'pool/main/p/package/package_1.0-1_another.log' added to checksums.db(pool).
+$(ofa 'pool/main/p/package/package_1.0-1_another.log')
 EOF
 
 testrun empty build-needing test another
-testrun empty build-needing test $FAKEARCHITECTURE
+testrun empty build-needing test abacus
 
 # TODO: add a new version of that package...
 rm -r package-1.0
@@ -200,7 +186,7 @@ Maintainer: me <me@example.org>
 Standards-Version: 0.0
 
 Package: onearch
-Architecture: $FAKEARCHITECTURE
+Architecture: abacus
 Description: some test-onlyonearch
  .
 END
@@ -224,36 +210,31 @@ rm -r onlyonearch-1.0
 
 testrun - --delete includedsc test onlyonearch_1.0-1.dsc 3<<EOF
 stderr
-=Data seems not to be signed trying to use directly...
 -v1*=onlyonearch_1.0-1.dsc: component guessed as 'main'
-*=Warning: database 'bla|main|source' was modified but no index file was exported.
-*=Changes will only be visible after the next 'export'!
 stdout
 -v2*=Created directory "./pool/main/o"
 -v2*=Created directory "./pool/main/o/onlyonearch"
--d1*=db: 'pool/main/o/onlyonearch/onlyonearch_1.0-1.dsc' added to checksums.db(pool).
--d1*=db: 'pool/main/o/onlyonearch/onlyonearch_1.0-1.tar.gz' added to checksums.db(pool).
+$(ofa 'pool/main/o/onlyonearch/onlyonearch_1.0-1.dsc')
+$(ofa 'pool/main/o/onlyonearch/onlyonearch_1.0-1.tar.gz')
 -d1*=db: 'onlyonearch' added to packages.db(bla|main|source).
 -d1*=db: 'onlyonearch' added to tracking.db(bla).
 EOF
 
 testrun empty build-needing test another
-testrun - build-needing test $FAKEARCHITECTURE 3<<EOF
+testrun - build-needing test abacus 3<<EOF
 stdout
 *=onlyonearch 1.0-1 pool/main/o/onlyonearch/onlyonearch_1.0-1.dsc
 EOF
 
-testrun - --delete -C main includedeb test onearch_1.0-1_${FAKEARCHITECTURE}.deb 3<<EOF
+testrun - --delete -C main includedeb test onearch_1.0-1_abacus.deb 3<<EOF
 stderr
-*=Warning: database 'bla|main|${FAKEARCHITECTURE}' was modified but no index file was exported.
-*=Changes will only be visible after the next 'export'!
 stdout
--d1*=db: 'pool/main/o/onlyonearch/onearch_1.0-1_${FAKEARCHITECTURE}.deb' added to checksums.db(pool).
--d1*=db: 'onearch' added to packages.db(bla|main|${FAKEARCHITECTURE}).
+$(ofa 'pool/main/o/onlyonearch/onearch_1.0-1_abacus.deb')
+-d1*=db: 'onearch' added to packages.db(bla|main|abacus).
 EOF
 
 testrun empty build-needing test another
-testrun empty build-needing test $FAKEARCHITECTURE
+testrun empty build-needing test abacus
 
 mkdir onlyarchall-1.0
 mkdir onlyarchall-1.0/debian
@@ -289,34 +270,28 @@ rm -r onlyarchall-1.0
 
 testrun - --delete includedsc test onlyarchall_1.0-1.dsc 3<<EOF
 stderr
-=Data seems not to be signed trying to use directly...
 -v1*=onlyarchall_1.0-1.dsc: component guessed as 'main'
-*=Warning: database 'bla|main|source' was modified but no index file was exported.
-*=Changes will only be visible after the next 'export'!
 stdout
 -v2*=Created directory "./pool/main/o/onlyarchall"
--d1*=db: 'pool/main/o/onlyarchall/onlyarchall_1.0-1.dsc' added to checksums.db(pool).
--d1*=db: 'pool/main/o/onlyarchall/onlyarchall_1.0-1.tar.gz' added to checksums.db(pool).
+$(ofa 'pool/main/o/onlyarchall/onlyarchall_1.0-1.dsc')
+$(ofa 'pool/main/o/onlyarchall/onlyarchall_1.0-1.tar.gz')
 -d1*=db: 'onlyarchall' added to packages.db(bla|main|source).
 -d1*=db: 'onlyarchall' added to tracking.db(bla).
 EOF
 
 testrun empty build-needing test another
-testrun empty build-needing test $FAKEARCHITECTURE
+testrun empty build-needing test abacus
 
 testrun - --delete -C main includedeb test archall_1.0-1_all.deb 3<<EOF
 stderr
-*=Warning: database 'bla|main|${FAKEARCHITECTURE}' was modified but no index file was exported.
-*=Warning: database 'bla|main|another' was modified but no index file was exported.
-*=Changes will only be visible after the next 'export'!
 stdout
--d1*=db: 'pool/main/o/onlyarchall/archall_1.0-1_all.deb' added to checksums.db(pool).
--d1*=db: 'archall' added to packages.db(bla|main|${FAKEARCHITECTURE}).
+$(ofa 'pool/main/o/onlyarchall/archall_1.0-1_all.deb')
+-d1*=db: 'archall' added to packages.db(bla|main|abacus).
 -d1*=db: 'archall' added to packages.db(bla|main|another).
 EOF
 
 testrun empty build-needing test another
-testrun empty build-needing test $FAKEARCHITECTURE
+testrun empty build-needing test abacus
 
 rm -r pool conf db *.deb *.log *.changes
 testsuccess
