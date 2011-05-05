@@ -545,8 +545,8 @@ touch pkg/a/b
 mkdir pkg/DEBIAN
 cat > pkg/DEBIAN/control <<EOF
 Package: indebname
-Version: 1:versionindeb~1
-Source: sourceindeb (sourceversionindeb)
+Version: 1:0versionindeb~1
+Source: sourceindeb (0sourceversionindeb)
 EOF
 dpkg-deb -b pkg i/debfilename_debfileversion~2_coal.deb
 DEBMD5="$(md5sum i/debfilename_debfileversion~2_coal.deb | cut -d' ' -f1)"
@@ -673,7 +673,7 @@ stderr
 *=In 'test.changes': Missing 'Version' field!
 -v0*=There have been errors!
 EOF
-echo "Version: 999:versioninchanges-0~" >> i/test.changes
+echo "Version: 999:0versioninchanges-0~" >> i/test.changes
 testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
@@ -825,14 +825,13 @@ sed -i -e 's/sourceinchanges/sourceindeb/' i/test.changes
 testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
-*=Source version '999:versioninchanges-0~' of 'test.changes' and source version 'sourceversionindeb' within the file 'indebname_debfileversion~2_all.deb' do not match!
+*=Source version '999:0versioninchanges-0~' of 'test.changes' and source version '0sourceversionindeb' within the file 'indebname_debfileversion~2_all.deb' do not match!
 -v0*=There have been errors!
 EOF
-sed -i -e 's/999:versioninchanges-0~/sourceversionindeb/' i/test.changes
+sed -i -e 's/999:0versioninchanges-0~/0sourceversionindeb/' i/test.changes
 testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
-=Warning: Package version 'sourceversionindeb' does not start with a digit, violating 'should'-directive in policy 5.6.11
 *=Name 'indebname' of binary 'indebname_debfileversion~2_all.deb' is not listed in Binaries header of 'test.changes'!
 -v0*=There have been errors!
 EOF
@@ -840,7 +839,6 @@ sed -i -e 's/binaryinchanges/indebname/' i/test.changes
 testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
-=Warning: Package version 'sourceversionindeb' does not start with a digit, violating 'should'-directive in policy 5.6.11
 *=No section found for 'indebname' ('indebname_debfileversion~2_all.deb' in 'test.changes')!
 -v0*=There have been errors!
 EOF
@@ -852,7 +850,6 @@ echo " $DEBMD5S - - indebname_debfileversion~2_all.deb" >> i/test.changes
 testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
-=Warning: Package version 'sourceversionindeb' does not start with a digit, violating 'should'-directive in policy 5.6.11
 *=No section found for 'indebname' ('indebname_debfileversion~2_all.deb' in 'test.changes')!
 -v0*=There have been errors!
 EOF
@@ -861,7 +858,6 @@ echo " $DEBMD5S test - indebname_debfileversion~2_all.deb" >> i/test.changes
 testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
-=Warning: Package version 'sourceversionindeb' does not start with a digit, violating 'should'-directive in policy 5.6.11
 *=No priority found for 'indebname' ('indebname_debfileversion~2_all.deb' in 'test.changes')!
 -v0*=There have been errors!
 EOF
@@ -873,7 +869,6 @@ echo " $DEBMD5S test - indebname_debfileversion~2_all.deb" >> i/test.changes
 testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
-=Warning: Package version 'sourceversionindeb' does not start with a digit, violating 'should'-directive in policy 5.6.11
 *=No priority found for 'indebname' ('indebname_debfileversion~2_all.deb' in 'test.changes')!
 -v0*=There have been errors!
 EOF
@@ -883,11 +878,10 @@ checknolog logfile
 testrun - -b . processincoming default 3<<EOF
 returns 0
 stderr
-=Warning: Package version 'sourceversionindeb' does not start with a digit, violating 'should'-directive in policy 5.6.11
 stdout
 -v2*=Created directory "./pool/dog/s"
 -v2*=Created directory "./pool/dog/s/sourceindeb"
-$(ofa 'pool/dog/s/sourceindeb/indebname_versionindeb~1_all.deb')
+$(ofa 'pool/dog/s/sourceindeb/indebname_0versionindeb~1_all.deb')
 -d1*=db: 'indebname' added to packages.db(A|dog|abacus).
 -d1*=db: 'indebname' added to packages.db(A|dog|calculator).
 -v3*=deleting './i/indebname_debfileversion~2_all.deb'...
@@ -901,11 +895,11 @@ $(ofa 'pool/dog/s/sourceindeb/indebname_versionindeb~1_all.deb')
 -v6*= looking for changes in 'A|dog|calculator'...
 EOF
 checklog logfile <<EOF
-DATESTR add A deb dog abacus indebname 1:versionindeb~1
-DATESTR add A deb dog calculator indebname 1:versionindeb~1
+DATESTR add A deb dog abacus indebname 1:0versionindeb~1
+DATESTR add A deb dog calculator indebname 1:0versionindeb~1
 EOF
 find pool/dog/s -type f > results
-echo "pool/dog/s/sourceindeb/indebname_versionindeb~1_all.deb" > results.expected
+echo "pool/dog/s/sourceindeb/indebname_0versionindeb~1_all.deb" > results.expected
 dodiff results.expected results
 
 touch i/dscfilename_fileversion~.dsc
@@ -915,7 +909,7 @@ Format: 1.8
 Source: sourceinchanges
 Binary: nothing
 Architecture: all
-Version: 1:versioninchanges
+Version: 1:0versioninchanges
 Distribution: A
 Files: 
  ffff 666 - - dscfilename_fileversion~.dsc
@@ -1001,7 +995,7 @@ stderr
 *=Missing 'Version' field in dscfilename_fileversion~.dsc!
 -v0*=There have been errors!
 EOF
-echo "Version: versionindsc" >> i/dscfilename_fileversion~.dsc
+echo "Version: 0versionindsc" >> i/dscfilename_fileversion~.dsc
 DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
 printf '$d\nw\nq\n' | ed -s i/test.changes
 echo " $DSCMD5S - - dscfilename_fileversion~.dsc" >> i/test.changes
@@ -1035,14 +1029,13 @@ sed -i 's/^Source: sourceinchanges$/Source: dscfilename/' i/test.changes
 testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
-*=Source version '1:versioninchanges' of 'test.changes' and version 'versionindsc' within the file 'dscfilename_fileversion~.dsc' do not match!
+*=Source version '1:0versioninchanges' of 'test.changes' and version '0versionindsc' within the file 'dscfilename_fileversion~.dsc' do not match!
 -v0*=There have been errors!
 EOF
-sed -i 's/^Version: 1:versioninchanges$/Version: versionindsc/' i/test.changes
+sed -i 's/^Version: 1:0versioninchanges$/Version: 0versionindsc/' i/test.changes
 testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
-=Warning: Package version 'versionindsc' does not start with a digit, violating 'should'-directive in policy 5.6.11
 *=No section found for 'dscfilename' ('dscfilename_fileversion~.dsc' in 'test.changes')!
 -v0*=There have been errors!
 EOF
@@ -1052,7 +1045,6 @@ echo " $DSCMD5S dummy - dscfilename_fileversion~.dsc" >> i/test.changes
 testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
-=Warning: Package version 'versionindsc' does not start with a digit, violating 'should'-directive in policy 5.6.11
 *=No priority found for 'dscfilename' ('dscfilename_fileversion~.dsc' in 'test.changes')!
 -v0*=There have been errors!
 EOF
@@ -1063,7 +1055,6 @@ echo " $DSCMD5S dummy can't-live-without dscfilename_fileversion~.dsc" >> i/test
 testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
-=Warning: Package version 'versionindsc' does not start with a digit, violating 'should'-directive in policy 5.6.11
 *=Cannot find 'Format' field in dscfilename_fileversion~.dsc!
 -v0*=There have been errors!
 EOF
@@ -1078,11 +1069,10 @@ checknolog logfile
 testrun - -b . processincoming default 3<<EOF
 returns 0
 stderr
-=Warning: Package version 'versionindsc' does not start with a digit, violating 'should'-directive in policy 5.6.11
 stdout
 -v2*=Created directory "./pool/dog/d"
 -v2*=Created directory "./pool/dog/d/dscfilename"
-$(ofa 'pool/dog/d/dscfilename/dscfilename_versionindsc.dsc')
+$(ofa 'pool/dog/d/dscfilename/dscfilename_0versionindsc.dsc')
 -d1*=db: 'dscfilename' added to packages.db(B|dog|source).
 -v3*=deleting './i/dscfilename_fileversion~.dsc'...
 -v3*=deleting './i/test.changes'...
@@ -1094,7 +1084,7 @@ $(ofa 'pool/dog/d/dscfilename/dscfilename_versionindsc.dsc')
 -v6*= looking for changes in 'B|cat|source'...
 EOF
 checklog logfile <<EOF
-DATESTR add B dsc dog source dscfilename versionindsc
+DATESTR add B dsc dog source dscfilename 0versionindsc
 EOF
 # TODO: check Sources.gz
 cat >i/strangefile <<EOF
@@ -1144,7 +1134,6 @@ echo " $DSCMD5S dummy unneeded dscfilename_fileversion~.dsc" >> i/test.changes
 testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
-=Warning: Package version 'versionindsc' does not start with a digit, violating 'should'-directive in policy 5.6.11
 *=file 'strangefile' is needed for 'dscfilename_fileversion~.dsc', not yet registered in the pool and not found in 'test.changes'
 -v0*=There have been errors!
 EOF
@@ -1211,8 +1200,8 @@ pool/dog/b/bird/bird-addons_1_all.deb
 pool/dog/b/bird/bird_1.dsc
 pool/dog/b/bird/bird_1.tar.gz
 pool/dog/b/bird/bird_1_abacus.deb
-pool/dog/d/dscfilename/dscfilename_versionindsc.dsc
-pool/dog/s/sourceindeb/indebname_versionindeb~1_all.deb
+pool/dog/d/dscfilename/dscfilename_0versionindsc.dsc
+pool/dog/s/sourceindeb/indebname_0versionindeb~1_all.deb
 EOF
 dodiff results.expected results
 find dists -type f | LC_ALL=C sort -f > results
@@ -1276,16 +1265,16 @@ Package: dscfilename
 Format: 1.0
 Maintainer: guess who <me@nowhere>
 Standards-Version: 0
-Version: versionindsc
+Version: 0versionindsc
 Priority: can't-live-without
 Section: dummy
 Directory: pool/dog/d/dscfilename
 Files: 
- $OLDDSCFILENAMEMD5S dscfilename_versionindsc.dsc
+ $OLDDSCFILENAMEMD5S dscfilename_0versionindsc.dsc
 Checksums-Sha1: 
- $OLDDSCFILENAMESHA1S dscfilename_versionindsc.dsc
+ $OLDDSCFILENAMESHA1S dscfilename_0versionindsc.dsc
 Checksums-Sha256: 
- $OLDDSCFILENAMESHA2S dscfilename_versionindsc.dsc
+ $OLDDSCFILENAMESHA2S dscfilename_0versionindsc.dsc
 
 EOF
 dodiff results.expected results
@@ -1313,10 +1302,10 @@ $(ofa 'pool/dog/d/dscfilename/strangefile_xyz')
 -v6*= looking for changes in 'B|cat|abacus'...
 -v6*= looking for changes in 'B|cat|source'...
 -v0*=Deleting files no longer referenced...
-$(ofd 'pool/dog/d/dscfilename/dscfilename_versionindsc.dsc')
+$(ofd 'pool/dog/d/dscfilename/dscfilename_0versionindsc.dsc')
 EOF
 checklog logfile <<EOF
-DATESTR replace B dsc dog source dscfilename 1:newversion~ versionindsc
+DATESTR replace B dsc dog source dscfilename 1:newversion~ 0versionindsc
 EOF
 
 find pool -type f | LC_ALL=C sort -f > results
@@ -1331,7 +1320,7 @@ pool/dog/b/bird/bird_1.tar.gz
 pool/dog/b/bird/bird_1_abacus.deb
 pool/dog/d/dscfilename/dscfilename_newversion~.dsc
 pool/dog/d/dscfilename/strangefile_xyz
-pool/dog/s/sourceindeb/indebname_versionindeb~1_all.deb
+pool/dog/s/sourceindeb/indebname_0versionindeb~1_all.deb
 EOF
 dodiff results.expected results
 find dists -type f | LC_ALL=C sort -f > results

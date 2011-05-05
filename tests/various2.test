@@ -1318,16 +1318,16 @@ testout "" -b . dumpunreferenced
 dodiff /dev/null results
 
 echo "now testing some error messages:"
-PACKAGE=4test EPOCH="1:" VERSION=b.1 REVISION="-1" SECTION="stupid/base" genpackage.sh
+PACKAGE=4test EPOCH="1:" VERSION=0b.1 REVISION="-1" SECTION="stupid/base" genpackage.sh
 testrun -  -b . include test1 test.changes 3<<EOF
 stdout
 -v2*=Created directory "./pool/stupid/4"
 -v2*=Created directory "./pool/stupid/4/4test"
-$(ofa 'pool/stupid/4/4test/4test-addons_b.1-1_all.deb')
-$(ofa 'pool/stupid/4/4test/4test_b.1-1_abacus.deb')
-$(ofa 'pool/stupid/4/4test/4test_b.1-1.tar.gz')
-$(ofa 'pool/stupid/4/4test/4test_b.1-1.dsc')
-$(ofa 'pool/stupid/4/4test/4test_1:b.1-1_source+abacus+all.changes')
+$(ofa 'pool/stupid/4/4test/4test-addons_0b.1-1_all.deb')
+$(ofa 'pool/stupid/4/4test/4test_0b.1-1_abacus.deb')
+$(ofa 'pool/stupid/4/4test/4test_0b.1-1.tar.gz')
+$(ofa 'pool/stupid/4/4test/4test_0b.1-1.dsc')
+$(ofa 'pool/stupid/4/4test/4test_1:0b.1-1_source+abacus+all.changes')
 -d1*=db: '4test-addons' added to packages.db(test1|stupid|abacus).
 -d1*=db: '4test' added to packages.db(test1|stupid|abacus).
 -d1*=db: '4test' added to packages.db(test1|stupid|source).
@@ -1341,9 +1341,9 @@ $(ofa 'pool/stupid/4/4test/4test_1:b.1-1_source+abacus+all.changes')
 -v6*= looking for changes in 'test1|ugly|source'...
 EOF
 checklog log1 <<EOF
-DATESTR add test1 deb stupid abacus 4test-addons 1:b.1-1
-DATESTR add test1 deb stupid abacus 4test 1:b.1-1
-DATESTR add test1 dsc stupid source 4test 1:b.1-1
+DATESTR add test1 deb stupid abacus 4test-addons 1:0b.1-1
+DATESTR add test1 deb stupid abacus 4test 1:0b.1-1
+DATESTR add test1 dsc stupid source 4test 1:0b.1-1
 EOF
 
 cat >includeerror.rules <<EOF
@@ -1369,13 +1369,13 @@ testout "" -b . dumptracks
 cat > results.expected <<EOF
 Distribution: test1
 Source: 4test
-Version: 1:b.1-1
+Version: 1:0b.1-1
 Files:
- pool/stupid/4/4test/4test-addons_b.1-1_all.deb a 1
- pool/stupid/4/4test/4test_b.1-1_abacus.deb b 1
- pool/stupid/4/4test/4test_b.1-1.dsc s 1
- pool/stupid/4/4test/4test_b.1-1.tar.gz s 1
- pool/stupid/4/4test/4test_1:b.1-1_source+abacus+all.changes c 0
+ pool/stupid/4/4test/4test-addons_0b.1-1_all.deb a 1
+ pool/stupid/4/4test/4test_0b.1-1_abacus.deb b 1
+ pool/stupid/4/4test/4test_0b.1-1.dsc s 1
+ pool/stupid/4/4test/4test_0b.1-1.tar.gz s 1
+ pool/stupid/4/4test/4test_1:0b.1-1_source+abacus+all.changes c 0
 
 Distribution: test1
 Source: bloat+-0a9z.app
@@ -1472,13 +1472,13 @@ testout "" -b . dumptracks
 cat > results.expected <<EOF
 Distribution: test1
 Source: 4test
-Version: 1:b.1-1
+Version: 1:0b.1-1
 Files:
- pool/stupid/4/4test/4test-addons_b.1-1_all.deb a 1
- pool/stupid/4/4test/4test_b.1-1_abacus.deb b 1
- pool/stupid/4/4test/4test_b.1-1.dsc s 1
- pool/stupid/4/4test/4test_b.1-1.tar.gz s 1
- pool/stupid/4/4test/4test_1:b.1-1_source+abacus+all.changes c 0
+ pool/stupid/4/4test/4test-addons_0b.1-1_all.deb a 1
+ pool/stupid/4/4test/4test_0b.1-1_abacus.deb b 1
+ pool/stupid/4/4test/4test_0b.1-1.dsc s 1
+ pool/stupid/4/4test/4test_0b.1-1.tar.gz s 1
+ pool/stupid/4/4test/4test_1:0b.1-1_source+abacus+all.changes c 0
 
 Distribution: test1
 Source: bloat+-0a9z.app
@@ -1536,7 +1536,7 @@ testrun -  -b . tidytracks 3<<EOF
 stdout
 -v0*=Looking for old tracks in test1...
 -v0*=Deleting files no longer referenced...
-$(ofd 'pool/stupid/4/4test/4test_1:b.1-1_source+abacus+all.changes')
+$(ofd 'pool/stupid/4/4test/4test_1:0b.1-1_source+abacus+all.changes')
 $(ofd 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:9.0-A:Z+a:z-0+aA.9zZ_source+abacus+all.changes')
 $(ofd 'pool/stupid/t/test/test_1-2_source+abacus+all.changes')
 $(ofd 'pool/stupid/t/testb/testb_1:2-3_source+abacus+all.changes')
@@ -1547,12 +1547,12 @@ testout "" -b . dumptracks
 cat > results.expected <<EOF
 Distribution: test1
 Source: 4test
-Version: 1:b.1-1
+Version: 1:0b.1-1
 Files:
- pool/stupid/4/4test/4test-addons_b.1-1_all.deb a 1
- pool/stupid/4/4test/4test_b.1-1_abacus.deb b 1
- pool/stupid/4/4test/4test_b.1-1.dsc s 1
- pool/stupid/4/4test/4test_b.1-1.tar.gz s 1
+ pool/stupid/4/4test/4test-addons_0b.1-1_all.deb a 1
+ pool/stupid/4/4test/4test_0b.1-1_abacus.deb b 1
+ pool/stupid/4/4test/4test_0b.1-1.dsc s 1
+ pool/stupid/4/4test/4test_0b.1-1.tar.gz s 1
 
 Distribution: test1
 Source: bloat+-0a9z.app
@@ -1621,13 +1621,13 @@ testout "" -b . dumptracks
 cat > results.expected <<EOF
 Distribution: test1
 Source: 4test
-Version: 1:b.1-1
+Version: 1:0b.1-1
 Files:
- pool/stupid/4/4test/4test-addons_b.1-1_all.deb a 1
- pool/stupid/4/4test/4test_b.1-1_abacus.deb b 1
- pool/stupid/4/4test/4test_b.1-1.dsc s 1
- pool/stupid/4/4test/4test_b.1-1.tar.gz s 1
- pool/stupid/4/4test/4test_1:b.1-1_source+abacus+all.changes c 0
+ pool/stupid/4/4test/4test-addons_0b.1-1_all.deb a 1
+ pool/stupid/4/4test/4test_0b.1-1_abacus.deb b 1
+ pool/stupid/4/4test/4test_0b.1-1.dsc s 1
+ pool/stupid/4/4test/4test_0b.1-1.tar.gz s 1
+ pool/stupid/4/4test/4test_1:0b.1-1_source+abacus+all.changes c 0
 
 Distribution: test1
 Source: bloat+-0a9z.app
@@ -1928,16 +1928,14 @@ testrun - -b . include test2 broken.changes 3<<EOF
 -v0*=There have been errors!
 returns 255
 EOF
-echo "Version: old" >> broken.changes
+echo "Version: 0old" >> broken.changes
 testrun - -b . include test2 broken.changes 3<<EOF
-=Warning: Package version 'old' does not start with a digit, violating 'should'-directive in policy 5.6.11
 *=In 'broken.changes': Missing 'Distribution' field
 -v0*=There have been errors!
 returns 255
 EOF
 echo "Distribution: old" >> broken.changes
 testrun - -b . include test2 broken.changes 3<<EOF
-=Warning: Package version 'old' does not start with a digit, violating 'should'-directive in policy 5.6.11
 *=In 'broken.changes': Missing 'Maintainer' field!
 =To ignore use --ignore=missingfield.
 -v0*=There have been errors!
@@ -1945,7 +1943,6 @@ returns 255
 EOF
 echo "Distribution: old" >> broken.changes
 testrun - -b . --ignore=missingfield include test2 broken.changes 3<<EOF
-=Warning: Package version 'old' does not start with a digit, violating 'should'-directive in policy 5.6.11
 *=In 'broken.changes': Missing 'Maintainer' field!
 =Ignoring as --ignore=missingfield given.
 *=In 'broken.changes': Missing 'Files' field!
@@ -1954,7 +1951,6 @@ returns 255
 EOF
 echo "Files:" >> broken.changes
 testrun - -b . --ignore=missingfield include test2 broken.changes 3<<EOF
-=Warning: Package version 'old' does not start with a digit, violating 'should'-directive in policy 5.6.11
 *=In 'broken.changes': Missing 'Maintainer' field!
 *=broken.changes: Not enough files in .changes!
 =Ignoring as --ignore=missingfield given.
@@ -1965,13 +1961,11 @@ testout "" -b . dumpunreferenced
 dodiff /dev/null results
 echo " $EMPTYMD5 section priority filename_version.tar.gz" >> broken.changes
 testrun - -b . --ignore=missingfield include test2 broken.changes 3<<EOF
-=Warning: Package version 'old' does not start with a digit, violating 'should'-directive in policy 5.6.11
 =In 'broken.changes': Missing 'Maintainer' field!
 =Ignoring as --ignore=missingfield given.
 *=Warning: File 'filename_version.tar.gz' looks like source but does not start with 'nowhere_'!
 =I hope you know what you do.
 # grr, this message has really to improve...
-=Warning: Package version 'version.tar.gz' does not start with a digit, violating 'should'-directive in policy 5.6.11
 *=.changes put in a distribution not listed within it!
 =To ignore use --ignore=wrongdistribution.
 -v0*=There have been errors!
@@ -1985,7 +1979,6 @@ Architectures: brain
 Components: test
 EOF
 testrun - -b . --ignore=unusedarch --ignore=surprisingarch --ignore=wrongdistribution --ignore=missingfield include test2 broken.changes 3<<EOF
-=Warning: Package version 'old' does not start with a digit, violating 'should'-directive in policy 5.6.11
 =Ignoring as --ignore=missingfield given.
 =In 'broken.changes': Missing 'Maintainer' field!
 =Warning: File 'filename_version.tar.gz' looks like source but does not start with 'nowhere_'!
@@ -1997,11 +1990,10 @@ testrun - -b . --ignore=unusedarch --ignore=surprisingarch --ignore=wrongdistrib
 returns 255
 EOF
 
-echo " $EMPTYMD5 section priority nowhere_old.dsc" >> broken.changes
-touch nowhere_old.dsc
+echo " $EMPTYMD5 section priority nowhere_0old.dsc" >> broken.changes
+touch nowhere_0old.dsc
 
 testrun - -b . --ignore=unusedarch --ignore=surprisingarch --ignore=wrongdistribution --ignore=missingfield include test2 broken.changes 3<<EOF
-=Warning: Package version 'old' does not start with a digit, violating 'should'-directive in policy 5.6.11
 =Ignoring as --ignore=missingfield given.
 =In 'broken.changes': Missing 'Maintainer' field!
 =Warning: File 'filename_version.tar.gz' looks like source but does not start with 'nowhere_'!
@@ -2011,7 +2003,7 @@ testrun - -b . --ignore=unusedarch --ignore=surprisingarch --ignore=wrongdistrib
 *=Architecture header lists architecture 'brain', but no files for it!
 *=Ignoring as --ignore=unusedarch given.
 *='filename_version.tar.gz' looks like architecture 'source', but this is not listed in the Architecture-Header!
-*='nowhere_old.dsc' looks like architecture 'source', but this is not listed in the Architecture-Header!
+*='nowhere_0old.dsc' looks like architecture 'source', but this is not listed in the Architecture-Header!
 *=Ignoring as --ignore=surprisingarch given.
 *=Cannot find file './filename_version.tar.gz' needed by 'broken.changes'!
 -v0*=There have been errors!
@@ -2020,38 +2012,37 @@ EOF
 
 touch filename_version.tar.gz
 testrun - -b . --ignore=unusedarch --ignore=surprisingarch --ignore=wrongdistribution --ignore=missingfield include test2 broken.changes 3<<EOF
-=Warning: Package version 'old' does not start with a digit, violating 'should'-directive in policy 5.6.11
 =Ignoring as --ignore=missingfield given.
 =In 'broken.changes': Missing 'Maintainer' field!
 =Warning: File 'filename_version.tar.gz' looks like source but does not start with 'nowhere_'!
-=Warning: File 'nowhere_old.dsc' looks like source but does not start with 'nowhere_'!
-=Warning: File 'nowhere_old.dsc' looks like source but does not start with 'nowhere_'!
+=Warning: File 'nowhere_0old.dsc' looks like source but does not start with 'nowhere_'!
+=Warning: File 'nowhere_0old.dsc' looks like source but does not start with 'nowhere_'!
 =I hope you know what you do.
 *=.changes put in a distribution not listed within it!
 *=Ignoring as --ignore=wrongdistribution given.
 *=Architecture header lists architecture 'brain', but no files for it!
 *=Ignoring as --ignore=unusedarch given.
 *='filename_version.tar.gz' looks like architecture 'source', but this is not listed in the Architecture-Header!
-*='nowhere_old.dsc' looks like architecture 'source', but this is not listed in the Architecture-Header!
+*='nowhere_0old.dsc' looks like architecture 'source', but this is not listed in the Architecture-Header!
 *=Ignoring as --ignore=surprisingarch given.
 stdout
 -v2*=Created directory "./pool/stupid/n"
 -v2*=Created directory "./pool/stupid/n/nowhere"
 $(ofa 'pool/stupid/n/nowhere/filename_version.tar.gz')
-$(ofa 'pool/stupid/n/nowhere/nowhere_old.dsc')
+$(ofa 'pool/stupid/n/nowhere/nowhere_0old.dsc')
 stderr
-*=Unexpected empty file './pool/stupid/n/nowhere/nowhere_old.dsc'!
+*=Unexpected empty file './pool/stupid/n/nowhere/nowhere_0old.dsc'!
 -v0*=There have been errors!
 returns 255
 stdout
 -v0*=Deleting files just added to the pool but not used.
 -v0*=(to avoid use --keepunusednewfiles next time)
 $(ofd 'pool/stupid/n/nowhere/filename_version.tar.gz')
-$(ofd 'pool/stupid/n/nowhere/nowhere_old.dsc')
+$(ofd 'pool/stupid/n/nowhere/nowhere_0old.dsc')
 -v2*=removed now empty directory ./pool/stupid/n/nowhere
 -v2*=removed now empty directory ./pool/stupid/n
 EOF
-rm nowhere_old.dsc
+rm nowhere_0old.dsc
 mv conf/distributions.old conf/distributions
 testrun - -b . clearvanished 3<<EOF
 stderr
@@ -2163,61 +2154,59 @@ Changes: missing
 Binary: none and nothing
 Distribution: test2
 Files: 
- `md5sum 4test_b.1-1.dsc| cut -d" " -f 1` `stat -c%s 4test_b.1-1.dsc` a b differently_0another.dsc
- `md5sum 4test_b.1-1_abacus.deb| cut -d" " -f 1` `stat -c%s 4test_b.1-1_abacus.deb` a b 4test_b.1-1_abacus.deb
+ `md5sum 4test_0b.1-1.dsc| cut -d" " -f 1` `stat -c%s 4test_0b.1-1.dsc` a b differently_0another.dsc
+ `md5sum 4test_0b.1-1_abacus.deb| cut -d" " -f 1` `stat -c%s 4test_0b.1-1_abacus.deb` a b 4test_0b.1-1_abacus.deb
 EOF
 #todo: make it work without this..
-cp 4test_b.1-1.dsc differently_0another.dsc
+cp 4test_0b.1-1.dsc differently_0another.dsc
 testrun - -b . include test2 broken.changes 3<<EOF
-=Warning: Package version 'b.1-1.dsc' does not start with a digit, violating 'should'-directive in policy 5.6.11
 =Looks like source but does not start with 'differently_' as I would have guessed!
 =I hope you know what you do.
-=Warning: Package version 'b.1-1_abacus.deb' does not start with a digit, violating 'should'-directive in policy 5.6.11
 *=I don't know what to do having a .dsc without a .diff.gz or .tar.gz in 'broken.changes'!
 -v0*=There have been errors!
 returns 255
 EOF
 cat >> broken.changes <<EOF
- `md5sum 4test_b.1-1.tar.gz| cut -d" " -f 1` `stat -c%s 4test_b.1-1.tar.gz` a b 4test_b.1-1.tar.gz
+ `md5sum 4test_0b.1-1.tar.gz| cut -d" " -f 1` `stat -c%s 4test_0b.1-1.tar.gz` a b 4test_0b.1-1.tar.gz
 EOF
 testrun - -b . include test2 broken.changes 3<<EOF
-*=Warning: File '4test_b.1-1.tar.gz' looks like source but does not start with 'differently_'!
+*=Warning: File '4test_0b.1-1.tar.gz' looks like source but does not start with 'differently_'!
 =I hope you know what you do.
-*='./pool/stupid/d/differently/4test_b.1-1_abacus.deb' has packagename '4test' not listed in the .changes file!
+*='./pool/stupid/d/differently/4test_0b.1-1_abacus.deb' has packagename '4test' not listed in the .changes file!
 *=To ignore use --ignore=surprisingbinary.
 -v0*=There have been errors!
 stdout
 -v2*=Created directory "./pool/stupid/d"
 -v2*=Created directory "./pool/stupid/d/differently"
-$(ofa 'pool/stupid/d/differently/4test_b.1-1.tar.gz')
-$(ofa 'pool/stupid/d/differently/4test_b.1-1_abacus.deb')
+$(ofa 'pool/stupid/d/differently/4test_0b.1-1.tar.gz')
+$(ofa 'pool/stupid/d/differently/4test_0b.1-1_abacus.deb')
 $(ofa 'pool/stupid/d/differently/differently_0another.dsc')
 -v0*=Deleting files just added to the pool but not used.
 -v0*=(to avoid use --keepunusednewfiles next time)
-$(ofd 'pool/stupid/d/differently/4test_b.1-1.tar.gz')
-$(ofd 'pool/stupid/d/differently/4test_b.1-1_abacus.deb')
+$(ofd 'pool/stupid/d/differently/4test_0b.1-1.tar.gz')
+$(ofd 'pool/stupid/d/differently/4test_0b.1-1_abacus.deb')
 $(ofd 'pool/stupid/d/differently/differently_0another.dsc')
 -v2*=removed now empty directory ./pool/stupid/d/differently
 -v2*=removed now empty directory ./pool/stupid/d
 returns 255
 EOF
 testrun - -b . --ignore=surprisingbinary include test2 broken.changes 3<<EOF
-*=Warning: File '4test_b.1-1.tar.gz' looks like source but does not start with 'differently_'!
+*=Warning: File '4test_0b.1-1.tar.gz' looks like source but does not start with 'differently_'!
 =I hope you know what you do.
-*='./pool/stupid/d/differently/4test_b.1-1_abacus.deb' has packagename '4test' not listed in the .changes file!
+*='./pool/stupid/d/differently/4test_0b.1-1_abacus.deb' has packagename '4test' not listed in the .changes file!
 *=Ignoring as --ignore=surprisingbinary given.
-*='./pool/stupid/d/differently/4test_b.1-1_abacus.deb' lists source package '4test', but .changes says it is 'differently'!
+*='./pool/stupid/d/differently/4test_0b.1-1_abacus.deb' lists source package '4test', but .changes says it is 'differently'!
 -v0*=There have been errors!
 stdout
 -v2*=Created directory "./pool/stupid/d"
 -v2*=Created directory "./pool/stupid/d/differently"
-$(ofa 'pool/stupid/d/differently/4test_b.1-1.tar.gz')
-$(ofa 'pool/stupid/d/differently/4test_b.1-1_abacus.deb')
+$(ofa 'pool/stupid/d/differently/4test_0b.1-1.tar.gz')
+$(ofa 'pool/stupid/d/differently/4test_0b.1-1_abacus.deb')
 $(ofa 'pool/stupid/d/differently/differently_0another.dsc')
 -v0*=Deleting files just added to the pool but not used.
 -v0*=(to avoid use --keepunusednewfiles next time)
-$(ofd 'pool/stupid/d/differently/4test_b.1-1.tar.gz')
-$(ofd 'pool/stupid/d/differently/4test_b.1-1_abacus.deb')
+$(ofd 'pool/stupid/d/differently/4test_0b.1-1.tar.gz')
+$(ofd 'pool/stupid/d/differently/4test_0b.1-1_abacus.deb')
 $(ofd 'pool/stupid/d/differently/differently_0another.dsc')
 -v2*=removed now empty directory ./pool/stupid/d/differently
 -v2*=removed now empty directory ./pool/stupid/d
@@ -2236,14 +2225,13 @@ Changes: missing
 Binary: 4test
 Distribution: test2
 Files: 
- `md5sum 4test_b.1-1.dsc| cut -d" " -f 1` `stat -c%s 4test_b.1-1.dsc` a b 4test_0orso.dsc
- `md5sum 4test_b.1-1_abacus.deb| cut -d" " -f 1` `stat -c%s 4test_b.1-1_abacus.deb` a b 4test_b.1-1_abacus.deb
- `md5sum 4test_b.1-1.tar.gz| cut -d" " -f 1` `stat -c%s 4test_b.1-1.tar.gz` a b 4test_b.1-1.tar.gz
+ `md5sum 4test_0b.1-1.dsc| cut -d" " -f 1` `stat -c%s 4test_0b.1-1.dsc` a b 4test_0orso.dsc
+ `md5sum 4test_0b.1-1_abacus.deb| cut -d" " -f 1` `stat -c%s 4test_0b.1-1_abacus.deb` a b 4test_0b.1-1_abacus.deb
+ `md5sum 4test_0b.1-1.tar.gz| cut -d" " -f 1` `stat -c%s 4test_0b.1-1.tar.gz` a b 4test_0b.1-1.tar.gz
 EOF
-cp 4test_b.1-1.dsc 4test_0orso.dsc
+cp 4test_0b.1-1.dsc 4test_0orso.dsc
 testrun - -b . include test2 broken.changes 3<<EOF
-=Warning: Package version 'b.1-1_abacus.deb' does not start with a digit, violating 'should'-directive in policy 5.6.11
-*='./pool/stupid/4/4test/4test_b.1-1_abacus.deb' lists source version '1:b.1-1', but .changes says it is '0orso'!
+*='./pool/stupid/4/4test/4test_0b.1-1_abacus.deb' lists source version '1:0b.1-1', but .changes says it is '0orso'!
 *=To ignore use --ignore=wrongsourceversion.
 -v0*=There have been errors!
 stdout
@@ -2254,9 +2242,9 @@ $(ofd 'pool/stupid/4/4test/4test_0orso.dsc')
 returns 255
 EOF
 testrun - -b . --ignore=wrongsourceversion include test2 broken.changes 3<<EOF
-*='./pool/stupid/4/4test/4test_b.1-1_abacus.deb' lists source version '1:b.1-1', but .changes says it is '0orso'!
+*='./pool/stupid/4/4test/4test_0b.1-1_abacus.deb' lists source version '1:0b.1-1', but .changes says it is '0orso'!
 *=Ignoring as --ignore=wrongsourceversion given.
-*='4test_0orso.dsc' says it is version '1:b.1-1', while .changes file said it is '0orso'
+*='4test_0orso.dsc' says it is version '1:0b.1-1', while .changes file said it is '0orso'
 *=To ignore use --ignore=wrongversion.
 -v0*=There have been errors!
 stdout
@@ -2269,9 +2257,9 @@ EOF
 checknolog log1
 checknolog log2
 testrun - -b . --ignore=wrongsourceversion --ignore=wrongversion include test2 broken.changes 3<<EOF
-*='./pool/stupid/4/4test/4test_b.1-1_abacus.deb' lists source version '1:b.1-1', but .changes says it is '0orso'!
+*='./pool/stupid/4/4test/4test_0b.1-1_abacus.deb' lists source version '1:0b.1-1', but .changes says it is '0orso'!
 *=Ignoring as --ignore=wrongsourceversion given.
-*='4test_0orso.dsc' says it is version '1:b.1-1', while .changes file said it is '0orso'
+*='4test_0orso.dsc' says it is version '1:0b.1-1', while .changes file said it is '0orso'
 *=Ignoring as --ignore=wrongversion given.
 stdout
 $(ofa 'pool/stupid/4/4test/4test_0orso.dsc')
@@ -2294,8 +2282,8 @@ $(ofa 'pool/stupid/4/4test/4test_0orso.dsc')
 *=testhook got 4: './dists/test2' 'ugly/source/Sources.new' 'ugly/source/Sources' 'old'
 EOF
 checklog log2 <<EOF
-DATESTR add test2 deb stupid abacus 4test 1:b.1-1
-DATESTR add test2 dsc stupid source 4test 1:b.1-1
+DATESTR add test2 deb stupid abacus 4test 1:0b.1-1
+DATESTR add test2 dsc stupid source 4test 1:0b.1-1
 EOF
 testrun - -b . remove test2 4test 3<<EOF
 stdout
@@ -2322,8 +2310,8 @@ $(ofd 'pool/stupid/4/4test/4test_0orso.dsc')
 *=testhook got 4: './dists/test2' 'ugly/source/Sources.new' 'ugly/source/Sources' 'old'
 EOF
 checklog log2 <<EOF
-DATESTR remove test2 deb stupid abacus 4test 1:b.1-1
-DATESTR remove test2 dsc stupid source 4test 1:b.1-1
+DATESTR remove test2 deb stupid abacus 4test 1:0b.1-1
+DATESTR remove test2 dsc stupid source 4test 1:0b.1-1
 EOF
 testout "" -b . dumpunreferenced
 dodiff /dev/null results
@@ -2356,10 +2344,10 @@ stdout
 *=Deleting vanished identifier 'test2|ugly|source'.
 *=Deleting tracking data for vanished distribution 'test1'.
 -v0*=Deleting files no longer referenced...
-$(ofd 'pool/stupid/4/4test/4test-addons_b.1-1_all.deb')
-$(ofd 'pool/stupid/4/4test/4test_b.1-1_abacus.deb')
-$(ofd 'pool/stupid/4/4test/4test_b.1-1.dsc')
-$(ofd 'pool/stupid/4/4test/4test_b.1-1.tar.gz')
+$(ofd 'pool/stupid/4/4test/4test-addons_0b.1-1_all.deb')
+$(ofd 'pool/stupid/4/4test/4test_0b.1-1_abacus.deb')
+$(ofd 'pool/stupid/4/4test/4test_0b.1-1.dsc')
+$(ofd 'pool/stupid/4/4test/4test_0b.1-1.tar.gz')
 $(ofd 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_9.0-A:Z+a:z-0+aA.9zZ_all.deb')
 $(ofd 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ_abacus.deb')
 $(ofd 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.dsc')
