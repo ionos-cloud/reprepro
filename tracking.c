@@ -943,6 +943,7 @@ static inline retvalue trackedpackage_removeall(trackingdb tracks, struct tracke
 
 	pkg->flags.deleted = true;
 	r = references_delete(id, &pkg->filekeys, NULL);
+	RET_UPDATE(result, r);
 	free(id);
 	strlist_done(&pkg->filekeys);
 	strlist_init(&pkg->filekeys);
