@@ -671,6 +671,15 @@ size_t chunk_extract(char *buffer, const char *start, char **next) {
 	while (*startofchanges == ' ' || *startofchanges == '\t' ||
 			*startofchanges == '\r' || *startofchanges =='\n')
 		startofchanges++;
+	/* ignore leading comments (even full paragraphs of them) */
+	while (*startofchanges == '#') {
+		while (*startofchanges != '\n')
+			startofchanges++;
+		while (*startofchanges == ' ' || *startofchanges == '\t' ||
+				*startofchanges == '\r' ||
+				*startofchanges =='\n')
+			startofchanges++;
+	}
 
 	endofchanges = startofchanges;
 	afterchanges = NULL;
