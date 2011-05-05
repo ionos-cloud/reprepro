@@ -334,6 +334,7 @@ retvalue database_listsubtables(const char *filename, struct strlist *result) {
 			strlist_done(&ids);
 			return r;
 		}
+		ret = RET_OK;
 		CLEARDBT(key);
 		CLEARDBT(data);
 	}
@@ -358,7 +359,7 @@ retvalue database_listsubtables(const char *filename, struct strlist *result) {
 		return RET_DBERR(dbret);
 	} else {
 		strlist_move(result, &ids);
-		return RET_OK;
+		return ret;
 	}
 }
 
