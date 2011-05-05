@@ -894,16 +894,16 @@ retvalue database_create(struct distribution *alldistributions, bool fast, bool 
 			database_close();
 			return r;
 		}
-		if (RET_IS_OK(r)) {
-			r = warnidentifers(&identifiers,
-					alldistributions, readonly);
-			if (RET_WAS_ERROR(r)) {
-				strlist_done(&identifiers);
-				database_close();
-				return r;
-			}
+		if (r == RET_NOTHING)
+			strlist_init(&identifiers);
+		r = warnidentifers(&identifiers,
+				alldistributions, readonly);
+		if (RET_WAS_ERROR(r)) {
 			strlist_done(&identifiers);
+			database_close();
+			return r;
 		}
+		strlist_done(&identifiers);
 	}
 	if (!allowunused && !fast && trackingfileexists)  {
 		struct strlist codenames;
