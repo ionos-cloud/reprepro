@@ -28,6 +28,7 @@
 #include <signal.h>
 #include <dirent.h>
 #include <time.h>
+#include <sys/stat.h>
 #include "error.h"
 #include "ignore.h"
 #include "mprintf.h"
