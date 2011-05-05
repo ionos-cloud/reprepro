@@ -1,5 +1,6 @@
-Updates between 4.5.1 and 4.5.2:
+Updates between 4.5.1 and 4.6.0:
 - add 'FilterSrcList' for update and pull
+- ignore leading comments in control files
 
 Updates between 4.5.0 and 4.5.1:
 - 'check' also checks if architectures match
