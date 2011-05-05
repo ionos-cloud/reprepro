@@ -1058,7 +1058,7 @@ static retvalue addorigintotarget(struct update_origin *origin, struct target *t
 
 static retvalue addflatorigintotarget(struct update_origin *origin, struct target *target, struct update_target *updatetargets) {
 	const struct update_pattern *p;
-	const struct strlist *a_from, *a_into;
+	const struct strlist *a_into;
 	const struct encoding_preferences *downloadlistsas;
 	int ai;
 
@@ -1108,7 +1108,6 @@ static retvalue addflatorigintotarget(struct update_origin *origin, struct targe
 		return RET_OK;
 	}
 
-	a_from = &p->architectures_from;
 	a_into = &p->architectures_into;
 
 	for (ai = 0 ; ai < a_into->count ; ai++) {

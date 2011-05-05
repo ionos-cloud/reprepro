@@ -404,10 +404,7 @@ static retvalue generatepulltarget(struct pull_distribution *pd, struct target *
 static retvalue pull_generatetargets(struct pull_distribution *pull_distributions) {
 	struct pull_distribution *pd;
 	struct target *target;
-	struct pull_distribution *u_ds;
 	retvalue r;
-
-	u_ds = NULL;
 
 	for (pd = pull_distributions ; pd != NULL ; pd = pd->next) {
 		for (target = pd->distribution->targets ; target != NULL ;

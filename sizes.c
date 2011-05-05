@@ -69,7 +69,7 @@ static retvalue count_sizes(struct cursor *cursor, bool specific, struct distrib
 	size_t len;
 	char *last_file = NULL;
 	unsigned long long filesize = 0;
-	bool usedotherwise = false, onlyone = true;
+	bool onlyone = true;
 	struct distribution_sizes *last_dist;
 	struct distribution_sizes *s;
 	bool snapshot;
@@ -90,7 +90,6 @@ static retvalue count_sizes(struct cursor *cursor, bool specific, struct distrib
 				return RET_ERROR_OOM;
 			onlyone = true;
 			filesize = 0;
-			usedotherwise = false;
 			last_dist = NULL;
 		}
 		if (data[0] == 'u' && data[1] == '|') {

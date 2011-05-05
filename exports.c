@@ -81,7 +81,6 @@ static const char *exportdescription(const struct exportmode *mode, char *buffer
 		for (i = 0 ; i < mode->hooks.count ; i++) {
 			const char *hook = dirs_basename(mode->hooks.values[i]);
 			size_t l = strlen(hook);
-			left = buffersize - 2 - (mode->hooks.count - i - 1);
 
 			if (buffersize < 6) {
 				needellipsis = true;

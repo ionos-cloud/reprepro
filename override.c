@@ -228,7 +228,6 @@ static retvalue add_override(struct overridefile *i, const char *firstpart, cons
 
 retvalue override_read(const char *filename, struct overridefile **info, bool source) {
 	struct overridefile *i;
-	struct overridepattern **next_pattern;
 	FILE *file;
 	char buffer[1001];
 
@@ -256,7 +255,6 @@ retvalue override_read(const char *filename, struct overridefile **info, bool so
 		(void)fclose(file);
 		return RET_ERROR_OOM;
 	}
-	next_pattern = &i->patterns;
 
 	while (fgets(buffer, 1000, file) != NULL){
 		retvalue r;

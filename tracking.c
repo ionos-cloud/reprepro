@@ -356,7 +356,6 @@ retvalue tracking_get(trackingdb t, const char *sourcename, const char *version,
 
 	assert (pkg != NULL && sourcename != NULL && version != NULL);
 
-	versionlen = strlen(version);
 	r = table_getpair(t->table, sourcename, version, &data, &datalen);
 	if (!RET_IS_OK(r))
 		return r;

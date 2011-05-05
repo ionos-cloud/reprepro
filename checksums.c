@@ -259,7 +259,7 @@ retvalue checksums_initialize(struct checksums **checksums_p, const struct hash_
 	return RET_OK;
 }
 
-retvalue checksums_setall(/*@out@*/struct checksums **checksums_p, const char *combinedchecksum, size_t len) {
+retvalue checksums_setall(/*@out@*/struct checksums **checksums_p, const char *combinedchecksum, UNUSED(size_t len)) {
 	// This comes from our database, so it surely well formed
 	// (as alreadyassumed above), so this should be possible to
 	// do faster than that...

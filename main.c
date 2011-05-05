@@ -3847,9 +3847,9 @@ static retvalue callaction(command_t command, const struct action *action, int a
 	struct distribution *alldistributions = NULL;
 	bool deletederef, deletenew;
 	int needs;
-	struct atomlist as, *architectures;
-	struct atomlist cs, *components;
-	struct atomlist ps, *packagetypes;
+	struct atomlist as, *architectures = NULL;
+	struct atomlist cs, *components = NULL;
+	struct atomlist ps, *packagetypes = NULL;
 
 	assert(action != NULL);
 
@@ -3952,7 +3952,6 @@ static retvalue callaction(command_t command, const struct action *action, int a
 			architectures = &as;
 		} else {
 			atomlist_init(&as);
-			architectures = NULL;
 		}
 		if (x_component != NULL) {
 			r = atomlist_filllist(at_component, &cs,
@@ -3971,7 +3970,6 @@ static retvalue callaction(command_t command, const struct action *action, int a
 			components = &cs;
 		} else {
 			atomlist_init(&cs);
-			components = NULL;
 		}
 		if (x_packagetype != NULL) {
 			r = atomlist_filllist(at_packagetype, &ps,
@@ -3990,7 +3988,6 @@ static retvalue callaction(command_t command, const struct action *action, int a
 			packagetypes = &ps;
 		} else {
 			atomlist_init(&ps);
-			packagetypes = NULL;
 		}
 		if (ps.count == 1 && ps.atoms[0] == pt_dsc &&
 				limitations_missed(architectures,

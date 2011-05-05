@@ -1474,7 +1474,7 @@ static retvalue verify(const char *changesfilename, struct changes *changes) {
 	printf("Checking Source packages...\n");
 	for (file = changes->files; file != NULL ; file = file->next) {
 		const char *name, *version, *p;
-		size_t namelen, versionlen, l;
+		size_t namelen IFSTUPIDCC(=0), versionlen IFSTUPIDCC(=0), l;
 		bool has_tar, has_diff, has_orig, has_format_tar;
 		int i;
 

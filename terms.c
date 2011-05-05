@@ -268,7 +268,6 @@ retvalue term_compile(term **term_p, const char *origformula, int options, const
 	retvalue r;
 	int i;
 	//TODO: ???
-	int atbeginning = 1;
 	char junction = '\0';
 
 	if (ISSET(options, T_ARCHITECTURES)) {
@@ -351,7 +350,6 @@ retvalue term_compile(term **term_p, const char *origformula, int options, const
 				term_free(first);
 				return RET_ERROR;
 			}
-			atbeginning = 1;
 			overspace();
 		}
 		overspace();

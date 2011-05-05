@@ -245,11 +245,10 @@ ssize_t ar_archivemember_read(struct archive *a, void *d, const void **p) {
 	*p = ar->readbuffer;
 	bytesread = uncompress_read(ar->member, ar->readbuffer, BLOCKSIZE);
 	if (bytesread < 0) {
-		retvalue r;
 		const char *msg;
 		int e;
 
-		r = uncompress_fdclose(ar->member, &e, &msg);
+		(void)uncompress_fdclose(ar->member, &e, &msg);
 		ar->member = NULL;
 		archive_set_error(a, e, msg);
 		return -1;
