@@ -184,6 +184,7 @@ runtest() {
 if test x"$testtorun" != x"all" ; then
 	runtest "$testtorun"
 else
+	runtest easyupdate
 	runtest srcfilterlist
 	runtest uploaders
 	runtest wrongarch
