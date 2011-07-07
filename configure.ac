@@ -8,12 +8,12 @@ AC_CONFIG_AUX_DIR(ac)
 AM_INIT_AUTOMAKE([-Wall -Werror -Wno-portability])
 AM_CONFIG_HEADER(config.h)
 
-AM_MAINTAINER_MODE
-AC_GNU_SOURCE
-
-if test "${CFLAGS:+set}" != set ; then
+if test "${CFLAGS+set}" != set ; then
 	CFLAGS="-Wall -O2 -g -Wmissing-prototypes -Wstrict-prototypes -Wshadow"
 fi
+
+AM_MAINTAINER_MODE
+AC_GNU_SOURCE
 
 AC_PROG_CC_C99
 AC_PROG_INSTALL
