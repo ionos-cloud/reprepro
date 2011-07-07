@@ -143,6 +143,9 @@ mkdir "$WORKDIR" || exit 1
 echo "Remove this file to avoid silent removal" > "$WORKDIR"/ThisDirectoryWillBeDeleted
 cd "$WORKDIR"
 
+# dpkg-deb doesn't like too restrictive directories
+umask 022
+
 number_tests=0
 number_missing=0
 number_success=0
