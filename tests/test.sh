@@ -95,9 +95,9 @@ if [ -z "$TESTOPTIONS" ] ; then
 	if [ -z "$USE_VALGRIND" ] ; then
 		TESTOPTIONS="-e -a"
 	elif [ -z "$VALGRIND_SUP" ] ; then
-		TESTOPTIONS="-e -a --debug --leak-check=full --suppressions=$TESTSDIR/valgrind.supp"
+		TESTOPTIONS="-e -a --debug --leak-check=full --gen-suppressions=all --suppressions=$TESTSDIR/valgrind.supp"
 	else
-		TESTOPTIONS="-e -a --debug --leak-check=full --suppressions=$VALGRIND_SUP"
+		TESTOPTIONS="-e -a --debug --leak-check=full --gen-suppressions=all --suppressions=$VALGRIND_SUP"
 	fi
 fi
 case "$verbosity" in
