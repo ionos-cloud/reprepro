@@ -1,4 +1,39 @@
 {
+   libz-not-initializing-buffer
+   Memcheck:Cond
+   fun:inflateReset2
+   fun:inflateInit2_
+   obj:/usr/lib*/libz.so.*
+}
+{
+   careless-libdb5
+   Memcheck:Param
+   pwrite64(buf)
+   fun:__pwrite_nocancel
+   fun:__os_io
+   obj:/usr/lib*/libdb-5*.so
+   fun:__memp_bhwrite
+   fun:__memp_sync_int
+}
+{
+   careless-libdb48
+   Memcheck:Param
+   pwrite64(buf)
+   fun:__pwrite_nocancel
+   fun:__os_io
+   obj:/usr/lib/libdb-4*.so
+   fun:__memp_bhwrite
+   fun:__memp_sync_int
+}
+{
+   more-careless-libdb5
+   Memcheck:Cond
+   fun:__bam_stkrel
+   obj:/usr/lib*/libdb-5*.so
+   fun:__dbc_iput
+   fun:__db_put
+}
+{
    stupid-db4.6
    Memcheck:Param
    pwrite64(buf)
