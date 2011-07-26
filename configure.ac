@@ -21,7 +21,7 @@ AC_SYS_LARGEFILE
 
 AC_C_BIGENDIAN()
 AC_HEADER_STDBOOL
-AC_CHECK_FUNCS([closefrom strndup dprintf])
+AC_CHECK_FUNCS([closefrom strndup dprintf tdestroy])
 found_mktemp=no
 AC_CHECK_FUNCS([mkostemp mkstemp],[found_mktemp=yes ; break],)
 if test "$found_mktemp" = "no" ; then

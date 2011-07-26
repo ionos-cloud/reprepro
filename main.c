@@ -4588,6 +4588,7 @@ static void myexit(int status) {
 	free(x_priority);
 	free(x_morguedir);
 	free(gnupghome);
+	pool_free();
 	exit(status);
 }
 
