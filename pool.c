@@ -792,7 +792,7 @@ void pool_free(void) {
 #ifdef HAVE_TDESTROY
 	component_t c;
 
-	for (c = 1 ; c < reserved_components ; c++) {
+	for (c = 1 ; c <= reserved_components ; c++) {
 		tdestroy(file_changes_per_component[c], sourcename_free);
 	}
 	reserved_components = 0;
