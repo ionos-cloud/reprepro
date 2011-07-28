@@ -95,9 +95,12 @@ if [ -z "$TESTOPTIONS" ] ; then
 	if [ -z "$USE_VALGRIND" ] ; then
 		TESTOPTIONS="-e -a"
 	elif [ -z "$VALGRIND_SUP" ] ; then
-		TESTOPTIONS="-e -a --debug --leak-check=full --gen-suppressions=all --suppressions=$TESTSDIR/valgrind.supp"
+		# leak-check=full is better than leak-check=summary,
+		# sadly squeeze's valgrind counts them into the error number
+		# with full, and we want to ignore them for childs....
+		TESTOPTIONS="-e -a --debug --leak-check=summary --suppressions=$TESTSDIR/valgrind.supp"
 	else
-		TESTOPTIONS="-e -a --debug --leak-check=full --gen-suppressions=all --suppressions=$VALGRIND_SUP"
+		TESTOPTIONS="-e -a --debug --leak-check=summary --suppressions=$VALGRIND_SUP"
 	fi
 fi
 case "$verbosity" in
