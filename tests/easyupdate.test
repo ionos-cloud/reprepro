@@ -1,0 +1,136 @@
+set -u
+. "$TESTSDIR"/test.inc
+
+mkdir -p test/a test/dists/name/comp/source
+mkdir bla
+tar -czf test/a/a.tar.gz bla
+rmdir bla
+
+cat > test/a/a.dsc <<EOF
+Format: 3.0 (native)
+Source: apackage
+Version: 0-1
+Maintainer: noone <noone@nowhere.tld>
+Checksums-Sha1:
+ $(sha1andsize test/a/a.tar.gz) a.tar.gz
+EOF
+
+cat > test/dists/name/comp/source/Sources <<EOF
+Package: apackage
+Version: 0-1
+Priority: extra
+Section: devel
+Maintainer: noone <noone@nowhere.tld>
+Directory: a
+Files:
+ $(mdandsize test/a/a.dsc) a.dsc
+ $(mdandsize test/a/a.tar.gz) a.tar.gz
+Checksums-Sha1:
+ $(sha1andsize test/a/a.dsc) a.dsc
+ $(sha1andsize test/a/a.tar.gz) a.tar.gz
+EOF
+
+mkdir conf
+
+cat > conf/distributions <<EOF
+Codename: test1
+Architectures: source
+Components: everything
+Update: u
+
+Codename: test2
+Architectures: source
+Components: everything
+Update: - u
+EOF
+cat > conf/updates <<EOF
+Name: u
+Method: file:${WORKDIR}/test
+Suite: name
+Components: comp>everything
+IgnoreRelease: Yes
+DownloadListsAs: .
+EOF
+
+testrun - update test1 3<<EOF
+-v1*=aptmethod got 'file:${WORKDIR}/test/dists/name/comp/source/Sources'
+-v2*=Copy file '${WORKDIR}/test/dists/name/comp/source/Sources' to './lists/u_name_comp_Sources'...
+-v1*=aptmethod got 'file:${WORKDIR}/test/a/a.dsc'
+-v2*=Linking file '${WORKDIR}/test/a/a.dsc' to './pool/everything/a/apackage/a.dsc'...
+-v1*=aptmethod got 'file:${WORKDIR}/test/a/a.tar.gz'
+-v2*=Linking file '${WORKDIR}/test/a/a.tar.gz' to './pool/everything/a/apackage/a.tar.gz'...
+stdout
+$(odb)
+-v2*=Created directory "./lists"
+-v0*=Calculating packages to get...
+-v3*=  processing updates for 'test1|everything|source'
+-v5*=  reading './lists/u_name_comp_Sources'
+-v2*=Created directory "./pool"
+-v2*=Created directory "./pool/everything"
+-v2*=Created directory "./pool/everything/a"
+-v2*=Created directory "./pool/everything/a/apackage"
+-v0*=Getting packages...
+$(ofa pool/everything/a/apackage/a.dsc)
+$(ofa pool/everything/a/apackage/a.tar.gz)
+-v1*=Shutting down aptmethods...
+-v0*=Installing (and possibly deleting) packages...
+$(opa apackage 0-1 test1 everything source dsc)
+-v0*=Exporting indices...
+-v2*=Created directory "./dists"
+-v2*=Created directory "./dists/test1"
+-v2*=Created directory "./dists/test1/everything"
+-v2*=Created directory "./dists/test1/everything/source"
+-v6*= looking for changes in 'test1|everything|source'...
+-v6*=  creating './dists/test1/everything/source/Sources' (gzipped)
+EOF
+
+testrun - update test2 3<<EOF
+-v1*=aptmethod got 'file:${WORKDIR}/test/dists/name/comp/source/Sources'
+-v2*=Copy file '${WORKDIR}/test/dists/name/comp/source/Sources' to './lists/u_name_comp_Sources'...
+stdout
+-v0*=Calculating packages to get...
+-v3*=  processing updates for 'test2|everything|source'
+-v5*=  marking everything to be deleted
+-v5*=  reading './lists/u_name_comp_Sources'
+-v0*=Getting packages...
+-v1*=Shutting down aptmethods...
+-v0*=Installing (and possibly deleting) packages...
+$(opa apackage 0-1 test2 everything source dsc)
+-v0*=Exporting indices...
+-v2*=Created directory "./dists/test2"
+-v2*=Created directory "./dists/test2/everything"
+-v2*=Created directory "./dists/test2/everything/source"
+-v6*= looking for changes in 'test2|everything|source'...
+-v6*=  creating './dists/test2/everything/source/Sources' (gzipped)
+EOF
+
+testrun - update test2 3<<EOF
+-v1*=aptmethod got 'file:${WORKDIR}/test/dists/name/comp/source/Sources'
+-v2*=Copy file '${WORKDIR}/test/dists/name/comp/source/Sources' to './lists/u_name_comp_Sources'...
+stdout
+-v0*=Calculating packages to get...
+-v3*=  processing updates for 'test2|everything|source'
+-v5*=  marking everything to be deleted
+-v5*=  reading './lists/u_name_comp_Sources'
+EOF
+
+true > test/dists/name/comp/source/Sources
+
+testrun - update test2 3<<EOF
+-v1*=aptmethod got 'file:${WORKDIR}/test/dists/name/comp/source/Sources'
+-v2*=Copy file '${WORKDIR}/test/dists/name/comp/source/Sources' to './lists/u_name_comp_Sources'...
+stdout
+-v0*=Calculating packages to get...
+-v3*=  processing updates for 'test2|everything|source'
+-v5*=  marking everything to be deleted
+-v5*=  reading './lists/u_name_comp_Sources'
+-v0*=Getting packages...
+-v1*=Shutting down aptmethods...
+-v0*=Installing (and possibly deleting) packages...
+$(opd apackage 0-1 test2 everything source dsc)
+-v0*=Exporting indices...
+-v6*= looking for changes in 'test2|everything|source'...
+-v6*=  replacing './dists/test2/everything/source/Sources' (gzipped)
+EOF
+
+testsuccess

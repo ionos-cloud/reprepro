@@ -203,8 +203,8 @@ stdout
 -d1*=db: 'aa' added to packages.db(b|two|abacus).
 stderr
 -v6*=Found versions are: 1-1, 1-2.
-*=Warning: downgrading 'aa-addons' from '4-2' to '4-2' in 'b|one|abacus'!
-*=Warning: downgrading 'aa' from '1-1' to '1-1' in 'b|one|abacus'!
+*=Warning: replacing 'aa-addons' version '4-2' with equal version '4-2' in 'b|one|abacus'!
+*=Warning: replacing 'aa' version '1-1' with equal version '1-1' in 'b|one|abacus'!
 *=Warning: database 'b|one|abacus' was modified but no index file was exported.
 *=Warning: database 'b|two|abacus' was modified but no index file was exported.
 *=Changes will only be visible after the next 'export'!

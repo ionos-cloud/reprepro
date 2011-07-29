@@ -1839,6 +1839,7 @@ static retvalue updates_readindices(/*@null@*/FILE *out, struct update_distribut
  ****************************************************************************/
 
 static retvalue enqueue_upgrade_package(void *calldata, const struct checksumsarray *origfiles, const struct strlist *filekeys, void *privdata) {
+	retvalue r;
 	struct update_index_connector *uindex = privdata;
 	struct aptmethod *aptmethod;
 	struct downloadcache *cache = calldata;
@@ -2142,6 +2143,21 @@ retvalue updates_update(struct update_distribution *distributions, bool nolistsd
 	if (!RET_WAS_ERROR(result)) {
 		r = space_check(cache->devices);
 		RET_ENDUPDATE(result, r);
+	}
+	if (!RET_WAS_ERROR(result) && !todo) {
+		for (d=distributions ; !todo && d != NULL ; d=d->next) {
+			struct update_target *u;
+			if (d->distribution->omitted)
+				continue;
+			for (u = d->targets ; u != NULL ; u = u->next) {
+				if (u->nothingnew || u->ignoredelete)
+					continue;
+				if (upgradelist_woulddelete(u->upgradelist)) {
+					todo = true;
+					break;
+				}
+			}
+		}
 	}
 
 	if (RET_WAS_ERROR(result) || !todo) {

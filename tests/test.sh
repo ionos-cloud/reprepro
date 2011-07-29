@@ -95,9 +95,12 @@ if [ -z "$TESTOPTIONS" ] ; then
 	if [ -z "$USE_VALGRIND" ] ; then
 		TESTOPTIONS="-e -a"
 	elif [ -z "$VALGRIND_SUP" ] ; then
-		TESTOPTIONS="-e -a --debug --leak-check=full --suppressions=$TESTSDIR/valgrind.supp"
+		# leak-check=full is better than leak-check=summary,
+		# sadly squeeze's valgrind counts them into the error number
+		# with full, and we want to ignore them for childs....
+		TESTOPTIONS="-e -a --debug --leak-check=summary --suppressions=$TESTSDIR/valgrind.supp"
 	else
-		TESTOPTIONS="-e -a --debug --leak-check=full --suppressions=$VALGRIND_SUP"
+		TESTOPTIONS="-e -a --debug --leak-check=summary --suppressions=$VALGRIND_SUP"
 	fi
 fi
 case "$verbosity" in
@@ -143,6 +146,9 @@ mkdir "$WORKDIR" || exit 1
 echo "Remove this file to avoid silent removal" > "$WORKDIR"/ThisDirectoryWillBeDeleted
 cd "$WORKDIR"
 
+# dpkg-deb doesn't like too restrictive directories
+umask 022
+
 number_tests=0
 number_missing=0
 number_success=0
@@ -184,6 +190,7 @@ runtest() {
 if test x"$testtorun" != x"all" ; then
 	runtest "$testtorun"
 else
+	runtest easyupdate
 	runtest srcfilterlist
 	runtest uploaders
 	runtest wrongarch

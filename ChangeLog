@@ -1,3 +1,10 @@
+2010-07-07
+	* don't give downgrading message if not downgrading but
+	  replacing with same version
+
+2010-06-02
+	* fix bug not deleting packages if none added in update
+
 2010-05-05
 	* ignore leading comments in control files
 

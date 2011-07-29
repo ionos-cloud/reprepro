@@ -190,6 +190,14 @@ opa() {
 	printf -- "-d1*=db: '%s' added to packages.db(%s%s|%s|%s)." \
 		"$name" "$u" "$codename" "$component" "$arch"
 }
+opd() {
+	local name="$1" version="$2" codename="$3" component="$4" arch="$5" type="$6" u=""
+	if test "$type" = "udeb" ; then u='u|' ; fi
+	printf -- "-v1*=removing '%s' from '%s%s|%s|%s'...\n" \
+		"$name" "$u" "$codename" "$component" "$arch"
+	printf -- "-d1*=db: '%s' removed from packages.db(%s%s|%s|%s)." \
+		"$name" "$u" "$codename" "$component" "$arch"
+}
 
 cat > empty.rules <<EOF
 stdout

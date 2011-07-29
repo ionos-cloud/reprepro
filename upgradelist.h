@@ -34,6 +34,7 @@ typedef retvalue enqueueaction(void *, const struct checksumsarray *, const stru
 retvalue upgradelist_enqueue(struct upgradelist *, enqueueaction *, void *);
 
 bool upgradelist_isbigdelete(const struct upgradelist *);
+bool upgradelist_woulddelete(const struct upgradelist *);
 
 retvalue upgradelist_install(struct upgradelist *, /*@null@*/struct logger *, bool /*ignoredelete*/, void (*)(void *, const char **, const char **));
 

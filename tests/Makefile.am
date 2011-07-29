@@ -8,6 +8,7 @@ buildneeding.test \
 check.test \
 copy.test \
 diffgeneration.test \
+easyupdate.test \
 exporthooks.test \
 flat.test \
 flood.test \
