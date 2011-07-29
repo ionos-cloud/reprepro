@@ -149,7 +149,7 @@ static retvalue remember_filekey(const char *filekey, char mode, char mode_and) 
 			assert (c <= components_count());
 
 			h = realloc(file_changes_per_component,
-					sizeof(struct source_node*) * (c + 1));
+					sizeof(void*) * (c + 1));
 			if (FAILEDTOALLOC(h))
 				return RET_ERROR_OOM;
 			file_changes_per_component = h;
@@ -777,4 +777,28 @@ void pool_tidyadded(bool delete) {
 	}
 	return;
 
+}
+
+#ifdef HAVE_TDESTROY
+static void sourcename_free(void *n) {
+	struct source_node *node = n;
+
+	tdestroy(node->file_changes, free);
+	free(node);
+}
+#endif
+
+void pool_free(void) {
+#ifdef HAVE_TDESTROY
+	component_t c;
+
+	for (c = 1 ; c <= reserved_components ; c++) {
+		tdestroy(file_changes_per_component[c], sourcename_free);
+	}
+	reserved_components = 0;
+	free(file_changes_per_component);
+	file_changes_per_component = NULL;
+	tdestroy(legacy_file_changes, free);
+	legacy_file_changes = NULL;
+#endif
 }

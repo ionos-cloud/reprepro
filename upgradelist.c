@@ -680,6 +680,21 @@ bool upgradelist_isbigdelete(const struct upgradelist *upgrade) {
 	return deleted >= 10 && all/deleted < 5;
 }
 
+bool upgradelist_woulddelete(const struct upgradelist *upgrade) {
+	struct package_data *pkg;
+	long long deleted = 0, all = 0;
+
+	if (upgrade->list == NULL)
+		return false;
+	for (pkg = upgrade->list ; pkg != NULL ; pkg = pkg->next) {
+		if (pkg->version_in_use == NULL)
+		       continue;
+		if (pkg->deleted)
+			return true;
+	}
+	return false;
+}
+
 retvalue upgradelist_install(struct upgradelist *upgrade, struct logger *logger, bool ignoredelete, void (*callback)(void *, const char **, const char **)){
 	struct package_data *pkg;
 	retvalue result, r;

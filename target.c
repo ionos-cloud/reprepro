@@ -463,12 +463,7 @@ retvalue target_addpackage(struct target *target, struct logger *logger, const c
 				if (versioncmp <= 0) {
 					/* new Version is not newer than
 					 * old version */
-					if (downgrade) {
-						fprintf(stderr,
-"Warning: downgrading '%s' from '%s' to '%s' in '%s'!\n", name,
-							oldpversion, version,
-							target->identifier);
-					} else {
+					if (!downgrade) {
 						fprintf(stderr,
 "Skipping inclusion of '%s' '%s' in '%s', as it has already '%s'.\n",
 							name, version,
@@ -477,6 +472,16 @@ retvalue target_addpackage(struct target *target, struct logger *logger, const c
 						free(oldpversion);
 						free(oldcontrol);
 						return RET_NOTHING;
+					} else if (versioncmp < 0) {
+						fprintf(stderr,
+"Warning: downgrading '%s' from '%s' to '%s' in '%s'!\n", name,
+							oldpversion, version,
+							target->identifier);
+					} else {
+						fprintf(stderr,
+"Warning: replacing '%s' version '%s' with equal version '%s' in '%s'!\n", name,
+							oldpversion, version,
+							target->identifier);
 					}
 				}
 			}

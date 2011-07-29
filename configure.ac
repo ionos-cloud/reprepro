@@ -2,18 +2,18 @@ dnl
 dnl Process this file with autoconf to produce a configure script
 dnl
 
-AC_INIT(reprepro, 4.6.0, brlink@debian.org)
+AC_INIT(reprepro, 4.6.1, brlink@debian.org)
 AC_CONFIG_SRCDIR(main.c)
 AC_CONFIG_AUX_DIR(ac)
 AM_INIT_AUTOMAKE([-Wall -Werror -Wno-portability])
 AM_CONFIG_HEADER(config.h)
 
-AM_MAINTAINER_MODE
-AC_GNU_SOURCE
-
-if test "${CFLAGS:+set}" != set ; then
+if test "${CFLAGS+set}" != set ; then
 	CFLAGS="-Wall -O2 -g -Wmissing-prototypes -Wstrict-prototypes -Wshadow"
 fi
+
+AM_MAINTAINER_MODE
+AC_GNU_SOURCE
 
 AC_PROG_CC_C99
 AC_PROG_INSTALL
@@ -21,7 +21,7 @@ AC_SYS_LARGEFILE
 
 AC_C_BIGENDIAN()
 AC_HEADER_STDBOOL
-AC_CHECK_FUNCS([closefrom strndup dprintf])
+AC_CHECK_FUNCS([closefrom strndup dprintf tdestroy])
 found_mktemp=no
 AC_CHECK_FUNCS([mkostemp mkstemp],[found_mktemp=yes ; break],)
 if test "$found_mktemp" = "no" ; then

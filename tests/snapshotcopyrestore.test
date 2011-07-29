@@ -401,8 +401,8 @@ EOF
 
 testrun - -b . restore B now foo 3<<EOF
 stderr
-*=Warning: downgrading 'foo' from '0' to '0' in 'B|dog|abacus'!
-*=Warning: downgrading 'foo' from '1' to '1' in 'B|dog|source'!
+*=Warning: replacing 'foo' version '0' with equal version '0' in 'B|dog|abacus'!
+*=Warning: replacing 'foo' version '1' with equal version '1' in 'B|dog|source'!
 stdout
 -v1*=Adding 'foo' '0' to 'B|dog|abacus'.
 -d1*=db: 'foo' removed from packages.db(B|dog|abacus).
@@ -433,8 +433,8 @@ EOF
 
 testrun - -b . restoresrc B now foo 0 1 3<<EOF
 stderr
-*=Warning: downgrading 'foo' from '0' to '0' in 'B|dog|abacus'!
-*=Warning: downgrading 'foo' from '1' to '1' in 'B|dog|source'!
+*=Warning: replacing 'foo' version '0' with equal version '0' in 'B|dog|abacus'!
+*=Warning: replacing 'foo' version '1' with equal version '1' in 'B|dog|source'!
 stdout
 -v1*=Adding 'foo' '0' to 'B|dog|abacus'.
 -d1*=db: 'foo' removed from packages.db(B|dog|abacus).
@@ -454,7 +454,7 @@ EOF
 
 testrun - -b . restoresrc B now foo 0 3<<EOF
 stderr
-*=Warning: downgrading 'foo' from '0' to '0' in 'B|dog|abacus'!
+*=Warning: replacing 'foo' version '0' with equal version '0' in 'B|dog|abacus'!
 stdout
 -v1*=Adding 'foo' '0' to 'B|dog|abacus'.
 -d1*=db: 'foo' removed from packages.db(B|dog|abacus).
@@ -470,7 +470,7 @@ EOF
 
 testrun - -b . restoresrc B now foo 1 3<<EOF
 stderr
-*=Warning: downgrading 'foo' from '1' to '1' in 'B|dog|source'!
+*=Warning: replacing 'foo' version '1' with equal version '1' in 'B|dog|source'!
 stdout
 -v1*=Adding 'foo' '1' to 'B|dog|source'.
 -d1*=db: 'foo' removed from packages.db(B|dog|source).
@@ -484,7 +484,7 @@ stdout
 EOF
 testrun - -b . restorefilter B now 'Directory' 3<<EOF
 stderr
-*=Warning: downgrading 'foo' from '1' to '1' in 'B|dog|source'!
+*=Warning: replacing 'foo' version '1' with equal version '1' in 'B|dog|source'!
 stdout
 -v1*=Adding 'foo' '1' to 'B|dog|source'.
 -d1*=db: 'foo' removed from packages.db(B|dog|source).

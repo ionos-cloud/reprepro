@@ -25,4 +25,6 @@ void pool_tidyadded(bool deletenew);
 /* delete and forget a single file */
 retvalue pool_delete(const char *);
 
+/* free all memory, to make valgrind happier */
+void pool_free(void);
 #endif
