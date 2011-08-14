@@ -4,8 +4,8 @@ Priority: extra
 Maintainer: Bernhard R. Link <brlink@debian.org>
 Build-Depends: debhelper (>= 7), libgpgme11-dev, libdb-dev, libz-dev, libbz2-dev, libarchive-dev
 Standards-Version: 3.9.2
-Vcs-Browser: http://alioth.debian.org/scm/viewvc.php/mirrorer/?root=mirrorer
-Vcs-Cvs: :pserver:anonymous@cvs.alioth.debian.org:/cvsroot/mirrorer reprepro
+Vcs-Browser: http://anonscm.debian.org/gitweb/?p=mirrorer/reprepro.git;a=summary
+Vcs-Git: git://anonscm.debian.org/mirrorer/reprepro.git
 Homepage: http://mirrorer.alioth.debian.org/
 
 Package: reprepro
