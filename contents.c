@@ -127,17 +127,24 @@ static retvalue addpackagetocontents(UNUSED(struct distribution *di), UNUSED(str
 	return r;
 }
 
-static retvalue genarchcontents(struct distribution *distribution, architecture_t architecture, struct release *release, bool onlyneeded) {
+static retvalue genarchcontents(struct distribution *distribution, architecture_t architecture, packagetype_t type, struct release *release, bool onlyneeded) {
 	retvalue r;
 	char *contentsfilename;
 	struct filetorelease *file;
 	struct filelist_list *contents;
 	const struct atomlist *components;
 
-	if (distribution->contents_components_set)
-		components = &distribution->contents_components;
-	else
-		components = &distribution->components;
+	if (type == pt_udeb) {
+		if (distribution->contents_components_set)
+			components = &distribution->contents_ucomponents;
+		else
+			components = &distribution->udebcomponents;
+	} else {
+		if (distribution->contents_components_set)
+			components = &distribution->contents_components;
+		else
+			components = &distribution->components;
+	}
 
 	if (components->count == 0)
 		return RET_NOTHING;
@@ -148,7 +155,7 @@ static retvalue genarchcontents(struct distribution *distribution, architecture_
 				target=target->next) {
 			if (target->saved_wasmodified
 				&& target->architecture == architecture
-				&& target->packagetype == pt_deb
+				&& target->packagetype == type
 				&& atomlist_in(components, target->component))
 				break;
 		}
@@ -156,7 +163,7 @@ static retvalue genarchcontents(struct distribution *distribution, architecture_
 			onlyneeded = false;
 	}
 
-	contentsfilename = mprintf("Contents-%s",
+	contentsfilename = mprintf((type == pt_udeb)?"uContents-%s":"Contents-%s",
 			atoms_architectures[architecture]);
 	if (FAILEDTOALLOC(contentsfilename))
 		return RET_ERROR_OOM;
@@ -178,67 +185,7 @@ static retvalue genarchcontents(struct distribution *distribution, architecture_
 		return r;
 	}
 	r = distribution_foreach_package_c(distribution,
-			components, architecture, pt_deb,
-			addpackagetocontents, contents);
-	if (!RET_WAS_ERROR(r))
-		r = filelist_write(contents, file);
-	if (RET_WAS_ERROR(r))
-		release_abortfile(file);
-	else
-		r = release_finishfile(release, file);
-	filelist_free(contents);
-	return r;
-}
-
-static retvalue genarchudebcontents(struct distribution *distribution, architecture_t architecture, struct release *release, bool onlyneeded) {
-	retvalue r;
-	char *contentsfilename;
-	struct filetorelease *file;
-	struct filelist_list *contents;
-	const struct atomlist *components;
-
-	if (distribution->contents_ucomponents_set)
-		components = &distribution->contents_ucomponents;
-	else
-		components = &distribution->udebcomponents;
-
-	if (components->count == 0)
-		return RET_NOTHING;
-
-	if (onlyneeded) {
-		struct target *target;
-		for (target=distribution->targets; target!=NULL;
-				target=target->next) {
-			if (target->saved_wasmodified
-				&& target->architecture == architecture
-				&& target->packagetype == pt_udeb
-				&& atomlist_in(components, target->component))
-				break;
-		}
-		if (target != NULL)
-			onlyneeded = false;
-	}
-
-	contentsfilename = mprintf("uContents-%s",
-			atoms_architectures[architecture]);
-	if (FAILEDTOALLOC(contentsfilename))
-		return RET_ERROR_OOM;
-	r = release_startfile(release, contentsfilename,
-			distribution->contents.compressions,
-			onlyneeded, &file);
-	if (!RET_IS_OK(r)) {
-		free(contentsfilename);
-		return r;
-	}
-	if (verbose > 0) {
-		printf(" generating %s...\n", contentsfilename);
-	}
-	free(contentsfilename);
-	r = filelist_init(&contents);
-	if (RET_WAS_ERROR(r))
-		return r;
-	r = distribution_foreach_package_c(distribution,
-			components, architecture, pt_udeb,
+			components, architecture, type,
 			addpackagetocontents, contents);
 	if (!RET_WAS_ERROR(r))
 		r = filelist_write(contents, file);
@@ -272,12 +219,14 @@ retvalue contents_generate(struct distribution *distribution, struct release *re
 
 		if (!distribution->contents.flags.nodebs) {
 			r = genarchcontents(distribution,
-					architecture, release, onlyneeded);
+					architecture, pt_deb,
+					release, onlyneeded);
 			RET_UPDATE(result, r);
 		}
 		if (distribution->contents.flags.udebs) {
-			r = genarchudebcontents(distribution,
-					architecture, release, onlyneeded);
+			r = genarchcontents(distribution,
+					architecture, pt_udeb,
+					release, onlyneeded);
 			RET_UPDATE(result, r);
 		}
 	}
