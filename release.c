@@ -110,6 +110,8 @@ static retvalue newreleaseentry(struct release *release, /*@only@*/ char *relati
 		/*@only@*/ /*@null@*/ char *fullfinalfilename,
 		/*@only@*/ /*@null@*/ char *fulltemporaryfilename) {
 	struct release_entry *n, *p;
+
+	assert (fulltemporaryfilename == NULL || fullfinalfilename != NULL);
 	n = NEW(struct release_entry);
 	if (FAILEDTOALLOC(n))
 		return RET_ERROR_OOM;
@@ -225,7 +227,7 @@ retvalue release_adddel(struct release *release, /*@only@*/char *reltmpfile) {
 		return RET_ERROR_OOM;
 	}
 	free(reltmpfile);
-	return newreleaseentry(release, NULL, NULL, NULL, filename);
+	return newreleaseentry(release, NULL, NULL, filename, NULL);
 }
 
 retvalue release_addnew(struct release *release, /*@only@*/char *reltmpfile, /*@only@*/char *relfilename) {
@@ -1346,18 +1348,18 @@ retvalue release_finish(/*@only@*/struct release *release, struct distribution *
 
 	for (file = release->files ; file != NULL ; file = file->next) {
 		if (file->relativefilename == NULL
-				&& file->fullfinalfilename == NULL) {
-			assert (file->fulltemporaryfilename != NULL);
-			e = unlink(file->fulltemporaryfilename);
+				&& file->fullfinalfilename != NULL
+				&& file->fulltemporaryfilename == NULL) {
+			e = unlink(file->fullfinalfilename);
 			if (e < 0) {
 				e = errno;
 				fprintf(stderr,
 "Error %d deleting %s: %s. (Will be ignored)\n",
-					e, file->fulltemporaryfilename,
+					e, file->fullfinalfilename,
 					strerror(e));
 			}
-			free(file->fulltemporaryfilename);
-			file->fulltemporaryfilename = NULL;
+			free(file->fullfinalfilename);
+			file->fullfinalfilename = NULL;
 		} else if (file->fulltemporaryfilename != NULL) {
 			e = rename(file->fulltemporaryfilename,
 					file->fullfinalfilename);

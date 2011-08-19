@@ -3,6 +3,8 @@
 	to switch between the format of Contents file to generate.
 	Currently the default is allcomponents but that will switch
 	later.
+	* fix bug that would delete files only to be deleted after an
+	successful export also when aborting an export
 
 2010-07-07
 	* don't give downgrading message if not downgrading but
