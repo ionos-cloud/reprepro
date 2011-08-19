@@ -1,3 +1,9 @@
+2010-08-19
+	* add percomponent and allcomponents to Contents: flags
+	to switch between the format of Contents file to generate.
+	Currently the default is allcomponents but that will switch
+	later.
+
 2010-07-07
 	* don't give downgrading message if not downgrading but
 	  replacing with same version

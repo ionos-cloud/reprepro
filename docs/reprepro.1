@@ -1278,6 +1278,16 @@ If there is a \fBnodebs\fP keyword, \fB.deb\fPs are not listed.
 If there is at least one of the keywords \fB.\fP, \fB.gz\fP and/or \fB.bz2\fP,
 the Contents files are written uncompressed, gzipped and/or bzip2ed instead
 of only gzipped.
+
+If there is a \fBpercomponent\fP then one Contents\-\fIarch\fP file
+per component is created.
+If there is a \fBallcomponents\fP then one global Contents\-\fIarch\fP
+file is generated.
+If both are given, both are created.
+If none of both is specified, then some default is used which currently
+is \fBallcomponents\fP but will be switched to \fBpercomponent\fP
+some months before wheezy's freeze.
+
 .TP
 .B ContentsArchitectures
 Limit generation of Contents files to the architectures given.
