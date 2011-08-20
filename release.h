@@ -40,9 +40,8 @@ retvalue release_addold(struct release *, /*@only@*/char *);
 
 struct filetorelease;
 
-retvalue release_startfile2(struct release *, const char * /*relative_dir*/, const char */*filename*/, compressionset, bool /*usecache*/, struct filetorelease **);
-
 retvalue release_startfile(struct release *, const char * /*filename*/, compressionset, bool /*usecache*/, struct filetorelease **);
+retvalue release_startlinkedfile(struct release *, const char * /*filename*/, const char * /*symlinkas*/, compressionset, bool /*usecache*/, struct filetorelease **);
 
 /* return true if an old file is already there */
 bool release_oldexists(struct filetorelease *);

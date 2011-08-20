@@ -161,7 +161,7 @@ static retvalue addpackagetocontents(UNUSED(struct distribution *di), UNUSED(str
 	return r;
 }
 
-static retvalue gentargetcontents(struct target *target, struct release *release, bool onlyneeded) {
+static retvalue gentargetcontents(struct target *target, struct release *release, bool onlyneeded, bool symlink) {
 	retvalue result, r;
 	char *contentsfilename;
 	struct filetorelease *file;
@@ -177,9 +177,24 @@ static retvalue gentargetcontents(struct target *target, struct release *release
 			atoms_architectures[target->architecture]);
 	if (FAILEDTOALLOC(contentsfilename))
 		return RET_ERROR_OOM;
-	r = release_startfile(release, contentsfilename,
-			target->distribution->contents.compressions,
-			onlyneeded, &file);
+
+	if (symlink) {
+		char *symlinkas = mprintf("%sContents-%s",
+				(target->packagetype == pt_udeb)?"s":"",
+				atoms_architectures[target->architecture]);
+		if (FAILEDTOALLOC(symlinkas)) {
+			free(contentsfilename);
+			return RET_ERROR_OOM;
+		}
+		r = release_startlinkedfile(release, contentsfilename,
+				symlinkas,
+				target->distribution->contents.compressions,
+				onlyneeded, &file);
+		free(symlinkas);
+	} else
+		r = release_startfile(release, contentsfilename,
+				target->distribution->contents.compressions,
+				onlyneeded, &file);
 	if (!RET_IS_OK(r)) {
 		free(contentsfilename);
 		return r;
@@ -252,7 +267,11 @@ static retvalue genarchcontents(struct distribution *distribution, architecture_
 		if (onlyneeded && target->saved_wasmodified)
 			combinedonlyifneeded = false;
 		if (distribution->contents.flags.percomponent) {
-			r = gentargetcontents(target, release, onlyneeded);
+			r = gentargetcontents(target, release, onlyneeded,
+					!distribution->contents.
+					 flags.allcomponents &&
+					target->component
+					 == components->atoms[0]);
 			RET_UPDATE(result, r);
 			if (RET_WAS_ERROR(r))
 				return r;
