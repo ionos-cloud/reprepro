@@ -763,6 +763,14 @@ Note: only the control information is changed. Changing a section
 to a value, that would cause another component to be guessed, will
 not cause any warning.
 .TP
+.BR redochecksums " [ " \fIcodenames\fP " ]"
+Readd the information about file checksums to the package indices.
+
+Usually the package's control information is created at inclusion
+time or imported from some remote source and not changed later.
+This command modifies it to readd missing checksum types.
+
+.TP
 .BR dumptracks " [ " \fIcodenames\fP " ]"
 Print out all information about tracked source packages in the
 given distributions.
