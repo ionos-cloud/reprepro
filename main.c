@@ -2464,7 +2464,7 @@ ACTION_F(y, n, y, y, redochecksums) {
 
 		if (verbose > 0) {
 			fprintf(stderr,
-"Readding checksum informations to packages in %s...\n", d->codename);
+"Readding checksum information to packages in %s...\n", d->codename);
 		}
 
 		for (t = d->targets ; t != NULL ; t = t->next) {
