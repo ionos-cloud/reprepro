@@ -40,7 +40,10 @@
 retvalue contentsoptions_parse(struct distribution *distribution, struct configiterator *iter) {
 	enum contentsflags {
 		cf_disable, cf_dummy, cf_udebs, cf_nodebs,
-		cf_uncompressed, cf_gz, cf_bz2, cf_COUNT
+		cf_uncompressed, cf_gz, cf_bz2,
+		cf_percomponent, cf_allcomponents,
+		cf_nopercomponent, cf_noallcomponents,
+		cf_COUNT
 	};
 	bool flags[cf_COUNT];
 	static const struct constant contentsflags[] = {
@@ -49,6 +52,12 @@ retvalue contentsoptions_parse(struct distribution *distribution, struct configi
 		{"2", cf_dummy},
 		{"udebs", cf_udebs},
 		{"nodebs", cf_nodebs},
+		{"percomponent", cf_percomponent},
+		{"allcomponents", cf_allcomponents},
+		{"+percomponent", cf_percomponent},
+		{"+allcomponents", cf_allcomponents},
+		{"-percomponent", cf_nopercomponent},
+		{"-allcomponents", cf_noallcomponents},
 		{".bz2", cf_bz2},
 		{".gz", cf_gz},
 		{".", cf_uncompressed},
@@ -79,6 +88,14 @@ retvalue contentsoptions_parse(struct distribution *distribution, struct configi
 "-generation, but it will cause an error in future version.\n", stderr);
 		distribution->contents.flags.enabled = false;
 	}
+	if (flags[cf_percomponent] && flags[cf_nopercomponent]) {
+		fprintf(stderr, "Cannot have percomponents and -percomponents in the some Contents line!\n");
+		return RET_ERROR;
+	}
+	if (flags[cf_allcomponents] && flags[cf_noallcomponents]) {
+		fprintf(stderr, "Cannot have allcomponents and -allcomponents in the some Contents line!\n");
+		return RET_ERROR;
+	}
 
 #ifndef HAVE_LIBBZ2
 	if (flags[cf_bz2]) {
@@ -101,7 +118,24 @@ retvalue contentsoptions_parse(struct distribution *distribution, struct configi
 #endif
 	distribution->contents.flags.udebs = flags[cf_udebs];
 	distribution->contents.flags.nodebs = flags[cf_nodebs];
-
+	if (flags[cf_allcomponents])
+		distribution->contents.flags.allcomponents = true;
+	else if (flags[cf_noallcomponents])
+		distribution->contents.flags.allcomponents = false;
+	/* currently the default is true, unless percomponent is enabled */
+	else if (flags[cf_percomponent])
+		distribution->contents.flags.allcomponents = false;
+	else
+		distribution->contents.flags.allcomponents = true;
+	if (flags[cf_percomponent])
+		distribution->contents.flags.percomponent = true;
+	else if (flags[cf_nopercomponent])
+		distribution->contents.flags.percomponent = false;
+	/* currently the default is off unless allcomponents switched off: */
+	else if (flags[cf_noallcomponents])
+		distribution->contents.flags.percomponent = true;
+	else
+		distribution->contents.flags.percomponent = false;
 	return RET_OK;
 }
 
@@ -127,42 +161,134 @@ static retvalue addpackagetocontents(UNUSED(struct distribution *di), UNUSED(str
 	return r;
 }
 
-static retvalue genarchcontents(struct distribution *distribution, architecture_t architecture, struct release *release, bool onlyneeded) {
-	retvalue r;
+static retvalue gentargetcontents(struct target *target, struct release *release, bool onlyneeded, bool symlink) {
+	retvalue result, r;
+	char *contentsfilename;
+	struct filetorelease *file;
+	struct filelist_list *contents;
+	struct target_cursor iterator IFSTUPIDCC(=TARGET_CURSOR_ZERO);
+
+	if (onlyneeded && target->saved_wasmodified)
+		onlyneeded = false;
+
+	contentsfilename = mprintf("%s/%sContents-%s",
+			atoms_components[target->component],
+			(target->packagetype == pt_udeb)?"s":"",
+			atoms_architectures[target->architecture]);
+	if (FAILEDTOALLOC(contentsfilename))
+		return RET_ERROR_OOM;
+
+	if (symlink) {
+		char *symlinkas = mprintf("%sContents-%s",
+				(target->packagetype == pt_udeb)?"s":"",
+				atoms_architectures[target->architecture]);
+		if (FAILEDTOALLOC(symlinkas)) {
+			free(contentsfilename);
+			return RET_ERROR_OOM;
+		}
+		r = release_startlinkedfile(release, contentsfilename,
+				symlinkas,
+				target->distribution->contents.compressions,
+				onlyneeded, &file);
+		free(symlinkas);
+	} else
+		r = release_startfile(release, contentsfilename,
+				target->distribution->contents.compressions,
+				onlyneeded, &file);
+	if (!RET_IS_OK(r)) {
+		free(contentsfilename);
+		return r;
+	}
+	if (verbose > 0) {
+		printf(" generating %s...\n", contentsfilename);
+	}
+	free(contentsfilename);
+
+	r = filelist_init(&contents);
+	if (RET_WAS_ERROR(r)) {
+		release_abortfile(file);
+		return r;
+	}
+	result = target_openiterator(target, READONLY, &iterator);
+	if (RET_IS_OK(result)) {
+		const char *package, *control;
+
+		while (target_nextpackage(&iterator, &package, &control)) {
+			r = addpackagetocontents(target->distribution,
+					target, package, control, contents);
+			RET_UPDATE(result, r);
+			if (RET_WAS_ERROR(r))
+				break;
+		}
+		r = target_closeiterator(&iterator);
+		RET_ENDUPDATE(result, r);
+	}
+	if (!RET_WAS_ERROR(result))
+		result = filelist_write(contents, file);
+	if (RET_WAS_ERROR(result))
+		release_abortfile(file);
+	else
+		result = release_finishfile(release, file);
+	filelist_free(contents);
+	return result;
+}
+
+static retvalue genarchcontents(struct distribution *distribution, architecture_t architecture, packagetype_t type, struct release *release, bool onlyneeded) {
+	retvalue result = RET_NOTHING, r;
 	char *contentsfilename;
 	struct filetorelease *file;
 	struct filelist_list *contents;
 	const struct atomlist *components;
+	struct target *target;
+	bool combinedonlyifneeded;
 
-	if (distribution->contents_components_set)
-		components = &distribution->contents_components;
-	else
-		components = &distribution->components;
+	if (type == pt_udeb) {
+		if (distribution->contents_components_set)
+			components = &distribution->contents_ucomponents;
+		else
+			components = &distribution->udebcomponents;
+	} else {
+		if (distribution->contents_components_set)
+			components = &distribution->contents_components;
+		else
+			components = &distribution->components;
+	}
 
 	if (components->count == 0)
 		return RET_NOTHING;
 
-	if (onlyneeded) {
-		struct target *target;
-		for (target=distribution->targets; target!=NULL;
-				target=target->next) {
-			if (target->saved_wasmodified
-				&& target->architecture == architecture
-				&& target->packagetype == pt_deb
-				&& atomlist_in(components, target->component))
-				break;
+	combinedonlyifneeded = onlyneeded;
+
+	for (target=distribution->targets; target!=NULL; target=target->next) {
+		if (target->architecture != architecture
+				|| target->packagetype != type
+				|| !atomlist_in(components, target->component))
+			continue;
+		if (onlyneeded && target->saved_wasmodified)
+			combinedonlyifneeded = false;
+		if (distribution->contents.flags.percomponent) {
+			r = gentargetcontents(target, release, onlyneeded,
+					!distribution->contents.
+					 flags.allcomponents &&
+					target->component
+					 == components->atoms[0]);
+			RET_UPDATE(result, r);
+			if (RET_WAS_ERROR(r))
+				return r;
 		}
-		if (target != NULL)
-			onlyneeded = false;
 	}
 
-	contentsfilename = mprintf("Contents-%s",
+	if (!distribution->contents.flags.allcomponents)
+		return RET_OK;
+
+	contentsfilename = mprintf("%sContents-%s",
+			(type == pt_udeb)?"u":"",
 			atoms_architectures[architecture]);
 	if (FAILEDTOALLOC(contentsfilename))
 		return RET_ERROR_OOM;
 	r = release_startfile(release, contentsfilename,
 			distribution->contents.compressions,
-			onlyneeded, &file);
+			combinedonlyifneeded, &file);
 	if (!RET_IS_OK(r)) {
 		free(contentsfilename);
 		return r;
@@ -178,7 +304,7 @@ static retvalue genarchcontents(struct distribution *distribution, architecture_
 		return r;
 	}
 	r = distribution_foreach_package_c(distribution,
-			components, architecture, pt_deb,
+			components, architecture, type,
 			addpackagetocontents, contents);
 	if (!RET_WAS_ERROR(r))
 		r = filelist_write(contents, file);
@@ -187,67 +313,8 @@ static retvalue genarchcontents(struct distribution *distribution, architecture_
 	else
 		r = release_finishfile(release, file);
 	filelist_free(contents);
-	return r;
-}
-
-static retvalue genarchudebcontents(struct distribution *distribution, architecture_t architecture, struct release *release, bool onlyneeded) {
-	retvalue r;
-	char *contentsfilename;
-	struct filetorelease *file;
-	struct filelist_list *contents;
-	const struct atomlist *components;
-
-	if (distribution->contents_ucomponents_set)
-		components = &distribution->contents_ucomponents;
-	else
-		components = &distribution->udebcomponents;
-
-	if (components->count == 0)
-		return RET_NOTHING;
-
-	if (onlyneeded) {
-		struct target *target;
-		for (target=distribution->targets; target!=NULL;
-				target=target->next) {
-			if (target->saved_wasmodified
-				&& target->architecture == architecture
-				&& target->packagetype == pt_udeb
-				&& atomlist_in(components, target->component))
-				break;
-		}
-		if (target != NULL)
-			onlyneeded = false;
-	}
-
-	contentsfilename = mprintf("uContents-%s",
-			atoms_architectures[architecture]);
-	if (FAILEDTOALLOC(contentsfilename))
-		return RET_ERROR_OOM;
-	r = release_startfile(release, contentsfilename,
-			distribution->contents.compressions,
-			onlyneeded, &file);
-	if (!RET_IS_OK(r)) {
-		free(contentsfilename);
-		return r;
-	}
-	if (verbose > 0) {
-		printf(" generating %s...\n", contentsfilename);
-	}
-	free(contentsfilename);
-	r = filelist_init(&contents);
-	if (RET_WAS_ERROR(r))
-		return r;
-	r = distribution_foreach_package_c(distribution,
-			components, architecture, pt_udeb,
-			addpackagetocontents, contents);
-	if (!RET_WAS_ERROR(r))
-		r = filelist_write(contents, file);
-	if (RET_WAS_ERROR(r))
-		release_abortfile(file);
-	else
-		r = release_finishfile(release, file);
-	filelist_free(contents);
-	return r;
+	RET_UPDATE(result, r);
+	return result;
 }
 
 retvalue contents_generate(struct distribution *distribution, struct release *release, bool onlyneeded) {
@@ -272,12 +339,14 @@ retvalue contents_generate(struct distribution *distribution, struct release *re
 
 		if (!distribution->contents.flags.nodebs) {
 			r = genarchcontents(distribution,
-					architecture, release, onlyneeded);
+					architecture, pt_deb,
+					release, onlyneeded);
 			RET_UPDATE(result, r);
 		}
 		if (distribution->contents.flags.udebs) {
-			r = genarchudebcontents(distribution,
-					architecture, release, onlyneeded);
+			r = genarchcontents(distribution,
+					architecture, pt_udeb,
+					release, onlyneeded);
 			RET_UPDATE(result, r);
 		}
 	}

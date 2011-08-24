@@ -682,7 +682,6 @@ bool upgradelist_isbigdelete(const struct upgradelist *upgrade) {
 
 bool upgradelist_woulddelete(const struct upgradelist *upgrade) {
 	struct package_data *pkg;
-	long long deleted = 0, all = 0;
 
 	if (upgrade->list == NULL)
 		return false;

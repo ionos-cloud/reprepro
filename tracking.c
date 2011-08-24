@@ -349,7 +349,6 @@ static inline retvalue parse_data(const char *name, const char *version, const c
 }
 
 retvalue tracking_get(trackingdb t, const char *sourcename, const char *version, /*@out@*/struct trackedpackage **pkg) {
-	size_t versionlen;
 	const char *data;
 	size_t datalen;
 	retvalue r;

@@ -843,6 +843,69 @@ retvalue target_reoverride(struct target *target, struct distribution *distribut
 	return result;
 }
 
+/* Readd checksum information */
+
+static retvalue complete_package_checksums(struct target *target, const char *control, char **n) {
+	struct checksumsarray files;
+	retvalue r;
+
+	r = target->getchecksums(control, &files);
+	if (!RET_IS_OK(r))
+		return r;
+
+	r = files_checkorimprove(&files.names, files.checksums);
+	if (!RET_IS_OK(r)) {
+		checksumsarray_done(&files);
+		return r;
+	}
+	r = target->completechecksums(control,
+			&files.names, files.checksums, n);
+	checksumsarray_done(&files);
+	return r;
+}
+
+retvalue target_redochecksums(struct target *target, struct distribution *distribution) {
+	struct target_cursor iterator;
+	retvalue result, r;
+	const char *package, *controlchunk;
+
+	assert(target->packages == NULL);
+	assert(distribution != NULL);
+
+	if (verbose > 1) {
+		fprintf(stderr,
+"Redoing checksum information for packages in '%s'...\n",
+				target->identifier);
+	}
+
+	r = target_openiterator(target, READWRITE, &iterator);
+	if (!RET_IS_OK(r))
+		return r;
+	result = RET_NOTHING;
+	while (target_nextpackage(&iterator, &package, &controlchunk)) {
+		char *newcontrolchunk = NULL;
+
+		r = complete_package_checksums(target, controlchunk,
+				&newcontrolchunk);
+		RET_UPDATE(result, r);
+		if (RET_WAS_ERROR(r))
+			break;
+		if (RET_IS_OK(r)) {
+			r = cursor_replace(target->packages, iterator.cursor,
+				newcontrolchunk, strlen(newcontrolchunk));
+			free(newcontrolchunk);
+			if (RET_WAS_ERROR(r)) {
+				result = r;
+				break;
+			}
+			target->wasmodified = true;
+		}
+	}
+	r = target_closeiterator(&iterator);
+	RET_ENDUPDATE(result, r);
+	return result;
+}
+
 /* export a database */
 
 retvalue target_export(struct target *target, bool onlyneeded, bool snapshot, struct release *release) {

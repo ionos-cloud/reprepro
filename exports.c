@@ -69,7 +69,7 @@ static const char *exportdescription(const struct exportmode *mode, char *buffer
 	/* should be long enough for the previous things in all cases */
 	assert (buffersize > 10);
 	if (mode->hooks.count > 0) {
-		int i, left;
+		int i;
 
 		if (needcomma) {
 			*buffer++ = ','; buffersize--;

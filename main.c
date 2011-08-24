@@ -2443,6 +2443,48 @@ ACTION_F(y, n, y, y, reoverride) {
 	return result;
 }
 
+/*****************adding checkums of files again*****************/
+
+ACTION_F(y, n, y, y, redochecksums) {
+	retvalue result, r;
+	struct distribution *d;
+
+	result = distribution_match(alldistributions, argc-1, argv+1,
+			true, READWRITE);
+	assert (result != RET_NOTHING);
+	if (RET_WAS_ERROR(result)) {
+		return result;
+	}
+	result = RET_NOTHING;
+	for (d = alldistributions ; d != NULL ; d = d->next) {
+		struct target *t;
+
+		if (!d->selected)
+			continue;
+
+		if (verbose > 0) {
+			fprintf(stderr,
+"Readding checksum information to packages in %s...\n", d->codename);
+		}
+
+		for (t = d->targets ; t != NULL ; t = t->next) {
+			if (!target_matches(t,
+			      components, architectures, packagetypes))
+				continue;
+			r = target_redochecksums(t, d);
+			RET_UPDATE(result, r);
+			RET_UPDATE(d->status, r);
+			if (RET_WAS_ERROR(r))
+				break;
+		}
+		if (RET_WAS_ERROR(result))
+			break;
+	}
+	r = distribution_exportlist(export, alldistributions);
+	RET_ENDUPDATE(result, r);
+	return result;
+}
+
 /*******************sizes of distributions***************/
 
 ACTION_RF(n, n, y, sizes) {
@@ -3740,6 +3782,8 @@ static const struct action {
 		0, -1, "check [<distributions>]"},
 	{"reoverride", 		A_Fact(reoverride),
 		0, -1, "[-T ...] [-C ...] [-A ...] reoverride [<distributions>]"},
+	{"redochecksums", 	A_Fact(redochecksums),
+		0, -1, "[-T ...] [-C ...] [-A ...] redo [<distributions>]"},
 	{"collectnewchecksums", A_F(collectnewchecksums),
 		0, 0, "collectnewchecksums"},
 	{"checkpool", 		A_F(checkpool),

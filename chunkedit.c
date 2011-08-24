@@ -191,7 +191,7 @@ static inline int findcef(const struct chunkeditfield *cef, const char *p, size_
 }
 
 retvalue chunk_edit(const char *chunk, char **result, size_t *rlen, const struct chunkeditfield *cefs) {
-	size_t oldlen, maxlen;
+	size_t maxlen;
 	int i, processed, count = 0;
 	const struct chunkeditfield *cef;
 	struct field {
@@ -203,7 +203,6 @@ retvalue chunk_edit(const char *chunk, char **result, size_t *rlen, const struct
 	const char *p, *q, *e;
 	char *n; size_t len;
 
-	oldlen = strlen(chunk);
 	maxlen = 1; /* a newline might get missed */
 	for (cef = cefs ; cef != NULL ; cef=cef->next) {
 		maxlen += cef->len_field + cef->len_all_data + 3; /* ': \n' */
