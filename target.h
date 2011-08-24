@@ -157,6 +157,7 @@ retvalue package_check(struct distribution *, struct target *, const char *, con
 retvalue target_rereference(struct target *);
 retvalue package_referenceforsnapshot(struct distribution *, struct target *, const char *, const char *, void *);
 retvalue target_reoverride(struct target *, struct distribution *);
+retvalue target_redochecksums(struct target *, struct distribution *);
 
 retvalue package_rerunnotifiers(struct distribution *, struct target *, const char *, const char *, void *);
 

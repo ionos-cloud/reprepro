@@ -2402,9 +2402,9 @@ retvalue process_incoming(struct distribution *distributions, const char *name, 
 		const char *basefilename = i->files.values[j];
 		size_t l = strlen(basefilename);
 #define C_SUFFIX ".changes"
-#define C_LEN strlen(C_SUFFIX)
-		if (l <= C_LEN ||
-		    strcmp(basefilename + (l - C_LEN), C_SUFFIX) != 0)
+		const size_t c_len = strlen(C_SUFFIX);
+		if (l <= c_len ||
+		    memcmp(basefilename + (l - c_len), C_SUFFIX, c_len) != 0)
 			continue;
 		if (changesfilename != NULL && strcmp(basefilename, changesfilename) != 0)
 			continue;

@@ -246,24 +246,29 @@ static inline retvalue checkorimprove(const char *filekey, struct checksums **ch
 		r = RET_ERROR_WRONG_MD5;
 	} else if (improves) {
 		r = checksums_combine(checksums_p, indatabase, NULL);
-	}
+	} else
+		r = RET_NOTHING;
 	checksums_free(indatabase);
 	return r;
 }
 
 
-/* check for several files in the database and update information */
+/* check for several files in the database and update information,
+ * return RET_NOTHING if everything is OK and nothing needs improving */
 retvalue files_checkorimprove(const struct strlist *filekeys, struct checksums *checksumsarray[]) {
 	int i;
-	retvalue r;
+	retvalue result, r;
 
+	result = RET_NOTHING;
 	for (i = 0 ; i < filekeys->count ; i++) {
 		r = checkorimprove(filekeys->values[i],
 				&checksumsarray[i]);
 		if (RET_WAS_ERROR(r))
 			return r;
+		if (RET_IS_OK(r))
+			result = RET_OK;
 	}
-	return RET_OK;
+	return result;
 }
 
 /* dump out all information */

@@ -1839,7 +1839,6 @@ static retvalue updates_readindices(/*@null@*/FILE *out, struct update_distribut
  ****************************************************************************/
 
 static retvalue enqueue_upgrade_package(void *calldata, const struct checksumsarray *origfiles, const struct strlist *filekeys, void *privdata) {
-	retvalue r;
 	struct update_index_connector *uindex = privdata;
 	struct aptmethod *aptmethod;
 	struct downloadcache *cache = calldata;

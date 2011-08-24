@@ -98,7 +98,7 @@ Log: logfile
 Codename: B
 Architectures: abacus source
 Components: dog cat
-Contents:
+Contents: percomponent
 Log: logfile
 CONFEND
 testrun - -b . export B A 3<<EOF
@@ -121,7 +121,8 @@ $(odb)
 -v6*=  creating './dists/B/cat/binary-abacus/Packages' (uncompressed,gzipped)
 -v6*= exporting 'B|cat|source'...
 -v6*=  creating './dists/B/cat/source/Sources' (gzipped)
--v1*= generating Contents-abacus...
+-v1*= generating dog/Contents-abacus...
+-v1*= generating cat/Contents-abacus...
 -v1*=Exporting A...
 -v2*=Created directory "./dists/A"
 -v2*=Created directory "./dists/A/dog"
@@ -158,16 +159,25 @@ dists/A/Release
 dists/B/cat/binary-abacus/Packages
 dists/B/cat/binary-abacus/Packages.gz
 dists/B/cat/binary-abacus/Release
+dists/B/cat/Contents-abacus.gz
 dists/B/cat/source/Release
 dists/B/cat/source/Sources.gz
-dists/B/Contents-abacus.gz
 dists/B/dog/binary-abacus/Packages
 dists/B/dog/binary-abacus/Packages.gz
 dists/B/dog/binary-abacus/Release
+dists/B/dog/Contents-abacus.gz
 dists/B/dog/source/Release
 dists/B/dog/source/Sources.gz
 dists/B/Release
 END
+dodiff results.expected results
+find dists -type l -printf "%p -> %l" | LC_ALL=C sort -f > results
+cat > results.expected <<END
+dists/B/Contents-abacus.gz -> dog/Contents-abacus.gz
+END
+
+sed -e "s/^Contents:/Contents: allcomponents/" -i conf/distributions
+
 dodiff results.expected results
 testrun - -b . processincoming default 3<<EOF
 returns 254
@@ -364,6 +374,7 @@ $(ofa 'pool/dog/b/bird/bird-addons_1_all.deb')
 -v6*= looking for changes in 'B|cat|abacus'...
 -v6*= looking for changes in 'B|cat|source'...
 -v1*= generating Contents-abacus...
+-v1*= generating dog/Contents-abacus...
 -v4*=Reading filelist for pool/dog/b/bird/bird_1_abacus.deb
 -d1*=db: 'pool/dog/b/bird/bird_1_abacus.deb' added to contents.cache.db(compressedfilelists).
 -v4*=Reading filelist for pool/dog/b/bird/bird-addons_1_all.deb
@@ -391,6 +402,21 @@ dir/file	    tasty/bird,tasty/bird-addons
 dir/subdir/file	    tasty/bird,tasty/bird-addons
 EOF
 gunzip -c dists/B/Contents-abacus.gz > results
+dodiff results.expected results
+cat > results.expected <<EOF
+FILE                                                    LOCATION
+EOF
+gunzip -c dists/B/cat/Contents-abacus.gz > results
+dodiff results.expected results
+cat > results.expected <<EOF
+FILE                                                    LOCATION
+x	    tasty/bird,tasty/bird-addons
+a/1	    tasty/bird,tasty/bird-addons
+dir/another	    tasty/bird,tasty/bird-addons
+dir/file	    tasty/bird,tasty/bird-addons
+dir/subdir/file	    tasty/bird,tasty/bird-addons
+EOF
+gunzip -c dists/B/dog/Contents-abacus.gz > results
 dodiff results.expected results
 printindexpart pool/dog/b/bird/bird_1_abacus.deb > results.expected
 printindexpart pool/dog/b/bird/bird-addons_1_all.deb >> results.expected
@@ -460,6 +486,7 @@ $(ofa 'pool/cat/b/bird/bird-addons_1_all.deb')
 -v6*=  replacing './dists/B/cat/binary-abacus/Packages' (uncompressed,gzipped)
 -v6*= looking for changes in 'B|dog|source'...
 -v6*=  replacing './dists/B/cat/source/Sources' (gzipped)
+-v1*= generating cat/Contents-abacus...
 -v1*= generating Contents-abacus...
 -v4*=Reading filelist for pool/cat/b/bird/bird_1_abacus.deb
 -d1*=db: 'pool/cat/b/bird/bird_1_abacus.deb' added to contents.cache.db(compressedfilelists).
@@ -487,6 +514,26 @@ dir/file	    tasty/bird,tasty/bird-addons,cat/tasty/bird,cat/ugly/bird-addons
 dir/subdir/file	    tasty/bird,tasty/bird-addons,cat/tasty/bird,cat/ugly/bird-addons
 EOF
 gunzip -c dists/B/Contents-abacus.gz > results
+dodiff results.expected results
+cat > results.expected <<EOF
+FILE                                                    LOCATION
+x	    cat/tasty/bird,cat/ugly/bird-addons
+a/1	    cat/tasty/bird,cat/ugly/bird-addons
+dir/another	    cat/tasty/bird,cat/ugly/bird-addons
+dir/file	    cat/tasty/bird,cat/ugly/bird-addons
+dir/subdir/file	    cat/tasty/bird,cat/ugly/bird-addons
+EOF
+gunzip -c dists/B/cat/Contents-abacus.gz > results
+dodiff results.expected results
+cat > results.expected <<EOF
+FILE                                                    LOCATION
+x	    tasty/bird,tasty/bird-addons
+a/1	    tasty/bird,tasty/bird-addons
+dir/another	    tasty/bird,tasty/bird-addons
+dir/file	    tasty/bird,tasty/bird-addons
+dir/subdir/file	    tasty/bird,tasty/bird-addons
+EOF
+gunzip -c dists/B/dog/Contents-abacus.gz > results
 dodiff results.expected results
 printindexpart pool/cat/b/bird/bird_1_abacus.deb > results.expected
 printindexpart pool/cat/b/bird/bird-addons_1_all.deb >> results.expected
@@ -1222,12 +1269,14 @@ dists/A/Release
 dists/B/cat/binary-abacus/Packages
 dists/B/cat/binary-abacus/Packages.gz
 dists/B/cat/binary-abacus/Release
+dists/B/cat/Contents-abacus.gz
 dists/B/cat/source/Release
 dists/B/cat/source/Sources.gz
 dists/B/Contents-abacus.gz
 dists/B/dog/binary-abacus/Packages
 dists/B/dog/binary-abacus/Packages.gz
 dists/B/dog/binary-abacus/Release
+dists/B/dog/Contents-abacus.gz
 dists/B/dog/source/Release
 dists/B/dog/source/Sources.gz
 dists/B/Release
@@ -1341,12 +1390,14 @@ dists/A/Release
 dists/B/cat/binary-abacus/Packages
 dists/B/cat/binary-abacus/Packages.gz
 dists/B/cat/binary-abacus/Release
+dists/B/cat/Contents-abacus.gz
 dists/B/cat/source/Release
 dists/B/cat/source/Sources.gz
 dists/B/Contents-abacus.gz
 dists/B/dog/binary-abacus/Packages
 dists/B/dog/binary-abacus/Packages.gz
 dists/B/dog/binary-abacus/Release
+dists/B/dog/Contents-abacus.gz
 dists/B/dog/source/Release
 dists/B/dog/source/Sources.gz
 dists/B/Release

@@ -1,3 +1,7 @@
+Updates between 4.6.1 and 4.7.0:
+- add 'redochecksums' command
+- add percomponent and allcomponents to Contents: flags
+
 Updates between 4.6.0 and 4.6.1:
 - fix message given when replacing a package with the same version
 - fix bug not deleting packages if none added in update

@@ -486,6 +486,10 @@ static retvalue read_source_control_file(struct sourceextraction *e, struct arch
 	// TODO: allow a saved .diff for this file applied here
 
 	controllen = chunk_extract(buffer, buffer, &aftercontrol);
+	if (controllen == 0) {
+		free(buffer);
+		return RET_NOTHING;
+	}
 
 	if (e->section_p != NULL)
 		(void)chunk_getvalue(buffer, "Section", e->section_p);

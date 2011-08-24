@@ -66,9 +66,14 @@ struct release {
 		struct release_entry *next;
 		char *relativefilename;
 		struct checksums *checksums;
-		/* both == NULL if not new, only final==NULL means delete */
 		char *fullfinalfilename;
 		char *fulltemporaryfilename;
+		char *symlinktarget;
+		/* name NULL NULL NULL: add old filename
+		 * name file file NULL: rename new file and publish
+		 * NULL file file NULL: rename new file
+		 * NULL file NULL NULL: delete if done
+		 * NULL file NULL file: create symlink */
 	} *files;
 	/* the Release file in preperation
 	 * (only valid between _prepare and _finish) */
@@ -91,6 +96,7 @@ void release_free(struct release *release) {
 		if (!global.keeptemporaries && e->fulltemporaryfilename != NULL)
 			unlink(e->fulltemporaryfilename);
 		free(e->fulltemporaryfilename);
+		free(e->symlinktarget);
 		free(e);
 	}
 	if (release->signedfile != NULL)
@@ -108,16 +114,41 @@ const char *release_dirofdist(struct release *release) {
 static retvalue newreleaseentry(struct release *release, /*@only@*/ char *relativefilename,
 		/*@only@*/ struct checksums *checksums,
 		/*@only@*/ /*@null@*/ char *fullfinalfilename,
-		/*@only@*/ /*@null@*/ char *fulltemporaryfilename) {
+		/*@only@*/ /*@null@*/ char *fulltemporaryfilename,
+		/*@only@*/ /*@null@*/ char *symlinktarget) {
 	struct release_entry *n, *p;
+
+	/* it's either something to do or to publish */
+	assert (fullfinalfilename != NULL || relativefilename != NULL);
+	/* if there is something temporary, it has a final place */
+	assert (fulltemporaryfilename == NULL || fullfinalfilename != NULL);
+	/* something to publish must have a checksum */
+	assert (checksums != NULL || relativefilename == NULL);
+	/* no checksum means nothing to publish */
+	assert (checksums == NULL || relativefilename != NULL);
+	/* a symlink cannot be published (Yet?) */
+	assert (symlinktarget == NULL || relativefilename == NULL);
+	/* cannot place a file and a symlink */
+	assert (symlinktarget == NULL || fulltemporaryfilename == NULL);
+	/* something to publish cannot be a file deletion */
+	assert (relativefilename == NULL
+			|| fullfinalfilename == NULL
+			|| fulltemporaryfilename != NULL
+			|| symlinktarget != NULL);
 	n = NEW(struct release_entry);
-	if (FAILEDTOALLOC(n))
+	if (FAILEDTOALLOC(n)) {
+		checksums_free(checksums);
+		free(fullfinalfilename);
+		free(fulltemporaryfilename);
+		free(symlinktarget);
 		return RET_ERROR_OOM;
+	}
 	n->next = NULL;
 	n->relativefilename = relativefilename;
 	n->checksums = checksums;
 	n->fullfinalfilename = fullfinalfilename;
 	n->fulltemporaryfilename = fulltemporaryfilename;
+	n->symlinktarget = symlinktarget;
 	if (release->files == NULL)
 		release->files = n;
 	else {
@@ -225,7 +256,7 @@ retvalue release_adddel(struct release *release, /*@only@*/char *reltmpfile) {
 		return RET_ERROR_OOM;
 	}
 	free(reltmpfile);
-	return newreleaseentry(release, NULL, NULL, NULL, filename);
+	return newreleaseentry(release, NULL, NULL, filename, NULL, NULL);
 }
 
 retvalue release_addnew(struct release *release, /*@only@*/char *reltmpfile, /*@only@*/char *relfilename) {
@@ -255,7 +286,7 @@ retvalue release_addnew(struct release *release, /*@only@*/char *reltmpfile, /*@
 	}
 	release->new = true;
 	return newreleaseentry(release, relfilename,
-			checksums, finalfilename, filename);
+			checksums, finalfilename, filename, NULL);
 }
 
 retvalue release_addsilentnew(struct release *release, /*@only@*/char *reltmpfile, /*@only@*/char *relfilename) {
@@ -277,7 +308,7 @@ retvalue release_addsilentnew(struct release *release, /*@only@*/char *reltmpfil
 	free(relfilename);
 	release->new = true;
 	return newreleaseentry(release, NULL,
-			NULL, finalfilename, filename);
+			NULL, finalfilename, filename, NULL);
 }
 
 retvalue release_addold(struct release *release, /*@only@*/char *relfilename) {
@@ -296,7 +327,8 @@ retvalue release_addold(struct release *release, /*@only@*/char *relfilename) {
 		free(relfilename);
 		return r;
 	}
-	return newreleaseentry(release, relfilename, checksums, NULL, NULL);
+	return newreleaseentry(release, relfilename,
+			checksums, NULL, NULL, NULL);
 }
 
 static char *calc_compressedname(const char *name, enum indexcompression ic) {
@@ -435,7 +467,7 @@ static retvalue release_usecached(struct release *release,
 			continue;
 		r = newreleaseentry(release, filename[ic],
 				checksums[ic],
-				NULL, NULL);
+				NULL, NULL, NULL);
 		RET_UPDATE(result, r);
 	}
 	return result;
@@ -450,6 +482,7 @@ struct filetorelease {
 		char *relativefilename;
 		char *fullfinalfilename;
 		char *fulltemporaryfilename;
+		char *symlinkas;
 	} f[ic_count];
 	/* input buffer, to checksum/compress data at once */
 	unsigned char *buffer; size_t waiting_bytes;
@@ -475,6 +508,7 @@ void release_abortfile(struct filetorelease *file) {
 		free(file->f[i].relativefilename);
 		free(file->f[i].fullfinalfilename);
 		free(file->f[i].fulltemporaryfilename);
+		free(file->f[i].symlinkas);
 	}
 	free(file->buffer);
 	free(file->gzoutputbuffer);
@@ -627,17 +661,35 @@ static retvalue initbzcompression(struct filetorelease *f) {
 }
 #endif
 
-static retvalue startfile(struct release *release,
-		char *filename, compressionset compressions,
-		bool usecache,
-		struct filetorelease **file) {
+static inline retvalue setfilename(struct release *release, struct filetorelease *n, const char *relfilename, /*@null@*/const char *symlinkas, enum indexcompression ic) {
+	static const char * const ics[ic_count] = { "", ".gz"
+#ifdef HAVE_LIBBZ2
+	       	, ".bz2"
+#endif
+	};
+
+	n->f[ic].relativefilename = mprintf("%s%s", relfilename, ics[ic]);
+	if (FAILEDTOALLOC(n->f[ic].relativefilename))
+		return RET_ERROR_OOM;
+	if (symlinkas == NULL)
+		return RET_OK;
+	/* symlink creation fails horrible if the symlink is not in the base
+	 * directory */
+	assert (strchr(symlinkas, '/') == NULL);
+	n->f[ic].symlinkas = mprintf("%s/%s%s", release->dirofdist, symlinkas,
+			ics[ic]);
+	if (FAILEDTOALLOC(n->f[ic].symlinkas))
+		return RET_ERROR_OOM;
+	return RET_OK;
+}
+
+static retvalue startfile(struct release *release, const char *filename, /*@null@*/const char *symlinkas, compressionset compressions, bool usecache, struct filetorelease **file) {
 	struct filetorelease *n;
 	enum indexcompression i;
 
 	if (usecache) {
 		retvalue r = release_usecached(release, filename, compressions);
 		if (r != RET_NOTHING) {
-			free(filename);
 			if (RET_IS_OK(r))
 				return RET_NOTHING;
 			return r;
@@ -645,10 +697,8 @@ static retvalue startfile(struct release *release,
 	}
 
 	n = zNEW(struct filetorelease);
-	if (FAILEDTOALLOC(n)) {
-		free(filename);
+	if (FAILEDTOALLOC(n))
 		return RET_ERROR_OOM;
-	}
 	n->buffer = malloc(INPUT_BUFFER_SIZE);
 	if (FAILEDTOALLOC(n->buffer)) {
 		release_abortfile(n);
@@ -657,27 +707,33 @@ static retvalue startfile(struct release *release,
 	for (i = ic_uncompressed ; i < ic_count ; i ++) {
 		n->f[i].fd = -1;
 	}
-	n->f[ic_uncompressed].relativefilename = filename;
-	if (FAILEDTOALLOC(n->f[ic_uncompressed].relativefilename)) {
-		release_abortfile(n);
-		return RET_ERROR_OOM;
-	}
 	if ((compressions & IC_FLAG(ic_uncompressed)) != 0) {
 		retvalue r;
-		r = openfile(release->dirofdist, &n->f[ic_uncompressed]);
+
+		r = setfilename(release, n, filename, symlinkas,
+				ic_uncompressed);
+		if (!RET_WAS_ERROR(r))
+			r = openfile(release->dirofdist, &n->f[ic_uncompressed]);
 		if (RET_WAS_ERROR(r)) {
 			release_abortfile(n);
 			return r;
 		}
-	}
-	if ((compressions & IC_FLAG(ic_gzip)) != 0) {
-		retvalue r;
-		n->f[ic_gzip].relativefilename = calc_addsuffix(filename, "gz");
-		if (FAILEDTOALLOC(n->f[ic_gzip].relativefilename)) {
+	} else {
+		/* the uncompressed file always shows up in Release */
+		n->f[ic_uncompressed].relativefilename = strdup(filename);
+		if (FAILEDTOALLOC(n->f[ic_uncompressed].relativefilename)) {
 			release_abortfile(n);
 			return RET_ERROR_OOM;
 		}
-		r = openfile(release->dirofdist, &n->f[ic_gzip]);
+	}
+
+	if ((compressions & IC_FLAG(ic_gzip)) != 0) {
+		retvalue r;
+
+		r = setfilename(release, n, filename, symlinkas,
+				ic_gzip);
+		if (!RET_WAS_ERROR(r))
+			r = openfile(release->dirofdist, &n->f[ic_gzip]);
 		if (RET_WAS_ERROR(r)) {
 			release_abortfile(n);
 			return r;
@@ -692,13 +748,10 @@ static retvalue startfile(struct release *release,
 #ifdef HAVE_LIBBZ2
 	if ((compressions & IC_FLAG(ic_bzip2)) != 0) {
 		retvalue r;
-		n->f[ic_bzip2].relativefilename =
-			calc_addsuffix(filename, "bz2");
-		if (n->f[ic_bzip2].relativefilename == NULL) {
-			release_abortfile(n);
-			return RET_ERROR_OOM;
-		}
-		r = openfile(release->dirofdist, &n->f[ic_bzip2]);
+		r = setfilename(release, n, filename, symlinkas,
+				ic_bzip2);
+		if (!RET_WAS_ERROR(r))
+			r = openfile(release->dirofdist, &n->f[ic_bzip2]);
 		if (RET_WAS_ERROR(r)) {
 			release_abortfile(n);
 			return r;
@@ -716,24 +769,51 @@ static retvalue startfile(struct release *release,
 	return RET_OK;
 }
 
-retvalue release_startfile2(struct release *release, const char *relative_dir, const char *filename, compressionset compressions, bool usecache, struct filetorelease **file) {
-	char *relfilename;
-
-	relfilename = calc_dirconcat(relative_dir, filename);
-	if (FAILEDTOALLOC(relfilename))
-		return RET_ERROR_OOM;
-	return startfile(release, relfilename, compressions, usecache, file);
+retvalue release_startfile(struct release *release, const char *filename, compressionset compressions, bool usecache, struct filetorelease **file) {
+	return startfile(release, filename, NULL, compressions, usecache, file);
 }
-retvalue release_startfile(struct release *release,
-		const char *filename, compressionset compressions,
-		bool usecache,
-		struct filetorelease **file) {
-	char *relfilename;
 
-	relfilename = strdup(filename);
-	if (FAILEDTOALLOC(relfilename))
-		return RET_ERROR_OOM;
-	return startfile(release, relfilename, compressions, usecache, file);
+retvalue release_startlinkedfile(struct release *release, const char *filename, const char *symlinkas, compressionset compressions, bool usecache, struct filetorelease **file) {
+	return startfile(release, filename, symlinkas, compressions, usecache, file);
+}
+
+static inline char *calc_relative_path(const char *target, const char *linkname) {
+	size_t t_len, l_len, common_len, len;
+	const char *t, *l;
+	int depth;
+	char *n, *p;
+
+	t_len = strlen(target);
+	l_len = strlen(linkname);
+
+	t = target; l = linkname; common_len = 0;
+	while (*t == *l && *t != '\0') {
+		if (*t == '/')
+			common_len = (t - target) + 1;
+		t++;
+		l++;
+	}
+	depth = 0;
+	while (*l != '\0') {
+		if (*l++ == '/')
+			depth++;
+	}
+	assert (common_len <= t_len && common_len <= l_len &&
+			memcmp(target, linkname, common_len) == 0);
+	len = 3 * depth + t_len - common_len;
+
+	n = malloc(len + 1);
+	if (FAILEDTOALLOC(n))
+		return NULL;
+	p = n;
+	while (depth > 0) {
+		memcpy(p, "../", 3);
+		p += 3;
+	}
+	memcpy(p, target + common_len, 1 + t_len - common_len);
+	p += t_len - common_len;
+	assert ((size_t)(p-n) == len);
+	return n;
 }
 
 static retvalue releasefile(struct release *release, struct openfile *f) {
@@ -753,9 +833,22 @@ static retvalue releasefile(struct release *release, struct openfile *f) {
 	r = checksums_from_context(&checksums, &f->context);
 	if (RET_WAS_ERROR(r))
 		return r;
+	if (f->symlinkas) {
+		char *symlinktarget = calc_relative_path(f->fullfinalfilename,
+				f->symlinkas);
+		if (FAILEDTOALLOC(symlinktarget))
+			return RET_ERROR_OOM;
+		r = newreleaseentry(release, NULL, NULL, f->symlinkas, NULL,
+				symlinktarget);
+		f->symlinkas = NULL;
+		if (RET_WAS_ERROR(r))
+			return r;
+	}
+
 	r = newreleaseentry(release, f->relativefilename, checksums,
 			f->fullfinalfilename,
-			f->fulltemporaryfilename);
+			f->fulltemporaryfilename,
+			NULL);
 	f->relativefilename = NULL;
 	f->fullfinalfilename = NULL;
 	f->fulltemporaryfilename = NULL;
@@ -1112,11 +1205,14 @@ retvalue release_writedata(struct filetorelease *file, const char *data, size_t 
 retvalue release_directorydescription(struct release *release, const struct distribution *distribution, const struct target *target, const char *releasename, bool onlyifneeded) {
 	retvalue r;
 	struct filetorelease *f;
+	char *relfilename;
 
-	r = release_startfile2(release,
-		target->relativedirectory, releasename,
-		IC_FLAG(ic_uncompressed), onlyifneeded,
-		&f);
+	relfilename = calc_dirconcat(target->relativedirectory, releasename);
+	if (FAILEDTOALLOC(relfilename))
+		return RET_ERROR_OOM;
+	r = startfile(release, relfilename, NULL,
+			IC_FLAG(ic_uncompressed), onlyifneeded, &f);
+	free(relfilename);
 	if (RET_WAS_ERROR(r) || r == RET_NOTHING)
 		return r;
 
@@ -1346,19 +1442,23 @@ retvalue release_finish(/*@only@*/struct release *release, struct distribution *
 
 	for (file = release->files ; file != NULL ; file = file->next) {
 		if (file->relativefilename == NULL
-				&& file->fullfinalfilename == NULL) {
-			assert (file->fulltemporaryfilename != NULL);
-			e = unlink(file->fulltemporaryfilename);
+				&& file->fullfinalfilename != NULL
+				&& file->fulltemporaryfilename == NULL
+				&& file->symlinktarget == NULL) {
+			e = unlink(file->fullfinalfilename);
 			if (e < 0) {
 				e = errno;
 				fprintf(stderr,
 "Error %d deleting %s: %s. (Will be ignored)\n",
-					e, file->fulltemporaryfilename,
+					e, file->fullfinalfilename,
 					strerror(e));
 			}
-			free(file->fulltemporaryfilename);
-			file->fulltemporaryfilename = NULL;
+			free(file->fullfinalfilename);
+			file->fullfinalfilename = NULL;
 		} else if (file->fulltemporaryfilename != NULL) {
+			assert (file->fullfinalfilename != NULL);
+			assert (file->symlinktarget == NULL);
+
 			e = rename(file->fulltemporaryfilename,
 					file->fullfinalfilename);
 			if (e < 0) {
@@ -1380,6 +1480,27 @@ retvalue release_finish(/*@only@*/struct release *release, struct distribution *
 				somethingwasdone = true;
 				free(file->fulltemporaryfilename);
 				file->fulltemporaryfilename = NULL;
+			}
+		} else if (file->symlinktarget != NULL) {
+			assert (file->fullfinalfilename != NULL);
+
+			(void)unlink(file->fullfinalfilename);
+			e = symlink(file->symlinktarget, file->fullfinalfilename);
+			if (e != 0) {
+				e = errno;
+				fprintf(stderr,
+"Error %d creating symlink '%s' -> '%s': %s.\n",
+					e, file->fullfinalfilename,
+					file->symlinktarget,
+					strerror(e));
+				r = RET_ERRNO(e);
+				/* after something was done, do not stop
+				 * but try to do as much as possible */
+				if (!somethingwasdone) {
+					release_free(release);
+					return r;
+				}
+				RET_UPDATE(result, r);
 			}
 		}
 	}
