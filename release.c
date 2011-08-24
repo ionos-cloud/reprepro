@@ -96,6 +96,7 @@ void release_free(struct release *release) {
 		if (!global.keeptemporaries && e->fulltemporaryfilename != NULL)
 			unlink(e->fulltemporaryfilename);
 		free(e->fulltemporaryfilename);
+		free(e->symlinktarget);
 		free(e);
 	}
 	if (release->signedfile != NULL)
@@ -135,8 +136,13 @@ static retvalue newreleaseentry(struct release *release, /*@only@*/ char *relati
 			|| fulltemporaryfilename != NULL
 			|| symlinktarget != NULL);
 	n = NEW(struct release_entry);
-	if (FAILEDTOALLOC(n))
+	if (FAILEDTOALLOC(n)) {
+		checksums_free(checksums);
+		free(fullfinalfilename);
+		free(fulltemporaryfilename);
+		free(symlinktarget);
 		return RET_ERROR_OOM;
+	}
 	n->next = NULL;
 	n->relativefilename = relativefilename;
 	n->checksums = checksums;
