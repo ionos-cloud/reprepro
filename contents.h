@@ -18,6 +18,7 @@ struct contentsoptions {
 		bool nodebs:1;
 		bool percomponent:1;
 		bool allcomponents:1;
+		bool compatsymlink:1;
 	} flags;
 	compressionset compressions;
 };

@@ -1295,9 +1295,22 @@ per component is created.
 If there is a \fBallcomponents\fP then one global Contents\-\fIarch\fP
 file is generated.
 If both are given, both are created.
-If none of both is specified, then some default is used which currently
+If none of both is specified or implied,
+then some default is used which currently
 is \fBallcomponents\fP but will be switched to \fBpercomponent\fP
 some months before wheezy's freeze.
+
+If \fBcompatsymlink\fP or \fBnocompatsymlink\fP is specified
+then \fBpercomponent\fP is implied.
+Those are only possible if \fBallcomponents\fP if off and they
+control whether a compatiblity symlink is created (that allows
+version of apt-file looking at the component independent filename
+to see at least the contents of the first component if no files
+containing information for all components are created).
+
+If \fBpercomponent\fP is given and \fBallcomponents\fP is not,
+then the \fBcompatsymlinks\fP is the default, but that will change
+in some future (current estimate: after wheezy was released)
 
 .TP
 .B ContentsArchitectures
