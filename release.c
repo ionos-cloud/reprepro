@@ -35,6 +35,7 @@
 #endif
 #define CHECKSUMS_CONTEXT visible
 #include "error.h"
+#include "ignore.h"
 #include "mprintf.h"
 #include "strlist.h"
 #include "filecntl.h"
@@ -661,13 +662,13 @@ static retvalue initbzcompression(struct filetorelease *f) {
 }
 #endif
 
-static inline retvalue setfilename(struct release *release, struct filetorelease *n, const char *relfilename, /*@null@*/const char *symlinkas, enum indexcompression ic) {
-	static const char * const ics[ic_count] = { "", ".gz"
+static const char * const ics[ic_count] = { "", ".gz"
 #ifdef HAVE_LIBBZ2
-	       	, ".bz2"
+       	, ".bz2"
 #endif
-	};
+};
 
+static inline retvalue setfilename(struct release *release, struct filetorelease *n, const char *relfilename, /*@null@*/const char *symlinkas, enum indexcompression ic) {
 	n->f[ic].relativefilename = mprintf("%s%s", relfilename, ics[ic]);
 	if (FAILEDTOALLOC(n->f[ic].relativefilename))
 		return RET_ERROR_OOM;
@@ -681,6 +682,27 @@ static inline retvalue setfilename(struct release *release, struct filetorelease
 	if (FAILEDTOALLOC(n->f[ic].symlinkas))
 		return RET_ERROR_OOM;
 	return RET_OK;
+}
+
+static inline void warnfilename(struct release *release, const char *relfilename, enum indexcompression ic) {
+	char *fullfilename;
+
+	if (IGNORABLE(oldfile))
+		return;
+
+	fullfilename = mprintf("%s/%s%s", release->dirofdist,
+			relfilename, ics[ic]);
+	if (FAILEDTOALLOC(fullfilename))
+		return;
+	if (isanyfile(fullfilename)) {
+		fprintf(stderr, "Possibly left over file '%s'.\n",
+				fullfilename);
+		if (!ignored[IGN_oldfile]) {
+	       		fputs("You might want to delete it or use --ignore=oldfile to no longer get this message.\n", stderr);
+			ignored[IGN_oldfile] = true;
+		}
+	}
+	free(fullfilename);
 }
 
 static retvalue startfile(struct release *release, const char *filename, /*@null@*/const char *symlinkas, compressionset compressions, bool usecache, struct filetorelease **file) {
@@ -775,6 +797,14 @@ retvalue release_startfile(struct release *release, const char *filename, compre
 
 retvalue release_startlinkedfile(struct release *release, const char *filename, const char *symlinkas, compressionset compressions, bool usecache, struct filetorelease **file) {
 	return startfile(release, filename, symlinkas, compressions, usecache, file);
+}
+
+void release_warnoldfileorlink(struct release *release, const char *filename, compressionset compressions) {
+	enum indexcompression i;
+
+	for (i = ic_uncompressed ; i < ic_count ; i ++)
+		if ((compressions & IC_FLAG(i)) != 0)
+			warnfilename(release, filename, i);
 }
 
 static inline char *calc_relative_path(const char *target, const char *linkname) {

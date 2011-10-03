@@ -1,3 +1,7 @@
+2010-10-03
+	* when using nocompatsymlink in Contents warn about
+	  old file/symlink still present.
+
 2010-09-28
 	* fix archive_set_error calls
 	  (don't give error messages as format strings)

@@ -294,8 +294,19 @@ static retvalue genarchcontents(struct distribution *distribution, architecture_
 		}
 	}
 
-	if (!distribution->contents.flags.allcomponents)
+	if (!distribution->contents.flags.allcomponents) {
+		if (!distribution->contents.flags.compatsymlink) {
+			char *symlinkas = mprintf("%sContents-%s",
+					(type == pt_udeb)?"s":"",
+					atoms_architectures[architecture]);
+			if (FAILEDTOALLOC(symlinkas))
+				return RET_ERROR_OOM;
+			release_warnoldfileorlink(release, symlinkas,
+				distribution->contents.compressions);
+			free(symlinkas);
+		}
 		return RET_OK;
+	}
 
 	contentsfilename = mprintf("%sContents-%s",
 			(type == pt_udeb)?"u":"",
