@@ -161,7 +161,7 @@ ed -s Index.expected <<EOF
 SomeOtherfield: somevalue
 .
 g/Section/s#component/base#base#
-%s/component/main/
+g/Directory/s/component/main/
 w
 EOF
 dodiff Index.expected dists/d/main/source/Index

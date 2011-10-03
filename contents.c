@@ -42,7 +42,7 @@ retvalue contentsoptions_parse(struct distribution *distribution, struct configi
 		cf_disable, cf_dummy, cf_udebs, cf_nodebs,
 		cf_uncompressed, cf_gz, cf_bz2,
 		cf_percomponent, cf_allcomponents,
-		cf_nopercomponent, cf_noallcomponents,
+		cf_compatsymlink, cf_nocompatsymlink,
 		cf_COUNT
 	};
 	bool flags[cf_COUNT];
@@ -54,10 +54,8 @@ retvalue contentsoptions_parse(struct distribution *distribution, struct configi
 		{"nodebs", cf_nodebs},
 		{"percomponent", cf_percomponent},
 		{"allcomponents", cf_allcomponents},
-		{"+percomponent", cf_percomponent},
-		{"+allcomponents", cf_allcomponents},
-		{"-percomponent", cf_nopercomponent},
-		{"-allcomponents", cf_noallcomponents},
+		{"compatsymlink", cf_compatsymlink},
+		{"nocompatsymlink", cf_nocompatsymlink},
 		{".bz2", cf_bz2},
 		{".gz", cf_gz},
 		{".", cf_uncompressed},
@@ -88,12 +86,12 @@ retvalue contentsoptions_parse(struct distribution *distribution, struct configi
 "-generation, but it will cause an error in future version.\n", stderr);
 		distribution->contents.flags.enabled = false;
 	}
-	if (flags[cf_percomponent] && flags[cf_nopercomponent]) {
-		fprintf(stderr, "Cannot have percomponents and -percomponents in the some Contents line!\n");
+	if (flags[cf_allcomponents] && flags[cf_compatsymlink]) {
+		fprintf(stderr, "Cannot have allcomponents and compatsymlink in the same Contents line!\n");
 		return RET_ERROR;
 	}
-	if (flags[cf_allcomponents] && flags[cf_noallcomponents]) {
-		fprintf(stderr, "Cannot have allcomponents and -allcomponents in the some Contents line!\n");
+	if (flags[cf_allcomponents] && flags[cf_nocompatsymlink]) {
+		fprintf(stderr, "Cannot have allcomponents and nocompatsymlink in the same Contents line!\n");
 		return RET_ERROR;
 	}
 
@@ -120,22 +118,38 @@ retvalue contentsoptions_parse(struct distribution *distribution, struct configi
 	distribution->contents.flags.nodebs = flags[cf_nodebs];
 	if (flags[cf_allcomponents])
 		distribution->contents.flags.allcomponents = true;
-	else if (flags[cf_noallcomponents])
-		distribution->contents.flags.allcomponents = false;
-	/* currently the default is true, unless percomponent is enabled */
+	/* currently the default is true, unless percomponent is enabled,
+	 * directly or indirectly */
 	else if (flags[cf_percomponent])
+		distribution->contents.flags.allcomponents = false;
+	else if (flags[cf_compatsymlink] || flags[cf_nocompatsymlink])
 		distribution->contents.flags.allcomponents = false;
 	else
 		distribution->contents.flags.allcomponents = true;
 	if (flags[cf_percomponent])
 		distribution->contents.flags.percomponent = true;
-	else if (flags[cf_nopercomponent])
-		distribution->contents.flags.percomponent = false;
-	/* currently the default is off unless allcomponents switched off: */
-	else if (flags[cf_noallcomponents])
+	/* currently the default is off unless compat symlink behaviour
+	 * specified: */
+	else if (flags[cf_compatsymlink] || flags[cf_nocompatsymlink])
 		distribution->contents.flags.percomponent = true;
+	else if (flags[cf_allcomponents])
+		distribution->contents.flags.percomponent = false;
 	else
 		distribution->contents.flags.percomponent = false;
+	/* compat symlink is only possible if there are no files
+	 * created there, and on by default unless explicitly specified */
+	if (distribution->contents.flags.allcomponents)
+		distribution->contents.flags.compatsymlink = false;
+	else if (flags[cf_compatsymlink])
+		distribution->contents.flags.compatsymlink = true;
+	else if (flags[cf_nocompatsymlink])
+		distribution->contents.flags.compatsymlink = false;
+	else {
+		assert(distribution->contents.flags.percomponent);
+		distribution->contents.flags.compatsymlink = true;
+	}
+	assert(distribution->contents.flags.percomponent ||
+		distribution->contents.flags.allcomponents);
 	return RET_OK;
 }
 
@@ -268,6 +282,8 @@ static retvalue genarchcontents(struct distribution *distribution, architecture_
 			combinedonlyifneeded = false;
 		if (distribution->contents.flags.percomponent) {
 			r = gentargetcontents(target, release, onlyneeded,
+					distribution->contents.
+					 flags.compatsymlink &&
 					!distribution->contents.
 					 flags.allcomponents &&
 					target->component
@@ -278,8 +294,19 @@ static retvalue genarchcontents(struct distribution *distribution, architecture_
 		}
 	}
 
-	if (!distribution->contents.flags.allcomponents)
+	if (!distribution->contents.flags.allcomponents) {
+		if (!distribution->contents.flags.compatsymlink) {
+			char *symlinkas = mprintf("%sContents-%s",
+					(type == pt_udeb)?"s":"",
+					atoms_architectures[architecture]);
+			if (FAILEDTOALLOC(symlinkas))
+				return RET_ERROR_OOM;
+			release_warnoldfileorlink(release, symlinkas,
+				distribution->contents.compressions);
+			free(symlinkas);
+		}
 		return RET_OK;
+	}
 
 	contentsfilename = mprintf("%sContents-%s",
 			(type == pt_udeb)?"u":"",

@@ -42,6 +42,7 @@ struct filetorelease;
 
 retvalue release_startfile(struct release *, const char * /*filename*/, compressionset, bool /*usecache*/, struct filetorelease **);
 retvalue release_startlinkedfile(struct release *, const char * /*filename*/, const char * /*symlinkas*/, compressionset, bool /*usecache*/, struct filetorelease **);
+void release_warnoldfileorlink(struct release *, const char *, compressionset);
 
 /* return true if an old file is already there */
 bool release_oldexists(struct filetorelease *);

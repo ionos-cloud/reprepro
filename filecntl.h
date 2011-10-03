@@ -6,6 +6,7 @@ void closefrom(int);
 #endif
 void markcloseonexec(int);
 int deletefile(const char *);
+bool isanyfile(const char *);
 bool isregularfile(const char *);
 bool isdirectory(const char *fullfilename);
 

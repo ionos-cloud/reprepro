@@ -250,7 +250,7 @@ ssize_t ar_archivemember_read(struct archive *a, void *d, const void **p) {
 
 		(void)uncompress_fdclose(ar->member, &e, &msg);
 		ar->member = NULL;
-		archive_set_error(a, e, msg);
+		archive_set_error(a, e, "%s", msg);
 		return -1;
 	}
 	return bytesread;
@@ -274,7 +274,7 @@ int ar_archivemember_open(struct archive *a, void *d) {
 			ar->compression, &e, &msg);
 	if (RET_IS_OK(r))
 		return ARCHIVE_OK;
-	archive_set_error(a, e, msg);
+	archive_set_error(a, e, "%s", msg);
 	return ARCHIVE_FATAL;
 }
 
@@ -294,6 +294,6 @@ int ar_archivemember_close(UNUSED(struct archive *a), void *d) {
 	ar->member = NULL;
 	if (RET_IS_OK(r))
 		return ARCHIVE_OK;
-	archive_set_error(a, e, msg);
+	archive_set_error(a, e, "%s", msg);
 	return ARCHIVE_FATAL;
 }

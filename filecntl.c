@@ -78,3 +78,12 @@ bool isdirectory(const char *fullfilename) {
 	i = stat(fullfilename, &s);
 	return i == 0 && S_ISDIR(s.st_mode);
 }
+
+bool isanyfile(const char *fullfilename) {
+	struct stat s;
+	int i;
+
+	assert(fullfilename != NULL);
+	i = lstat(fullfilename, &s);
+	return i == 0;
+}
