@@ -34,6 +34,7 @@
 	IGN(revokedkey) \
 	IGN(expiredsignature) \
 	IGN(wrongarchitecture) \
+	IGN(oldfile) \
 	IGN(missingfile)
 
 

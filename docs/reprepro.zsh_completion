@@ -315,6 +315,7 @@ _arguments \
 		expiredkey\:"allow signatures with expired keys"\
 		expiredsignature\:"allow expired signatures"\
 		revokedkey\:"allow signatures with revoked keys"\
+		oldfile\:"silence warnings about strange old files in dists"\
 		))' \
 	'*--unignore=[Do not ignore errors of type]:error type:(
 		ignore flatandnonflat forbiddenchar 8bit emptyfilenamepart\

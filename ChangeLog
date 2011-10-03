@@ -1,3 +1,14 @@
+2010-10-03
+	* when using nocompatsymlink in Contents warn about
+	  old file/symlink still present.
+
+2010-09-28
+	* fix archive_set_error calls
+	  (don't give error messages as format strings)
+	* remove undocumented Contents: options with leading +/-
+	* add compatsymlink nocompatsymlink Contents: options
+	  (and document that the default will change in the future)
+
 2010-08-22
 	* add 'redochecksums' command to complete the checksum information
 	in package indices.
