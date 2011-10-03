@@ -1,3 +1,11 @@
+reprepro (4.8.0-1) unstable; urgency=low
+
+  * new release
+  - properly escape strings to archive_set_error (Closes: 643467)
+  - option to control percomponent contents compatibility symlink
+
+ -- Bernhard R. Link <brlink@debian.org>  Mon, 03 Oct 2011 15:49:16 +0000
+
 reprepro (4.7.0-1) unstable; urgency=low
 
   * new release
