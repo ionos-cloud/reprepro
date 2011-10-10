@@ -1,3 +1,10 @@
+reprepro (4.8.1-1) unstable; urgency=high
+
+  * new bugfix release
+  - fix NULL-dereference with broken Packages.diff (Closes: 644887)
+
+ -- Bernhard R. Link <brlink@debian.org>  Mon, 10 Oct 2011 10:00:41 +0000
+
 reprepro (4.8.0-1) unstable; urgency=low
 
   * new release
