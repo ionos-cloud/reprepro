@@ -1,3 +1,10 @@
+Updates between 4.8.0 and 4.8.1:
+- fix NULL-dereference with broken Packages.diff/Index files
+
+Updates between 4.7.0 and 4.8.0:
+-  add compatsymlink nocompatsymlink Contents: options
+   (and document that the default will change in the future)
+
 Updates between 4.6.1 and 4.7.0:
 - add 'redochecksums' command
 - add percomponent and allcomponents to Contents: flags

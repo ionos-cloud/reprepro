@@ -1707,7 +1707,7 @@ static retvalue queue_next_diff(struct remote_index *ri) {
 		struct diffindex_patch *p = &ri->diffindex->patches[i];
 		char *patchsuffix, *c;
 
-		if (p->done)
+		if (p->done || p->frompackages == NULL)
 			continue;
 
 		if (!checksums_check(ri->oldchecksums, p->frompackages,
