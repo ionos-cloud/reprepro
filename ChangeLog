@@ -1,3 +1,8 @@
+2010-10-10
+	* fix NULL-reference segfault if patch in a Packages.diff
+	does not have a history attached to it (or if it is listed
+	two times)
+
 2010-10-03
 	* when using nocompatsymlink in Contents warn about
 	  old file/symlink still present.
