@@ -1937,6 +1937,12 @@ which allows everything matching signed by this \fIkey-id\fP
 (to be specified without any spaces).
 If the \fIkey-id\fP ends with a \fB+\fP (plus), a signature with a subkey of
 this primary key also suffices.
+
+\fIkey-id\fP must be a suffix of the id libgpgme uses to identify this key,
+i.e. a number of hexdigits from the end of the fingerprint of the key, but
+no more than what libgpgme uses.
+(The maximal number should be what gpg --list-key --with-colons prints,
+as of the time of this writing that is at most 16 hex-digits).
 .TP
 .B allow \fIcondition\fP by group \fIgroupname\fP
 which allows every member of group \fIgroupname\fP.
