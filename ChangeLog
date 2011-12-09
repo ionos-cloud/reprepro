@@ -1,3 +1,7 @@
+2010-12-09
+	* if failing to parse .diff/Index, proceed with other
+	  ways to retrieve Packages/Sources.
+
 2010-10-30
 	* don't give spurious warnings about "strange filekey"s if
 	components contain slashes.
