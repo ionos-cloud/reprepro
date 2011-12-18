@@ -1,4 +1,4 @@
-.TH REPREPRO 1 "2011-08-24" "reprepro" REPREPRO
+.TH REPREPRO 1 "2011-12-18" "reprepro" REPREPRO
 .SH NAME
 reprepro \- produce, manage and sync a local repository of Debian packages
 .mso www.tmac
@@ -395,7 +395,7 @@ Omitts the first \fIcount\fP results from the output of
 .TP
 .BI \-\-list\-format " format"
 Set the output format of \fBlist\fP, \fBlistmatched\fP and \fBlistfilter\fP commands.
-The format is similar to dpkg-query's \fB\-\-showformat\fP:
+The format is similar to dpkg\-query's \fB\-\-showformat\fP:
 fields are specified as
 .BI ${ fieldname }
 or
@@ -513,8 +513,8 @@ matching the given shell-like \fIglob\fP.
 
 Examples:
 
-.B reprepro \-b . listmatched test2 'linux-*'
-lists all packages starting with \fBlinux-\fP.
+.B reprepro \-b . listmatched test2 'linux\-*'
+lists all packages starting with \fBlinux\-\fP.
 
 .TP
 .B listfilter \fIcodename\fP \fIcondition\fP
@@ -590,7 +590,7 @@ is the better way to do this (but only available since 3.11.1).
 is another (less efficient) way.
 
 .B reprepro \-b . listfilter test2 'Package (% linux\-*\-2.6*)'
-lists all packages with names starting with \fBlinux-\fP and later
+lists all packages with names starting with \fBlinux\-\fP and later
 having an \fB\-2.6\fP.
 .TP
 .B ls \fIpackage-name\fP
@@ -1018,7 +1018,7 @@ hack around broken .deb files that cannot be read by reprepro.
 .TP
 .B _addpackage \fIcodenam\fP \fIfilename\fP \fIpackages...\fP
 Add packages from the specified filename to part specified
-by \fB-C\fP \fB-A\fP and \fB-T\fP of the specified distribution.
+by \fB\-C\fP \fB\-A\fP and \fB\-T\fP of the specified distribution.
 Very strange things can happen if you use it improperly.
 .TP
 .B __dumpuncompressors
@@ -1235,7 +1235,7 @@ If that command does not list any keys or multiple ones,
 try to find some other value (like the keyid),
 that gpg can more easily associate with a unique key.
 
-If this key has a passphrase, you need to use gpg-agent
+If this key has a passphrase, you need to use gpg\-agent
 or the insecure option \fB\-\-ask\-passphrase\fP.
 .TP
 .B DebOverride
@@ -1305,7 +1305,7 @@ If \fBcompatsymlink\fP or \fBnocompatsymlink\fP is specified
 then \fBpercomponent\fP is implied.
 Those are only possible if \fBallcomponents\fP if off and they
 control whether a compatiblity symlink is created (that allows
-version of apt-file looking at the component independent filename
+version of apt\-file looking at the component independent filename
 to see at least the contents of the first component if no files
 containing information for all components are created).
 
@@ -1321,7 +1321,7 @@ An empty field means no architectures are processed, thus not
 very useful.
 .TP
 .B ContentsComponents
-Limit what components are processed for the \fBContents-\fP\fIarch\fP
+Limit what components are processed for the \fBContents\-\fP\fIarch\fP
 files to the components given.
 If this field is not there, all components are processed.
 An empty field is equivalent to specify \fBnodebs\fP in the
@@ -1335,11 +1335,11 @@ If this field is not there and there is the \fBudebs\fP keyword
 in the Contents field, all .udebs of all components are put
 in the \fBuContents.\fP\fIarch\fP files.
 If this field is not there and there is no \fBudebs\fP keyword
-in the Contents field, no \fBuContents\fP-\fIarch\fP files are
+in the Contents field, no \fBuContents\-\fP\fIarch\fP files are
 generated at all.
-A non-empty fields implies generation of \fBuContents\fP-\fIarch\fP
+A non-empty fields implies generation of \fBuContents\-\fP\fIarch\fP
 files (just like the \fBudebs\fP keyword in the Contents field),
-while an empty one causes no \fBuContents-\fP\fIarch\fP files to
+while an empty one causes no \fBuContents\-\fP\fIarch\fP files to
 be generated.
 .TP
 .B Uploaders
@@ -1375,7 +1375,7 @@ Add the .changes file to the tracked files of a source package.
 Thus it is also put into the pool.
 .br
 .B includebyhand
-Add \fBbyhand\fP and \fBraw-\fP\fI*\fP files to the tracked
+Add \fBbyhand\fP and \fBraw\-\fP\fI*\fP files to the tracked
 files and thus in the pool.
 .br
 .B includelogs
@@ -1421,7 +1421,7 @@ the scripts are relative to \fB\-\-confdir\fP unless starting with
 a slash.
 .TP
 .B ValidFor
-If this field exists, an Valid-Until field is put into generated
+If this field exists, an Valid\-Until field is put into generated
 .B Release
 files for this distribution with an date as much in the future as the
 argument specifies.
@@ -1433,7 +1433,7 @@ where \fBd\fP means days, \fBm\fP means 31 days and \fBy\fP means
 So
 .B ValidFor: 1m 11 d
 causes the generation of a
-.B Valid-Until:
+.B Valid\-Until:
 header in Release files that points 42 days into the future.
 .TP
 .B ReadOnly
@@ -1446,7 +1446,7 @@ This species hooks to call for handling byhand/raw files by processincoming
 
 Each line consists out of 4 arguments:
 A glob pattern for the section
-(clasically \fBbyhand\fP, though Ubuntu uses \fBraw-\fP*),
+(clasically \fBbyhand\fP, though Ubuntu uses \fBraw\-\fP*),
 a glob pattern for the priority (not usually used),
 and a glob pattern for the filename.
 
@@ -1572,13 +1572,13 @@ If the \fBArchitecture\fP field has any \fB>\fP items,
 the part left of the "\fB>\fP" is ignored.
 .br
 For example the \fBsources.list\fP line
- deb http://cran.r-project.org/bin/linux/debian etch-cran/
+ deb http://cran.r\-project.org/bin/linux/debian etch\-cran/
 .br
 would translate to
 .br
  Name: R
- Method: http://cran.r-project.org/bin/linux/debian
- Suite: etch-cran
+ Method: http://cran.r\-project.org/bin/linux/debian
+ Suite: etch\-cran
  Flat: whatevercomponentyoudlikethepackagesin
 .TP
 .B IgnoreHashes
@@ -1663,7 +1663,7 @@ ListShellHook: cat
 .br
 works but does nothing but useless use of a shell and cat, while
 .br
-ListShellHook: grep-dctrl \-X \-S apt \-o \-X \-S dpkg || [ $? \-eq 1 ]
+ListShellHook: grep\-dctrl \-X \-S apt \-o \-X \-S dpkg || [ $? \-eq 1 ]
 .br
 will limit the update rule to packages from the specified source packages.
 .TP
@@ -1787,7 +1787,7 @@ Special fields are:
 
  \fB$Component\fP: includedeb, includedsc, include and processincoming
 will put the package in the component given as value
-(unless itself overridden with \fB-C\fP).
+(unless itself overridden with \fB\-C\fP).
 Note that the proper way to specify the component is by setting the
 section field and using this extension will most likely confuse people.
 
@@ -1838,11 +1838,11 @@ Allow: local unstable>sid
 .br
 or
 .br
-Allow: stable>security-updates stable>proposed-updates
+Allow: stable>security\-updates stable>proposed\-updates
 .br
 (Note that this makes only sense if Multiple is set to true or if
-there are people only allowed to upload to proposed-updates but
-not to security-updates).
+there are people only allowed to upload to proposed\-updates but
+not to security\-updates).
 .TP
 .B Default \fIdistribution
 Every upload not put into any other distribution because
@@ -1941,7 +1941,7 @@ this primary key also suffices.
 \fIkey-id\fP must be a suffix of the id libgpgme uses to identify this key,
 i.e. a number of hexdigits from the end of the fingerprint of the key, but
 no more than what libgpgme uses.
-(The maximal number should be what gpg --list-key --with-colons prints,
+(The maximal number should be what gpg \-\-list-key \-\-with\-colons prints,
 as of the time of this writing that is at most 16 hex-digits).
 .TP
 .B allow \fIcondition\fP by group \fIgroupname\fP
@@ -2008,7 +2008,7 @@ matches an upload with at least one byhand file
 .B byhand '\fIsection\fP'\fR(\fP|'\fIsection\fP'\fR)*\fP
 matches an upload with at least one byhand file and
 all byhand files having a section listed in the list of given section.
-(i.e. \fBbyhand 'byhand'|'raw-*'\fP is currently is the same as \fBbyhand\fP).
+(i.e. \fBbyhand 'byhand'|'raw\-*'\fP is currently is the same as \fBbyhand\fP).
 .TP
 .BI "distribution '" codename '
 which means any package when it is to be included in \fIcodename\fP.
@@ -2241,7 +2241,7 @@ things like \fBsarge\fP, \fBetch\fP or \fBsid\fP.
 the name of a file without any directory information.
 .TP
 .B byhand
-Changes files can have files with section 'byhand' (Debian) or 'raw-' (Ubuntu).
+Changes files can have files with section 'byhand' (Debian) or 'raw\-' (Ubuntu).
 Those files are not packages but other data generated (usually together with
 packages) and then uploaded together with this changes files.
 
@@ -2361,13 +2361,13 @@ instead of "~/.gnupg".
 Take a look at
 .BR gpg (1)
 to be sure.
-You can also tell reprepro to set this with the \fB--gnupghome\fP option.
+You can also tell reprepro to set this with the \fB\-\-gnupghome\fP option.
 .TP
 .B GPG_TTY
-When there is a gpg-agent running that does not have the passphrase
+When there is a gpg\-agent running that does not have the passphrase
 cached yet, gpg will most likely try to start some pinentry program
 to get it.
-If that is pinentry-curses, that is likely to fail without this
+If that is pinentry\-curses, that is likely to fail without this
 variable, because it cannot find a terminal to ask on.
 In this cases you might set this variable to something like
 the value of
@@ -2454,7 +2454,7 @@ if the current state is dangerous or non-dangerous to interrupt.
 Thus if reprepro receives a signal normally sent to tell a process to
 terminate itself softly,
 it continues its operation, but does not start any new operations.
-(I.e. it will not tell the apt-methods any new file to download, it will
+(I.e. it will not tell the apt\-methods any new file to download, it will
 not replace a package in a target, unless it already had started with it,
 it will not delete any files gotten dereferenced, and so on).
 
