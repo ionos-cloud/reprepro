@@ -316,6 +316,7 @@ _arguments \
 		expiredsignature\:"allow expired signatures"\
 		revokedkey\:"allow signatures with revoked keys"\
 		oldfile\:"silence warnings about strange old files in dists"\
+		longkeyid\:"do not warn about keyid in uploaders files gpgme might not accept"\
 		))' \
 	'*--unignore=[Do not ignore errors of type]:error type:(
 		ignore flatandnonflat forbiddenchar 8bit emptyfilenamepart\

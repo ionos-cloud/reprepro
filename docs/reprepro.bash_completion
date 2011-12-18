@@ -103,7 +103,7 @@ _reprepro()
 		undefinedtracking undefinedtarget unusedoption\
 		brokenversioncmp extension unusedarch surprisingarch\
 		surprisingbinary wrongsourceversion wrongversion dscinbinnmu\
-		brokensignatures uploaders missingfile\
+		brokensignatures uploaders missingfile longkeyid\
 	       	expiredkey expiredsignature revokedkey oldfile wrongarchitecture'
 	noargoptions='--delete --nodelete --help -h --verbose -v\
 	--nothingiserror --nolistsdownload --keepunreferencedfiles --keepunusednewfiles\

@@ -183,7 +183,7 @@ dodo test -f dists/test/main/source/Sources.diff/Index
 (cd dists/test/main/source/Sources.diff/ && ls *.gz) | sort |sed -e 's/\.gz$//' > patches
 
 cat > results.expected <<EOF
-SHA1-Current: $(sha1 old/3)
+SHA1-Current: $(sha1andsize old/3)
 SHA1-History:
 EOF
 i=0

@@ -1,5 +1,6 @@
 2010-12-18
 	* rredtool: produce .diff/Index files that reprepro can understand.
+	* warn if uploader files contains key ids too long to handle
 
 2010-12-09
 	* if failing to parse .diff/Index, proceed with other

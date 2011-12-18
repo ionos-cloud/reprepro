@@ -32,6 +32,7 @@
 #include "signature.h"
 #include "globmatch.h"
 #include "uploaderslist.h"
+#include "ignore.h"
 
 struct upload_condition {
 	/* linked list of all sub-nodes */
@@ -998,6 +999,13 @@ static retvalue find_uploader(struct uploader **u_p, struct uploaders *u, const 
 		fprintf(stderr, "%s:%lu:%u: key id or fingerprint expected!\n",
 				filename, (long)lineno, (int)(1 + q - buffer));
 		return RET_ERROR;
+	}
+	if (q - p > 16) {
+		if (!IGNORABLE(longkeyid))
+			fprintf(stderr,
+"%s:%lu:%u: key id most likely too long for gpgme to understand!\n"
+"(at most 16 hex digits should be safe. Use --ignore=longkeyid to ignore)\n",
+					filename, (long)lineno, (int)(1 + p - buffer));
 	}
 	qq = q;
 	while (xisspace(*qq))
