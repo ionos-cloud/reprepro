@@ -1,3 +1,8 @@
+Updates between 4.8.1 and 4.8.2:
+- rredtool: produce .diff/Index files that reprepro can understand.
+- warn if uploader files contains key ids too long to handle
+- make .diff/Index parsing errors non-fatal
+
 Updates between 4.8.0 and 4.8.1:
 - fix NULL-dereference with broken Packages.diff/Index files
 
