@@ -228,6 +228,10 @@ retvalue changes_parsefileline(const char *fileline, /*@out@*/filetype *result_t
 				&& c == c_none) {
 			type = fe_DSC;
 			eoi = p - 4;
+		} else if (l > 4 && strncmp(p-4, ".git", 4) == 0
+				&& c == c_none) {
+			type = fe_ALTSRC;
+			eoi = p - 4;
 		} else if (l > 4 && strncmp(p-4, ".log", 4) == 0) {
 			type = fe_LOG;
 			eoi = p - 4;

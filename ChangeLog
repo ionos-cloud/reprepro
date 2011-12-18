@@ -1,3 +1,16 @@
+2010-12-18
+	* rredtool: produce .diff/Index files that reprepro can understand.
+	* warn if uploader files contains key ids too long to handle
+	* don't warn against .git files as unknown extension
+
+2010-12-09
+	* if failing to parse .diff/Index, proceed with other
+	  ways to retrieve Packages/Sources.
+
+2010-10-30
+	* don't give spurious warnings about "strange filekey"s if
+	components contain slashes.
+
 2010-10-10
 	* fix NULL-reference segfault if patch in a Packages.diff
 	does not have a history attached to it (or if it is listed

@@ -1951,7 +1951,7 @@ static retvalue diff_callback(enum queue_action action, void *privdata, UNUSED(v
 	r = diffindex_read(wantedfilename, &ri->diffindex);
 	ASSERT_NOT_NOTHING(r);
 	if (RET_WAS_ERROR(r))
-		return r;
+		return queue_next_encoding(rd, ri);
 	if (ri->ofs[c_none] >= 0) {
 		bool dummy;
 		if (!checksums_check(rd->remotefiles.checksums[

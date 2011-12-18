@@ -69,31 +69,42 @@ static int source_node_compare(const void *a, const void *b) {
 }
 
 static retvalue split_filekey(const char *filekey, /*@out@*/component_t *component_p, /*@out@*/struct source_node **node_p, /*@out@*/const char **basename_p) {
-	const char *p, *source;
+	const char *p, *lastp, *source;
 	struct source_node *node;
 	component_t c;
 
 	if (unlikely(memcmp(filekey, "pool/", 5) != 0))
 		return RET_NOTHING;
-	filekey += 5;
-	p = strchr(filekey, '/');
-	if (unlikely(p == NULL))
-		return RET_NOTHING;
-	c = component_find_l(filekey, (size_t)(p - filekey));
-	if (unlikely(!atom_defined(c)))
-		return RET_NOTHING;
-	p++;
-	if (p[0] != '\0' && p[1] == '/' && p[0] != '/' && p[2] == p[0]) {
-		p += 2;
-		if (unlikely(p[0] == 'l' && p[1] == 'i' && p[2] == 'b'))
+	lastp = filekey + 4;
+	filekey = lastp + 1;
+	/* components can include slashes, so look for the first valid component
+	 * followed by something looking like a proper directory.
+	 * This might missdetect the component, but as it only is used for
+	 * the current run it will hopefully always detect the same place
+	 * (and all that is important is that it is the same place) */
+	while (true) {
+		p = strchr(lastp + 1, '/');
+		if (unlikely(p == NULL))
 			return RET_NOTHING;
-	} else if (p[0] == 'l' && p[1] == 'i' && p[2] == 'b' && p[3] != '\0'
-			&& p[4] == '/' && p[5] == 'l' && p[6] == 'i'
-			&& p[7] == 'b' && p[3] != '/' && p[8] == p[3]) {
-		p += 5;
-	} else
-		return RET_NOTHING;
-	source = p;
+		lastp = p;
+		c = component_find_l(filekey, (size_t)(p - filekey));
+		if (unlikely(!atom_defined(c)))
+			continue;
+		p++;
+		if (p[0] != '\0' && p[1] == '/' && p[0] != '/' && p[2] == p[0]) {
+			p += 2;
+			if (unlikely(p[0] == 'l' && p[1] == 'i' && p[2] == 'b'))
+				continue;
+			source = p;
+			break;
+		} else if (p[0] == 'l' && p[1] == 'i' && p[2] == 'b' && p[3] != '\0'
+				&& p[4] == '/' && p[5] == 'l' && p[6] == 'i'
+				&& p[7] == 'b' && p[3] != '/' && p[8] == p[3]) {
+			source = p + 5;
+			break;
+		} else
+			continue;
+	}
 	p = strchr(source, '/');
 	if (unlikely(p == NULL))
 		return RET_NOTHING;
