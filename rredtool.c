@@ -326,7 +326,7 @@ struct old_index_file {
 		char *nameprefix;
 		struct hash hash;
 	} *first, *last;
-	char sha1[2*SHA1_DIGEST_SIZE+1];
+	struct hash hash;
 };
 
 static void old_index_done(/*@only@*/struct old_index_file *o) {
@@ -387,11 +387,23 @@ static inline retvalue parse_old_index(char *p, size_t len, struct old_index_fil
 
 	checkorfail("SHA1-Current: ");
 	q = strchr(p, '\n');
+	if (q != NULL && q - p > 2 * SHA1_DIGEST_SIZE)
+		q = memchr(p, ' ', q - p);
 	if (q == NULL || q - p != 2 * SHA1_DIGEST_SIZE)
 		return RET_NOTHING;
-	memcpy(oldindex->sha1, p, 2 * SHA1_DIGEST_SIZE);
-	oldindex->sha1[2 * SHA1_DIGEST_SIZE] = '\0';
+	memcpy(oldindex->hash.sha1, p, 2 * SHA1_DIGEST_SIZE);
+	oldindex->hash.sha1[2 * SHA1_DIGEST_SIZE] = '\0';
 	p = q;
+	if (*p == ' ') {
+		p++;
+		filesize = 0;
+		while (*p >= '0' && *p <= '9') {
+			filesize = 10 * filesize + (*p - '0');
+			p++;
+		}
+		oldindex->hash.len = filesize;
+	} else
+		oldindex->hash.len = (off_t)-1;
 	checkorfail("\nSHA1-History:\n");
 	while (*p == ' ') {
 		p++;
@@ -448,7 +460,7 @@ static inline retvalue parse_old_index(char *p, size_t len, struct old_index_fil
 			return r;
 
 		/* allow pseudo-empty fake patches */
-		if (memcmp(o->hash.sha1, oldindex->sha1,
+		if (memcmp(o->hash.sha1, oldindex->hash.sha1,
 					2 * SHA1_DIGEST_SIZE) == 0)
 			continue;
 		// TODO: verify filename and create prefix...
@@ -789,8 +801,8 @@ static retvalue write_new_index(const char *newindexfilename, const struct hash 
 				e, newindexfilename, strerror(e));
 		return RET_ERROR;
 	}
-	i = dprintf(fd, "SHA1-Current: %s\n" "SHA1-History:\n",
-			newhash->sha1);
+	i = dprintf(fd, "SHA1-Current: %s %lld\n" "SHA1-History:\n",
+			newhash->sha1, (long long)newhash->len);
 	for (p = root ; i >= 0 && p != NULL ; p = p->next) {
 		i = dprintf(fd, " %s %7ld %s\n",
 				p->from.sha1, (long int)p->from.len,
@@ -1003,7 +1015,11 @@ static retvalue handle_diff(const char *directory, const char *mode, const char 
 		return r;
 
 	/* ignore old Index file if it does not match the old file */
-	if (memcmp(old_index.sha1, oldhash.sha1, 2*SHA1_DIGEST_SIZE) != 0) {
+	if (old_index.hash.len != (off_t)-1 && old_index.hash.len != oldhash.len) {
+		old_index_done(&old_index);
+		memset(&old_index, 0, sizeof(old_index));
+	}
+	if (memcmp(old_index.hash.sha1, oldhash.sha1, 2*SHA1_DIGEST_SIZE) != 0) {
 		old_index_done(&old_index);
 		memset(&old_index, 0, sizeof(old_index));
 	}
@@ -1011,7 +1027,7 @@ static retvalue handle_diff(const char *directory, const char *mode, const char 
 	if (m == mode_OLD) {
 		/* this index file did not change.
 		 * keep old or delete if not current */
-		if (old_index.sha1[0] != '\0') {
+		if (old_index.hash.sha1[0] != '\0') {
 			for (o = old_index.first ; o != NULL ; o = o->next)
 				dprintf(3, "%s.diff/%s.gz.keep\n",
 						relfilename, o->basefilename);
@@ -1123,8 +1139,8 @@ static retvalue handle_diff(const char *directory, const char *mode, const char 
 		 * pseudo-empty patches and to reduce the number
 		 * of patches in case the file is reverted to an
 		 * earlier state */
-		if (memcmp(o->hash.sha1, old_index.sha1,
-				sizeof(old_index.sha1)) == 0)
+		if (memcmp(o->hash.sha1, old_index.hash.sha1,
+				sizeof(old_index.hash.sha1)) == 0)
 			continue;
 		if (memcmp(o->hash.sha1, newhash.sha1,
 				sizeof(newhash.sha1)) == 0)
