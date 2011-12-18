@@ -1,3 +1,11 @@
+reprepro (4.8.2-1) unstable; urgency=low
+
+  * new bugfix release
+  - warn against too long keyids in uploader files (Closes: 649311)
+  - don't warn against .git files in .changes files (Closes: 649308)
+
+ -- Bernhard R. Link <brlink@debian.org>  Sun, 18 Dec 2011 20:48:43 +0100
+
 reprepro (4.8.1-1) unstable; urgency=high
 
   * new bugfix release
