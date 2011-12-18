@@ -733,7 +733,8 @@ static retvalue changes_check(const struct distribution *distribution, const cha
 	bool havedsc = false,
 	     haveorig = false,
 	     havetar = false,
-	     havediff = false;
+	     havediff = false,
+	     havealtsrc = false;
 
 	/* First check for each given architecture, if it has files: */
 	if (forcearchitectures != NULL) {
@@ -851,6 +852,8 @@ static retvalue changes_check(const struct distribution *distribution, const cha
 			haveorig = true;
 		} else if (e->type == fe_TAR) {
 			havetar = true;
+		} else if (e->type == fe_ALTSRC) {
+			havealtsrc = true;
 		}
 	}
 
@@ -868,7 +871,7 @@ static retvalue changes_check(const struct distribution *distribution, const cha
 				filename);
 		return RET_ERROR;
 	}
-	if (havedsc && !havediff && !haveorig && !havetar) {
+	if (havedsc && !havediff && !haveorig && !havetar && !havealtsrc) {
 		fprintf(stderr,
 "I don't know what to do having a .dsc without a .diff.gz or .tar.gz in '%s'!\n",
 				filename);
