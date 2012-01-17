@@ -614,6 +614,7 @@ retvalue updates_getpatterns(struct update_pattern **patterns) {
 	r = configfile_parse("updates", IGNORABLE(unknownfield),
 			configparser_update_pattern_init,
 			finishparseupdate_pattern,
+			"update rule",
 			updateconfigfields, ARRAYCOUNT(updateconfigfields),
 			&update);
 	if (RET_IS_OK(r)) {

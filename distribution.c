@@ -488,6 +488,7 @@ retvalue distribution_readall(struct distribution **distributions) {
 	result = configfile_parse("distributions",
 			IGNORABLE(unknownfield),
 			startparsedistribution, finishparsedistribution,
+			"distribution definition",
 			distributionconfigfields,
 			ARRAYCOUNT(distributionconfigfields),
 			&mydata);
