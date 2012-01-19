@@ -1,5 +1,6 @@
 2010-01-19
 	* build-needing takes 'any' instead of a architecture, too.
+	* uploader files can 'include' other files.
 
 2010-12-18
 	* rredtool: produce .diff/Index files that reprepro can understand.

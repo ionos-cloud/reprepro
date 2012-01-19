@@ -1925,7 +1925,7 @@ definition as explained above describe what key a \fB.changes\fP file
 as to be signed with to be included in that distribution.
 .P
 Empty lines and lines starting with a hash are ignored, every other line
-must be of one of the following nine forms:
+must be of one of the following nine forms or an include directive:
 .TP
 .B allow \fIcondition\fP by anybody
 which allows everyone to upload packages matching \fIcondition\fP,
@@ -1967,6 +1967,10 @@ and
 .B group \fIgroupname\fP unused
 to declare that a group is not yet used (avoid warnings that it is not used).
 .PP
+A line starting with \fBinclude\fP causes the rest of the line to be
+interpreted as filename, which is opened and processed before the rest
+of the file is processed.
+
 The only conditions currently supported are:
 .TP
 .B *
