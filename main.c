@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005,2006,2007,2008,2009,2011 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2006,2007,2008,2009,2011,2012 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -1048,6 +1048,7 @@ ACTION_B(y, n, y, buildneeded) {
 	struct distribution *distribution;
 	const char *glob;
 	architecture_t arch;
+	bool anyarchitecture;
 
 	if (architectures != NULL) {
 		fprintf(stderr,
@@ -1065,16 +1066,21 @@ ACTION_B(y, n, y, buildneeded) {
 	else
 		glob = NULL;
 
-	arch = architecture_find(argv[2]);
-	if (!atom_defined(arch)) {
-		fprintf(stderr,
+	if (strcmp(argv[2], "any") == 0) {
+		anyarchitecture = true;
+	} else {
+		anyarchitecture = false;
+		arch = architecture_find(argv[2]);
+		if (!atom_defined(arch)) {
+			fprintf(stderr,
 "Error: Architecture '%s' is not known!\n", argv[2]);
-		return RET_ERROR;
-	}
-	if (arch == architecture_source || arch == architecture_all) {
-		fprintf(stderr,
+			return RET_ERROR;
+		}
+		if (arch == architecture_source || arch == architecture_all) {
+			fprintf(stderr,
 "Error: Architecture '%s' makes no sense for build-needing!\n", argv[2]);
-		return RET_ERROR;
+			return RET_ERROR;
+		}
 	}
 	r = distribution_get(alldistributions, argv[1], false, &distribution);
 	assert (r != RET_NOTHING);
@@ -1087,15 +1093,28 @@ ACTION_B(y, n, y, buildneeded) {
 				distribution->codename);
 		return RET_ERROR;
 	}
-	if (!atomlist_in(&distribution->architectures, arch)) {
-		fprintf(stderr,
+	if (anyarchitecture) {
+		retvalue result = RET_NOTHING;
+		int i;
+
+		for (i = 0 ; i < distribution->architectures.count ; i++) {
+			r = find_needs_build(distribution,
+					distribution->architectures.atoms[i],
+					components, glob, true);
+			RET_UPDATE(result, r);
+		}
+		return result;
+	} else {
+		if (!atomlist_in(&distribution->architectures, arch)) {
+			fprintf(stderr,
 "Error: Architecture '%s' not found in distribution '%s'!\n", argv[2],
-				distribution->codename);
-		return RET_ERROR;
+					distribution->codename);
+			return RET_ERROR;
+		}
+
+		return find_needs_build(distribution, arch, components,
+				glob, false);
 	}
-
-
-	return find_needs_build(distribution, arch, components, glob);
 }
 
 static retvalue list_in_target(struct target *target, const char *packagename) {

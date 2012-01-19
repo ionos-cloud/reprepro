@@ -226,6 +226,11 @@ stdout
 *=onlyonearch 1.0-1 pool/main/o/onlyonearch/onlyonearch_1.0-1.dsc
 EOF
 
+testrun - build-needing test any 3<<EOF
+stdout
+*=onlyonearch 1.0-1 pool/main/o/onlyonearch/onlyonearch_1.0-1.dsc abacus
+EOF
+
 testrun - --delete -C main includedeb test onearch_1.0-1_abacus.deb 3<<EOF
 stderr
 stdout

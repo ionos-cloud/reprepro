@@ -1,3 +1,6 @@
+2010-01-19
+	* build-needing takes 'any' instead of a architecture, too.
+
 2010-12-18
 	* rredtool: produce .diff/Index files that reprepro can understand.
 	* warn if uploader files contains key ids too long to handle
