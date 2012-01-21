@@ -11,6 +11,6 @@
 #include "distribution.h"
 #endif
 
-retvalue find_needs_build(struct distribution *, architecture_t, const struct atomlist *, /*@null@*/const char *glob);
+retvalue find_needs_build(struct distribution *, architecture_t, const struct atomlist *, /*@null@*/const char *glob, bool printarch);
 
 #endif

@@ -138,6 +138,7 @@ retvalue pull_getrules(struct pull_rule **rules) {
 
 	r = configfile_parse("pulls", IGNORABLE(unknownfield),
 			configparser_pull_rule_init, linkedlistfinish,
+			"pull rule",
 			pullconfigfields, ARRAYCOUNT(pullconfigfields), &pull);
 	if (RET_IS_OK(r))
 		*rules = pull;

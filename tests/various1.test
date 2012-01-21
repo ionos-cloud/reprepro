@@ -222,7 +222,8 @@ testrun - -b . processincoming default 3<<EOF
 returns 249
 stderr
 *=Error parsing config file ./conf/incoming, line 9:
-*=Required field 'TempDir' expected (since line 8).
+*=Required field 'TempDir' not found in
+*=incoming rule starting in line 8 and ending in line 8.
 -v0*=There have been errors!
 EOF
 cat > conf/incoming <<EOF
@@ -242,7 +243,8 @@ testrun - -b . processincoming default 3<<EOF
 returns 249
 stderr
 *=Error parsing config file ./conf/incoming, line 10:
-*=Required field 'IncomingDir' expected (since line 8).
+*=Required field 'IncomingDir' not found in
+*=incoming rule starting in line 8 and ending in line 9.
 -v0*=There have been errors!
 EOF
 cat > conf/incoming <<EOF
@@ -269,7 +271,8 @@ stderr
 *=Warning: ignored error parsing config file ./conf/incoming, line 6, column 23:
 *=Unknown flag in Cleanup header. (but not within the rule we are intrested in.)
 *=Error parsing config file ./conf/incoming, line 13:
-*=Required field 'IncomingDir' expected (since line 11).
+*=Required field 'IncomingDir' not found in
+*=incoming rule starting in line 11 and ending in line 12.
 -v0*=There have been errors!
 EOF
 cat > conf/incoming <<EOF

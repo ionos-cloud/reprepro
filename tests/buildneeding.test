@@ -51,11 +51,34 @@ cat >> conf/options <<EOF
 export silent-never
 EOF
 
+# to get databases:
+testrun - rereference 3<<EOF
+stdout
+$(odb)
+-v1*=Referencing bla...
+-v3*=Unlocking dependencies of bla|main|abacus...
+-v3*=Referencing bla|main|abacus...
+-v2=Rereferencing bla|main|abacus...
+-v3*=Unlocking dependencies of bla|main|another...
+-v3*=Referencing bla|main|another...
+-v2=Rereferencing bla|main|another...
+-v3*=Unlocking dependencies of bla|main|source...
+-v3*=Referencing bla|main|source...
+-v2=Rereferencing bla|main|source...
+-v1*=Referencing blub...
+-v3*=Unlocking dependencies of blub|main|notinbla...
+-v3*=Referencing blub|main|notinbla...
+-v2=Rereferencing blub|main|notinbla...
+EOF
+
+testrun empty build-needing test abacus
+testrun empty build-needing test all
+testrun empty build-needing test any
+
 testrun - includedsc test package_1.0-1.dsc 3<<EOF
 stderr
 -v1*=package_1.0-1.dsc: component guessed as 'main'
 stdout
-$(odb)
 -v2*=Created directory "./pool"
 -v2*=Created directory "./pool/main"
 -v2*=Created directory "./pool/main/p"
@@ -75,15 +98,19 @@ testrun - build-needing test abacus 3<<EOF
 stdout
 *=package 1.0-1 pool/main/p/package/package_1.0-1.dsc
 EOF
+testrun - build-needing test all 3<<EOF
+stdout
+*=package 1.0-1 pool/main/p/package/package_1.0-1.dsc
+EOF
+testrun - build-needing test any 3<<EOF
+stdout
+*=package 1.0-1 pool/main/p/package/package_1.0-1.dsc all
+*=package 1.0-1 pool/main/p/package/package_1.0-1.dsc another
+*=package 1.0-1 pool/main/p/package/package_1.0-1.dsc abacus
+EOF
 testrun - build-needing test source 3<<EOF
 stderr
 *=Error: Architecture 'source' makes no sense for build-needing!
--v0*=There have been errors!
-returns 255
-EOF
-testrun - build-needing test all 3<<EOF
-stderr
-*=Error: Architecture 'all' makes no sense for build-needing!
 -v0*=There have been errors!
 returns 255
 EOF
@@ -125,6 +152,12 @@ testrun - build-needing test abacus 3<<EOF
 stdout
 *=package 1.0-1 pool/main/p/package/package_1.0-1.dsc
 EOF
+testrun - build-needing test any 3<<EOF
+stdout
+*=package 1.0-1 pool/main/p/package/package_1.0-1.dsc another
+*=package 1.0-1 pool/main/p/package/package_1.0-1.dsc abacus
+EOF
+testrun empty build-needing test all
 
 cd package-1.0
 dpkg-gencontrol -ptroettroet
@@ -221,9 +254,15 @@ $(ofa 'pool/main/o/onlyonearch/onlyonearch_1.0-1.tar.gz')
 EOF
 
 testrun empty build-needing test another
+testrun empty build-needing test all
 testrun - build-needing test abacus 3<<EOF
 stdout
 *=onlyonearch 1.0-1 pool/main/o/onlyonearch/onlyonearch_1.0-1.dsc
+EOF
+
+testrun - build-needing test any 3<<EOF
+stdout
+*=onlyonearch 1.0-1 pool/main/o/onlyonearch/onlyonearch_1.0-1.dsc abacus
 EOF
 
 testrun - --delete -C main includedeb test onearch_1.0-1_abacus.deb 3<<EOF
@@ -235,6 +274,8 @@ EOF
 
 testrun empty build-needing test another
 testrun empty build-needing test abacus
+testrun empty build-needing test all
+testrun empty build-needing test any
 
 mkdir onlyarchall-1.0
 mkdir onlyarchall-1.0/debian
@@ -281,6 +322,14 @@ EOF
 
 testrun empty build-needing test another
 testrun empty build-needing test abacus
+testrun - build-needing test all 3<<EOF
+stdout
+*=onlyarchall 1.0-1 pool/main/o/onlyarchall/onlyarchall_1.0-1.dsc
+EOF
+testrun - build-needing test any 3<<EOF
+stdout
+*=onlyarchall 1.0-1 pool/main/o/onlyarchall/onlyarchall_1.0-1.dsc all
+EOF
 
 testrun - --delete -C main includedeb test archall_1.0-1_all.deb 3<<EOF
 stderr
@@ -292,6 +341,180 @@ EOF
 
 testrun empty build-needing test another
 testrun empty build-needing test abacus
+testrun empty build-needing test any
+
+mkdir allandany-1.0
+mkdir allandany-1.0/debian
+cat >allandany-1.0/debian/control <<END
+Source: allandany
+Section: something
+Priority: extra
+Maintainer: me <me@example.org>
+Standards-Version: 0.0
+
+Package: allpart
+Architecture: all
+Description: some test-arch all package
+ .
+
+Package: anypart
+Architecture: any
+Description: some test-arch any package
+ .
+END
+cat >allandany-1.0/debian/changelog <<END
+allandany (1.0-1) test; urgency=critical
+
+  * first version
+
+ -- me <me@example.org>  Mon, 01 Jan 1980 01:02:02 +0000
+END
+dpkg-source -b allandany-1.0
+mkdir allandany-1.0/debian/tmp
+mkdir allandany-1.0/debian/tmp/DEBIAN
+mkdir -p allandany-1.0/debian/tmp/usr/bin
+touch allandany-1.0/debian/tmp/usr/bin/program
+cd allandany-1.0
+dpkg-gencontrol -panypart
+dpkg --build debian/tmp ..
+cd ..
+rm -r allandany-1.0/debian/tmp
+mkdir allandany-1.0/debian/tmp
+mkdir allandany-1.0/debian/tmp/DEBIAN
+mkdir -p allandany-1.0/debian/tmp/usr/share
+touch allandany-1.0/debian/tmp/usr/share/data
+cd allandany-1.0
+dpkg-gencontrol -pallpart
+dpkg --build debian/tmp ..
+cd ..
+echo "There was nothing to do on this architecture!" > allandany_1.0-1_another.log
+echo "allandany_1.0-1_another.log - -" > allandany-1.0/debian/files
+cd allandany-1.0
+dpkg-genchanges -B > ../allandany_1.0-1_another.changes
+cd ..
+rm -r allandany-1.0
+
+testrun - --delete includedsc test allandany_1.0-1.dsc 3<<EOF
+stderr
+-v1*=allandany_1.0-1.dsc: component guessed as 'main'
+stdout
+-v2*=Created directory "./pool/main/a"
+-v2*=Created directory "./pool/main/a/allandany"
+$(ofa 'pool/main/a/allandany/allandany_1.0-1.dsc')
+$(ofa 'pool/main/a/allandany/allandany_1.0-1.tar.gz')
+-d1*=db: 'allandany' added to packages.db(bla|main|source).
+-d1*=db: 'allandany' added to tracking.db(bla).
+EOF
+
+testrun - build-needing test another 3<<EOF
+stdout
+*=allandany 1.0-1 pool/main/a/allandany/allandany_1.0-1.dsc
+EOF
+testrun - build-needing test abacus 3<<EOF
+stdout
+*=allandany 1.0-1 pool/main/a/allandany/allandany_1.0-1.dsc
+EOF
+testrun - build-needing test all 3<<EOF
+stdout
+*=allandany 1.0-1 pool/main/a/allandany/allandany_1.0-1.dsc
+EOF
+testrun - build-needing test any 3<<EOF
+stdout
+*=allandany 1.0-1 pool/main/a/allandany/allandany_1.0-1.dsc abacus
+*=allandany 1.0-1 pool/main/a/allandany/allandany_1.0-1.dsc another
+*=allandany 1.0-1 pool/main/a/allandany/allandany_1.0-1.dsc all
+EOF
+
+testrun - --delete -C main includedeb test anypart_1.0-1_abacus.deb 3<<EOF
+stderr
+stdout
+$(ofa 'pool/main/a/allandany/anypart_1.0-1_abacus.deb')
+-d1*=db: 'anypart' added to packages.db(bla|main|abacus).
+EOF
+
+testrun empty build-needing test abacus
+testrun - build-needing test all 3<<EOF
+stdout
+*=allandany 1.0-1 pool/main/a/allandany/allandany_1.0-1.dsc
+EOF
+testrun - build-needing test any 3<<EOF
+stdout
+*=allandany 1.0-1 pool/main/a/allandany/allandany_1.0-1.dsc another
+*=allandany 1.0-1 pool/main/a/allandany/allandany_1.0-1.dsc all
+EOF
+
+testrun - --delete -C main includedeb test allpart_1.0-1_all.deb 3<<EOF
+stderr
+stdout
+$(ofa 'pool/main/a/allandany/allpart_1.0-1_all.deb')
+-d1*=db: 'allpart' added to packages.db(bla|main|abacus).
+-d1*=db: 'allpart' added to packages.db(bla|main|another).
+EOF
+
+testrun empty build-needing test abacus
+testrun empty build-needing test all
+testrun - build-needing test any 3<<EOF
+stdout
+*=allandany 1.0-1 pool/main/a/allandany/allandany_1.0-1.dsc another
+EOF
+
+testrun - -C main include test allandany_1.0-1_another.changes 3<<EOF
+stderr
+stdout
+$(ofa 'pool/main/a/allandany/allandany_1.0-1_another.log')
+EOF
+
+testrun empty build-needing test any
+
+mkdir anyonly-1.0
+mkdir anyonly-1.0/debian
+cat >anyonly-1.0/debian/control <<END
+Source: anyonly
+Section: something
+Priority: extra
+Maintainer: me <me@example.org>
+Standards-Version: 0.0
+
+Package: anyonly
+Architecture: any
+Description: some test-arch any package
+ .
+END
+cat >anyonly-1.0/debian/changelog <<END
+anyonly (1.0-1) test; urgency=critical
+
+  * first version
+
+ -- me <me@example.org>  Mon, 01 Jan 1980 01:02:02 +0000
+END
+dpkg-source -b anyonly-1.0
+mkdir anyonly-1.0/debian/tmp
+mkdir anyonly-1.0/debian/tmp/DEBIAN
+mkdir -p anyonly-1.0/debian/tmp/usr/bin
+touch anyonly-1.0/debian/tmp/usr/bin/program
+cd anyonly-1.0
+dpkg-gencontrol -panyonly
+dpkg --build debian/tmp ..
+cd ..
+rm -r anyonly-1.0
+
+testrun - --delete includedsc test anyonly_1.0-1.dsc 3<<EOF
+stderr
+-v1*=anyonly_1.0-1.dsc: component guessed as 'main'
+stdout
+-v2*=Created directory "./pool/main/a/anyonly"
+$(ofa 'pool/main/a/anyonly/anyonly_1.0-1.dsc')
+$(ofa 'pool/main/a/anyonly/anyonly_1.0-1.tar.gz')
+-d1*=db: 'anyonly' added to packages.db(bla|main|source).
+-d1*=db: 'anyonly' added to tracking.db(bla).
+EOF
+
+testrun empty build-needing test all
+testrun - build-needing test any 3<<EOF
+stdout
+*=anyonly 1.0-1 pool/main/a/anyonly/anyonly_1.0-1.dsc another
+*=anyonly 1.0-1 pool/main/a/anyonly/anyonly_1.0-1.dsc abacus
+EOF
 
 rm -r pool conf db *.deb *.log *.changes
 testsuccess

@@ -1,4 +1,4 @@
-.TH REPREPRO 1 "2011-12-18" "reprepro" REPREPRO
+.TH REPREPRO 1 "2012-01-21" "reprepro" REPREPRO
 .SH NAME
 reprepro \- produce, manage and sync a local repository of Debian packages
 .mso www.tmac
@@ -890,6 +890,18 @@ of the given architecture built from that version of the source,
 without a \fB.changes\fP or \fB.log\fP file for the given architecture,
 with an Architecture field including \fBany\fP or the architecture and
 at least one package in the Binary field not yet available.
+
+If instead of \fIarchitecture\fP the term \fBany\fP is used,
+all architectures are iterated and the architecture is printed as
+fourth field in every line.
+
+If the \fIarchitecture\fP is \fBall\fP, then only source packages
+with an Architecture field including \fBall\fP are considered
+(i.e. as above with real architectures but \fBany\fP does not suffice).
+Note that dpkg\-dev << 1.16.1 does not both set \fBany\fP and \fBall\fP
+so source packages building both architecture dependent and independent
+packages will never show up unless built with a new enough dpkg\-source).
+
 .TP
 .B translatefilelists
 Translate the file list cache within
@@ -1921,7 +1933,7 @@ definition as explained above describe what key a \fB.changes\fP file
 as to be signed with to be included in that distribution.
 .P
 Empty lines and lines starting with a hash are ignored, every other line
-must be of one of the following nine forms:
+must be of one of the following nine forms or an include directive:
 .TP
 .B allow \fIcondition\fP by anybody
 which allows everyone to upload packages matching \fIcondition\fP,
@@ -1963,6 +1975,10 @@ and
 .B group \fIgroupname\fP unused
 to declare that a group is not yet used (avoid warnings that it is not used).
 .PP
+A line starting with \fBinclude\fP causes the rest of the line to be
+interpreted as filename, which is opened and processed before the rest
+of the file is processed.
+
 The only conditions currently supported are:
 .TP
 .B *
@@ -2469,12 +2485,12 @@ for interruption.
 .SH "REPORTING BUGS"
 Report bugs or wishlist requests to the Debian BTS
 .br
-(e.g. by using \fBreportbug reperepro\fP under Debian)
+(e.g. by using \fBreportbug reprepro\fP under Debian)
 .br
 or directly to
 .MTO brlink@debian.org
 .SH COPYRIGHT
-Copyright \(co 2004,2005,2006,2007,2008,2009,2010,2011
+Copyright \(co 2004,2005,2006,2007,2008,2009,2010,2011,2012
 .URL http://www.brlink.eu "Bernhard R. Link"
 .br
 This is free software; see the source for copying conditions. There is NO

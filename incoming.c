@@ -435,6 +435,7 @@ static retvalue incoming_init(struct distribution *distributions, const char *na
 
 	r = configfile_parse("incoming", IGNORABLE(unknownfield),
 			startparseincoming, finishparseincoming,
+			"incoming rule",
 			incomingconfigfields, ARRAYCOUNT(incomingconfigfields),
 			&imports);
 	if (RET_WAS_ERROR(r))

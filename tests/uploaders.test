@@ -55,6 +55,17 @@ returns 254
 EOF
 
 cat > conf/uploaders2 <<EOF
+include uploaders2
+EOF
+
+testrun - -b . __checkuploaders test1 test2 < descr1 3<<EOF
+*=./conf/uploaders2:1:0: Too deeply nested include directives (> 100). Built some recursion?
+*=included from './conf/uploaders2' line 1
+-v0*=There have been errors!
+returns 255
+EOF
+
+cat > conf/uploaders2 <<EOF
 allow source 'testpackage' by unsigned
 EOF
 
@@ -142,7 +153,8 @@ allow * by group test
 EOF
 
 testrun - -b . __checkuploaders test1 test2 < descrbad 3<<EOF
-*=./conf/uploaders1:3: cannot use group 'test' marked as unused in line 2.
+*=./conf/uploaders1:3: cannot use group 'test' marked as unused!
+*=./conf/uploaders1:2: here it was marked as unused.
 -v0*=There have been errors!
 returns 255
 EOF
@@ -164,7 +176,8 @@ group tset contains test
 EOF
 
 testrun - -b . __checkuploaders test1 test2 < descres 3<<EOF
-*=./conf/uploaders1:4: cannot use group 'test' marked as unused in line 2.
+*=./conf/uploaders1:4: cannot use group 'test' marked as unused!
+*=./conf/uploaders1:2: here it got marked as unused.
 -v0*=There have been errors!
 returns 255
 EOF

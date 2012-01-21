@@ -98,6 +98,46 @@ static retvalue upload_conditions_add(struct upload_conditions **c_p, const stru
 	return RET_OK;
 }
 
+struct fileposition {
+	const struct filebeingparsed {
+		struct filebeingparsed *next, *includedby;
+		char *filename;
+		unsigned long lineno;
+		FILE *f;
+		int depth;
+	} *file;
+	unsigned long lineno;
+};
+
+#define set_position(at, fbp) ({ \
+	(at).file = fbp; \
+	(at).lineno = fbp->lineno; \
+})
+#define unset_pos(fileposition) ((fileposition).lineno == 0)
+#define errorcol(fbp, column, format, ...) ({ \
+	fprintf(stderr, "%s:%lu:%u: ", (fbp)->filename, (fbp)->lineno, (column)); \
+	fprintf(stderr, format "\n" , ##  __VA_ARGS__); \
+	print_include_trace((fbp)->includedby); \
+})
+#define errorline(fbp, format, ...) ({ \
+	fprintf(stderr, "%s:%lu: ", (fbp)->filename, (fbp)->lineno); \
+	fprintf(stderr, format "\n" , ##  __VA_ARGS__); \
+	print_include_trace((fbp)->includedby); \
+})
+#define errorpos(pos, format, ...) ({ \
+	fprintf(stderr, "%s:%lu: ", (pos).file->filename, (pos).lineno); \
+	fprintf(stderr, format "\n" , ##  __VA_ARGS__); \
+})
+
+static void print_include_trace(struct filebeingparsed *includedby) {
+	for ( ; includedby != NULL ; includedby = includedby->includedby ) {
+		fprintf(stderr, "included from '%s' line %lu\n",
+				includedby->filename,
+				includedby->lineno);
+	}
+}
+
+
 struct uploadergroup {
 	struct uploadergroup *next;
 	size_t len;
@@ -106,7 +146,7 @@ struct uploadergroup {
 	const struct uploadergroup **memberof;
 	struct upload_condition permissions;
 	/* line numbers (if != 0) to allow some diagnostics */
-	unsigned long firstmemberat, emptyat, firstusedat, unusedat;
+	struct fileposition firstmemberat, emptyat, firstusedat, unusedat;
 };
 
 struct uploader {
@@ -575,7 +615,7 @@ static inline const char *overkey(const char *p) {
 	return p;
 }
 
-static retvalue parse_stringpart(/*@out@*/struct strlist *strings, const char **pp, const char *filename, long lineno, int column) {
+static retvalue parse_stringpart(/*@out@*/struct strlist *strings, const char **pp, const struct filebeingparsed *fbp, int column) {
 	const char *p = *pp;
 	retvalue r;
 
@@ -587,10 +627,8 @@ static retvalue parse_stringpart(/*@out@*/struct strlist *strings, const char **
 		while (*p != '\0' && xisspace(*p))
 			p++;
 		if (*p != '\'') {
-			fprintf(stderr,
-"%s:%lu:%u: starting \"'\" expected!\n",
-					filename, lineno,
-					column + (int)(p - *pp));
+			errorcol(fbp, column + (int)(p - *pp),
+"starting \"'\" expected!");
 			return RET_ERROR;
 		}
 		p++;
@@ -598,10 +636,8 @@ static retvalue parse_stringpart(/*@out@*/struct strlist *strings, const char **
 		while (*p != '\0' && *p != '\'')
 			p++;
 		if (*p == '\0') {
-			fprintf(stderr,
-"%s:%lu:%u: closing \"'\" expected!\n",
-					filename, lineno,
-					column + (int)(p - *pp));
+			errorcol(fbp, column + (int)(p - *pp),
+"closing \"'\" expected!");
 			return RET_ERROR;
 		}
 		assert (*p == '\'');
@@ -625,7 +661,7 @@ static retvalue parse_stringpart(/*@out@*/struct strlist *strings, const char **
 	return RET_OK;
 }
 
-static retvalue parse_architectures(/*@out@*/struct atomlist *atoms, const char **pp, const char *filename, long lineno, int column) {
+static retvalue parse_architectures(/*@out@*/struct atomlist *atoms, const char **pp, const struct filebeingparsed *fbp, int column) {
 	const char *p = *pp;
 	retvalue r;
 
@@ -637,10 +673,8 @@ static retvalue parse_architectures(/*@out@*/struct atomlist *atoms, const char 
 		while (*p != '\0' && xisspace(*p))
 			p++;
 		if (*p != '\'') {
-			fprintf(stderr,
-"%s:%lu:%u: starting \"'\" expected!\n",
-					filename, lineno,
-					column + (int)(p - *pp));
+			errorcol(fbp, column + (int)(p - *pp),
+"starting \"'\" expected!");
 			return RET_ERROR;
 		}
 		p++;
@@ -648,17 +682,13 @@ static retvalue parse_architectures(/*@out@*/struct atomlist *atoms, const char 
 		while (*p != '\0' && *p != '\'' && *p != '*' && *p != '?')
 			p++;
 		if (*p == '*' || *p == '?') {
-			fprintf(stderr,
-"%s:%lu:%u: Wildcards are not allowed in architectures!\n",
-					filename, lineno,
-					column + (int)(p - *pp));
+			errorcol(fbp, column + (int)(p - *pp),
+"Wildcards are not allowed in architectures!");
 			return RET_ERROR;
 		}
 		if (*p == '\0') {
-			fprintf(stderr,
-"%s:%lu:%u: closing \"'\" expected!\n",
-					filename, lineno,
-					column + (int)(p - *pp));
+			errorcol(fbp, column + (int)(p - *pp),
+"closing \"'\" expected!");
 			return RET_ERROR;
 		}
 		assert (*p == '\'');
@@ -666,10 +696,8 @@ static retvalue parse_architectures(/*@out@*/struct atomlist *atoms, const char 
 		p++;
 		atom = architecture_find_l(startp, endp - startp);
 		if (!atom_defined(atom)) {
-			fprintf(stderr,
-"%s:%lu:%u: Unknown architecture '%.*s'! (Did you mistype?)\n",
-					filename, lineno,
-					column + (int)(startp-*pp),
+			errorcol(fbp, column + (int)(startp-*pp),
+"Unknown architecture '%.*s'! (Did you mistype?)",
 					(int)(endp-startp), startp);
 			return RET_ERROR;
 		}
@@ -688,7 +716,7 @@ static retvalue parse_architectures(/*@out@*/struct atomlist *atoms, const char 
 	return RET_OK;
 }
 
-static retvalue parse_condition(const char *filename, long lineno, int column, const char **pp, /*@out@*/struct upload_condition *condition) {
+static retvalue parse_condition(const struct filebeingparsed *fbp, int column, const char **pp, /*@out@*/struct upload_condition *condition) {
 	const char *p = *pp;
 	struct upload_condition *fallback, *last, *or_scope;
 
@@ -749,8 +777,7 @@ static retvalue parse_condition(const char *filename, long lineno, int column, c
 			}
 
 			r = parse_architectures(&last->atoms, &p,
-					filename, lineno,
-					column + (p-*pp));
+					fbp, column + (p-*pp));
 			if (RET_WAS_ERROR(r)) {
 				uploadpermission_release(condition);
 				return r;
@@ -771,8 +798,7 @@ static retvalue parse_condition(const char *filename, long lineno, int column, c
 			}
 
 			r = parse_stringpart(&last->strings, &p,
-					filename, lineno,
-					column + (p-*pp));
+					fbp, column + (p-*pp));
 			if (RET_WAS_ERROR(r)) {
 				uploadpermission_release(condition);
 				return r;
@@ -791,8 +817,7 @@ static retvalue parse_condition(const char *filename, long lineno, int column, c
 				r = RET_OK;
 			} else
 				r = parse_stringpart(&last->strings, &p,
-						filename, lineno,
-						column + (p-*pp));
+						fbp, column + (p-*pp));
 			if (RET_WAS_ERROR(r)) {
 				uploadpermission_release(condition);
 				return r;
@@ -813,8 +838,7 @@ static retvalue parse_condition(const char *filename, long lineno, int column, c
 			}
 
 			r = parse_stringpart(&last->strings, &p,
-					filename, lineno,
-					column + (p-*pp));
+					fbp, column + (p-*pp));
 			if (RET_WAS_ERROR(r)) {
 				uploadpermission_release(condition);
 				return r;
@@ -827,8 +851,7 @@ static retvalue parse_condition(const char *filename, long lineno, int column, c
 			p += 6;
 
 			r = parse_stringpart(&last->strings, &p,
-					filename, lineno,
-					column + (p-*pp));
+					fbp, column + (p-*pp));
 			if (RET_WAS_ERROR(r)) {
 				uploadpermission_release(condition);
 				return r;
@@ -842,18 +865,15 @@ static retvalue parse_condition(const char *filename, long lineno, int column, c
 			p += 12;
 
 			r = parse_stringpart(&last->strings, &p,
-					filename, lineno,
-					column + (p-*pp));
+					fbp, column + (p-*pp));
 			if (RET_WAS_ERROR(r)) {
 				uploadpermission_release(condition);
 				return r;
 			}
 
 		} else {
-			fprintf(stderr,
-"%s:%lu:%u: condition expected after 'allow' keyword!\n",
-					filename, lineno,
-					column + (int)(p - *pp));
+			errorcol(fbp, column + (int)(p - *pp),
+"condition expected after 'allow' keyword!");
 			uploadpermission_release(condition);
 			return RET_ERROR;
 		}
@@ -918,10 +938,8 @@ static retvalue parse_condition(const char *filename, long lineno, int column, c
 			p += 2;
 			break;
 		} else {
-			fprintf(stderr,
-"%s:%lu:%u: 'by','and' or 'or' keyword expected!\n",
-					filename, (long)lineno,
-					column + (int)(p - *pp));
+			errorcol(fbp, column + (int)(p - *pp),
+"'by','and' or 'or' keyword expected!");
 			uploadpermission_release(condition);
 			memset(condition, 0, sizeof(struct upload_condition));
 			return RET_ERROR;
@@ -956,7 +974,7 @@ static void condition_add(struct upload_condition *permissions, struct upload_co
 	}
 }
 
-static retvalue find_group(struct uploadergroup **g, struct uploaders *u, const char **pp, const char *filename, long lineno, const char *buffer) {
+static retvalue find_group(struct uploadergroup **g, struct uploaders *u, const char **pp, const struct filebeingparsed *fbp, const char *buffer) {
 	const char *p, *q;
 	struct uploadergroup *group;
 
@@ -970,13 +988,13 @@ static retvalue find_group(struct uploadergroup **g, struct uploaders *u, const 
 			|| (q-p == 5 && memcmp(p, "empty", 5) == 0)
 			|| (q-p == 6 && memcmp(p, "unused", 6) == 0)
 			|| (q-p == 8 && memcmp(p, "contains", 8) == 0)) {
-		fprintf(stderr, "%s:%lu:%u: group name expected!\n", filename,
-				(long)lineno, (int)(1 + p - buffer));
+		errorcol(fbp, (int)(1 + p - buffer),
+"group name expected!");
 		return RET_ERROR;
 	}
 	if (*q != '\0' && *q != ' ' && *q != '\t') {
-		fprintf(stderr, "%s:%lu:%u: invalid group name!\n",
-				filename, (long)lineno, (int)(1 +p -buffer));
+		errorcol(fbp, (int)(1 +p -buffer),
+"invalid group name!");
 		return RET_ERROR;
 	}
 	*pp = q;
@@ -987,7 +1005,7 @@ static retvalue find_group(struct uploadergroup **g, struct uploaders *u, const 
 	return RET_OK;
 }
 
-static retvalue find_uploader(struct uploader **u_p, struct uploaders *u, const char *p, const char *filename, long lineno, const char *buffer) {
+static retvalue find_uploader(struct uploader **u_p, struct uploaders *u, const char *p, const struct filebeingparsed *fbp, const char *buffer) {
 	struct uploader *uploader;
 	bool allow_subkeys = false;
 	const char *q, *qq;
@@ -996,16 +1014,15 @@ static retvalue find_uploader(struct uploader **u_p, struct uploaders *u, const 
 		p += 2;
 	q = overkey(p);
 	if (*p == '\0' || (*q !='\0' && !xisspace(*q) && *q != '+') || q==p) {
-		fprintf(stderr, "%s:%lu:%u: key id or fingerprint expected!\n",
-				filename, (long)lineno, (int)(1 + q - buffer));
+		errorcol(fbp, (int)(1 + q - buffer),
+"key id or fingerprint expected!");
 		return RET_ERROR;
 	}
 	if (q - p > 16) {
 		if (!IGNORABLE(longkeyid))
-			fprintf(stderr,
-"%s:%lu:%u: key id most likely too long for gpgme to understand!\n"
-"(at most 16 hex digits should be safe. Use --ignore=longkeyid to ignore)\n",
-					filename, (long)lineno, (int)(1 + p - buffer));
+			errorcol(fbp, (int)(1 + p - buffer),
+"key id most likely too long for gpgme to understand\n"
+"(at most 16 hex digits should be safe. Use --ignore=longkeyid to ignore)");
 	}
 	qq = q;
 	while (xisspace(*qq))
@@ -1017,9 +1034,8 @@ static retvalue find_uploader(struct uploader **u_p, struct uploaders *u, const 
 	while (xisspace(*qq))
 		qq++;
 	if (*qq != '\0') {
-		fprintf(stderr, 
-"%s:%lu:%u: unexpected data after 'key <fingerprint>' statement!\n\n",
-				filename, (long)lineno, (int)(1 +qq - buffer));
+		errorcol(fbp, (int)(1 +qq - buffer),
+"unexpected data after 'key <fingerprint>' statement!");
 		if (*q == ' ')
 			fprintf(stderr,
 " Hint: no spaces allowed in fingerprint specification.\n");
@@ -1032,7 +1048,7 @@ static retvalue find_uploader(struct uploader **u_p, struct uploaders *u, const 
 	return RET_OK;
 }
 
-static retvalue include_group(struct uploadergroup *group, const struct uploadergroup ***memberof_p, const char *filename, long lineno) {
+static retvalue include_group(struct uploadergroup *group, const struct uploadergroup ***memberof_p, const struct filebeingparsed *fbp) {
 	size_t n;
 	const struct uploadergroup **memberof = *memberof_p;
 
@@ -1040,9 +1056,9 @@ static retvalue include_group(struct uploadergroup *group, const struct uploader
 	if (memberof != NULL) {
 		while (memberof[n] != NULL) {
 			if (memberof[n] == group) {
-				fprintf(stderr,
-"%s:%lu: member added to group %s a second time!\n",
-						filename, lineno, group->name);
+				errorline(fbp,
+"member added to group %s a second time!",
+						group->name);
 				return RET_ERROR;
 			}
 			n++;
@@ -1058,12 +1074,13 @@ static retvalue include_group(struct uploadergroup *group, const struct uploader
 	}
 	memberof[n] = group;
 	memberof[n+1] = NULL;
-	if (group->firstmemberat == 0)
-		group->firstmemberat = lineno;
-	if (group->emptyat != 0) {
-		fprintf(stderr,
-"%s:%lu: cannot add members to group '%s' marked empty in line %lu\n",
-				filename, lineno, group->name, group->emptyat);
+	if (unset_pos(group->firstmemberat))
+		set_position(group->firstmemberat, fbp);;
+	if (!unset_pos(group->emptyat)) {
+		errorline(fbp,
+"cannot add members to group '%s' marked empty!", group->name);
+		errorpos(group->emptyat,
+"here it was marked as empty");
 		return RET_ERROR;
 	}
 	return RET_OK;
@@ -1083,27 +1100,25 @@ static bool is_included_in(const struct uploadergroup *needle, const struct uplo
 	return false;
 }
 
-static inline retvalue parseuploaderline(char *buffer, const char *filename, size_t lineno, struct uploaders *u) {
-	retvalue r;
-	const char *p, *q;
-	size_t l;
-	struct upload_condition condition;
-
-	l = strlen(buffer);
-	if (l == 0)
-		return RET_NOTHING;
-	if (buffer[l-1] != '\n') {
+static inline bool trim_line(const struct filebeingparsed *fbp, char *buffer) {
+	size_t l = strlen(buffer);
+	if (l == 0 || buffer[l-1] != '\n') {
 		if (l >= 1024)
-			fprintf(stderr, "%s:%lu:1024: Overlong line!\n",
-					filename, (long)lineno);
+			errorcol(fbp, 1024, "Overlong line!");
 		else
-			fprintf(stderr, "%s:%lu:%lu: Unterminated line!\n",
-					filename, (long)lineno, (long)l);
-		return RET_ERROR;
+			errorcol(fbp, (int)l, "Unterminated line!");
+		return false;
 	}
 	do {
 		buffer[--l] = '\0';
 	} while (l > 0 && xisspace(buffer[l-1]));
+	return true;
+}
+
+static inline retvalue parseuploaderline(char *buffer, const struct filebeingparsed *fbp, struct uploaders *u) {
+	retvalue r;
+	const char *p, *q;
+	struct upload_condition condition;
 
 	p = buffer;
 	while (*p != '\0' && xisspace(*p))
@@ -1117,7 +1132,7 @@ static inline retvalue parseuploaderline(char *buffer, const char *filename, siz
 		p += 5;
 		while (*p != '\0' && xisspace(*p))
 			p++;
-		r = find_group(&group, u, &p, filename, lineno, buffer);
+		r = find_group(&group, u, &p, fbp, buffer);
 		if (RET_WAS_ERROR(r))
 			return r;
 		while (*p != '\0' && xisspace(*p))
@@ -1128,12 +1143,10 @@ static inline retvalue parseuploaderline(char *buffer, const char *filename, siz
 			p += 3;
 			while (*p != '\0' && xisspace(*p))
 				p++;
-			r = find_uploader(&uploader, u, p, filename,
-					lineno, buffer);
+			r = find_uploader(&uploader, u, p, fbp, buffer);
 			if (RET_WAS_ERROR(r))
 				return r;
-			r = include_group(group, &uploader->memberof,
-					filename, lineno);
+			r = include_group(group, &uploader->memberof, fbp);
 			if (RET_WAS_ERROR(r))
 				return r;
 			return RET_OK;
@@ -1144,102 +1157,91 @@ static inline retvalue parseuploaderline(char *buffer, const char *filename, siz
 			while (*p != '\0' && xisspace(*p))
 				p++;
 			q = p;
-			r = find_group(&member, u, &q, filename,
-					lineno, buffer);
+			r = find_group(&member, u, &q, fbp, buffer);
 			if (RET_WAS_ERROR(r))
 				return r;
 			if (group == member) {
-				fprintf(stderr,
-"%s:%lu: cannot add group '%s' to itself!\n",
-						filename, (unsigned long)lineno,
-						member->name);
+				errorline(fbp,
+"cannot add group '%s' to itself!", member->name);
 				return RET_ERROR;
 			}
 			if (is_included_in(group, member)) {
 				/* perhaps offer a winning coupon for the first
 				 * one triggering this? */
-				fprintf(stderr,
-"%s:%lu: cannot add group '%s' to group '%s' as the later is already member of the former!\n",
-						filename, (unsigned long)lineno,
+				errorline(fbp,
+"cannot add group '%s' to group '%s' as the later is already member of the former!",
 						member->name, group->name);
 				return RET_ERROR;
 			}
-			r = include_group(group, &member->memberof,
-					filename, lineno);
+			r = include_group(group, &member->memberof, fbp);
 			if (RET_WAS_ERROR(r))
 				return r;
-			if (member->firstusedat == 0)
-				member->firstusedat = lineno;
-			if (member->unusedat != 0) {
-				fprintf(stderr,
-"%s:%lu: cannot use group '%s' marked as unused in line %lu.\n",
-						filename, (unsigned long)lineno,
-						member->name, member->unusedat);
+			if (unset_pos(member->firstusedat))
+				set_position(member->firstusedat, fbp);;
+			if (!unset_pos(member->unusedat)) {
+				errorline(fbp,
+"cannot use group '%s' marked as unused!", member->name);
+				errorpos(member->unusedat,
+"here it got marked as unused.");
 				return RET_ERROR;
 			}
 		} else if (strncmp(p, "empty", 5) == 0) {
 			q = p + 5;
-			if (group->emptyat != 0) {
-				fprintf(stderr,
-"%s:%lu: group '%s' marked as empty again (already happened in line %lu).\n",
-						filename, (unsigned long)lineno,
-						group->name, group->emptyat);
+			if (!unset_pos(group->emptyat)) {
+				errorline(fbp,
+"group '%s' marked as empty again", group->name);
+				errorpos(group->emptyat,
+"here it was marked empty the first time");
 			}
-			if (group->firstmemberat != 0) {
-				fprintf(stderr,
-"%s:%lu: group '%s' cannot be marked empty as it already has members (first in line %lu).\n",
-						filename, (unsigned long)lineno,
-						group->name,
-						group->firstmemberat);
+			if (!unset_pos(group->firstmemberat)) {
+				errorline(fbp,
+"group '%s' cannot be marked empty as it already has members!",
+						group->name);
+				errorpos(group->firstmemberat,
+"here a member was added the first time");
 				return RET_ERROR;
 			}
-			group->emptyat = lineno;
+			set_position(group->emptyat, fbp);;
 		} else if (strncmp(p, "unused", 6) == 0) {
 			q = p + 6;
-			if (group->unusedat != 0) {
-				fprintf(stderr,
-"%s:%lu: group '%s' marked as unused again (already happened in line %lu).\n",
-						filename, (unsigned long)lineno,
-						group->name, group->unusedat);
+			if (!unset_pos(group->unusedat)) {
+				errorline(fbp,
+"group '%s' marked as unused again!", group->name);
+				errorpos(group->unusedat,
+"here it was already marked unused");
 			}
-			if (group->firstusedat != 0) {
-				fprintf(stderr,
-"%s:%lu: group '%s' cannot be marked unused as it was already used (first in line %lu).\n",
-						filename, (unsigned long)lineno,
-						group->name,
-						group->firstusedat);
+			if (!unset_pos(group->firstusedat)) {
+				errorline(fbp,
+"group '%s' cannot be marked unused as it was already used!", group->name);
+				errorpos(group->firstusedat,
+"here it was used the first time");
 				return RET_ERROR;
 			}
-			group->unusedat = lineno;
+			set_position(group->unusedat, fbp);;
 		} else {
-			fprintf(stderr,
-"%s:%lu:%u: missing 'add', 'contains', 'unused' or 'empty' keyword.\n",
-					filename, (long)lineno,
-					(int)(1 + p - buffer));
+			errorcol(fbp, (int)(1 + p - buffer),
+"missing 'add', 'contains', 'unused' or 'empty' keyword.");
 			return RET_ERROR;
 		}
 		while (*q != '\0' && xisspace(*q))
 			q++;
 		if (*q != '\0') {
-			fprintf(stderr,
-"%s:%lu:%u: unexpected data at end of group statement!\n",
-					filename, (long)lineno,
-					(int)(1 + p - buffer));
+			errorcol(fbp, (int)(1 + p - buffer),
+"unexpected data at end of group statement!");
 			return RET_ERROR;
 		}
 		return RET_OK;
 	}
 	if (strncmp(p, "allow", 5) != 0 || !xisspace(p[5])) {
-		fprintf(stderr,
-"%s:%lu:%u: 'allow' or 'group' keyword expected! (no other statement has yet been implemented)\n",
-					filename, (long)lineno,
-					(int)(1 +p - buffer));
+		errorcol(fbp, (int)(1 +p - buffer),
+"'allow' or 'group' keyword expected!"
+" (no other statement has yet been implemented)");
 		return RET_ERROR;
 	}
 	p+=5;
 	while (*p != '\0' && xisspace(*p))
 		p++;
-	r = parse_condition(filename, lineno, (1+p-buffer), &p, &condition);
+	r = parse_condition(fbp, (1+p-buffer), &p, &condition);
 	if (RET_WAS_ERROR(r))
 		return r;
 	while (*p != '\0' && xisspace(*p))
@@ -1250,7 +1252,7 @@ static inline retvalue parseuploaderline(char *buffer, const char *filename, siz
 		p += 3;
 		while (*p != '\0' && xisspace(*p))
 			p++;
-		r = find_uploader(&uploader, u, p, filename, lineno, buffer);
+		r = find_uploader(&uploader, u, p, fbp, buffer);
 		assert (r != RET_NOTHING);
 		if (RET_WAS_ERROR(r)) {
 			uploadpermission_release(&condition);
@@ -1264,7 +1266,7 @@ static inline retvalue parseuploaderline(char *buffer, const char *filename, siz
 		p += 5;
 		while (*p != '\0' && xisspace(*p))
 			p++;
-		r = find_group(&group, u, &p, filename, lineno, buffer);
+		r = find_group(&group, u, &p, fbp, buffer);
 		assert (r != RET_NOTHING);
 		if (RET_WAS_ERROR(r)) {
 			uploadpermission_release(&condition);
@@ -1274,20 +1276,18 @@ static inline retvalue parseuploaderline(char *buffer, const char *filename, siz
 		while (*p != '\0' && xisspace(*p))
 			p++;
 		if (*p != '\0') {
-			fprintf(stderr,
-"%s:%lu:%u: unexpected data at end of group statement!\n",
-					filename, (long)lineno,
-					(int)(1 + p - buffer));
+			errorcol(fbp, (int)(1 + p - buffer),
+"unexpected data at end of group statement!");
 			uploadpermission_release(&condition);
 			return RET_ERROR;
 		}
-		if (group->firstusedat == 0)
-			group->firstusedat = lineno;
-		if (group->unusedat != 0) {
-			fprintf(stderr,
-"%s:%lu: cannot use group '%s' marked as unused in line %lu.\n",
-					filename, (unsigned long)lineno,
-					group->name, group->unusedat);
+		if (unset_pos(group->firstusedat))
+			set_position(group->firstusedat, fbp);;
+		if (!unset_pos(group->unusedat)) {
+			errorline(fbp,
+"cannot use group '%s' marked as unused!", group->name);
+			errorpos(group->unusedat,
+"here it was marked as unused.");
 			uploadpermission_release(&condition);
 			return RET_ERROR;
 		}
@@ -1296,10 +1296,8 @@ static inline retvalue parseuploaderline(char *buffer, const char *filename, siz
 			&& (p[8]=='\0' || xisspace(p[8]))) {
 		p+=8;
 		if (*p != '\0') {
-			fprintf(stderr,
-"%s:%lu:%u: unexpected data after 'unsigned' statement!\n",
-					filename, (long)lineno,
-					(int)(1 + p - buffer));
+			errorcol(fbp, (int)(1 + p - buffer),
+"unexpected data after 'unsigned' statement!");
 			uploadpermission_release(&condition);
 			return RET_ERROR;
 		}
@@ -1310,19 +1308,15 @@ static inline retvalue parseuploaderline(char *buffer, const char *filename, siz
 			p++;
 		if (strncmp(p, "key", 3) != 0
 				|| (p[3]!='\0' && !xisspace(p[3]))) {
-			fprintf(stderr,
-"%s:%lu:%u: 'key' keyword expected after 'any' keyword!\n",
-					filename, (long)lineno,
-					(int)(1 + p - buffer));
+			errorcol(fbp, (int)(1 + p - buffer),
+"'key' keyword expected after 'any' keyword!");
 			uploadpermission_release(&condition);
 			return RET_ERROR;
 		}
 		p += 3;
 		if (*p != '\0') {
-			fprintf(stderr,
-"%s:%lu:%u: unexpected data after 'any key' statement!\n",
-					filename, (long)lineno,
-					(int)(1 + p - buffer));
+			errorcol(fbp, (int)(1 + p - buffer),
+"unexpected data after 'any key' statement!");
 			uploadpermission_release(&condition);
 			return RET_ERROR;
 		}
@@ -1333,52 +1327,118 @@ static inline retvalue parseuploaderline(char *buffer, const char *filename, siz
 		while (*p != '\0' && xisspace(*p))
 			p++;
 		if (*p != '\0') {
-			fprintf(stderr,
-"%s:%lu:%u: unexpected data after 'anybody' statement!\n",
-					filename, (long)lineno,
-					(int)(1 + p - buffer));
+			errorcol(fbp, (int)(1 + p - buffer),
+"unexpected data after 'anybody' statement!");
 			uploadpermission_release(&condition);
 			return RET_ERROR;
 		}
 		condition_add(&u->anybodypermissions, &condition);
 	} else {
-		fprintf(stderr,
-"%s:%lu:%u: 'key', 'unsigned', 'anybody' or 'any key' expected!\n",
-					filename, (long)lineno,
-					(int)(1 + p - buffer));
+		errorcol(fbp, (int)(1 + p - buffer),
+"'key', 'unsigned', 'anybody' or 'any key' expected!");
 		uploadpermission_release(&condition);
 		return RET_ERROR;
 	}
 	return RET_OK;
 }
 
-static retvalue uploaders_load(/*@out@*/struct uploaders **list, const char *filename) {
-	char *fullfilename = NULL;
-	FILE *f;
-	size_t lineno=0;
+static retvalue openfiletobeparsed(struct filebeingparsed *includedby, const char *filename, struct filebeingparsed **fbp_p, struct filebeingparsed **root_p) {
+	struct filebeingparsed *fbp;
+
+	if (includedby != NULL && includedby->depth > 100) {
+		errorcol(includedby, 0,
+"Too deeply nested include directives (> 100). Built some recursion?");
+		return RET_ERROR;
+	}
+
+	fbp = calloc(1, sizeof(struct filebeingparsed));
+	if (FAILEDTOALLOC(fbp))
+		return RET_ERROR_OOM;
+
+	if (filename[0] != '/') {
+		fbp->filename = calc_conffile(filename);
+	} else {
+		fbp->filename = strdup(filename);
+	}
+	if (FAILEDTOALLOC(fbp->filename)) {
+		free(fbp);
+		return RET_ERROR_OOM;
+	}
+	fbp->f = fopen(fbp->filename, "r");
+	if (fbp->f == NULL) {
+		int e = errno;
+		fprintf(stderr, "Error opening '%s': %s\n",
+				fbp->filename, strerror(e));
+		print_include_trace(includedby);
+		free(fbp->filename);
+		free(fbp);
+		return RET_ERRNO(e);
+	}
+	fbp->depth = (includedby != NULL)?(includedby->depth+1):0;
+	fbp->includedby = includedby;
+	*fbp_p = fbp;
+	fbp->next = *root_p;
+	*root_p = fbp;
+	return RET_OK;
+}
+
+static void filebeingparsed_free(struct filebeingparsed *fbp) {
+	while (fbp != NULL) {
+		struct filebeingparsed *n = fbp->next;
+		if (fbp->f != NULL)
+			(void)fclose(fbp->f);
+		free(fbp->filename);
+		free(fbp);
+		fbp = n;
+	}
+}
+
+static inline retvalue close_file(struct filebeingparsed **p) {
+	int i;
+	struct filebeingparsed *fbp = *p;
+	assert (p != NULL);
+
+	*p = fbp->includedby;
+	i = fclose(fbp->f);
+	fbp->f = NULL;
+	if (i != 0) {
+		int e = errno;
+		fprintf(stderr, "Error reading '%s': %s\n",
+				fbp->filename, strerror(e));
+		print_include_trace(fbp->includedby);
+		return RET_ERRNO(e);
+	} else
+		return RET_OK;
+}
+
+static inline retvalue include_file(struct filebeingparsed **fbp_p, struct filebeingparsed **root_p, const char *buffer) {
+	const char *filename = buffer;
+
+	while (*filename != '\0' && xisspace(*filename))
+		filename++;
+	if (*filename == '\0') {
+		errorcol(*fbp_p, 1+(int)(filename - buffer),
+"Missing filename after include directive!");
+		return RET_ERROR;
+	}
+	return openfiletobeparsed(*fbp_p, filename, fbp_p, root_p);
+}
+
+static retvalue uploaders_load(/*@out@*/struct uploaders **list, const char *fname) {
 	char buffer[1025];
 	struct uploaders *u;
 	struct uploadergroup *g;
 	retvalue r;
+	struct filebeingparsed *fbp = NULL;
+	struct filebeingparsed *filesroot = NULL;
 
-	if (filename[0] != '/') {
-		fullfilename = calc_conffile(filename);
-		if (FAILEDTOALLOC(fullfilename))
-			return RET_ERROR_OOM;
-		filename = fullfilename;
-	}
-	f = fopen(filename, "r");
-	if (f == NULL) {
-		int e = errno;
-		fprintf(stderr, "Error opening '%s': %s\n",
-				filename, strerror(e));
-		free(fullfilename);
-		return RET_ERRNO(e);
-	}
+	r = openfiletobeparsed(NULL, fname, &fbp, &filesroot);
+	if (RET_WAS_ERROR(r))
+		return r;
+
 	u = zNEW(struct uploaders);
 	if (FAILEDTOALLOC(u)) {
-		(void)fclose(f);
-		free(fullfilename);
+		filebeingparsed_free(filesroot);
 		return RET_ERROR_OOM;
 	}
 	/* reject by default */
@@ -1386,37 +1446,47 @@ static retvalue uploaders_load(/*@out@*/struct uploaders **list, const char *fil
 	u->anyvalidkeypermissions.type = uc_ALWAYS;
 	u->anybodypermissions.type = uc_ALWAYS;
 
-	while (fgets(buffer, 1024, f) != NULL) {
-		lineno++;
-		r = parseuploaderline(buffer, filename, lineno, u);
+	while (fbp != NULL) {
+		while (fgets(buffer, 1024, fbp->f) != NULL) {
+			fbp->lineno++;
+			if (!trim_line(fbp, buffer)) {
+				filebeingparsed_free(filesroot);
+				uploaders_free(u);
+				return RET_ERROR;
+			}
+			if (strncmp(buffer, "include", 7) == 0)
+				r = include_file(&fbp, &filesroot, buffer + 7);
+			else
+				r = parseuploaderline(buffer, fbp, u);
+			if (RET_WAS_ERROR(r)) {
+				filebeingparsed_free(filesroot);
+				uploaders_free(u);
+				return r;
+			}
+		}
+		r = close_file(&fbp);
 		if (RET_WAS_ERROR(r)) {
-			(void)fclose(f);
-			free(fullfilename);
+			filebeingparsed_free(filesroot);
 			uploaders_free(u);
 			return r;
 		}
 	}
-	if (fclose(f) != 0) {
-		int e = errno;
-		fprintf(stderr, "Error reading '%s': %s\n",
-				filename, strerror(e));
-		free(fullfilename);
-		uploaders_free(u);
-		return RET_ERRNO(e);
-	}
 	for (g = u->groups ; g != NULL ; g = g->next) {
-		if ((g->firstmemberat == 0 && g->emptyat == 0) &&
-				g->firstusedat != 0)
-			fprintf(stderr,
-"%s:%lu: Warning: group '%s' gets used but never gets any members\n",
-					filename, g->firstusedat, g->name);
-		if ((g->firstusedat == 0 && g->unusedat == 0) &&
-				g->firstmemberat != 0)
-			fprintf(stderr,
-"%s:%lu: Warning: group '%s' gets members but is not used in any rule\n",
-					filename, g->firstmemberat, g->name);
+		if ((unset_pos(g->firstmemberat) && unset_pos(g->emptyat)) &&
+				!unset_pos(g->firstusedat))
+			errorpos(g->firstusedat,
+"Warning: group '%s' gets used but never gets any members",
+					g->name);
+		if ((unset_pos(g->firstusedat) && unset_pos(g->unusedat)) &&
+				!unset_pos(g->firstmemberat))
+			// TODO: avoid this if the group is from a include?
+			errorpos(g->firstmemberat,
+"Warning: group '%s' gets members but is not used in any rule",
+					g->name);
 	}
-	free(fullfilename);
+	assert (fbp == NULL);
+	/* only free file information once filenames are no longer needed: */
+	filebeingparsed_free(filesroot);
 	*list = u;
 	return RET_OK;
 }

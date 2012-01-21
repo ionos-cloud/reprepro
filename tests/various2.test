@@ -1791,14 +1791,16 @@ echo 'Codename: foo' > conf2/distributions
 testrun - -b . --confdir ./conf2 update 3<<EOF
 stderr
 *=Error parsing config file ./conf2/distributions, line 2:
-*=Required field 'Architectures' expected (since line 1).
+*=Required field 'Architectures' not found in
+*=distribution definition starting in line 1 and ending in line 1.
 -v0*=There have been errors!
 returns 249
 EOF
 echo "Architectures: abacus fingers" >> conf2/distributions
 testrun - -b . --confdir ./conf2 update 3<<EOF
 *=Error parsing config file ./conf2/distributions, line 3:
-*=Required field 'Components' expected (since line 1).
+*=Required field 'Components' not found in
+*=distribution definition starting in line 1 and ending in line 2.
 -v0*=There have been errors!
 returns 249
 EOF
