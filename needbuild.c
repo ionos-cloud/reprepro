@@ -60,6 +60,11 @@ static retvalue tracked_source_needs_build(architecture_t architecture, const ch
 		if (ft == ft_ALL_BINARY) {
 			int j;
 
+			if (architecture == architecture_all) {
+				/* found an _all.deb, nothing to do */
+				return RET_NOTHING;
+			}
+
 			/* determine which binary files are arch all
 			   packages: */
 			for (j = 0 ; j < binary->count ; j++) {
@@ -164,7 +169,8 @@ static retvalue check_source_needs_build(struct distribution *distribution, stru
 
 		for (i = 0 ; i < architectures.count ; i++) {
 			const char *a = architectures.values[i];
-			if (strcmp(a, "any") == 0) {
+			if (d->architecture != architecture_all &&
+					strcmp(a, "any") == 0) {
 				skip = false;
 				break;
 			}

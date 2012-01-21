@@ -1076,7 +1076,7 @@ ACTION_B(y, n, y, buildneeded) {
 "Error: Architecture '%s' is not known!\n", argv[2]);
 			return RET_ERROR;
 		}
-		if (arch == architecture_source || arch == architecture_all) {
+		if (arch == architecture_source) {
 			fprintf(stderr,
 "Error: Architecture '%s' makes no sense for build-needing!\n", argv[2]);
 			return RET_ERROR;
@@ -1094,8 +1094,12 @@ ACTION_B(y, n, y, buildneeded) {
 		return RET_ERROR;
 	}
 	if (anyarchitecture) {
-		retvalue result = RET_NOTHING;
+		retvalue result;
 		int i;
+
+		result = find_needs_build(distribution,
+				architecture_all,
+				components, glob, true);
 
 		for (i = 0 ; i < distribution->architectures.count ; i++) {
 			r = find_needs_build(distribution,
@@ -1105,7 +1109,8 @@ ACTION_B(y, n, y, buildneeded) {
 		}
 		return result;
 	} else {
-		if (!atomlist_in(&distribution->architectures, arch)) {
+		if (!atomlist_in(&distribution->architectures, arch) &&
+				arch != architecture_all) {
 			fprintf(stderr,
 "Error: Architecture '%s' not found in distribution '%s'!\n", argv[2],
 					distribution->codename);

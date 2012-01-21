@@ -1,4 +1,4 @@
-.TH REPREPRO 1 "2012-01-19" "reprepro" REPREPRO
+.TH REPREPRO 1 "2012-01-21" "reprepro" REPREPRO
 .SH NAME
 reprepro \- produce, manage and sync a local repository of Debian packages
 .mso www.tmac
@@ -894,6 +894,14 @@ at least one package in the Binary field not yet available.
 If instead of \fIarchitecture\fP the term \fBany\fP is used,
 all architectures are iterated and the architecture is printed as
 fourth field in every line.
+
+If the \fIarchitecture\fP is \fBall\fP, then only source packages
+with an Architecture field including \fBall\fP are considered
+(i.e. as above with real architectures but \fBany\fP does not suffice).
+Note that dpkg\-dev << 1.16.1 does not both set \fBany\fP and \fBall\fP
+so source packages building both architecture dependent and independent
+packages will never show up unless built with a new enough dpkg\-source).
+
 .TP
 .B translatefilelists
 Translate the file list cache within
