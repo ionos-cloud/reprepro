@@ -5,9 +5,12 @@
 	  packages unless they are built with dpkg-dev >= 1.16.1,
 	  though).
 
-2010-01-19
+2011-01-19
 	* build-needing takes 'any' instead of a architecture, too.
 	* uploader files can 'include' other files.
+
+2012-01-17
+	* improve config file parser error messages about missing fields
 
 2010-12-18
 	* rredtool: produce .diff/Index files that reprepro can understand.
