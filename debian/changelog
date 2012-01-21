@@ -1,3 +1,13 @@
+reprepro (4.9.0-1) unstable; urgency=low
+
+  * new release
+  - fix changelog example to not install files +x (Closes: 656185)
+  - build-needing can find architecture 'all' packages
+    needing building (Closes: 656187)
+  - uploader files now can 'include' other files (Closes: 656422)
+
+ -- Bernhard R. Link <brlink@debian.org>  Sun, 22 Jan 2012 08:17:19 +0100
+
 reprepro (4.8.2-1) unstable; urgency=low
 
   * new bugfix release
