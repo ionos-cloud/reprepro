@@ -1102,8 +1102,11 @@ ACTION_B(y, n, y, buildneeded) {
 				components, glob, true);
 
 		for (i = 0 ; i < distribution->architectures.count ; i++) {
-			r = find_needs_build(distribution,
-					distribution->architectures.atoms[i],
+			architecture_t a = distribution->architectures.atoms[i];
+
+			if (a == architecture_source || a == architecture_all)
+				continue;
+			r = find_needs_build(distribution, a,
 					components, glob, true);
 			RET_UPDATE(result, r);
 		}
