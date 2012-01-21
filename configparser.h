@@ -67,7 +67,7 @@ retvalue config_getscript(struct configiterator *, const char *, /*@out@*/char *
 retvalue config_getsignwith(struct configiterator *, const char *, struct strlist *);
 void config_overline(struct configiterator *);
 bool config_nextline(struct configiterator *);
-retvalue configfile_parse(const char * /*filename*/, bool /*ignoreunknown*/, configinitfunction, configfinishfunction, const struct configfield *, size_t, void *);
+retvalue configfile_parse(const char * /*filename*/, bool /*ignoreunknown*/, configinitfunction, configfinishfunction, const char *chunkname, const struct configfield *, size_t, void *);
 
 #define CFlinkedlistinit(sname) \
 static retvalue configparser_ ## sname ## _init(void *rootptr, void *lastitem, void **newptr) { \

@@ -1,3 +1,17 @@
+2010-01-21
+	* build-needing now can list missing architecture 'all'
+	  packages. (Will not list .dsc files producing both
+	  architecture dependent and architecture indepentent ('all')
+	  packages unless they are built with dpkg-dev >= 1.16.1,
+	  though).
+
+2011-01-19
+	* build-needing takes 'any' instead of a architecture, too.
+	* uploader files can 'include' other files.
+
+2012-01-17
+	* improve config file parser error messages about missing fields
+
 2010-12-18
 	* rredtool: produce .diff/Index files that reprepro can understand.
 	* warn if uploader files contains key ids too long to handle

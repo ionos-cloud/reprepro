@@ -33,6 +33,7 @@ struct configiterator {
 	FILE *f;
 	unsigned int startline, line, column, markerline, markercolumn;
 	char *filename;
+	const char *chunkname;
 	bool eol;
 };
 
@@ -118,9 +119,11 @@ static inline retvalue finishchunk(configfinishfunction finishfunc, void *privda
 				continue;
 			fprintf(stderr,
 "Error parsing config file %s, line %u:\n"
-"Required field '%s' expected (since line %u).\n",
+"Required field '%s' not found in\n"
+"%s starting in line %u and ending in line %u.\n",
 					iter->filename, iter->line,
-					fields[i].name, iter->startline);
+					fields[i].name, iter->chunkname,
+					iter->startline, iter->line-1);
 			(void)finishfunc(privdata, *this, last, false, iter);
 			*this = NULL;
 			return RET_ERROR_MISSING;
@@ -130,7 +133,7 @@ static inline retvalue finishchunk(configfinishfunction finishfunc, void *privda
 	return r;
 }
 
-retvalue configfile_parse(const char *filename, bool ignoreunknown, configinitfunction initfunc, configfinishfunction finishfunc, const struct configfield *fields, size_t fieldcount, void *privdata) {
+retvalue configfile_parse(const char *filename, bool ignoreunknown, configinitfunction initfunc, configfinishfunction finishfunc, const char *chunkname, const struct configfield *fields, size_t fieldcount, void *privdata) {
 	bool found[fieldcount];
 	void *last = NULL, *this = NULL;
 	char key[100];
@@ -143,6 +146,7 @@ retvalue configfile_parse(const char *filename, bool ignoreunknown, configinitfu
 	iter.filename = calc_conffile(filename);
 	if (FAILEDTOALLOC(iter.filename))
 		return RET_ERROR_OOM;
+	iter.chunkname = chunkname;
 	iter.line = 0;
 	iter.column = 0;
 

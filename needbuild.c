@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2009 Bernhard R. Link
+ *  Copyright (C) 2009,2012 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -44,7 +44,7 @@
           (i.e. architecture all) -> SKIP
 */
 
-static retvalue tracked_source_needs_build(architecture_t architecture, const char *sourcename, const char *sourceversion, const char *dscfilename, const struct strlist *binary, const struct trackedpackage *tp) {
+static retvalue tracked_source_needs_build(architecture_t architecture, const char *sourcename, const char *sourceversion, const char *dscfilename, const struct strlist *binary, const struct trackedpackage *tp, bool printarch) {
 	bool found_binary[binary->count];
 	const char *archstring = atoms_architectures[architecture];
 	size_t archstringlen= strlen(archstring);
@@ -59,6 +59,11 @@ static retvalue tracked_source_needs_build(architecture_t architecture, const ch
 			continue;
 		if (ft == ft_ALL_BINARY) {
 			int j;
+
+			if (architecture == architecture_all) {
+				/* found an _all.deb, nothing to do */
+				return RET_NOTHING;
+			}
 
 			/* determine which binary files are arch all
 			   packages: */
@@ -123,7 +128,12 @@ static retvalue tracked_source_needs_build(architecture_t architecture, const ch
 	   packages that are lacking: */
 	for (i = 0 ; i < binary->count ; i++) {
 		if (!found_binary[i]) {
-			printf("%s %s %s\n",
+			if (printarch)
+				printf("%s %s %s %s\n",
+					sourcename, sourceversion,
+					dscfilename, archstring);
+			else
+				printf("%s %s %s\n",
 					sourcename, sourceversion,
 					dscfilename);
 			return RET_OK;
@@ -136,6 +146,7 @@ static retvalue tracked_source_needs_build(architecture_t architecture, const ch
 struct needbuild_data { architecture_t architecture;
 	trackingdb tracks;
 	/*@null@*/ const char *glob;
+	bool printarch;
 };
 
 static retvalue check_source_needs_build(struct distribution *distribution, struct target *target, const char *sourcename, const char *control, void *data) {
@@ -158,7 +169,8 @@ static retvalue check_source_needs_build(struct distribution *distribution, stru
 
 		for (i = 0 ; i < architectures.count ; i++) {
 			const char *a = architectures.values[i];
-			if (strcmp(a, "any") == 0) {
+			if (d->architecture != architecture_all &&
+					strcmp(a, "any") == 0) {
 				skip = false;
 				break;
 			}
@@ -215,7 +227,7 @@ static retvalue check_source_needs_build(struct distribution *distribution, stru
 			r = tracked_source_needs_build(
 					d->architecture, sourcename,
 					sourceversion, dscfilename,
-					&binary, tp);
+					&binary, tp, d->printarch);
 			trackedpackage_free(tp);
 			free(sourceversion);
 			strlist_done(&binary);
@@ -235,12 +247,13 @@ static retvalue check_source_needs_build(struct distribution *distribution, stru
 }
 
 
-retvalue find_needs_build(struct distribution *distribution, architecture_t architecture, const struct atomlist *onlycomponents, const char *glob) {
+retvalue find_needs_build(struct distribution *distribution, architecture_t architecture, const struct atomlist *onlycomponents, const char *glob, bool printarch) {
 	retvalue result, r;
 	struct needbuild_data d;
 
 	d.architecture = architecture;
 	d.glob = glob;
+	d.printarch = printarch;
 
 	if (distribution->tracking == dt_NONE) {
 		fprintf(stderr,
