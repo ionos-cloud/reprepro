@@ -387,6 +387,11 @@ cd allandany-1.0
 dpkg-gencontrol -pallpart
 dpkg --build debian/tmp ..
 cd ..
+echo "There was nothing to do on this architecture!" > allandany_1.0-1_another.log
+echo "allandany_1.0-1_another.log - -" > allandany-1.0/debian/files
+cd allandany-1.0
+dpkg-genchanges -B > ../allandany_1.0-1_another.changes
+cd ..
 rm -r allandany-1.0
 
 testrun - --delete includedsc test allandany_1.0-1.dsc 3<<EOF
@@ -451,6 +456,64 @@ testrun empty build-needing test all
 testrun - build-needing test any 3<<EOF
 stdout
 *=allandany 1.0-1 pool/main/a/allandany/allandany_1.0-1.dsc another
+EOF
+
+testrun - -C main include test allandany_1.0-1_another.changes 3<<EOF
+stderr
+stdout
+$(ofa 'pool/main/a/allandany/allandany_1.0-1_another.log')
+EOF
+
+testrun empty build-needing test any
+
+mkdir anyonly-1.0
+mkdir anyonly-1.0/debian
+cat >anyonly-1.0/debian/control <<END
+Source: anyonly
+Section: something
+Priority: extra
+Maintainer: me <me@example.org>
+Standards-Version: 0.0
+
+Package: anyonly
+Architecture: any
+Description: some test-arch any package
+ .
+END
+cat >anyonly-1.0/debian/changelog <<END
+anyonly (1.0-1) test; urgency=critical
+
+  * first version
+
+ -- me <me@example.org>  Mon, 01 Jan 1980 01:02:02 +0000
+END
+dpkg-source -b anyonly-1.0
+mkdir anyonly-1.0/debian/tmp
+mkdir anyonly-1.0/debian/tmp/DEBIAN
+mkdir -p anyonly-1.0/debian/tmp/usr/bin
+touch anyonly-1.0/debian/tmp/usr/bin/program
+cd anyonly-1.0
+dpkg-gencontrol -panyonly
+dpkg --build debian/tmp ..
+cd ..
+rm -r anyonly-1.0
+
+testrun - --delete includedsc test anyonly_1.0-1.dsc 3<<EOF
+stderr
+-v1*=anyonly_1.0-1.dsc: component guessed as 'main'
+stdout
+-v2*=Created directory "./pool/main/a/anyonly"
+$(ofa 'pool/main/a/anyonly/anyonly_1.0-1.dsc')
+$(ofa 'pool/main/a/anyonly/anyonly_1.0-1.tar.gz')
+-d1*=db: 'anyonly' added to packages.db(bla|main|source).
+-d1*=db: 'anyonly' added to tracking.db(bla).
+EOF
+
+testrun empty build-needing test all
+testrun - build-needing test any 3<<EOF
+stdout
+*=anyonly 1.0-1 pool/main/a/anyonly/anyonly_1.0-1.dsc another
+*=anyonly 1.0-1 pool/main/a/anyonly/anyonly_1.0-1.dsc abacus
 EOF
 
 rm -r pool conf db *.deb *.log *.changes
