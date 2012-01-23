@@ -138,6 +138,12 @@ static retvalue createtargets(struct distribution *distribution) {
 						distribution->codename);
 				return RET_ERROR;
 			}
+			if (strcmp(atoms_architectures[a], "any") == 0) {
+				fprintf(stderr,
+"Error: Distribution %s contains an architecture called 'any'.\n",
+						distribution->codename);
+				return RET_ERROR;
+			}
 
 			r = target_initialize_binary(
 					distribution,
