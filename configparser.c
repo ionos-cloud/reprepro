@@ -206,7 +206,7 @@ retvalue configfile_parse(const char *filename, bool ignoreunknown, configinitfu
 			result = RET_ERROR;
 			break;
 		}
-		if (c == '\0') {
+		if (c == ' ' || c == '\t') {
 			fprintf(stderr,
 "Error parsing %s, line %u: unexpected white space before keyword!\n",
 					iter.filename, iter.line);

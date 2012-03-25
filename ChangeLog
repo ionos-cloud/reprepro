@@ -3,6 +3,8 @@
 	  where apt-get changelog looks for "third party site" changelogs.
 	* add 'supersede' as FilterList keyword to remove the old package
 	  if the the new would be installed otherwise.
+	* fix broken test against leading whitespace in config file
+	  field names
 
 2012-01-23
 	* reject "any" as Architecture part of a distribution
