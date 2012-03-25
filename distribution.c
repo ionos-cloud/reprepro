@@ -307,7 +307,7 @@ CFfinishparse(distribution) {
 		if (strcmp(d->codename, n->codename) == 0) {
 			fprintf(stderr,
 "Multiple distributions with the common codename: '%s'!\n"
-"First was in %s line %u to %u, another in lines %u to %u",
+"First was in %s line %u to %u, another in lines %u to %u\n",
 				n->codename, config_filename(iter),
 				d->firstline, d->lastline,
 				n->firstline, n->lastline);
