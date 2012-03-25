@@ -130,6 +130,8 @@ static inline retvalue filterlistfile_parse(struct filterlistfile *n, const char
 			type = flt_purge;
 		} else if (strcmp(what, "hold") == 0) {
 			type = flt_hold;
+		} else if (strcmp(what, "supersede") == 0) {
+			type = flt_supersede;
 		} else if (strcmp(what, "upgradeonly") == 0) {
 			type = flt_upgradeonly;
 		} else if (strcmp(what, "warning") == 0) {
@@ -327,6 +329,7 @@ void filterlist_release(struct filterlist *list) {
 static const struct constant filterlisttype_listtypes[] = {
 	{"install",	(int)flt_install},
 	{"hold",	(int)flt_hold},
+	{"supersede",	(int)flt_supersede},
 	{"deinstall",	(int)flt_deinstall},
 	{"purge",	(int)flt_purge},
 	{"upgradeonly",	(int)flt_upgradeonly},

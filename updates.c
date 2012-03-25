@@ -196,7 +196,7 @@ struct update_origin {
 	/*@null@*/struct remote_distribution *from;
 	/* cache for flat mode */
 	bool flat;
-	/* set when there was a error and it should no loner be used */
+	/* set when there was a error and it should no longer be used */
 	bool failed;
 };
 
@@ -1644,6 +1644,9 @@ static upgrade_decision ud_decide_by_pattern(void *privdata, const struct target
 			return UD_NO;
 		case flt_warning:
 			return UD_LOUDNO;
+		case flt_supersede:
+			decision = UD_SUPERSEDE;
+			break;
 		case flt_hold:
 			decision = UD_HOLD;
 			break;
@@ -1677,6 +1680,9 @@ static upgrade_decision ud_decide_by_pattern(void *privdata, const struct target
 		case flt_hold:
 			decision = UD_HOLD;
 			break;
+		case flt_supersede:
+			decision = UD_SUPERSEDE;
+			break;
 		case flt_error:
 			/* cannot yet be handled! */
 			fprintf(stderr,
@@ -1703,6 +1709,9 @@ static upgrade_decision ud_decide_by_pattern(void *privdata, const struct target
 				return UD_NO;
 			case flt_warning:
 				return UD_LOUDNO;
+			case flt_supersede:
+				decision = UD_SUPERSEDE;
+				break;
 			case flt_hold:
 				decision = UD_HOLD;
 				break;
@@ -2240,7 +2249,7 @@ static void upgrade_dumppackage(const char *packagename, /*@null@*/const char *o
 					packagename, oldversion, bestcandidate);
 		} else if (oldversion != NULL) {
 			printf("'%s': '%s' will be deleted"
-					" (no longer available)\n",
+					" (no longer available or superseded)\n",
 					packagename, oldversion);
 		} else {
 			printf("'%s': will NOT be added as '%s'\n",

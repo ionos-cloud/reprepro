@@ -1627,6 +1627,13 @@ will be installed. Things listed as
 or
 .B purge
 will be ignored.
+Packages having
+.B supersede
+will not be installed but instead cause the removal of packages with strictly
+smaller version (i.e. if a package would be replaced by this package if this
+was
+.BR install ,
+it will be removed instead and no new package being installed).
 Things listed with
 .B warning
 are also ignored,

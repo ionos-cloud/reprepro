@@ -403,6 +403,11 @@ static retvalue upgradelist_trypackage(struct upgradelist *upgrade, void *privda
 				current->deleted = false;
 			free(version);
 			free(packagename);
+			/* while supersede will remove the current package */
+			if (decision == UD_SUPERSEDE) {
+				current->deleted = true;
+				return RET_OK;
+			}
 			return (decision==UD_ERROR)?RET_ERROR:RET_NOTHING;
 		}
 
