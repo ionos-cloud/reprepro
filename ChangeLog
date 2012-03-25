@@ -1,3 +1,7 @@
+2012-03-25
+	* changelogs.example can now also place changelogs in places
+	  where apt-get changelog looks for "third party site" changelogs.
+
 2012-01-23
 	* reject "any" as Architecture part of a distribution
 
