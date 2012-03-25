@@ -5,6 +5,8 @@
 	  if the the new would be installed otherwise.
 	* fix broken test against leading whitespace in config file
 	  field names
+	* add support for !include directive in conf/distributions,
+	  conf/updates, conf/pulls and conf/incoming.
 
 2012-01-23
 	* reject "any" as Architecture part of a distribution

@@ -133,19 +133,30 @@ static inline retvalue finishchunk(configfinishfunction finishfunc, void *privda
 	return r;
 }
 
-retvalue configfile_parse(const char *filename, bool ignoreunknown, configinitfunction initfunc, configfinishfunction finishfunc, const char *chunkname, const struct configfield *fields, size_t fieldcount, void *privdata) {
+static retvalue configfile_parse_single(const char *filename, bool ignoreunknown, configinitfunction initfunc, configfinishfunction finishfunc, const char *chunkname, const struct configfield *fields, size_t fieldcount, void *privdata, int depth, void **last_p, struct strlist *filenames) {
 	bool found[fieldcount];
-	void *last = NULL, *this = NULL;
+	void *this = NULL;
 	char key[100];
 	size_t keylen;
 	int c, ret;
 	size_t i;
 	struct configiterator iter;
 	retvalue result, r;
+	bool afterinclude = false;
 
 	iter.filename = calc_conffile(filename);
 	if (FAILEDTOALLOC(iter.filename))
 		return RET_ERROR_OOM;
+	if (strlist_in(filenames, iter.filename)) {
+		if (verbose >= 0) {
+			fprintf(stderr,
+"Ignoring subsequent inclusion of '%s'!\n", iter.filename);
+		}
+		return RET_NOTHING;
+	}
+	r = strlist_add(filenames, iter.filename);
+	if (RET_WAS_ERROR(r))
+		return r;
 	iter.chunkname = chunkname;
 	iter.line = 0;
 	iter.column = 0;
@@ -155,7 +166,6 @@ retvalue configfile_parse(const char *filename, bool ignoreunknown, configinitfu
 		int e = errno;
 		fprintf(stderr, "Error opening config file '%s': %s(%d)\n",
 				iter.filename, strerror(e), e);
-		free(iter.filename);
 		return RET_ERRNO(e);
 	}
 	result = RET_NOTHING;
@@ -186,17 +196,93 @@ retvalue configfile_parse(const char *filename, bool ignoreunknown, configinitfu
 		if (c == EOF)
 			break;
 		if (c == '\n') {
+			afterinclude = false;
 			/* Ignore multiple emptye lines */
 			if (this == NULL)
 				continue;
 			/* finish this chunk, to get ready for the next: */
 			r = finishchunk(finishfunc, privdata, &iter,
 					fields, fieldcount, found,
-					&this, &last, true);
+					&this, last_p, true);
 			if (RET_WAS_ERROR(r)) {
 				result = r;
 				break;
 			}
+			continue;
+		}
+		if (afterinclude) {
+			fprintf(stderr,
+"Warning parsing %s, line %u: no empty line after '!include'-sequence"
+" might cause ambiguity in the future!\n",
+					iter.filename, iter.line);
+			afterinclude = false;
+		}
+		if (c == '!') {
+			keylen = 0;
+			while ((c = fgetc(iter.f)) != EOF && c >= 'a' && c <= 'z') {
+				iter.column++;
+				key[keylen++] = c;
+				if (keylen >= 10)
+					break;
+			}
+			if (c != ':') {
+				fprintf(stderr,
+"Error parsing %s, line %u: invalid !-sequence!\n",
+					iter.filename, iter.line);
+				result = RET_ERROR;
+				break;
+			}
+			iter.column++;
+			if (keylen == 7 && memcmp(key, "include", 7) == 0) {
+				char *filetoinclude;
+
+				if (this != NULL) {
+					fprintf(stderr,
+"Error parsing %s, line %u: '!include' statement within unterminated %s!\n"
+"(perhaps you forgot to put an empty line before this)\n",
+						iter.filename, iter.line,
+						chunkname);
+					result = RET_ERROR;
+					break;
+				}
+				if (depth > 20) {
+					fprintf(stderr,
+"Error parsing %s, line %u: too many nested '!include' statements!\n",
+						iter.filename, iter.line);
+					result = RET_ERROR;
+					break;
+				}
+				r = config_getonlyword(&iter, "!include",
+						NULL, &filetoinclude);
+				if (RET_WAS_ERROR(r)) {
+					result = r;
+					break;
+				}
+				r = configfile_parse_single(filetoinclude,
+						ignoreunknown,
+						initfunc, finishfunc,
+						chunkname,
+						fields, fieldcount,
+						privdata, depth + 1,
+						last_p, filenames);
+				free(filetoinclude);
+				if (RET_WAS_ERROR(r)) {
+					result = r;
+					break;
+				}
+				afterinclude = true;
+			} else {
+				key[keylen] = '\0';
+				fprintf(stderr,
+"Error parsing %s, line %u: unknown !-sequence '%s'!\n",
+					iter.filename, iter.line, key);
+				result = RET_ERROR;
+				break;
+			}
+			/* ignore all data left of this field */
+			do {
+				config_overline(&iter);
+			} while (config_nextline(&iter));
 			continue;
 		}
 		if (c == '\0') {
@@ -248,7 +334,7 @@ retvalue configfile_parse(const char *filename, bool ignoreunknown, configinitfu
 		}
 		if (this == NULL) {
 			/* new chunk, initialize everything */
-			r = initfunc(privdata, last, &this);
+			r = initfunc(privdata, *last_p, &this);
 			assert (r != RET_NOTHING);
 			if (RET_WAS_ERROR(r)) {
 				result = r;
@@ -307,7 +393,7 @@ retvalue configfile_parse(const char *filename, bool ignoreunknown, configinitfu
 	if (this != NULL) {
 		r = finishchunk(finishfunc, privdata, &iter,
 				fields, fieldcount, found,
-				&this, &last,
+				&this, last_p,
 				!RET_WAS_ERROR(result));
 		RET_UPDATE(result, r);
 	}
@@ -326,8 +412,23 @@ retvalue configfile_parse(const char *filename, bool ignoreunknown, configinitfu
 		r = RET_ERRNO(e);
 		RET_UPDATE(result, r);
 	}
-	free(iter.filename);
 	return result;
+}
+
+retvalue configfile_parse(const char *filename, bool ignoreunknown, configinitfunction initfunc, configfinishfunction finishfunc, const char *chunkname, const struct configfield *fields, size_t fieldcount, void *privdata) {
+	retvalue r;
+	struct strlist filenames;
+	void *last = NULL;
+
+	strlist_init(&filenames);
+
+	r = configfile_parse_single(filename, ignoreunknown,
+			initfunc, finishfunc,
+			chunkname, fields, fieldcount, privdata,
+			0, &last, &filenames);
+	/* only free filenames last, as they might still be referenced while running */
+	strlist_done(&filenames);
+	return r;
 }
 
 static inline int config_nextchar(struct configiterator *iter) {
