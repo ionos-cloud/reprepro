@@ -237,13 +237,8 @@ retvalue exportmode_set(struct exportmode *mode, struct configiterator *iter) {
 					word);
 			free(word);
 			return RET_ERROR;
-		} else if (word[0] == '/') {
-			r = strlist_add(&mode->hooks, word);
-			if (RET_WAS_ERROR(r))
-				return r;
 		} else {
-			char *fullfilename = calc_conffile(word);
-			free(word);
+			char *fullfilename = configfile_expandname(word, word);
 			if (FAILEDTOALLOC(fullfilename))
 				return RET_ERROR_OOM;
 			r = strlist_add(&mode->hooks, fullfilename);

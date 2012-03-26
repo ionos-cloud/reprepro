@@ -32,6 +32,7 @@
 #include "signature.h"
 #include "globmatch.h"
 #include "uploaderslist.h"
+#include "configparser.h"
 #include "ignore.h"
 
 struct upload_condition {
@@ -1355,11 +1356,7 @@ static retvalue openfiletobeparsed(struct filebeingparsed *includedby, const cha
 	if (FAILEDTOALLOC(fbp))
 		return RET_ERROR_OOM;
 
-	if (filename[0] != '/') {
-		fbp->filename = calc_conffile(filename);
-	} else {
-		fbp->filename = strdup(filename);
-	}
+	fbp->filename = configfile_expandname(filename, NULL);
 	if (FAILEDTOALLOC(fbp->filename)) {
 		free(fbp);
 		return RET_ERROR_OOM;

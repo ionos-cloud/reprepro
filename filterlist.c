@@ -239,16 +239,13 @@ static inline retvalue filterlistfile_getl(const char *filename, size_t len, str
 		free(p);
 		return RET_ERROR_OOM;
 	}
-	if (p->filename[0] != '/') {
-		char *fullfilename = calc_conffile(p->filename);
-		if (FAILEDTOALLOC(fullfilename))
-			r = RET_ERROR_OOM;
-		else {
-			r = filterlistfile_read(p, fullfilename);
-			free(fullfilename);
-		}
-	} else
-		r = filterlistfile_read(p, p->filename);
+	char *fullfilename = configfile_expandname(p->filename, NULL);
+	if (FAILEDTOALLOC(fullfilename))
+		r = RET_ERROR_OOM;
+	else {
+		r = filterlistfile_read(p, fullfilename);
+		free(fullfilename);
+	}
 
 	if (RET_IS_OK(r)) {
 		p->next = listfiles;
@@ -288,16 +285,13 @@ static inline retvalue filterlistfile_get(/*@only@*/char *filename, /*@out@*/str
 		free(p);
 		return RET_ERROR_OOM;
 	}
-	if (p->filename[0] != '/') {
-		char *fullfilename = calc_conffile(p->filename);
-		if (FAILEDTOALLOC(fullfilename))
-			r = RET_ERROR_OOM;
-		else {
-			r = filterlistfile_read(p, fullfilename);
-			free(fullfilename);
-		}
-	} else
-		r = filterlistfile_read(p, p->filename);
+	char *fullfilename = configfile_expandname(p->filename, NULL);
+	if (FAILEDTOALLOC(fullfilename))
+		r = RET_ERROR_OOM;
+	else {
+		r = filterlistfile_read(p, fullfilename);
+		free(fullfilename);
+	}
 
 	if (RET_IS_OK(r)) {
 		p->next = listfiles;

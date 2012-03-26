@@ -1,3 +1,9 @@
+2012-03-26
+	* allow absolute filenames in !include directives, and
+	  expand filenames starting with "~/" "+b/" "+c/" in those
+	  and export hooks, filter lists, log scripts, override filenames,
+	  and uploaders filenames.
+
 2012-03-25
 	* changelogs.example can now also place changelogs in places
 	  where apt-get changelog looks for "third party site" changelogs.

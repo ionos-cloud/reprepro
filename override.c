@@ -33,6 +33,7 @@
 #include "names.h"
 #include "globmatch.h"
 #include "override.h"
+#include "configparser.h"
 
 struct overridedata {
 	struct strlist fields;
@@ -235,14 +236,11 @@ retvalue override_read(const char *filename, struct overridefile **info, bool so
 		*info = NULL;
 		return RET_OK;
 	}
-	if (filename[0] != '/') {
-		char *fn = calc_conffile(filename);
-		if (FAILEDTOALLOC(fn))
-			return RET_ERROR_OOM;
-		file = fopen(fn, "r");
-		free(fn);
-	} else
-		file = fopen(filename, "r");
+	char *fn = configfile_expandname(filename, NULL);
+	if (FAILEDTOALLOC(fn))
+		return RET_ERROR_OOM;
+	file = fopen(fn, "r");
+	free(fn);
 
 	if (file == NULL) {
 		int e = errno;

@@ -133,7 +133,41 @@ static inline retvalue finishchunk(configfinishfunction finishfunc, void *privda
 	return r;
 }
 
-static retvalue configfile_parse_single(const char *filename, bool ignoreunknown, configinitfunction initfunc, configfinishfunction finishfunc, const char *chunkname, const struct configfield *fields, size_t fieldcount, void *privdata, int depth, void **last_p, struct strlist *filenames) {
+char *configfile_expandname(const char *filename, char *fndup) {
+	const char *fromdir;
+	char *n;
+
+	assert (fndup == NULL || fndup == filename);
+
+	if (filename[0] == '/' || (filename[0] == '.' && filename[1] == '/'))
+		return fndup?fndup:strdup(filename);
+	if (filename[0] == '~' && filename[1] == '/') {
+		n = calc_dirconcat(getenv("HOME"), filename + 2);
+		free(fndup);
+		return n;
+	}
+	if (filename[0] != '+' || filename[1] == '\0' || filename[2] != '/') {
+		n = calc_dirconcat(global.confdir, filename);
+		free(fndup);
+		return n;
+	}
+	if (filename[1] == 'b') {
+		fromdir = global.basedir;
+	} else if (filename[1] == 'o') {
+		fromdir = global.outdir;
+	} else if (filename[1] == 'c') {
+		fromdir = global.confdir;
+	} else {
+		fprintf(stderr, "Warning: strange filename '%s'!\n",
+				filename);
+		return fndup?fndup:strdup(filename);
+	}
+	n = calc_dirconcat(fromdir, filename + 3);
+	free(fndup);
+	return n;
+}
+
+static retvalue configfile_parse_single(const char *filename, /*@only@*//*@null@*/char *fndup, bool ignoreunknown, configinitfunction initfunc, configfinishfunction finishfunc, const char *chunkname, const struct configfield *fields, size_t fieldcount, void *privdata, int depth, void **last_p, struct strlist *filenames) {
 	bool found[fieldcount];
 	void *this = NULL;
 	char key[100];
@@ -144,7 +178,7 @@ static retvalue configfile_parse_single(const char *filename, bool ignoreunknown
 	retvalue result, r;
 	bool afterinclude = false;
 
-	iter.filename = calc_conffile(filename);
+	iter.filename = configfile_expandname(filename, fndup);
 	if (FAILEDTOALLOC(iter.filename))
 		return RET_ERROR_OOM;
 	if (strlist_in(filenames, iter.filename)) {
@@ -259,13 +293,13 @@ static retvalue configfile_parse_single(const char *filename, bool ignoreunknown
 					break;
 				}
 				r = configfile_parse_single(filetoinclude,
+						filetoinclude,
 						ignoreunknown,
 						initfunc, finishfunc,
 						chunkname,
 						fields, fieldcount,
 						privdata, depth + 1,
 						last_p, filenames);
-				free(filetoinclude);
 				if (RET_WAS_ERROR(r)) {
 					result = r;
 					break;
@@ -422,7 +456,7 @@ retvalue configfile_parse(const char *filename, bool ignoreunknown, configinitfu
 
 	strlist_init(&filenames);
 
-	r = configfile_parse_single(filename, ignoreunknown,
+	r = configfile_parse_single(filename, NULL, ignoreunknown,
 			initfunc, finishfunc,
 			chunkname, fields, fieldcount, privdata,
 			0, &last, &filenames);
