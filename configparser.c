@@ -169,6 +169,8 @@ char *configfile_expandname(const char *filename, char *fndup) {
 	return n;
 }
 
+static retvalue configfile_parse_multi(/*@only@*/char *, bool, configinitfunction, configfinishfunction, const char *, const struct configfield *, size_t, void *, int, void **, struct strlist *);
+
 static retvalue configfile_parse_single(/*@only@*/char *filename, bool ignoreunknown, configinitfunction initfunc, configfinishfunction finishfunc, const char *chunkname, const struct configfield *fields, size_t fieldcount, void *privdata, int depth, void **last_p, struct strlist *filenames) {
 	bool found[fieldcount];
 	void *this = NULL;
@@ -183,8 +185,9 @@ static retvalue configfile_parse_single(/*@only@*/char *filename, bool ignoreunk
 	if (strlist_in(filenames, filename)) {
 		if (verbose >= 0) {
 			fprintf(stderr,
-"Ignoring subsequent inclusion of '%s'!\n", iter.filename);
+"Ignoring subsequent inclusion of '%s'!\n", filename);
 		}
+		free(filename);
 		return RET_NOTHING;
 	}
 	iter.filename = filename;
@@ -294,7 +297,7 @@ static retvalue configfile_parse_single(/*@only@*/char *filename, bool ignoreunk
 				}
 				filetoinclude = configfile_expandname(
 						filetoinclude, filetoinclude);
-				r = configfile_parse_single(filetoinclude,
+				r = configfile_parse_multi(filetoinclude,
 						ignoreunknown,
 						initfunc, finishfunc,
 						chunkname,
@@ -450,21 +453,14 @@ static retvalue configfile_parse_single(/*@only@*/char *filename, bool ignoreunk
 	return result;
 }
 
-retvalue configfile_parse(const char *filename, bool ignoreunknown, configinitfunction initfunc, configfinishfunction finishfunc, const char *chunkname, const struct configfield *fields, size_t fieldcount, void *privdata) {
-	struct strlist filenames;
-	void *last = NULL;
-	char *fullfilename, *subfilename;
+static retvalue configfile_parse_multi(/*@only@*/char *fullfilename, bool ignoreunknown, configinitfunction initfunc, configfinishfunction finishfunc, const char *chunkname, const struct configfield *fields, size_t fieldcount, void *privdata, int depth, void **last_p, struct strlist *filenames) {
 	retvalue result = RET_NOTHING, r;
 
-	strlist_init(&filenames);
-
-	fullfilename = configfile_expandname(filename, NULL);
-	if (fullfilename == NULL)
-		return RET_ERROR_OOM;
 	if (isdirectory(fullfilename)) {
 		DIR *dir;
 		struct dirent *de;
 		int e;
+		char *subfilename;
 
 		dir = opendir(fullfilename);
 		if (dir == NULL) {
@@ -494,7 +490,7 @@ retvalue configfile_parse(const char *filename, bool ignoreunknown, configinitfu
 			r = configfile_parse_single(subfilename, ignoreunknown,
 				initfunc, finishfunc,
 				chunkname, fields, fieldcount, privdata,
-				0, &last, &filenames);
+				depth, last_p, filenames);
 			RET_UPDATE(result, r);
 			if (RET_WAS_ERROR(r)) {
 				(void)closedir(dir);
@@ -524,13 +520,33 @@ retvalue configfile_parse(const char *filename, bool ignoreunknown, configinitfu
 		r = configfile_parse_single(fullfilename, ignoreunknown,
 				initfunc, finishfunc,
 				chunkname, fields, fieldcount, privdata,
-				0, &last, &filenames);
+				depth, last_p, filenames);
 		RET_UPDATE(result, r);
 	}
+	return result;
+}
+
+retvalue configfile_parse(const char *filename, bool ignoreunknown, configinitfunction initfunc, configfinishfunction finishfunc, const char *chunkname, const struct configfield *fields, size_t fieldcount, void *privdata) {
+	struct strlist filenames;
+	void *last = NULL;
+	retvalue r;
+	char *fullfilename;
+
+	fullfilename = configfile_expandname(filename, NULL);
+	if (fullfilename == NULL)
+		return RET_ERROR_OOM;
+
+	strlist_init(&filenames);
+
+	r = configfile_parse_multi(fullfilename, ignoreunknown,
+			initfunc, finishfunc,
+			chunkname, fields, fieldcount, privdata,
+			0, &last, &filenames);
+
 	/* only free filenames last, as they might still be
 	 * referenced while running */
 	strlist_done(&filenames);
-	return result;
+	return r;
 }
 
 static inline int config_nextchar(struct configiterator *iter) {
