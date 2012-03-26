@@ -10,6 +10,7 @@ enum filterlisttype {
 	flt_warning,
 	flt_deinstall,
 	flt_hold,
+	flt_supersede,
 	flt_upgradeonly,
 	flt_error
 };

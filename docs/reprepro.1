@@ -1,4 +1,4 @@
-.TH REPREPRO 1 "2012-01-21" "reprepro" REPREPRO
+.TH REPREPRO 1 "2012-03-26" "reprepro" REPREPRO
 .SH NAME
 reprepro \- produce, manage and sync a local repository of Debian packages
 .mso www.tmac
@@ -1098,6 +1098,21 @@ ends with a newline not followed by a space or tab.
 Lines starting with # as first character are ignored,
 while in other lines the # character and
 everything after it till the newline character are ignored.
+
+A paragraph can also consist of only a single field
+.RB \" !include: \"
+which causes the named file (relative to confdir unless starting
+with
+.BR ~/ ", " +b/ ", " +c/ " or " / " )"
+to be read as if it was found at this place.
+
+Each of the three files or a file included as described above
+can also be a directory, in which case all files it contains
+with a filename ending in
+.B .conf
+and not starting with
+.B .
+are read.
 .SS conf/distributions
 .TP
 .B Codename
@@ -1355,8 +1370,8 @@ while an empty one causes no \fBuContents\-\fP\fIarch\fP files to
 be generated.
 .TP
 .B Uploaders
-Specified a file (relative to confdir if not starting with a slash)
-to specify who is allowed to upload packages. With this there are no
+Specifies a file (relative to confdir if not starting with a slash)
+to specify who is allowed to upload packages. Without this there are no
 limits, and this file can be ignored via \fB\-\-ignore=uploaders\fP.
 See the section \fBUPLOADERS FILES\fP below.
 .TP
@@ -1627,6 +1642,13 @@ will be installed. Things listed as
 or
 .B purge
 will be ignored.
+Packages having
+.B supersede
+will not be installed but instead cause the removal of packages with strictly
+smaller version (i.e. if a package would be replaced by this package if this
+was
+.BR install ,
+it will be removed instead and no new package being installed).
 Things listed with
 .B warning
 are also ignored,

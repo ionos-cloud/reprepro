@@ -1,11 +1,33 @@
-2010-01-21
+2012-03-26
+	* allow absolute filenames in !include directives, and
+	  expand filenames starting with "~/" "+b/" "+c/" in those
+	  and export hooks, filter lists, log scripts, override filenames,
+	  and uploaders filenames.
+	* conf/distributions, conf/updates, conf/pulls and conf/incoming
+	  or files included by those can be directories with all *.conf
+	  files read instead.
+
+2012-03-25
+	* changelogs.example can now also place changelogs in places
+	  where apt-get changelog looks for "third party site" changelogs.
+	* add 'supersede' as FilterList keyword to remove the old package
+	  if the the new would be installed otherwise.
+	* fix broken test against leading whitespace in config file
+	  field names
+	* add support for !include directive in conf/distributions,
+	  conf/updates, conf/pulls and conf/incoming.
+
+2012-01-23
+	* reject "any" as Architecture part of a distribution
+
+2012-01-21
 	* build-needing now can list missing architecture 'all'
 	  packages. (Will not list .dsc files producing both
 	  architecture dependent and architecture indepentent ('all')
 	  packages unless they are built with dpkg-dev >= 1.16.1,
 	  though).
 
-2011-01-19
+2012-01-19
 	* build-needing takes 'any' instead of a architecture, too.
 	* uploader files can 'include' other files.
 

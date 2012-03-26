@@ -9,7 +9,6 @@ char *calc_addsuffix(const char *, const char *);
 char *calc_dirconcat(const char *, const char *);
 char *calc_dirconcat3(const char *, const char *, const char *);
 
-#define calc_conffile(name) calc_dirconcat(global.confdir, name)
 char *calc_changes_basename(const char *, const char *, const struct strlist *);
 char *calc_trackreferee(const char *, const char *, const char *);
 #define calc_snapshotbasedir(codename, name) mprintf("%s/%s/snapshots/%s", global.distdir, codename, name)

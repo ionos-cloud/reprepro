@@ -415,12 +415,7 @@ static retvalue notificator_parse(struct notificator *n, struct configiterator *
 				free(script);
 				return RET_ERROR;
 			}
-			if (script[0] == '/')
-				n->scriptname = script;
-			else {
-				n->scriptname = calc_conffile(script);
-				free(script);
-			}
+			n->scriptname = configfile_expandname(script, script);
 			if (FAILEDTOALLOC(n->scriptname))
 				return RET_ERROR_OOM;
 			return RET_OK;

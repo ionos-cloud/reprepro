@@ -1,3 +1,9 @@
+Updates between 4.9.0 and 4.10.0:
+- allow "!include:" in conf/{distributions,updates,pulls,incoming}
+- conf/{distributions,updates,pulls,incoming} can be directories
+- add FilterList keyword 'supersede' to remove if upstream has newer pkgs
+- improve changelogs.example (CHANGELOGDIR empty stored directly in pool/)
+
 Updates between 4.8.2 and 4.9.0:
 - build-needing now allows to look for things for 'all' and 'any'
 - improve error messages when parsing config files

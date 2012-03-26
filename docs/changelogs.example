@@ -1,9 +1,17 @@
 #!/bin/sh
 # This is an example script that can be hooked into reprepro
-# to generate a hierachy like packages.debian.org/changelogs/
-# All you have to do is to copy it into you conf/ directory,
-# and add the following to any distribution in conf/distributions
-# you want to have changelogs and copyright files extracted:
+# to either generate a hierachy like packages.debian.org/changelogs/
+# or to generate changelog files in the "third party sites"
+# location apt-get changelogs looks if it is not found in
+# Apt::Changelogs::Server.
+#
+# All you have to do is to:
+# - copy it into you conf/ directory,
+# - if you want "third party site" style changelogs, edit the
+#   CHANGELOGDIR variable below,
+# and
+# - add the following to any distribution in conf/distributions
+#   you want to have changelogs and copyright files extracted:
 #Log:
 # --type=dsc changelogs.example
 # (note the space at the beginning of the second line).
@@ -16,35 +24,80 @@
 if test "x${REPREPRO_OUT_DIR:+set}" = xset ; then
 	# Note: due to cd, REPREPRO_*_DIR will no longer
 	# be usable. And only things relative to outdir will work...
-	# (as the filekeys given to this are, though for changesfiles
-	# and CAUSING_FILE it would be different)
 	cd "${REPREPRO_OUT_DIR}" || exit 1
 else
-	cat "This script is written for reprepro 3.5.1 upwoards" >&2
-	cat "for an older version, disable that warning and add" >&2
-	cat "a proper cd or always use from the basedir" >&2
+	# this will also trigger if reprepro < 3.5.1 is used,
+	# in that case replace this with a manual cd to the
+	# correct directory...
+	cat "changelog.example needs to be run by reprepro!" >&2
 	exit 1
 fi
 
-# You will either always have to call it with the basedir as
-# your current directory, use reprepro >= 3.5.1
-# or uncomment and edit the following to be your base directory.
-
-# cd /path/to/your/repository
-
-# place where the changelogs should be put into:
-
+# CHANGELOGDIR set means generate full hierachy
+# (clients need to set Apt::Changelogs::Server to use that)
 CHANGELOGDIR=changelogs
+
+# CHANGELOGDIR empty means generate changelog (and only changelog) files
+# in the new "third party site" place apt-get changelog is using as fallback:
+#CHANGELOGDIR=
 
 # Set to avoid using some predefined TMPDIR or even /tmp as
 # tempdir:
 
 # TMPDIR=/var/cache/whateveryoucreated
 
+if test -z "$CHANGELOGDIR" ; then
 addsource() {
 	DSCFILE="$1"
 	CANONDSCFILE="$(readlink --canonicalize "$DSCFILE")"
-	TARGETDIR="$CHANGELOGDIR"/"$(echo $DSCFILE | sed -e 's/\.dsc$//')"
+	CHANGELOGFILE="${DSCFILE%.dsc}.changelog"
+	BASEDIR="$(dirname "$CHANGELOGFILE")"
+	if ! [ -f "$CHANGELOGFILE" ] ; then
+		EXTRACTDIR="$(mktemp -d)"
+		(cd -- "$EXTRACTDIR" && dpkg-source --no-copy -x "$CANONDSCFILE" > /dev/null)
+		install --mode=644 -- "$EXTRACTDIR"/*/debian/changelog "$CHANGELOGFILE"
+		chmod -R u+rwX -- "$EXTRACTDIR"
+		rm -r -- "$EXTRACTDIR"
+	fi
+	if [ -L "$BASEDIR"/current."$CODENAME" ] ; then
+		# should not be there, just to be sure
+		rm -f -- "$BASEDIR"/current."$CODENAME"
+	fi
+	# mark this as needed by this distribution
+	ln -s -- "$(basename "$CHANGELOGFILE")" "$BASEDIR/current.$CODENAME"
+	JUSTADDED="$CHANGELOGFILE"
+}
+delsource() {
+	DSCFILE="$1"
+	CHANGELOGFILE="${DSCFILE%.dsc}.changelog"
+	BASEDIR="$(dirname "$CHANGELOGFILE")"
+	BASENAME="$(basename "$CHANGELOGFILE")"
+	if [ "x$JUSTADDED" = "x$CHANGELOGFILE" ] ; then
+		exit 0
+	fi
+#	echo "delete, basedir=$BASEDIR changelog=$CHANGELOGFILE, dscfile=$DSCFILE, "
+ 	if [ "x$(readlink "$BASEDIR/current.$CODENAME")" = "x$BASENAME" ] ; then
+ 		rm -- "$BASEDIR/current.$CODENAME"
+ 	fi
+ 	NEEDED=0
+ 	for c in "$BASEDIR"/current.* ; do
+ 		if [ "x$(readlink -- "$c")" = "x$BASENAME" ] ; then
+ 			NEEDED=1
+ 		fi
+ 	done
+ 	if [ "$NEEDED" -eq 0 -a -f "$CHANGELOGFILE" ] ; then
+ 		rm -r -- "$CHANGELOGFILE"
+		# to remove the directory if now empty
+		rmdir --ignore-fail-on-non-empty -- "$BASEDIR"
+ 	fi
+}
+
+else # "$CHANGELOGDIR" set:
+
+addsource() {
+	DSCFILE="$1"
+	CANONDSCFILE="$(readlink --canonicalize "$DSCFILE")"
+	TARGETDIR="${CHANGELOGDIR}/${DSCFILE%.dsc}"
 	SUBDIR="$(basename $TARGETDIR)"
 	BASEDIR="$(dirname $TARGETDIR)"
 	if ! [ -d "$TARGETDIR" ] ; then
@@ -67,7 +120,7 @@ addsource() {
 }
 delsource() {
 	DSCFILE="$1"
-	TARGETDIR="$CHANGELOGDIR"/"$(echo $DSCFILE | sed -e 's/\.dsc$//')"
+	TARGETDIR="${CHANGELOGDIR}/${DSCFILE%.dsc}"
 	SUBDIR="$(basename $TARGETDIR)"
 	BASEDIR="$(dirname $TARGETDIR)"
 	if [ "x$JUSTADDED" = "x$TARGETDIR" ] ; then
@@ -89,6 +142,7 @@ delsource() {
 		rmdir --ignore-fail-on-non-empty -- "$BASEDIR"
  	fi
 }
+fi # CHANGELOGDIR
 
 ACTION="$1"
 CODENAME="$2"
@@ -176,7 +230,7 @@ elif [ "x$ACTION" = "xreplace" ] ; then
 fi
 
 exit 0
-# Copyright 2007,2008 Bernhard R. Link <brlink@debian.org>
+# Copyright 2007,2008,2012 Bernhard R. Link <brlink@debian.org>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 as
