@@ -1,3 +1,14 @@
+reprepro (4.10.0-1) unstable; urgency=low
+
+  * new release
+  - reading configuration from directories (Closes: 665284)
+  - improve changelogs.example (Closes: 665284)
+  - improve uploaders description (Closes: 661493)
+  - fix typo in manpage (Closes: 653774)
+  - add 'supersede' ListFilter keyword (Closes: 663956)
+
+ -- Bernhard R. Link <brlink@debian.org>  Mon, 26 Mar 2012 16:07:10 +0200
+
 reprepro (4.9.0-1) unstable; urgency=low
 
   * new release
