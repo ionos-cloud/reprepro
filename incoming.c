@@ -102,6 +102,7 @@ struct incoming {
 	bool cleanup[cuf_COUNT];
 	bool options[iof_COUNT];
 	/* only to ease parsing: */
+	const char *filename; /* only valid while parsing! */
 	size_t lineno;
 };
 #define BASENAME(i, ofs) (i)->files.values[ofs]
@@ -215,11 +216,10 @@ CFfinishparse(incoming) {
 	}
 	if (d->i != NULL) {
 		fprintf(stderr,
-"Multiple definitions of '%s' within '%s': first started at line %u, second at line %u!\n",
+"Multiple definitions of '%s': first started at line %u of %s, second at line %u of %s!\n",
 				d->name,
-				config_filename(iter),
-				(unsigned int)d->i->lineno,
-				config_firstline(iter));
+				(unsigned int)d->i->lineno, d->i->filename,
+				config_firstline(iter), config_filename(iter));
 		incoming_free(i);
 		incoming_free(d->i);
 		d->i = NULL;
@@ -284,6 +284,7 @@ CFfinishparse(incoming) {
 	}
 
 	d->i = i;
+	i->filename = config_filename(iter);
 	i->lineno = config_firstline(iter);
 	/* only suppreses the last unused warning: */
 	*last = i;

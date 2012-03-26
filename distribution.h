@@ -30,6 +30,7 @@ struct distribution {
 	/* the primary name to access this distribution: */
 	char *codename;
 	/* for more helpfull error messages: */
+	const char *filename; /* only valid while parsing! */
 	unsigned int firstline, lastline;
 	/* additional information for the Release-file to be
 	 * generated, may be NULL. only suite is sometimes used

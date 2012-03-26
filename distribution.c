@@ -244,8 +244,7 @@ static bool notpropersuperset(const struct atomlist *allowed, const char *allowe
 "In distribution description of '%s' (line %u to %u in %s):\n"
 "%s contains '%s' not found in %s!\n",
 				d->codename,
-				d->firstline, d->lastline,
-				config_filename(iter),
+				d->firstline, d->lastline, d->filename,
 				checkname, atoms[missing], allowedname);
 		return true;
 	}
@@ -299,6 +298,7 @@ CFfinishparse(distribution) {
 		distribution_free(n);
 		return RET_NOTHING;
 	}
+	n->filename = config_filename(iter);
 	n->firstline = config_firstline(iter);
 	n->lastline = config_line(iter) - 1;
 
@@ -307,10 +307,12 @@ CFfinishparse(distribution) {
 		if (strcmp(d->codename, n->codename) == 0) {
 			fprintf(stderr,
 "Multiple distributions with the common codename: '%s'!\n"
-"First was in %s line %u to %u, another in lines %u to %u\n",
-				n->codename, config_filename(iter),
+"First was in %s line %u to %u,\n"
+"now another in lines %u to %u of %s.\n",
+				n->codename, d->filename,
 				d->firstline, d->lastline,
-				n->firstline, n->lastline);
+				n->firstline, n->lastline,
+				n->filename);
 			distribution_free(n);
 			return RET_ERROR;
 		}
