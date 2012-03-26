@@ -130,6 +130,8 @@ static inline retvalue filterlistfile_parse(struct filterlistfile *n, const char
 			type = flt_purge;
 		} else if (strcmp(what, "hold") == 0) {
 			type = flt_hold;
+		} else if (strcmp(what, "supersede") == 0) {
+			type = flt_supersede;
 		} else if (strcmp(what, "upgradeonly") == 0) {
 			type = flt_upgradeonly;
 		} else if (strcmp(what, "warning") == 0) {
@@ -237,16 +239,13 @@ static inline retvalue filterlistfile_getl(const char *filename, size_t len, str
 		free(p);
 		return RET_ERROR_OOM;
 	}
-	if (p->filename[0] != '/') {
-		char *fullfilename = calc_conffile(p->filename);
-		if (FAILEDTOALLOC(fullfilename))
-			r = RET_ERROR_OOM;
-		else {
-			r = filterlistfile_read(p, fullfilename);
-			free(fullfilename);
-		}
-	} else
-		r = filterlistfile_read(p, p->filename);
+	char *fullfilename = configfile_expandname(p->filename, NULL);
+	if (FAILEDTOALLOC(fullfilename))
+		r = RET_ERROR_OOM;
+	else {
+		r = filterlistfile_read(p, fullfilename);
+		free(fullfilename);
+	}
 
 	if (RET_IS_OK(r)) {
 		p->next = listfiles;
@@ -286,16 +285,13 @@ static inline retvalue filterlistfile_get(/*@only@*/char *filename, /*@out@*/str
 		free(p);
 		return RET_ERROR_OOM;
 	}
-	if (p->filename[0] != '/') {
-		char *fullfilename = calc_conffile(p->filename);
-		if (FAILEDTOALLOC(fullfilename))
-			r = RET_ERROR_OOM;
-		else {
-			r = filterlistfile_read(p, fullfilename);
-			free(fullfilename);
-		}
-	} else
-		r = filterlistfile_read(p, p->filename);
+	char *fullfilename = configfile_expandname(p->filename, NULL);
+	if (FAILEDTOALLOC(fullfilename))
+		r = RET_ERROR_OOM;
+	else {
+		r = filterlistfile_read(p, fullfilename);
+		free(fullfilename);
+	}
 
 	if (RET_IS_OK(r)) {
 		p->next = listfiles;
@@ -327,6 +323,7 @@ void filterlist_release(struct filterlist *list) {
 static const struct constant filterlisttype_listtypes[] = {
 	{"install",	(int)flt_install},
 	{"hold",	(int)flt_hold},
+	{"supersede",	(int)flt_supersede},
 	{"deinstall",	(int)flt_deinstall},
 	{"purge",	(int)flt_purge},
 	{"upgradeonly",	(int)flt_upgradeonly},

@@ -296,4 +296,5 @@ static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UN
 #define CFfileSETPROC CFvalueSETPROC
 #define config_getfileinline config_getwordinline
 
+char *configfile_expandname(const char *, /*@only@*//*@null@*/char *);
 #endif /* REPREPRO_CONFIGPARSER_H */
