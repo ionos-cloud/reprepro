@@ -3,6 +3,8 @@
 	  expand filenames starting with "~/" "+b/" "+c/" in those
 	  and export hooks, filter lists, log scripts, override filenames,
 	  and uploaders filenames.
+	* conf/distributions, conf/updates, conf/pulls and conf/incoming
+	  can be directories with all *.conf files read instead.
 
 2012-03-25
 	* changelogs.example can now also place changelogs in places

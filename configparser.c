@@ -23,16 +23,18 @@
 #include <stdlib.h>
 #include <string.h>
 #include <malloc.h>
+#include <dirent.h>
 
 #include "error.h"
 #include "names.h"
 #include "atoms.h"
+#include "filecntl.h"
 #include "configparser.h"
 
 struct configiterator {
 	FILE *f;
 	unsigned int startline, line, column, markerline, markercolumn;
-	char *filename;
+	const char *filename;
 	const char *chunkname;
 	bool eol;
 };
@@ -167,7 +169,7 @@ char *configfile_expandname(const char *filename, char *fndup) {
 	return n;
 }
 
-static retvalue configfile_parse_single(const char *filename, /*@only@*//*@null@*/char *fndup, bool ignoreunknown, configinitfunction initfunc, configfinishfunction finishfunc, const char *chunkname, const struct configfield *fields, size_t fieldcount, void *privdata, int depth, void **last_p, struct strlist *filenames) {
+static retvalue configfile_parse_single(/*@only@*/char *filename, bool ignoreunknown, configinitfunction initfunc, configfinishfunction finishfunc, const char *chunkname, const struct configfield *fields, size_t fieldcount, void *privdata, int depth, void **last_p, struct strlist *filenames) {
 	bool found[fieldcount];
 	void *this = NULL;
 	char key[100];
@@ -178,17 +180,15 @@ static retvalue configfile_parse_single(const char *filename, /*@only@*//*@null@
 	retvalue result, r;
 	bool afterinclude = false;
 
-	iter.filename = configfile_expandname(filename, fndup);
-	if (FAILEDTOALLOC(iter.filename))
-		return RET_ERROR_OOM;
-	if (strlist_in(filenames, iter.filename)) {
+	if (strlist_in(filenames, filename)) {
 		if (verbose >= 0) {
 			fprintf(stderr,
 "Ignoring subsequent inclusion of '%s'!\n", iter.filename);
 		}
 		return RET_NOTHING;
 	}
-	r = strlist_add(filenames, iter.filename);
+	iter.filename = filename;
+	r = strlist_add(filenames, filename);
 	if (RET_WAS_ERROR(r))
 		return r;
 	iter.chunkname = chunkname;
@@ -292,8 +292,9 @@ static retvalue configfile_parse_single(const char *filename, /*@only@*//*@null@
 					result = r;
 					break;
 				}
+				filetoinclude = configfile_expandname(
+						filetoinclude, filetoinclude);
 				r = configfile_parse_single(filetoinclude,
-						filetoinclude,
 						ignoreunknown,
 						initfunc, finishfunc,
 						chunkname,
@@ -450,19 +451,86 @@ static retvalue configfile_parse_single(const char *filename, /*@only@*//*@null@
 }
 
 retvalue configfile_parse(const char *filename, bool ignoreunknown, configinitfunction initfunc, configfinishfunction finishfunc, const char *chunkname, const struct configfield *fields, size_t fieldcount, void *privdata) {
-	retvalue r;
 	struct strlist filenames;
 	void *last = NULL;
+	char *fullfilename, *subfilename;
+	retvalue result = RET_NOTHING, r;
 
 	strlist_init(&filenames);
 
-	r = configfile_parse_single(filename, NULL, ignoreunknown,
-			initfunc, finishfunc,
-			chunkname, fields, fieldcount, privdata,
-			0, &last, &filenames);
-	/* only free filenames last, as they might still be referenced while running */
+	fullfilename = configfile_expandname(filename, NULL);
+	if (fullfilename == NULL)
+		return RET_ERROR_OOM;
+	if (isdirectory(fullfilename)) {
+		DIR *dir;
+		struct dirent *de;
+		int e;
+
+		dir = opendir(fullfilename);
+		if (dir == NULL) {
+			e = errno;
+			fprintf(stderr,
+"Error %d opening directory '%s': %s\n",
+				e, fullfilename, strerror(e));
+			free(fullfilename);
+			return RET_ERRNO(e);
+		}
+		while ((errno = 0, de = readdir(dir)) != NULL) {
+			size_t l;
+			if (de->d_type != DT_REG && de->d_type != DT_LNK
+					&& de->d_type != DT_UNKNOWN)
+				continue;
+			if (de->d_name[0] == '.')
+				continue;
+			l = strlen(de->d_name);
+			if (l < 5 || strcmp(de->d_name + l - 5, ".conf") != 0)
+				continue;
+			subfilename = calc_dirconcat(fullfilename, de->d_name);
+			if (FAILEDTOALLOC(subfilename)) {
+				(void)closedir(dir);
+				free(fullfilename);
+				return RET_ERROR_OOM;
+			}
+			r = configfile_parse_single(subfilename, ignoreunknown,
+				initfunc, finishfunc,
+				chunkname, fields, fieldcount, privdata,
+				0, &last, &filenames);
+			RET_UPDATE(result, r);
+			if (RET_WAS_ERROR(r)) {
+				(void)closedir(dir);
+				free(fullfilename);
+				return r;
+			}
+		}
+		e = errno;
+		if (e != 0) {
+			(void)closedir(dir);
+			fprintf(stderr,
+"Error %d reading directory '%s': %s\n",
+				e, fullfilename, strerror(e));
+			free(fullfilename);
+			return RET_ERRNO(e);
+		}
+		if (closedir(dir) != 0) {
+			e = errno;
+			fprintf(stderr,
+"Error %d closing directory '%s': %s\n",
+				e, fullfilename, strerror(e));
+			free(fullfilename);
+			return RET_ERRNO(e);
+		}
+		free(fullfilename);
+	} else {
+		r = configfile_parse_single(fullfilename, ignoreunknown,
+				initfunc, finishfunc,
+				chunkname, fields, fieldcount, privdata,
+				0, &last, &filenames);
+		RET_UPDATE(result, r);
+	}
+	/* only free filenames last, as they might still be
+	 * referenced while running */
 	strlist_done(&filenames);
-	return r;
+	return result;
 }
 
 static inline int config_nextchar(struct configiterator *iter) {
