@@ -1,3 +1,9 @@
+2012-04-24
+	* change Contents-* files generation default from
+	"allcompontents" to "percomponent compatsymlink".
+	(i.e. best for >= wheezy, only first component visible for
+	 <= squeeze)
+
 2012-04-04
 	* 'include' now only warns about section "unknown" instead of
 	rejecting it. add warnings to 'includedsc' and 'includedeb', too.
