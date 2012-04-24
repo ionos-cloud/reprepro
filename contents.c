@@ -118,24 +118,17 @@ retvalue contentsoptions_parse(struct distribution *distribution, struct configi
 	distribution->contents.flags.nodebs = flags[cf_nodebs];
 	if (flags[cf_allcomponents])
 		distribution->contents.flags.allcomponents = true;
-	/* currently the default is true, unless percomponent is enabled,
-	 * directly or indirectly */
-	else if (flags[cf_percomponent])
-		distribution->contents.flags.allcomponents = false;
-	else if (flags[cf_compatsymlink] || flags[cf_nocompatsymlink])
-		distribution->contents.flags.allcomponents = false;
 	else
-		distribution->contents.flags.allcomponents = true;
+		/* default is now off */
+		distribution->contents.flags.allcomponents = false;
 	if (flags[cf_percomponent])
 		distribution->contents.flags.percomponent = true;
-	/* currently the default is off unless compat symlink behaviour
-	 * specified: */
-	else if (flags[cf_compatsymlink] || flags[cf_nocompatsymlink])
-		distribution->contents.flags.percomponent = true;
 	else if (flags[cf_allcomponents])
+		/* if allcomponents is specified, default is off */
 		distribution->contents.flags.percomponent = false;
 	else
-		distribution->contents.flags.percomponent = false;
+		/* otherwise default is on */
+		distribution->contents.flags.percomponent = true;
 	/* compat symlink is only possible if there are no files
 	 * created there, and on by default unless explicitly specified */
 	if (distribution->contents.flags.allcomponents)

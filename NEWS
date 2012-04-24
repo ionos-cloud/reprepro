@@ -1,3 +1,7 @@
+Updates between 4.10.0 and 4.11.0:
+- Contents files default location is now "percomponent compatsymlink".
+- unify handling of "unknown" section.
+
 Updates between 4.9.0 and 4.10.0:
 - allow "!include:" in conf/{distributions,updates,pulls,incoming}
 - conf/{distributions,updates,pulls,incoming} can be directories

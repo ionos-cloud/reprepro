@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005,2006,2007,2009 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2006,2007,2009,2012 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -161,6 +161,10 @@ static retvalue deb_preparelocation(struct debpackage *pkg, component_t forcecom
 		fprintf(stderr, "No priority given for '%s', skipping.\n",
 				pkg->deb.name);
 		return RET_ERROR;
+	}
+	if (strcmp(pkg->deb.section, "unknown") == 0 && verbose >= 0) {
+		fprintf(stderr, "Warning: strange section '%s'!\n",
+				pkg->deb.section);
 	}
 
 	/* decide where it has to go */
