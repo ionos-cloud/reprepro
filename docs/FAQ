@@ -37,7 +37,7 @@ You are facing the choice:
 Reprepro uses Debian's way to organize the pool hierarchy, which means
 that the directory and name a file is saved under is only determined by
 its sourcename, its name and its version and especially not by the
-distribution it belongs to. (This is the intend of having a pool directory,
+distribution it belongs to. (This is the intent of having a pool directory,
 so that if two distributions have the same version, the disk space is only
 used once). This means that if different versions of a packaged having the
 same version string are put in the same reprepro repository (even if put
