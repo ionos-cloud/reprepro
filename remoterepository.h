@@ -38,9 +38,9 @@ struct encoding_preferences {
 	unsigned short count;
 	/* a list of compressions to use */
 	struct compression_preference {
-		bool diff  :1;
-		bool force :1;
-		enum compression compression :6;
+		bool diff;
+		bool force;
+		enum compression compression;
 	} requested[3*c_COUNT];
 };
 
