@@ -598,52 +598,10 @@ static void print_signatures(FILE *f, gpgme_signature_t s, const char *releasegp
 	}
 }
 
-
-retvalue signature_check(const struct signature_requirement *requirements, const char *releasegpg, const char *releasename, const char *releasedata, size_t releaselen) {
-	gpg_error_t err;
-	int gpgfd;
-	gpgme_data_t dh, dh_gpg;
+static inline retvalue verify_signature(const struct signature_requirement *requirements, const char *releasegpg, const char *releasename) {
 	gpgme_verify_result_t result;
 	int i;
 	const struct signature_requirement *req;
-
-	assert (requirements != NULL);
-
-	if (FAILEDTOALLOC(releasedata) || FAILEDTOALLOC(releasegpg))
-		return RET_ERROR_OOM;
-
-	assert (context != NULL);
-
-	/* Read the file and its signature into memory: */
-	gpgfd = open(releasegpg, O_RDONLY|O_NOCTTY);
-	if (gpgfd < 0) {
-		int e = errno;
-		fprintf(stderr, "Error opening '%s': %s\n",
-				releasegpg, strerror(e));
-		return RET_ERRNO(e);
-	}
-	err = gpgme_data_new_from_fd(&dh_gpg, gpgfd);
-	if (err != 0) {
-		(void)close(gpgfd);
-		fprintf(stderr, "Error reading '%s':\n", releasegpg);
-		return gpgerror(err);
-	}
-	err = gpgme_data_new_from_mem(&dh, releasedata, releaselen, 0);
-	if (err != 0) {
-		gpgme_data_release(dh_gpg);
-		return gpgerror(err);
-	}
-
-	/* Verify the signature */
-
-	err = gpgme_op_verify(context, dh_gpg, dh, NULL);
-	gpgme_data_release(dh_gpg);
-	gpgme_data_release(dh);
-	close(gpgfd);
-	if (err != 0) {
-		fprintf(stderr, "Error verifying '%s':\n", releasegpg);
-		return gpgerror(err);
-	}
 
 	result = gpgme_op_verify_result(context);
 	if (result == NULL) {
@@ -690,6 +648,52 @@ retvalue signature_check(const struct signature_requirement *requirements, const
 	if (verbose > 20)
 		print_signatures(stdout, result->signatures, releasegpg);
 	return RET_OK;
+}
+
+retvalue signature_check(const struct signature_requirement *requirements, const char *releasegpg, const char *releasename, const char *releasedata, size_t releaselen) {
+	gpg_error_t err;
+	int gpgfd;
+	gpgme_data_t dh, dh_gpg;
+
+	assert (requirements != NULL);
+
+	if (FAILEDTOALLOC(releasedata) || FAILEDTOALLOC(releasegpg))
+		return RET_ERROR_OOM;
+
+	assert (context != NULL);
+
+	/* Read the file and its signature into memory: */
+	gpgfd = open(releasegpg, O_RDONLY|O_NOCTTY);
+	if (gpgfd < 0) {
+		int e = errno;
+		fprintf(stderr, "Error opening '%s': %s\n",
+				releasegpg, strerror(e));
+		return RET_ERRNO(e);
+	}
+	err = gpgme_data_new_from_fd(&dh_gpg, gpgfd);
+	if (err != 0) {
+		(void)close(gpgfd);
+		fprintf(stderr, "Error reading '%s':\n", releasegpg);
+		return gpgerror(err);
+	}
+	err = gpgme_data_new_from_mem(&dh, releasedata, releaselen, 0);
+	if (err != 0) {
+		gpgme_data_release(dh_gpg);
+		return gpgerror(err);
+	}
+
+	/* Verify the signature */
+
+	err = gpgme_op_verify(context, dh_gpg, dh, NULL);
+	gpgme_data_release(dh_gpg);
+	gpgme_data_release(dh);
+	close(gpgfd);
+	if (err != 0) {
+		fprintf(stderr, "Error verifying '%s':\n", releasegpg);
+		return gpgerror(err);
+	}
+
+	return verify_signature(requirements, releasegpg, releasename);
 }
 #else /* HAVE_LIBGPGME */
 
