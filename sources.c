@@ -216,8 +216,15 @@ retvalue sources_getinstalldata(const struct target *t, const char *packagename,
 	r = calc_inplacedirconcats(origdirectory, &files.names);
 	free(origdirectory);
 	if (!RET_WAS_ERROR(r)) {
-		mychunk = chunk_replacefield(chunk,
-				"Directory", directory, true);
+		char *n;
+
+		n = chunk_normalize(chunk, "Package", packagename);
+		if (FAILEDTOALLOC(n))
+			mychunk = NULL;
+		else
+			mychunk = chunk_replacefield(n,
+					"Directory", directory, true);
+		free(n);
 		if (FAILEDTOALLOC(mychunk))
 			r = RET_ERROR_OOM;
 	}
@@ -559,22 +566,13 @@ void sources_done(struct dsc_headers *dsc) {
 
 retvalue sources_complete(const struct dsc_headers *dsc, const char *directory, const struct overridedata *override, const char *section, const char *priority, char **newcontrol) {
 	retvalue r;
-	struct fieldtoadd *name;
 	struct fieldtoadd *replace;
 	char *newchunk, *newchunk2;
 	char *newfilelines, *newsha1lines, *newsha256lines;
 
 	assert(section != NULL && priority != NULL);
 
-	/* first replace the "Source" with a "Package": */
-	name = addfield_new("Package", dsc->name, NULL);
-	if (FAILEDTOALLOC(name))
-		return RET_ERROR_OOM;
-	name = deletefield_new("Source", name);
-	if (FAILEDTOALLOC(name))
-		return RET_ERROR_OOM;
-	newchunk2  = chunk_replacefields(dsc->control, name, "Format", true);
-	addfield_free(name);
+	newchunk2 = chunk_normalize(dsc->control, "Package", dsc->name);
 	if (FAILEDTOALLOC(newchunk2))
 		return RET_ERROR_OOM;
 
@@ -588,6 +586,8 @@ retvalue sources_complete(const struct dsc_headers *dsc, const char *directory, 
 	replace = aodfield_new("Checksums-Sha256", newsha256lines, NULL);
 	if (!FAILEDTOALLOC(replace))
 		replace = aodfield_new("Checksums-Sha1", newsha1lines, replace);
+	if (!FAILEDTOALLOC(replace))
+		replace = deletefield_new("Source", replace);
 	if (!FAILEDTOALLOC(replace))
 		replace = addfield_new("Files", newfilelines, replace);
 	if (!FAILEDTOALLOC(replace))

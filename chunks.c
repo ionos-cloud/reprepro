@@ -657,6 +657,65 @@ char *chunk_replacefield(const char *chunk, const char *fieldname, const char *d
 	return chunk_replacefields(chunk, &toadd, fieldname, maybemissing);
 }
 
+/* Add field <firstfieldname> as first field with value data, and remove
+ * all other fields of that name (and of name alsoremove if that is != NULL), */
+
+char *chunk_normalize(const char *chunk, const char *firstfieldname, const char *data) {
+	const char *c, *ce;
+	char *newchunk, *n;
+	size_t size;
+	size_t data_len, field_len;
+
+	assert (chunk != NULL && firstfieldname != NULL && data != NULL);
+	data_len = strlen(data);
+	field_len = strlen(firstfieldname);
+	c = chunk;
+
+	/* calculate the maximal size we might end up with */
+	size = 2 + strlen(c) + 3 + data_len + field_len;
+
+	newchunk = n = malloc(size);
+	if (FAILEDTOALLOC(n))
+		return NULL;
+
+	memcpy(n, firstfieldname, field_len); n += field_len;
+	*(n++) = ':';
+	*(n++) = ' ';
+	memcpy(n, data, data_len); n += data_len;
+	*(n++) = '\n';
+	do {
+		bool toremove;
+
+		if (strncasecmp(c, firstfieldname, field_len) == 0
+				&& c[field_len] == ':')
+			toremove = true;
+		else
+			toremove = false;
+		/* search the end of the field */
+		ce = c;
+		do {
+			while (*ce != '\n' && *ce != '\0')
+				ce++;
+			if (*ce == '\0')
+				break;
+			ce++;
+		} while (*ce == ' ' || *ce == '\t');
+
+		/* copy it, if it is not to be ignored */
+
+		if (!toremove && ce-c > 0) {
+			memcpy(n, c, ce-c);
+			n += ce-c;
+		}
+		/* and proceed with the next */
+		c = ce;
+	} while (*c != '\0' && *c != '\n');
+	if (n > newchunk && *(n-1) != '\n')
+		*(n++) = '\n';
+	*n = '\0';
+	return newchunk;
+}
+
 /* this is a bit wastefull, as with normaly perfect formated input, it just
  * writes everything to itself in a inefficent way. But when there are \r
  * in it or spaces before it or stuff like that, it will be in perfect
