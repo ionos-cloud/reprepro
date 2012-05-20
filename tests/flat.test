@@ -228,7 +228,7 @@ stdout
 -v5*=  reading './lists/flattest_flatsource_Packages'
 stderr
 *=Missing 'Size' line in binary control chunk:
-*=Missing 'MD5sum' line in binary control chunk:
+*=No checksums found in binary control chunk:
 *= 'Package: test
 *=Architecture: all
 *=Version: 0
