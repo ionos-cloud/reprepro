@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005,2006,2007,2009 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2006,2007,2009,2012 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -599,9 +599,9 @@ static void print_signatures(FILE *f, gpgme_signature_t s, const char *releasegp
 }
 
 
-retvalue signature_check(const struct signature_requirement *requirements, const char *releasegpg, const char *release) {
+retvalue signature_check(const struct signature_requirement *requirements, const char *releasegpg, const char *releasename, const char *releasedata, size_t releaselen) {
 	gpg_error_t err;
-	int fd, gpgfd;
+	int gpgfd;
 	gpgme_data_t dh, dh_gpg;
 	gpgme_verify_result_t result;
 	int i;
@@ -609,7 +609,7 @@ retvalue signature_check(const struct signature_requirement *requirements, const
 
 	assert (requirements != NULL);
 
-	if (FAILEDTOALLOC(release) || FAILEDTOALLOC(releasegpg))
+	if (FAILEDTOALLOC(releasedata) || FAILEDTOALLOC(releasegpg))
 		return RET_ERROR_OOM;
 
 	assert (context != NULL);
@@ -622,25 +622,15 @@ retvalue signature_check(const struct signature_requirement *requirements, const
 				releasegpg, strerror(e));
 		return RET_ERRNO(e);
 	}
-	fd = open(release, O_RDONLY|O_NOCTTY);
-	if (fd < 0) {
-		int e = errno;
-		(void)close(gpgfd);
-		fprintf(stderr, "Error opening '%s': %s\n",
-			       release, strerror(e));
-		return RET_ERRNO(e);
-	}
 	err = gpgme_data_new_from_fd(&dh_gpg, gpgfd);
 	if (err != 0) {
-		(void)close(gpgfd); (void)close(fd);
+		(void)close(gpgfd);
 		fprintf(stderr, "Error reading '%s':\n", releasegpg);
 		return gpgerror(err);
 	}
-	err = gpgme_data_new_from_fd(&dh, fd);
+	err = gpgme_data_new_from_mem(&dh, releasedata, releaselen, 0);
 	if (err != 0) {
 		gpgme_data_release(dh_gpg);
-		(void)close(gpgfd); (void)close(fd);
-		fprintf(stderr, "Error reading '%s':\n", release);
 		return gpgerror(err);
 	}
 
@@ -649,7 +639,7 @@ retvalue signature_check(const struct signature_requirement *requirements, const
 	err = gpgme_op_verify(context, dh_gpg, dh, NULL);
 	gpgme_data_release(dh_gpg);
 	gpgme_data_release(dh);
-	close(gpgfd); close(fd);
+	close(gpgfd);
 	if (err != 0) {
 		fprintf(stderr, "Error verifying '%s':\n", releasegpg);
 		return gpgerror(err);
@@ -679,7 +669,7 @@ retvalue signature_check(const struct signature_requirement *requirements, const
 		for (i = 0 ; !fullfilled && (size_t)i < req->num_keys ; i++) {
 
 			if (key_good_enough(&req->keys[i], result->signatures,
-						releasegpg, release)) {
+						releasegpg, releasename)) {
 				fullfilled = true;
 				break;
 			}
@@ -703,10 +693,10 @@ retvalue signature_check(const struct signature_requirement *requirements, const
 }
 #else /* HAVE_LIBGPGME */
 
-retvalue signature_check(const struct signature_requirement *requirements, const char *releasegpg, const char *release) {
+retvalue signature_check(const struct signature_requirement *requirements, const char *releasegpg, const char *releasename, const char *releasedata, size_t releaselen) {
 	assert (requirements != NULL);
 
-	if (FAILEDTOALLOC(release) || FAILEDTOALLOC(releasegpg))
+	if (FAILEDTOALLOC(releasedata) || FAILEDTOALLOC(releasegpg))
 		return RET_ERROR_OOM;
 	fprintf(stderr,
 "ERROR: Cannot check signatures as this reprepro binary is compiled with support\n"

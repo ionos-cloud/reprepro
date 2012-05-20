@@ -15,7 +15,7 @@ void signature_requirements_free(/*@only@*/struct signature_requirement *);
 retvalue signature_requirement_add(struct signature_requirement **, const char *);
 void free_known_keys(void);
 
-retvalue signature_check(const struct signature_requirement *, const char *releasegpg, const char *release);
+retvalue signature_check(const struct signature_requirement *, const char *, const char *, const char *, size_t);
 
 
 struct signatures {

@@ -755,8 +755,8 @@ static retvalue process_remoterelease(struct remote_distribution *rd) {
 
 	if (rd->verify != NULL) {
 		r = signature_check(rd->verify,
-				rd->releasegpgfile,
-				rd->releasefile);
+				rd->releasegpgfile, rd->releasefile,
+				releasedata, releaselen);
 		assert (r != RET_NOTHING);
 		if (r == RET_NOTHING)
 			r = RET_ERROR_BADSIG;
