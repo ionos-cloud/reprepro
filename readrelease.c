@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005,2007 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2007,2012 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -23,21 +23,15 @@
 #include "error.h"
 #include "names.h"
 #include "chunks.h"
-#include "readtextfile.h"
 #include "readrelease.h"
 
 /* get a strlist with the md5sums of a Release-file */
-retvalue release_getchecksums(const char *releasefile, const bool ignore[cs_hashCOUNT], struct checksumsarray *out) {
+retvalue release_getchecksums(const char *releasefile, const char *chunk, const bool ignore[cs_hashCOUNT], struct checksumsarray *out) {
 	retvalue r;
-	char *chunk;
 	struct strlist files[cs_hashCOUNT];
 	enum checksumtype cs;
 	bool foundanything = false;
 
-	r = readtextfile(releasefile, releasefile, &chunk, NULL);
-	assert (r != RET_NOTHING);
-	if (!RET_IS_OK(r))
-		return r;
 	for (cs = cs_md5sum ; cs < cs_hashCOUNT ; cs++) {
 		if (ignore[cs]) {
 			strlist_init(&files[cs]);
@@ -50,14 +44,12 @@ retvalue release_getchecksums(const char *releasefile, const bool ignore[cs_hash
 			while (cs-- > cs_md5sum) {
 				strlist_done(&files[cs]);
 			}
-			free(chunk);
 			return r;
 		} else if (r == RET_NOTHING)
 			strlist_init(&files[cs]);
 		else
 			foundanything = true;
 	}
-	free(chunk);
 
 	if (!foundanything) {
 		fprintf(stderr, "Missing checksums in Release file '%s'!\n",

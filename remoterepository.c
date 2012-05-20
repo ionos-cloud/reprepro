@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2008,2009 Bernhard R. Link
+ *  Copyright (C) 2008,2009,2012 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -35,6 +35,7 @@
 #include "names.h"
 #include "aptmethod.h"
 #include "signature.h"
+#include "readtextfile.h"
 #include "readrelease.h"
 #include "uncompression.h"
 #include "diffindex.h"
@@ -741,6 +742,16 @@ static retvalue process_remoterelease(struct remote_distribution *rd) {
 	struct remote_repository *rr = rd->repository;
 	struct remote_index *ri;
 	retvalue r;
+	const char *filename;
+	char *releasedata;
+	size_t releaselen;
+
+	r = readtextfile(rd->releasefile, rd->releasefile,
+			&releasedata, &releaselen);
+	assert (r != RET_NOTHING);
+	if (RET_WAS_ERROR(r))
+		return r;
+	filename = rd->releasefile;
 
 	if (rd->verify != NULL) {
 		r = signature_check(rd->verify,
@@ -755,11 +766,14 @@ static retvalue process_remoterelease(struct remote_distribution *rd) {
 					rr->name, rr->method, rd->suite);
 			r = RET_ERROR_BADSIG;
 		}
-		if (RET_WAS_ERROR(r))
+		if (RET_WAS_ERROR(r)) {
+			free(releasedata);
 			return r;
+		}
 	}
-	r = release_getchecksums(rd->releasefile, rd->ignorehashes,
+	r = release_getchecksums(filename, releasedata, rd->ignorehashes,
 			&rd->remotefiles);
+	free(releasedata);
 	if (RET_WAS_ERROR(r))
 		return r;
 
