@@ -712,19 +712,6 @@ retvalue checksumsarray_parse(struct checksumsarray *out, const struct strlist l
 				strlist_done(&filenames);
 				free(parsed);
 				return RET_ERROR;
-			} else if (cs == cs_md5sum) {
-				fileofs = filenames.count;
-				r = strlist_add_dup(&filenames, filename);
-				if (RET_WAS_ERROR(r)) {
-					strlist_done(&filenames);
-					free(parsed);
-					return r;
-				}
-				parsed[fileofs].hashes[cs_md5sum].start = hash_start;
-				parsed[fileofs].hashes[cs_md5sum].len = hash_len;
-				parsed[fileofs].hashes[cs_length].start = size_start;
-				parsed[fileofs].hashes[cs_length].len = size_len;
-				foundhashtype[cs_md5sum] = true;
 			} else {
 				struct hash_data *hashes;
 
@@ -740,17 +727,18 @@ retvalue checksumsarray_parse(struct checksumsarray *out, const struct strlist l
 					hashes = parsed[fileofs].hashes;
 					hashes[cs_length].start = size_start;
 					hashes[cs_length].len = size_len;
-				} else
+				} else {
 					hashes = parsed[fileofs].hashes;
-				if (unlikely(hashes[cs_length].len
-				              != size_len
-				          || memcmp(hashes[cs_length].start,
-				               size_start, size_len) != 0)) {
-					fprintf(stderr,
+					if (unlikely(hashes[cs_length].len
+						      != size_len
+						  || memcmp(hashes[cs_length].start,
+						       size_start, size_len) != 0)) {
+						fprintf(stderr,
 "WARNING: %s checksum line ' %s' in '%s' contradicts previous filesize!\n",
-						hash_name[cs], line,
-						filenametoshow);
-					continue;
+							hash_name[cs], line,
+							filenametoshow);
+						continue;
+					}
 				}
 				hashes[cs].start = hash_start;
 				hashes[cs].len = hash_len;

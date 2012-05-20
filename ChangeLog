@@ -2,8 +2,8 @@
 	* normalize included package control information to
 	  always start with the Package: field (as some clients
 	  assume that).
-	* don't require md5sum to download binary packages
-	  (any known hash suffices)
+	* don't require md5sum to download binary or source packages
+	  in the remote index files (any known hash suffices)
 
 2012-05-19
 	* avoid some problem with gcc-4.7
