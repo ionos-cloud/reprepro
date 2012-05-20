@@ -62,6 +62,7 @@ static retvalue binaries_parse_checksums(const char *chunk, /*@out@*/struct chec
 	retvalue result, r;
 	char *checksums[cs_COUNT];
 	enum checksumtype type;
+	bool gothash = false;
 
 	result = RET_NOTHING;
 
@@ -69,11 +70,13 @@ static retvalue binaries_parse_checksums(const char *chunk, /*@out@*/struct chec
 		checksums[type] = NULL;
 		r = chunk_getvalue(chunk, deb_checksum_headers[type],
 				&checksums[type]);
+		if (type != cs_length && RET_IS_OK(r))
+			gothash = true;
 		RET_UPDATE(result, r);
 	}
-	if (checksums[cs_md5sum] == NULL) {
+	if (!gothash) {
 		fprintf(stderr,
-"Missing 'MD5sum' line in binary control chunk:\n '%s'\n",
+"No checksums found in binary control chunk:\n '%s'\n",
 				chunk);
 		RET_UPDATE(result, RET_ERROR_MISSING);
 	}
