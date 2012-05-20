@@ -521,8 +521,6 @@ char *chunk_replacefields(const char *chunk, const struct fieldtoadd *toadd, con
 		/* copy it, if it is not to be ignored */
 
 		if (f == NULL && ce-c > 0) {
-			// There are reports this might overwrite something,
-			// though I neighter now how not why.
 			memcpy(n, c, ce -c);
 			n += ce-c;
 		}
@@ -554,7 +552,6 @@ char *chunk_replacefields(const char *chunk, const struct fieldtoadd *toadd, con
 	}
 	*n = '\0';
 
-	// If the problem still exists, I want to know it!
 	assert (n-newchunk < 0 || (size_t)(n-newchunk) <= size-1);
 
 	if (result == RET_NOTHING) {
