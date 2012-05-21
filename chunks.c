@@ -713,61 +713,85 @@ char *chunk_normalize(const char *chunk, const char *firstfieldname, const char 
 	return newchunk;
 }
 
+const char *chunk_getstart(const char *start, size_t len, bool commentsallowed) {
+	const char *s, *l;
+
+	s = start; l = start + len;
+	while (s < l && (*s == ' ' || *s == '\t' ||
+			*s == '\r' || *s =='\n'))
+		s++;
+	/* ignore leading comments (even full paragraphs of them) */
+	while (commentsallowed && s < l && *s == '#') {
+		while (s < l && *s != '\n')
+			s++;
+		while (s < l && (*s == ' ' || *s == '\t' ||
+				*s == '\r' ||
+				*s =='\n'))
+			s++;
+	}
+	return s;
+}
+
+const char *chunk_over(const char *e) {
+	while (*e != '\0') {
+		if (*(e++) == '\n') {
+			while (*e =='\r')
+				e++;
+			if (*e == '\n')
+				return e+1;
+		}
+	}
+	return e;
+}
+
 /* this is a bit wastefull, as with normaly perfect formated input, it just
  * writes everything to itself in a inefficent way. But when there are \r
  * in it or spaces before it or stuff like that, it will be in perfect
  * form afterwards. */
-size_t chunk_extract(char *buffer, const char *start, char **next) {
-	const char *startofchanges, *endofchanges, *afterchanges;
+/* Write the first chunk found in the first len bytes after start
+ * to buffer and set next to the next data found after it.
+ * buffer can be a different buffer may be the buffer start is in
+ * (as long as start is bigger than buffer).
+ * buffer must be big enough to store up to len+1 bytes */
+size_t chunk_extract(char *buffer, const char *start, size_t len, bool commentsallowed, const char **next) {
+	const char *e, *n, *l;
 	char *p;
 
-	assert (start >= buffer);
 	p = buffer;
-	startofchanges = start;
-	while (*startofchanges == ' ' || *startofchanges == '\t' ||
-			*startofchanges == '\r' || *startofchanges =='\n')
-		startofchanges++;
-	/* ignore leading comments (even full paragraphs of them) */
-	while (*startofchanges == '#') {
-		while (*startofchanges != '\n')
-			startofchanges++;
-		while (*startofchanges == ' ' || *startofchanges == '\t' ||
-				*startofchanges == '\r' ||
-				*startofchanges =='\n')
-			startofchanges++;
-	}
-
-	endofchanges = startofchanges;
-	afterchanges = NULL;
-	while (*endofchanges != '\0') {
-		if (*endofchanges == '\n') {
-			*(p++) = *(endofchanges++);
-			afterchanges = endofchanges;
-			while (*afterchanges =='\r')
-				afterchanges++;
-			if (*afterchanges == '\n')
+	l = start + len;
+	e = chunk_getstart(start, len, commentsallowed);
+	n = NULL;
+	while (e < l && *e != '\0') {
+		if (*e == '\r') {
+			e++;
+		} else if (*e == '\n') {
+			*(p++) = *(e++);
+			n = e;
+			while (n < l && *n =='\r')
+				n++;
+			if (n < l && *n == '\n')
 				break;
-			endofchanges = afterchanges;
-			afterchanges = NULL;
+			e = n;
+			n = NULL;
 		} else {
-			*(p++) = *(endofchanges++);
+			*(p++) = *(e++);
 		}
 	}
 
-	if (afterchanges == NULL) {
-		afterchanges = endofchanges;
-		assert (*afterchanges == '\0');
-		assert (p <= afterchanges);
+	if (n == NULL) {
+		n = e;
+		assert (n == l || *n == '\0');
+		assert ((p - buffer) <= (n - start));
 		*p = '\0';
 	} else {
-		assert (*afterchanges == '\n');
-		afterchanges++;
-		assert (p < afterchanges);
+		assert (n < l && *n == '\n');
+		n++;
+		assert (p - buffer < n - start);
 		*p = '\0';
-		while (*afterchanges == '\n' || *afterchanges =='\r')
-			afterchanges++;
+		while (n < l && (*n == '\n' || *n =='\r'))
+			n++;
 	}
-	*next = buffer + (afterchanges-buffer);
-	return p-buffer;
+	*next = n;
+	return p - buffer;
 }
 

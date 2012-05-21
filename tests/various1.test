@@ -626,11 +626,13 @@ testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
 -v0=Data seems not to be signed trying to use directly....
-*=First non-space character is a '-' but there is no empty line in
-*='test.changes'.
-*=Unable to extract any data from it!
+*=Strange content of 'test.changes': First non-space character is '-',
+*=but it does not begin with '-----BEGIN'.
 -v0*=There have been errors!
 EOF
+#*=First non-space character is a '-' but there is no empty line in
+#*='test.changes'.
+#*=Unable to extract any data from it!
 cat > i/test.changes <<EOF
 -chunk: 1
 
@@ -639,11 +641,13 @@ testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
 -v0=Data seems not to be signed trying to use directly....
-*=First non-space character is a '-' but there is no empty line in
-*='test.changes'.
-*=Unable to extract any data from it!
+*=Strange content of 'test.changes': First non-space character is '-',
+*=but it does not begin with '-----BEGIN'.
 -v0*=There have been errors!
 EOF
+#*=First non-space character is a '-' but there is no empty line in
+#*='test.changes'.
+#*=Unable to extract any data from it!
 cat > i/test.changes <<EOF
 chunk: 1
 

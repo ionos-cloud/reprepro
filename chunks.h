@@ -54,6 +54,8 @@ void addfield_free(/*@only@*//*@null@*/struct fieldtoadd *);
 /*@null@*/char *chunk_normalize(const char *, const char *, const char *);
 
 /* reformat control data, removing leading spaces and CRs */
-size_t chunk_extract(char * /*buffer*/, const char */*start*/, /*@out@*/char ** /*next*/);
+size_t chunk_extract(char * /*buffer*/, const char */*start*/, size_t, bool, /*@out@*/const char ** /*next*/);
+const char *chunk_getstart(const char *, size_t, bool /*commentsallowed*/);
+const char *chunk_over(const char *);
 
 #endif

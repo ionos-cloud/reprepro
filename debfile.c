@@ -39,7 +39,8 @@
 
 static retvalue read_control_file(char **control, const char *debfile, struct archive *tar, struct archive_entry *entry) {
 	int64_t size;
-	char *buffer, *afterchanges, *n;
+	char *buffer, *n;
+	const char *afterchanges;
 	size_t len, controllen;
 	ssize_t got;
 
@@ -86,7 +87,7 @@ static retvalue read_control_file(char **control, const char *debfile, struct ar
 "Maybe the file is corrupt, perhaps libarchive!\n", debfile);
 	buffer[len] = '\0';
 
-	controllen = chunk_extract(buffer, buffer, &afterchanges);
+	controllen = chunk_extract(buffer, buffer, len, true, &afterchanges);
 
 	if (controllen == 0) {
 		fprintf(stderr,
