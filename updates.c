@@ -24,7 +24,6 @@
  *  aptmethod.c		start, feed and take care of the apt methods
  *  downloadcache.c     keep track of what is downloaded to avoid duplicates
  *  signature.c		verify Release.gpg files, if requested
- *  readrelease.c	parse Release files, unless ignored
  *  remoterepository.c  cache remote index files and decide which to download
  *  upgradelist.c	decide which packages (and version) should be installed
  *
@@ -76,7 +75,6 @@
 #include "tracking.h"
 #include "termdecide.h"
 #include "filterlist.h"
-#include "readrelease.h"
 #include "log.h"
 #include "donefile.h"
 #include "freespace.h"

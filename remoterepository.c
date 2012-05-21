@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2008,2009,2012 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2007,2008,2009,2012 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -32,15 +32,33 @@
 #include "checksums.h"
 #include "mprintf.h"
 #include "dirs.h"
+#include "chunks.h"
 #include "names.h"
 #include "aptmethod.h"
 #include "signature.h"
 #include "readtextfile.h"
-#include "readrelease.h"
 #include "uncompression.h"
 #include "diffindex.h"
 #include "rredpatch.h"
 #include "remoterepository.h"
+
+/*  This file is part of "reprepro"
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License version 2 as
+ *  published by the Free Software Foundation.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1301  USA
+ */
+#include <config.h>
+
+
 
 /* This is code to handle lists from remote repositories.
    Those are stored in the lists/ (or --listdir) directory
@@ -736,6 +754,45 @@ static void find_index(const struct strlist *files, struct remote_index *ri) {
 				break;
 			}
 	}
+}
+
+/* get a strlist with the md5sums of a Release-file */
+static inline retvalue release_getchecksums(const char *releasefile, const char *chunk, const bool ignorehash[cs_hashCOUNT], struct checksumsarray *out) {
+	retvalue r;
+	struct strlist files[cs_hashCOUNT];
+	enum checksumtype cs;
+	bool foundanything = false;
+
+	for (cs = cs_md5sum ; cs < cs_hashCOUNT ; cs++) {
+		if (ignorehash[cs]) {
+			strlist_init(&files[cs]);
+			continue;
+		}
+		assert (release_checksum_names[cs] != NULL);
+		r = chunk_getextralinelist(chunk, release_checksum_names[cs],
+				&files[cs]);
+		if (RET_WAS_ERROR(r)) {
+			while (cs-- > cs_md5sum) {
+				strlist_done(&files[cs]);
+			}
+			return r;
+		} else if (r == RET_NOTHING)
+			strlist_init(&files[cs]);
+		else
+			foundanything = true;
+	}
+
+	if (!foundanything) {
+		fprintf(stderr, "Missing checksums in Release file '%s'!\n",
+				releasefile);
+		return RET_ERROR;
+	}
+
+	r = checksumsarray_parse(out, files, releasefile);
+	for (cs = cs_md5sum ; cs < cs_hashCOUNT ; cs++) {
+		strlist_done(&files[cs]);
+	}
+	return r;
 }
 
 static retvalue process_remoterelease(struct remote_distribution *rd) {
