@@ -430,6 +430,7 @@ static retvalue extract_signed_data(const char *buffer, size_t bufferlen, const 
 retvalue signature_readsignedchunk(const char *filename, const char *filenametoshow, char **chunkread, /*@null@*/ /*@out@*/struct signatures **signatures_p, bool *brokensignature) {
 	char *chunk;
 	const char *startofchanges, *afterchunk;
+	const char *endmarker;
 	size_t chunklen, len;
 	retvalue r;
 
@@ -518,23 +519,19 @@ retvalue signature_readsignedchunk(const char *filename, const char *filenametos
 		return RET_ERROR;
 	}
 
-	if (*afterchunk == '\0') {
-		const char *endmarker;
-
-		endmarker = strstr(chunk, "\n-----");
-		if (endmarker != NULL) {
-			endmarker++;
-			assert ((size_t)(endmarker-chunk) < len);
-			len = endmarker-chunk;
-			chunk[len] = '\0';
-		} else {
-			fprintf(stderr,
+	endmarker = strstr(chunk, "\n-----");
+	if (endmarker != NULL) {
+		endmarker++;
+		assert ((size_t)(endmarker-chunk) < len);
+		len = endmarker-chunk;
+		chunk[len] = '\0';
+	} else if (*afterchunk == '\0') {
+		fprintf(stderr,
 "ERROR: Could not find end marker of signed data within '%s'.\n"
 "Cannot determine what is data and what is not!\n",
-					filenametoshow);
-			free(chunk);
-			return RET_ERROR;
-		}
+filenametoshow);
+		free(chunk);
+		return RET_ERROR;
 	} else if (strncmp(afterchunk, "-----", 5) != 0) {
 		fprintf(stderr, "ERROR: Spurious empty line within '%s'.\n"
 "Cannot determine what is data and what is not!\n",
