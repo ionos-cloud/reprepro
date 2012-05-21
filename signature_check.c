@@ -906,7 +906,10 @@ void signature_requirements_free(/*@only@*/struct signature_requirement *p) {
 	free(p);
 }
 
-retvalue signature_requirement_add(UNUSED(struct signature_requirement **x), UNUSED(const char *y)) {
+retvalue signature_requirement_add(UNUSED(struct signature_requirement **x), const char *condition) {
+	if (condition == NULL || strcmp(condition, "blindtrust") == 0)
+		return RET_NOTHING;
+
 	fprintf(stderr,
 "ERROR: Cannot check signatures as this reprepro binary is compiled with support\n"
 "for libgpgme.\n"); // TODO: "Only running external programs is supported.\n"

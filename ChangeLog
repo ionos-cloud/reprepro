@@ -1,5 +1,5 @@
 2012-05-21
-	* fix reading of inline-signed data when not using libgpgme
+	* fix some errors when compiled without libgpgme
 
 2012-05-20
 	* normalize included package control information to
