@@ -723,6 +723,8 @@ testrun - -b . update test1 3<<EOF
 returns 254
 stderr
 =WARNING: Single-Instance not yet supported!
+=aptmethod error receiving 'copy:$WORKDIR/dists/test2/InRelease':
+='Failed to stat - stat (2: No such file or directory)'
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/Release'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/Release'
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/ugly/source/Sources.bz2'
@@ -760,6 +762,8 @@ testrun - -b . update test1 3<<EOF
 returns 254
 stderr
 =WARNING: Single-Instance not yet supported!
+=aptmethod error receiving 'copy:$WORKDIR/dists/test2/InRelease':
+='Failed to stat - stat (2: No such file or directory)'
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/Release'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/Release'
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/stupid/source/Sources.bz2'
@@ -781,6 +785,8 @@ testrun - -b . update test1 3<<EOF
 returns 254
 stderr
 =WARNING: Single-Instance not yet supported!
+=aptmethod error receiving 'copy:$WORKDIR/dists/test2/InRelease':
+='Failed to stat - stat (2: No such file or directory)'
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/Release'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/Release'
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/stupid/source/Sources.bz2'
@@ -815,6 +821,8 @@ testrun - -b . update test1 3<<EOF
 returns 254
 stderr
 =WARNING: Single-Instance not yet supported!
+=aptmethod error receiving 'copy:$WORKDIR/dists/test2/InRelease':
+='Failed to stat - stat (2: No such file or directory)'
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/Release'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/Release'
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/stupid/source/Sources.bz2'
@@ -833,6 +841,8 @@ EOF
 testrun - -b . update test1 3<<EOF
 stderr
 =WARNING: Single-Instance not yet supported!
+=aptmethod error receiving 'copy:$WORKDIR/dists/test2/InRelease':
+='Failed to stat - stat (2: No such file or directory)'
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/Release'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/Release'
 -v2*=Uncompress './lists/Test2toTest1_test2_stupid_Sources.bz2' into './lists/Test2toTest1_test2_stupid_Sources'...
@@ -892,6 +902,8 @@ checknolog log1
 checknolog log2
 testrun - -b . update test1 3<<EOF
 =WARNING: Single-Instance not yet supported!
+=aptmethod error receiving 'copy:$WORKDIR/dists/test2/InRelease':
+='Failed to stat - stat (2: No such file or directory)'
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/Release'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/Release'
 stdout

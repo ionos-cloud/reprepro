@@ -1,3 +1,8 @@
+2012-05-22
+	* try to get InRelease from remote repositories
+	  instead of Release (with fall-back of the old behaviour)
+	* new GetInRelease: to conf/updates, defaults to yes
+
 2012-05-21
 	* fix some errors when compiled without libgpgme
 

@@ -116,15 +116,20 @@ struct remote_distribution {
 	/* linked list of key descriptions to check against, each must match */
 	struct signature_requirement *verify;
 
-	/* local copy of Release and Release.gpg file, once and if available */
+	/* local copy of InRelease, Release and Release.gpg file, once and if available */
+	char *inreleasefile;
 	char *releasefile;
 	char *releasegpgfile;
+	const char *usedreleasefile;
 
 	/* filenames and checksums from the Release file */
 	struct checksumsarray remotefiles;
 
 	/* the index files we need */
 	struct remote_index *indices;
+
+	/* InRelease failed or requested not to be used */
+	bool noinrelease;
 };
 
 struct remote_index {
@@ -197,6 +202,7 @@ static void remote_distribution_free(/*@only@*/struct remote_distribution *d) {
 		return;
 	free(d->suite);
 	signature_requirements_free(d->verify);
+	free(d->inreleasefile);
 	free(d->releasefile);
 	free(d->releasegpgfile);
 	free(d->suite_base_dir);
@@ -513,7 +519,7 @@ void cachedlistfile_need(struct cachedlistfile *list, const char *type, unsigned
 	}
 }
 
-retvalue remote_distribution_prepare(struct remote_repository *repository, const char *suite, bool ignorerelease, const char *verifyrelease, bool flat, bool *ignorehashes, struct remote_distribution **out_p) {
+retvalue remote_distribution_prepare(struct remote_repository *repository, const char *suite, bool ignorerelease, bool getinrelease, const char *verifyrelease, bool flat, bool *ignorehashes, struct remote_distribution **out_p) {
 	struct remote_distribution *n, **last;
 	enum checksumtype cs;
 
@@ -553,6 +559,15 @@ retvalue remote_distribution_prepare(struct remote_repository *repository, const
 						suite, repository->name);
 			n->ignorerelease = false;
 		}
+		if ((n->noinrelease && getinrelease) ||
+		    (!n->noinrelease && !getinrelease)) {
+			if (verbose >= 0)
+				fprintf(stderr,
+"Warning: Conflicting GetInRelease values for Suite '%s'\n"
+"from remote repository '%s'. Resolving to get InRelease files!\n",
+						suite, repository->name);
+			n->noinrelease = false;
+		}
 		for (cs = cs_md5sum ; cs < cs_hashCOUNT ; cs++) {
 			if ((n->ignorehashes[cs] && !ignorehashes[cs]) ||
 			    (!n->ignorehashes[cs] && ignorehashes[cs])) {
@@ -584,6 +599,7 @@ retvalue remote_distribution_prepare(struct remote_repository *repository, const
 	n->repository = repository;
 	n->suite = strdup(suite);
 	n->ignorerelease = ignorerelease;
+	n->noinrelease = !getinrelease;
 	if (verifyrelease != NULL) {
 		retvalue r;
 
@@ -605,6 +621,17 @@ retvalue remote_distribution_prepare(struct remote_repository *repository, const
 		return RET_ERROR_OOM;
 	}
 	/* ignorerelease can be unset later, so always calculate the filename */
+	if (flat)
+		n->inreleasefile = genlistsfilename("InRelease", 3,
+				repository->name, suite, "flat",
+				ENDOFARGUMENTS);
+	else
+		n->inreleasefile = genlistsfilename("InRelease", 2,
+				repository->name, suite, ENDOFARGUMENTS);
+	if (FAILEDTOALLOC(n->inreleasefile)) {
+		remote_distribution_free(n);
+		return RET_ERROR_OOM;
+	}
 	if (flat)
 		n->releasefile = genlistsfilename("Release", 3,
 				repository->name, suite, "flat",
@@ -660,11 +687,22 @@ static retvalue copytoplace(const char *gotfilename, const char *wantedfilename,
 	return RET_OK;
 }
 
+static retvalue enqueue_old_release_files(struct remote_distribution *d);
+
 /* handle a downloaded Release or Release.gpg file:
  * no checksums to test, nothing to trigger, as they have to be all
  * read at once to decide what is new and what actually needs downloading */
-static retvalue release_callback(enum queue_action action, UNUSED(void *privdata), UNUSED(void *privdata2), UNUSED(const char *uri), const char *gotfilename, const char *wantedfilename, UNUSED(/*@null@*/const struct checksums *checksums), const char *methodname) {
+static retvalue release_callback(enum queue_action action, void *privdata, void *privdata2, UNUSED(const char *uri), const char *gotfilename, const char *wantedfilename, UNUSED(/*@null@*/const struct checksums *checksums), const char *methodname) {
+	struct remote_distribution *d = privdata;
 	retvalue r;
+
+	/* if the InRelease file cannot be got,
+	 * try Release (and Release.gpg if checking) instead */
+	if (action == qa_error && privdata2 == d->inreleasefile) {
+		assert (!d->noinrelease);
+
+		return enqueue_old_release_files(d);
+	}
 
 	if (action != qa_got)
 		return RET_ERROR;
@@ -675,33 +713,47 @@ static retvalue release_callback(enum queue_action action, UNUSED(void *privdata
 	return r;
 }
 
+static retvalue enqueue_old_release_files(struct remote_distribution *d) {
+	retvalue r;
+
+	d->noinrelease = true;
+	r = aptmethod_enqueueindex(d->repository->download,
+			d->suite_base_dir, "Release", "",
+			d->releasefile, "",
+			release_callback, d, NULL);
+	if (RET_WAS_ERROR(r))
+		return r;
+	if (d->verify != NULL) {
+		r = aptmethod_enqueueindex(d->repository->download,
+				d->suite_base_dir, "Release", ".gpg",
+				d->releasegpgfile, "",
+				release_callback, d, NULL);
+		if (RET_WAS_ERROR(r))
+			return r;
+	}
+	return RET_OK;
+}
+
 static retvalue remote_distribution_metalistqueue(struct remote_distribution *d) {
 	struct remote_repository *repository = d->repository;
-	retvalue r;
 
 	assert (repository->download != NULL);
 
 	if (d->ignorerelease)
 		return RET_NOTHING;
 
+	(void)unlink(d->inreleasefile);
 	(void)unlink(d->releasefile);
-
-	r = aptmethod_enqueueindex(repository->download,
-			d->suite_base_dir, "Release", "", d->releasefile, "",
-			release_callback, NULL, NULL);
-	if (RET_WAS_ERROR(r))
-		return r;
-
 	if (d->verify != NULL) {
 		(void)unlink(d->releasegpgfile);
-		r = aptmethod_enqueueindex(repository->download,
-				d->suite_base_dir, "Release", ".gpg",
-				d->releasegpgfile, "",
-				release_callback, NULL, NULL);
-		if (RET_WAS_ERROR(r))
-			return r;
 	}
-	return RET_OK;
+
+	if (d->noinrelease)
+		return enqueue_old_release_files(d);
+	else
+		return aptmethod_enqueueindex(repository->download,
+			d->suite_base_dir, "InRelease", "", d->inreleasefile, "",
+			release_callback, d, d->inreleasefile);
 }
 
 retvalue remote_startup(struct aptmethodrun *run) {
@@ -799,21 +851,12 @@ static retvalue process_remoterelease(struct remote_distribution *rd) {
 	struct remote_repository *rr = rd->repository;
 	struct remote_index *ri;
 	retvalue r;
-	const char *filename;
 	char *releasedata;
 	size_t releaselen;
 
-	r = readtextfile(rd->releasefile, rd->releasefile,
-			&releasedata, &releaselen);
-	assert (r != RET_NOTHING);
-	if (RET_WAS_ERROR(r))
-		return r;
-	filename = rd->releasefile;
-
-	if (rd->verify != NULL) {
-		r = signature_check(rd->verify,
-				rd->releasegpgfile, rd->releasefile,
-				releasedata, releaselen);
+	if (!rd->noinrelease) {
+		r = signature_check_inline(rd->verify,
+				rd->inreleasefile, &releasedata);
 		assert (r != RET_NOTHING);
 		if (r == RET_NOTHING)
 			r = RET_ERROR_BADSIG;
@@ -823,13 +866,38 @@ static retvalue process_remoterelease(struct remote_distribution *rd) {
 					rr->name, rr->method, rd->suite);
 			r = RET_ERROR_BADSIG;
 		}
-		if (RET_WAS_ERROR(r)) {
-			free(releasedata);
+		if (RET_WAS_ERROR(r))
 			return r;
+		rd->usedreleasefile = rd->inreleasefile;
+	} else {
+		r = readtextfile(rd->releasefile, rd->releasefile,
+				&releasedata, &releaselen);
+		assert (r != RET_NOTHING);
+		if (RET_WAS_ERROR(r))
+			return r;
+		rd->usedreleasefile = rd->releasefile;
+
+		if (rd->verify != NULL) {
+			r = signature_check(rd->verify,
+					rd->releasegpgfile, rd->releasefile,
+					releasedata, releaselen);
+			assert (r != RET_NOTHING);
+			if (r == RET_NOTHING)
+				r = RET_ERROR_BADSIG;
+			if (r == RET_ERROR_BADSIG) {
+				fprintf(stderr,
+"Error: Not enough signatures found for remote repository %s (%s %s)!\n",
+					rr->name, rr->method, rd->suite);
+				r = RET_ERROR_BADSIG;
+			}
+			if (RET_WAS_ERROR(r)) {
+				free(releasedata);
+				return r;
+			}
 		}
 	}
-	r = release_getchecksums(filename, releasedata, rd->ignorehashes,
-			&rd->remotefiles);
+	r = release_getchecksums(rd->usedreleasefile, releasedata,
+			rd->ignorehashes, &rd->remotefiles);
 	free(releasedata);
 	if (RET_WAS_ERROR(r))
 		return r;
@@ -863,6 +931,9 @@ retvalue remote_preparemetalists(struct aptmethodrun *run, bool nodownload) {
 	for (rr = repositories ; rr != NULL ; rr = rr->next) {
 		for (rd = rr->distributions ; rd != NULL ; rd = rd->next) {
 			if (!rd->ignorerelease) {
+				if (nodownload)
+					if (!isregularfile(rd->inreleasefile))
+						rd->noinrelease = true;
 				r = process_remoterelease(rd);
 				if (RET_WAS_ERROR(r))
 					return r;
@@ -1275,7 +1346,7 @@ static inline retvalue queueindex(struct remote_distribution *rd, struct remote_
 "but after unpacking '%s' looks wrong.\n"
 "Something is seriously broken!\n",
 							old[c]->fullfilename,
-							rd->releasefile,
+							rd->usedreleasefile,
 							ri->cachefilename);
 					}
 					if (r == RET_NOTHING) {
@@ -1322,7 +1393,7 @@ static retvalue queue_next_encoding(struct remote_distribution *rd, struct remot
 	if (rd->ignorerelease)
 		return queue_next_without_release(rd, ri);
 
-	r = find_requested_encoding(ri, rd->releasefile);
+	r = find_requested_encoding(ri, rd->usedreleasefile);
 	assert (r != RET_NOTHING);
 	if (RET_WAS_ERROR(r))
 		return r;
@@ -2030,7 +2101,7 @@ static retvalue diff_callback(enum queue_action action, void *privdata, UNUSED(v
 				ri->diffindex->destination, &dummy)) {
 			fprintf(stderr,
 "'%s' does not match file requested in '%s'. Aborting diff processing...\n",
-					gotfilename, rd->releasefile);
+					gotfilename, rd->usedreleasefile);
 			/* as this is claimed to be a common error
 			 * (outdated .diff/Index file), proceed with
 			 * other requested way to retrieve index file */

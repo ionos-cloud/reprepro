@@ -2,7 +2,7 @@ set -u
 . "$TESTSDIR"/test.inc
 
 # test some corner cases in updating:
-# IgnoreRelease, force, errors, resuming...
+# IgnoreInRelease, force, errors, resuming...
 
 mkdir -p conf test/dists/a/c/source test/test lists
 
@@ -23,7 +23,7 @@ EOF
 
 sourcesmd=$(md5 test/dists/a/c/source/Sources)
 sourcessize=$(stat -c "%s" test/dists/a/c/source/Sources)
-cat > test/dists/a/Release <<EOF
+cat > test/dists/a/InRelease <<EOF
 Codename: a
 MD5Sum:
  $sourcesmd $sourcessize c/source/Sources
@@ -46,8 +46,9 @@ EOF
 
 testrun - -b . update 3<<EOF
 stderr
--v6*=aptmethod start 'copy:$WORKDIR/test/dists/a/Release'
--v1*=aptmethod got 'copy:$WORKDIR/test/dists/a/Release'
+-v6*=aptmethod start 'copy:$WORKDIR/test/dists/a/InRelease'
+-v1*=aptmethod got 'copy:$WORKDIR/test/dists/a/InRelease'
+*=WARNING: No signature found in ./lists/u_a_InRelease, assuming it is unsigned!
 *=aptmethod error receiving 'copy:$WORKDIR/test/dists/a/c/source/Sources':
 ='Failed to stat - stat (2 No such file or directory)'
 ='Failed to stat - stat (2: No such file or directory)'
@@ -63,9 +64,10 @@ EOF
 
 testrun - -b . update 3<<EOF
 stderr
--v6*=aptmethod start 'copy:$WORKDIR/test/dists/a/Release'
--v1*=aptmethod got 'copy:$WORKDIR/test/dists/a/Release'
-*=Error: './lists/u_a_Release' only lists unrequested compressions of 'c/source/Sources'.
+-v6*=aptmethod start 'copy:$WORKDIR/test/dists/a/InRelease'
+-v1*=aptmethod got 'copy:$WORKDIR/test/dists/a/InRelease'
+*=WARNING: No signature found in ./lists/u_a_InRelease, assuming it is unsigned!
+*=Error: './lists/u_a_InRelease' only lists unrequested compressions of 'c/source/Sources'.
 *=Try changing your DownloadListsAs to request e.g. '.'.
 -v0*=There have been errors!
 returns 255
@@ -78,8 +80,9 @@ EOF
 
 testrun - -b . update 3<<EOF
 stderr
--v6*=aptmethod start 'copy:$WORKDIR/test/dists/a/Release'
--v1*=aptmethod got 'copy:$WORKDIR/test/dists/a/Release'
+-v6*=aptmethod start 'copy:$WORKDIR/test/dists/a/InRelease'
+-v1*=aptmethod got 'copy:$WORKDIR/test/dists/a/InRelease'
+*=WARNING: No signature found in ./lists/u_a_InRelease, assuming it is unsigned!
 *=aptmethod error receiving 'copy:$WORKDIR/test/dists/a/c/source/Sources.gz':
 ='Failed to stat - stat (2 No such file or directory)'
 ='Failed to stat - stat (2: No such file or directory)'
@@ -116,9 +119,9 @@ $(ofa 'pool/c/t/test/test.tar.gz')
 EOF
 
 # test what happens if some compression is forces (i.e. not listed
-# in the Release file), but the downloaded file is not correct:
+# in the InRelease file), but the downloaded file is not correct:
 
-ed -s test/dists/a/Release <<EOF
+ed -s test/dists/a/InRelease <<EOF
 ,s/^ [^ ]*/ 00000000000000000000000000000000/
 w
 q
@@ -126,8 +129,9 @@ EOF
 
 testrun - -b . update 3<<EOF
 stderr
--v6*=aptmethod start 'copy:$WORKDIR/test/dists/a/Release'
--v1*=aptmethod got 'copy:$WORKDIR/test/dists/a/Release'
+-v6*=aptmethod start 'copy:$WORKDIR/test/dists/a/InRelease'
+-v1*=aptmethod got 'copy:$WORKDIR/test/dists/a/InRelease'
+*=WARNING: No signature found in ./lists/u_a_InRelease, assuming it is unsigned!
 *=aptmethod error receiving 'copy:$WORKDIR/test/dists/a/c/source/Sources.gz':
 ='Failed to stat - stat (2 No such file or directory)'
 ='Failed to stat - stat (2: No such file or directory)'
@@ -140,10 +144,11 @@ stderr
 returns 254
 EOF
 
-rm test/dists/a/Release
+rm test/dists/a/InRelease
 
 testrun - -b . update 3<<EOF
 stderr
+*=aptmethod error receiving 'copy:$WORKDIR/test/dists/a/InRelease':
 *=aptmethod error receiving 'copy:$WORKDIR/test/dists/a/Release':
 ='Failed to stat - stat (2 No such file or directory)'
 ='Failed to stat - stat (2: No such file or directory)'
