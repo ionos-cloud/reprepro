@@ -1,3 +1,11 @@
+reprepro (4.12.0-1) unstable; urgency=low
+
+  * new release
+  - support consuming remote repositories with
+    InRelease and without md5 sums.
+
+ -- Bernhard R. Link <brlink@debian.org>  Wed, 23 May 2012 16:09:02 +0200
+
 reprepro (4.11.0-1) unstable; urgency=low
 
   * new release
