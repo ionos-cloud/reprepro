@@ -426,9 +426,12 @@ static retvalue warnidentifers(const struct strlist *identifiers, struct distrib
 "Error: packages database contains unused '%s' database.\n", identifier);
 		if (ignored[IGN_undefinedtarget] == 0) {
 			(void)fputs(
-"This either means you removed a distribution, component or architecture from\n"
-"the distributions config file without calling clearvanished, or your config\n"
-"does not belong to this database.\n",
+"This usually means you removed some component, architecture or even\n"
+"a whole distribution from conf/distributions.\n"
+"In that case you most likely want to call reprepro clearvanished to get rid\n"
+"of the databases belonging to those removed parts.\n"
+"(Another reason to get this error is using conf/ and db/ directories\n"
+" belonging to different reprepro repositories).\n",
 					stderr);
 		}
 		if (IGNORABLE(undefinedtarget)) {

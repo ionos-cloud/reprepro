@@ -723,6 +723,8 @@ testrun - -b . update test1 3<<EOF
 returns 254
 stderr
 =WARNING: Single-Instance not yet supported!
+=aptmethod error receiving 'copy:$WORKDIR/dists/test2/InRelease':
+='Failed to stat - stat (2: No such file or directory)'
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/Release'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/Release'
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/ugly/source/Sources.bz2'
@@ -760,6 +762,8 @@ testrun - -b . update test1 3<<EOF
 returns 254
 stderr
 =WARNING: Single-Instance not yet supported!
+=aptmethod error receiving 'copy:$WORKDIR/dists/test2/InRelease':
+='Failed to stat - stat (2: No such file or directory)'
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/Release'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/Release'
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/stupid/source/Sources.bz2'
@@ -781,6 +785,8 @@ testrun - -b . update test1 3<<EOF
 returns 254
 stderr
 =WARNING: Single-Instance not yet supported!
+=aptmethod error receiving 'copy:$WORKDIR/dists/test2/InRelease':
+='Failed to stat - stat (2: No such file or directory)'
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/Release'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/Release'
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/stupid/source/Sources.bz2'
@@ -815,6 +821,8 @@ testrun - -b . update test1 3<<EOF
 returns 254
 stderr
 =WARNING: Single-Instance not yet supported!
+=aptmethod error receiving 'copy:$WORKDIR/dists/test2/InRelease':
+='Failed to stat - stat (2: No such file or directory)'
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/Release'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/Release'
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/stupid/source/Sources.bz2'
@@ -833,6 +841,8 @@ EOF
 testrun - -b . update test1 3<<EOF
 stderr
 =WARNING: Single-Instance not yet supported!
+=aptmethod error receiving 'copy:$WORKDIR/dists/test2/InRelease':
+='Failed to stat - stat (2: No such file or directory)'
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/Release'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/Release'
 -v2*=Uncompress './lists/Test2toTest1_test2_stupid_Sources.bz2' into './lists/Test2toTest1_test2_stupid_Sources'...
@@ -892,6 +902,8 @@ checknolog log1
 checknolog log2
 testrun - -b . update test1 3<<EOF
 =WARNING: Single-Instance not yet supported!
+=aptmethod error receiving 'copy:$WORKDIR/dists/test2/InRelease':
+='Failed to stat - stat (2: No such file or directory)'
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/Release'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/Release'
 stdout
@@ -1804,22 +1816,35 @@ testrun - -b . --confdir ./conf2 update 3<<EOF
 -v0*=There have been errors!
 returns 249
 EOF
+undefinedtargeterror() {
+cat <<'EOF'
+*=This usually means you removed some component, architecture or even
+*=a whole distribution from conf/distributions.
+*=In that case you most likely want to call reprepro clearvanished to get rid
+*=of the databases belonging to those removed parts.
+*=(Another reason to get this error is using conf/ and db/ directories
+*= belonging to different reprepro repositories).
+EOF
+if $1 ; then
+cat << 'EOF'
+*=To ignore use --ignore=undefinedtarget.
+EOF
+else
+cat << 'EOF'
+*=Ignoring as --ignore=undefinedtarget given.
+EOF
+fi
+}
 echo 'Components: unneeded bloated i386' >> conf2/distributions
 testrun - -b . --confdir ./conf2 update 3<<EOF
 *=Error: packages database contains unused 'test1|stupid|abacus' database.
-*=This either means you removed a distribution, component or architecture from
-*=the distributions config file without calling clearvanished, or your config
-*=does not belong to this database.
-*=To ignore use --ignore=undefinedtarget.
+$(undefinedtargeterror true)
 -v0*=There have been errors!
 returns 255
 EOF
 testrun - -b . --confdir ./conf2 --ignore=undefinedtarget update 3<<EOF
 *=Error: packages database contains unused 'test1|stupid|abacus' database.
-*=This either means you removed a distribution, component or architecture from
-*=the distributions config file without calling clearvanished, or your config
-*=does not belong to this database.
-*=Ignoring as --ignore=undefinedtarget given.
+$(undefinedtargeterror false)
 *=Error: packages database contains unused 'test1|ugly|abacus' database.
 *=Error: packages database contains unused 'test1|ugly|source' database.
 *=Error: packages database contains unused 'test1|stupid|source' database.
@@ -1840,10 +1865,7 @@ returns 255
 EOF
 testrun - -b . --confdir ./conf2 --ignore=undefinedtarget --ignore=undefinedtracking update 3<<EOF
 *=Error: packages database contains unused 'test1|stupid|abacus' database.
-*=This either means you removed a distribution, component or architecture from
-*=the distributions config file without calling clearvanished, or your config
-*=does not belong to this database.
-*=Ignoring as --ignore=undefinedtarget given.
+$(undefinedtargeterror false)
 *=Error: tracking database contains unused 'test1' database.
 *=This either means you removed a distribution from the distributions config
 *=file without calling clearvanished (or at least removealltracks), you
@@ -1867,10 +1889,7 @@ touch conf2/updates
 testrun - -b . --confdir ./conf2 --ignore=undefinedtarget --ignore=undefinedtracking --noskipold update 3<<EOF
 stderr
 *=Error: packages database contains unused 'test1|stupid|abacus' database.
-*=This either means you removed a distribution, component or architecture from
-*=the distributions config file without calling clearvanished, or your config
-*=does not belong to this database.
-*=Ignoring as --ignore=undefinedtarget given.
+$(undefinedtargeterror false)
 *=Error: packages database contains unused 'test1|ugly|abacus' database.
 *=Error: packages database contains unused 'test1|ugly|source' database.
 *=Error: packages database contains unused 'test1|stupid|source' database.

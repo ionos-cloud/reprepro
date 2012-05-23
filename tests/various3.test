@@ -669,6 +669,7 @@ Name: froma
 Method: copy:$WORKDIR
 VerifyRelease: blindtrust
 Suite: a
+GetInRelease: no
 ListHook: /bin/cp
 END
 testout - -b . dumpupdate b 3<<EOF

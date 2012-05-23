@@ -62,6 +62,7 @@ static retvalue binaries_parse_checksums(const char *chunk, /*@out@*/struct chec
 	retvalue result, r;
 	char *checksums[cs_COUNT];
 	enum checksumtype type;
+	bool gothash = false;
 
 	result = RET_NOTHING;
 
@@ -69,11 +70,13 @@ static retvalue binaries_parse_checksums(const char *chunk, /*@out@*/struct chec
 		checksums[type] = NULL;
 		r = chunk_getvalue(chunk, deb_checksum_headers[type],
 				&checksums[type]);
+		if (type != cs_length && RET_IS_OK(r))
+			gothash = true;
 		RET_UPDATE(result, r);
 	}
-	if (checksums[cs_md5sum] == NULL) {
+	if (!gothash) {
 		fprintf(stderr,
-"Missing 'MD5sum' line in binary control chunk:\n '%s'\n",
+"No checksums found in binary control chunk:\n '%s'\n",
 				chunk);
 		RET_UPDATE(result, RET_ERROR_MISSING);
 	}
@@ -189,16 +192,24 @@ static retvalue calcfilekeys(component_t component, const char *sourcename, cons
 	return r;
 }
 
-static inline retvalue calcnewcontrol(const char *chunk, const char *sourcename, const char *basefilename, component_t component, struct strlist *filekeys, char **newchunk) {
+static inline retvalue calcnewcontrol(const char *chunk, const char *packagename, const char *sourcename, const char *basefilename, component_t component, struct strlist *filekeys, char **newchunk) {
 	retvalue r;
+	char *n;
 
+
+	n = chunk_normalize(chunk, "Package", packagename);
+	if (FAILEDTOALLOC(n))
+		return RET_ERROR_OOM;
 	r = calcfilekeys(component, sourcename, basefilename, filekeys);
-	if (RET_WAS_ERROR(r))
+	if (RET_WAS_ERROR(r)) {
+		free(n);
 		return r;
+	}
 
 	assert (filekeys->count == 1);
-	*newchunk = chunk_replacefield(chunk, "Filename",
+	*newchunk = chunk_replacefield(n, "Filename",
 			filekeys->values[0], false);
+	free(n);
 	if (FAILEDTOALLOC(*newchunk)) {
 		strlist_done(filekeys);
 		return RET_ERROR_OOM;
@@ -242,7 +253,7 @@ retvalue binaries_getinstalldata(const struct target *t, const char *packagename
 		return r;
 	}
 
-	r = calcnewcontrol(chunk, sourcename, basefilename,
+	r = calcnewcontrol(chunk, packagename, sourcename, basefilename,
 			t->component, filekeys, control);
 	if (RET_WAS_ERROR(r)) {
 		checksumsarray_done(&origfilekeys);
@@ -560,7 +571,7 @@ retvalue binaries_readdeb(struct deb_headers *deb, const char *filename, bool ne
 /* do overwrites, add Filename and Checksums to the control-item */
 retvalue binaries_complete(const struct deb_headers *pkg, const char *filekey, const struct checksums *checksums, const struct overridedata *override, const char *section, const char *priority, char **newcontrol) {
 	struct fieldtoadd *replace;
-	char *newchunk;
+	char *normalchunk, *newchunk;
 	enum checksumtype type;
 
 	assert (section != NULL && priority != NULL);
@@ -591,8 +602,14 @@ retvalue binaries_complete(const struct deb_headers *pkg, const char *filekey, c
 	if (FAILEDTOALLOC(replace))
 		return RET_ERROR_OOM;
 
-	newchunk = chunk_replacefields(pkg->control, replace,
-			"Description", true);
+	normalchunk = chunk_normalize(pkg->control,
+			"Package", pkg->name);
+	if (FAILEDTOALLOC(normalchunk))
+		newchunk = NULL;
+	else
+		newchunk = chunk_replacefields(normalchunk, replace,
+				"Description", true);
+	free(normalchunk);
 	addfield_free(replace);
 	if (FAILEDTOALLOC(newchunk)) {
 		return RET_ERROR_OOM;

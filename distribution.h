@@ -62,12 +62,12 @@ struct distribution {
 	/* is tracking enabled for this distribution?
 	 * (NONE must be 0 so it is the default) */
 	enum trackingtype { dt_NONE=0, dt_KEEP, dt_ALL, dt_MINIMAL } tracking;
-	struct trackingoptions { bool includechanges:1;
-		bool includebyhand:1;
-		bool includelogs:1;
-		bool needsources:1;
-		bool keepsources:1;
-		bool embargoalls:1;
+	struct trackingoptions { bool includechanges;
+		bool includebyhand;
+		bool includelogs;
+		bool needsources;
+		bool keepsources;
+		bool embargoalls;
 		} trackingoptions;
 	/* what content files to generate */
 	struct contentsoptions contents;

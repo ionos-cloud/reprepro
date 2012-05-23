@@ -13,12 +13,12 @@
 
 struct contentsoptions {
 	struct {
-		bool enabled:1;
-		bool udebs:1;
-		bool nodebs:1;
-		bool percomponent:1;
-		bool allcomponents:1;
-		bool compatsymlink:1;
+		bool enabled;
+		bool udebs;
+		bool nodebs;
+		bool percomponent;
+		bool allcomponents;
+		bool compatsymlink;
 	} flags;
 	compressionset compressions;
 };

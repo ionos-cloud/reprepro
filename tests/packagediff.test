@@ -196,6 +196,7 @@ cat > conf/updates <<EOF
 Name: fromsource
 Suite: sourcedistribution
 VerifyRelease: blindtrust
+GetInRelease: no
 DownloadListsAs: .diff
 Method: file:$WORKDIR
 EOF
@@ -256,6 +257,7 @@ dodiff dists/sourcedistribution/main/binary-coal/Packages lists/fromsource_sourc
 cat > conf/updates <<EOF
 Name: fromsource
 Suite: sourcedistribution
+GetInRelease: no
 VerifyRelease: blindtrust
 Method: file:$WORKDIR
 EOF

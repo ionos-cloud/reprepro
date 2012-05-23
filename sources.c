@@ -145,6 +145,7 @@ retvalue sources_getinstalldata(const struct target *t, const char *packagename,
 	struct strlist filelines[cs_hashCOUNT];
 	struct checksumsarray files;
 	enum checksumtype cs;
+	bool gothash = false;
 
 	assert (architecture == architecture_source);
 
@@ -152,21 +153,23 @@ retvalue sources_getinstalldata(const struct target *t, const char *packagename,
 		assert (source_checksum_names[cs] != NULL);
 		r = chunk_getextralinelist(chunk, source_checksum_names[cs],
 				&filelines[cs]);
-		if (r == RET_NOTHING) {
-			if (cs == cs_md5sum) {
-				fprintf(stderr,
-"Missing 'Files' entry in '%s'!\n",
-						chunk);
-				r = RET_ERROR;
-			} else
-				strlist_init(&filelines[cs]);
-		}
-		if (RET_WAS_ERROR(r)) {
+		if (r == RET_NOTHING)
+			strlist_init(&filelines[cs]);
+		else if (RET_WAS_ERROR(r)) {
 			while (cs-- > cs_md5sum) {
 				strlist_done(&filelines[cs]);
 			}
 			return r;
-		}
+		} else
+			gothash = true;
+	}
+	if (!gothash) {
+		fprintf(stderr,
+"Missing 'Files' (or 'SHA1' or ...)  entry in '%s'!\n",
+				chunk);
+		for (cs = cs_md5sum ; cs < cs_hashCOUNT ; cs++)
+			strlist_done(&filelines[cs]);
+		return RET_ERROR;
 	}
 	r = checksumsarray_parse(&files, filelines, packagename);
 	for (cs = cs_md5sum ; cs < cs_hashCOUNT ; cs++) {
@@ -216,8 +219,15 @@ retvalue sources_getinstalldata(const struct target *t, const char *packagename,
 	r = calc_inplacedirconcats(origdirectory, &files.names);
 	free(origdirectory);
 	if (!RET_WAS_ERROR(r)) {
-		mychunk = chunk_replacefield(chunk,
-				"Directory", directory, true);
+		char *n;
+
+		n = chunk_normalize(chunk, "Package", packagename);
+		if (FAILEDTOALLOC(n))
+			mychunk = NULL;
+		else
+			mychunk = chunk_replacefield(n,
+					"Directory", directory, true);
+		free(n);
 		if (FAILEDTOALLOC(mychunk))
 			r = RET_ERROR_OOM;
 	}
@@ -559,22 +569,13 @@ void sources_done(struct dsc_headers *dsc) {
 
 retvalue sources_complete(const struct dsc_headers *dsc, const char *directory, const struct overridedata *override, const char *section, const char *priority, char **newcontrol) {
 	retvalue r;
-	struct fieldtoadd *name;
 	struct fieldtoadd *replace;
 	char *newchunk, *newchunk2;
 	char *newfilelines, *newsha1lines, *newsha256lines;
 
 	assert(section != NULL && priority != NULL);
 
-	/* first replace the "Source" with a "Package": */
-	name = addfield_new("Package", dsc->name, NULL);
-	if (FAILEDTOALLOC(name))
-		return RET_ERROR_OOM;
-	name = deletefield_new("Source", name);
-	if (FAILEDTOALLOC(name))
-		return RET_ERROR_OOM;
-	newchunk2  = chunk_replacefields(dsc->control, name, "Format", true);
-	addfield_free(name);
+	newchunk2 = chunk_normalize(dsc->control, "Package", dsc->name);
 	if (FAILEDTOALLOC(newchunk2))
 		return RET_ERROR_OOM;
 
@@ -588,6 +589,8 @@ retvalue sources_complete(const struct dsc_headers *dsc, const char *directory, 
 	replace = aodfield_new("Checksums-Sha256", newsha256lines, NULL);
 	if (!FAILEDTOALLOC(replace))
 		replace = aodfield_new("Checksums-Sha1", newsha1lines, replace);
+	if (!FAILEDTOALLOC(replace))
+		replace = deletefield_new("Source", replace);
 	if (!FAILEDTOALLOC(replace))
 		replace = addfield_new("Files", newfilelines, replace);
 	if (!FAILEDTOALLOC(replace))
@@ -608,7 +611,7 @@ retvalue sources_complete(const struct dsc_headers *dsc, const char *directory, 
 		return RET_ERROR_OOM;
 	}
 
-	newchunk  = chunk_replacefields(newchunk2, replace, "Files", false);
+	newchunk  = chunk_replacefields(newchunk2, replace, "Files", true);
 	free(newsha256lines);
 	free(newsha1lines);
 	free(newfilelines);
@@ -660,7 +663,7 @@ retvalue sources_complete_checksums(const char *chunk, const struct strlist *fil
 		free(newfilelines);
 		return RET_ERROR_OOM;
 	}
-	newchunk = chunk_replacefields(chunk, replace, "Files", false);
+	newchunk = chunk_replacefields(chunk, replace, "Files", true);
 	free(newsha256lines);
 	free(newsha1lines);
 	free(newfilelines);
