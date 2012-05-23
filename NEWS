@@ -1,3 +1,8 @@
+Updates between 4.11.0 and 4.12.0:
+- get InRelease from remote repositories (to disable use new GetInRelease: no)
+- always put Package field first in indices
+- support getting packages from remote repositories without md5sums.
+
 Updates between 4.10.0 and 4.11.0:
 - Contents files default location is now "percomponent compatsymlink".
 - unify handling of "unknown" section.
