@@ -752,10 +752,13 @@ retvalue signature_check_inline(const struct signature_requirement *requirements
 			fprintf(stderr,
 "Cannot parse '%s': found no signature but does not looks safe to be assumed unsigned, either.\n",
 				filename);
+			free(chunk);
 			return RET_ERROR;
 		}
-		if (requirements != NULL)
+		if (requirements != NULL) {
+			free(chunk);
 			return RET_ERROR_BADSIG;
+		}
 		fprintf(stderr,
 "WARNING: No signature found in %s, assuming it is unsigned!\n",
 				filename);
