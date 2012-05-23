@@ -149,7 +149,7 @@ stderr
 *=(To ignore it append a ! to the key and run reprepro with --ignore=revokedkey)
 *=ERROR: Condition '685AF714!|D04DD3D6!' not fullfilled for './lists/commonbase_test_Release.gpg'.
 *=Signatures in './lists/commonbase_test_Release.gpg':
-*='DCAD3A286F5178E2F4B09330A573FEB160DDED5B' (signed ${CURDATE}): valid
+*='DCAD3A286F5178E2F4B09330A573FEB160DDED5B' (signed ${CURDATE}): expired key
 *='236B4B98B5087AF4B621CB14D8A28B7FD7A5D887' (signed ${CURDATE}): valid
 *='12D6C95C8C737389EAAF535972F1D61F685AF714' (signed ${CURDATE}): key revoced
 *=Error: Not enough signatures found for remote repository commonbase (file:${WORKDIR}/test test)!
@@ -181,7 +181,7 @@ stderr
 -v2*=Copy file '${WORKDIR}/test/dists/test/Release.gpg' to './lists/commonbase_test_Release.gpg'...
 *=ERROR: Condition '685AF714!|D04DD3D6!' not fullfilled for './lists/commonbase_test_Release.gpg'.
 *=Signatures in './lists/commonbase_test_Release.gpg':
-*='DCAD3A286F5178E2F4B09330A573FEB160DDED5B' (signed ${CURDATE}): valid
+*='DCAD3A286F5178E2F4B09330A573FEB160DDED5B' (signed ${CURDATE}): expired key
 *='236B4B98B5087AF4B621CB14D8A28B7FD7A5D887' (signed ${CURDATE}): valid
 *='12E94E82B6D7A883AF6EC8E980F4C43EDC3C29B8' (signed ${CURDATE}): valid
 *=Error: Not enough signatures found for remote repository commonbase (file:${WORKDIR}/test test)!
@@ -215,7 +215,7 @@ stderr
 -v2*=Copy file '${WORKDIR}/test/dists/test/Release.gpg' to './lists/commonbase_test_Release.gpg'...
 *=ERROR: Condition '685AF714!|D04DD3D6!' not fullfilled for './lists/commonbase_test_Release.gpg'.
 *=Signatures in './lists/commonbase_test_Release.gpg':
-*='DCAD3A286F5178E2F4B09330A573FEB160DDED5B' (signed ${CURDATE}): valid
+*='DCAD3A286F5178E2F4B09330A573FEB160DDED5B' (signed ${CURDATE}): expired key
 *='236B4B98B5087AF4B621CB14D8A28B7FD7A5D887' (signed ${CURDATE}): valid
 *='12E94E82B6D7A883AF6EC8E980F4C43EDC3C29B8' (signed ${CURDATE}): valid
 *=Error: Not enough signatures found for remote repository commonbase (file:${WORKDIR}/test test)!
@@ -248,7 +248,7 @@ stderr
 -v2*=Copy file '${WORKDIR}/test/dists/test/Release.gpg' to './lists/commonbase_test_Release.gpg'...
 *=ERROR: Condition 'F62C6D3B' not fullfilled for './lists/commonbase_test_Release.gpg'.
 *=Signatures in './lists/commonbase_test_Release.gpg':
-*='DCAD3A286F5178E2F4B09330A573FEB160DDED5B' (signed ${CURDATE}): valid
+*='DCAD3A286F5178E2F4B09330A573FEB160DDED5B' (signed ${CURDATE}): expired key
 *='236B4B98B5087AF4B621CB14D8A28B7FD7A5D887' (signed ${CURDATE}): valid
 *='12E94E82B6D7A883AF6EC8E980F4C43EDC3C29B8' (signed ${CURDATE}): valid
 *=Error: Not enough signatures found for remote repository commonbase (file:${WORKDIR}/test test)!
@@ -285,6 +285,7 @@ From: commonbase
 Suite: test
 CONFEND
 
+# gpgme no longer seems to distinguish expired and parent-expired:
 testrun - -b . update Test 3<<EOF
 return 250
 stderr
@@ -292,11 +293,11 @@ stderr
 -v2*=Copy file '${WORKDIR}/test/dists/test/Release' to './lists/commonbase_test_Release'...
 -v1*=aptmethod got 'file:${WORKDIR}/test/dists/test/Release.gpg'
 -v2*=Copy file '${WORKDIR}/test/dists/test/Release.gpg' to './lists/commonbase_test_Release.gpg'...
-*=Not accepting valid signature in './lists/commonbase_test_Release.gpg' with parent-EXPIRED 'DCAD3A286F5178E2F4B09330A573FEB160DDED5B'
+*=Not accepting valid signature in './lists/commonbase_test_Release.gpg' with EXPIRED 'DCAD3A286F5178E2F4B09330A573FEB160DDED5B'
 *=(To ignore it append a ! to the key and run reprepro with --ignore=expiredkey)
 *=ERROR: Condition '60DDED5B!' not fullfilled for './lists/commonbase_test_Release.gpg'.
 *=Signatures in './lists/commonbase_test_Release.gpg':
-*='DCAD3A286F5178E2F4B09330A573FEB160DDED5B' (signed ${CURDATE}): valid
+*='DCAD3A286F5178E2F4B09330A573FEB160DDED5B' (signed ${CURDATE}): expired key
 *='236B4B98B5087AF4B621CB14D8A28B7FD7A5D887' (signed ${CURDATE}): valid
 *='12E94E82B6D7A883AF6EC8E980F4C43EDC3C29B8' (signed ${CURDATE}): valid
 *=Error: Not enough signatures found for remote repository commonbase (file:${WORKDIR}/test test)!
@@ -319,6 +320,7 @@ From: commonbase
 Suite: test
 CONFEND
 
+# gpgme no longer seems to distinguish expired and parent-expired:
 testrun - -b . update Test 3<<EOF
 return 250
 stderr
@@ -326,11 +328,11 @@ stderr
 -v2*=Copy file '${WORKDIR}/test/dists/test/Release' to './lists/commonbase_test_Release'...
 -v1*=aptmethod got 'file:${WORKDIR}/test/dists/test/Release.gpg'
 -v2*=Copy file '${WORKDIR}/test/dists/test/Release.gpg' to './lists/commonbase_test_Release.gpg'...
-*=Not accepting valid signature in './lists/commonbase_test_Release.gpg' with parent-EXPIRED 'DCAD3A286F5178E2F4B09330A573FEB160DDED5B'
+*=Not accepting valid signature in './lists/commonbase_test_Release.gpg' with EXPIRED 'DCAD3A286F5178E2F4B09330A573FEB160DDED5B'
 *=(To ignore it append a ! to the key and run reprepro with --ignore=expiredkey)
 *=ERROR: Condition 'A260449A!+' not fullfilled for './lists/commonbase_test_Release.gpg'.
 *=Signatures in './lists/commonbase_test_Release.gpg':
-*='DCAD3A286F5178E2F4B09330A573FEB160DDED5B' (signed ${CURDATE}): valid
+*='DCAD3A286F5178E2F4B09330A573FEB160DDED5B' (signed ${CURDATE}): expired key
 *='236B4B98B5087AF4B621CB14D8A28B7FD7A5D887' (signed ${CURDATE}): valid
 *='12E94E82B6D7A883AF6EC8E980F4C43EDC3C29B8' (signed ${CURDATE}): valid
 *=Error: Not enough signatures found for remote repository commonbase (file:${WORKDIR}/test test)!
