@@ -15,8 +15,8 @@ struct trackedpackage {
 	int *refcounts;
 	enum filetype *filetypes;
 	struct {
-		bool isnew:1;
-		bool deleted:1;
+		bool isnew;
+		bool deleted;
 	} flags;
 };
 typedef struct s_tracking *trackingdb;

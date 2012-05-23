@@ -455,7 +455,8 @@ static retvalue read_source_control_file(struct sourceextraction *e, struct arch
 	// TODO: implement...
 	size_t size, len, controllen;
 	ssize_t got;
-	char *buffer, *aftercontrol;
+	char *buffer;
+	const char *aftercontrol;
 
 	size = archive_entry_size(entry);
 	if (size <= 0)
@@ -485,7 +486,7 @@ static retvalue read_source_control_file(struct sourceextraction *e, struct arch
 	buffer[len] = '\0';
 	// TODO: allow a saved .diff for this file applied here
 
-	controllen = chunk_extract(buffer, buffer, &aftercontrol);
+	controllen = chunk_extract(buffer, buffer, len, true, &aftercontrol);
 	if (controllen == 0) {
 		free(buffer);
 		return RET_NOTHING;

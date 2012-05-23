@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005,2006,2007,2009 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2006,2007,2009,2012 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -27,6 +27,9 @@
 #include <fcntl.h>
 #include "signature_p.h"
 #include "ignore.h"
+#include "chunks.h"
+#include "readtextfile.h"
+
 
 #ifdef HAVE_LIBGPGME
 
@@ -462,7 +465,15 @@ static bool key_good_enough(const struct requested_key *req, const gpgme_signatu
 				/* not accepted */
 				continue;
 			case GPG_ERR_GENERAL:
-				fprintf(stderr,
+				if (release == NULL)
+					fprintf(stderr,
+"gpgme returned an general error verifing signature with '%s' in '%s'!\n"
+"Try running gpg --verify '%s' manually for hints what is happening.\n"
+"If this does not print any errors, retry the command causing this message.\n",
+						fpr, releasegpg,
+						releasegpg);
+				else
+					fprintf(stderr,
 "gpgme returned an general error verifing signature with '%s' in '%s'!\n"
 "Try running gpg --verify '%s' '%s' manually for hints what is happening.\n"
 "If this does not print any errors, retry the command causing this message.\n",
@@ -598,62 +609,10 @@ static void print_signatures(FILE *f, gpgme_signature_t s, const char *releasegp
 	}
 }
 
-
-retvalue signature_check(const struct signature_requirement *requirements, const char *releasegpg, const char *release) {
-	gpg_error_t err;
-	int fd, gpgfd;
-	gpgme_data_t dh, dh_gpg;
+static inline retvalue verify_signature(const struct signature_requirement *requirements, const char *releasegpg, const char *releasename) {
 	gpgme_verify_result_t result;
 	int i;
 	const struct signature_requirement *req;
-
-	assert (requirements != NULL);
-
-	if (FAILEDTOALLOC(release) || FAILEDTOALLOC(releasegpg))
-		return RET_ERROR_OOM;
-
-	assert (context != NULL);
-
-	/* Read the file and its signature into memory: */
-	gpgfd = open(releasegpg, O_RDONLY|O_NOCTTY);
-	if (gpgfd < 0) {
-		int e = errno;
-		fprintf(stderr, "Error opening '%s': %s\n",
-				releasegpg, strerror(e));
-		return RET_ERRNO(e);
-	}
-	fd = open(release, O_RDONLY|O_NOCTTY);
-	if (fd < 0) {
-		int e = errno;
-		(void)close(gpgfd);
-		fprintf(stderr, "Error opening '%s': %s\n",
-			       release, strerror(e));
-		return RET_ERRNO(e);
-	}
-	err = gpgme_data_new_from_fd(&dh_gpg, gpgfd);
-	if (err != 0) {
-		(void)close(gpgfd); (void)close(fd);
-		fprintf(stderr, "Error reading '%s':\n", releasegpg);
-		return gpgerror(err);
-	}
-	err = gpgme_data_new_from_fd(&dh, fd);
-	if (err != 0) {
-		gpgme_data_release(dh_gpg);
-		(void)close(gpgfd); (void)close(fd);
-		fprintf(stderr, "Error reading '%s':\n", release);
-		return gpgerror(err);
-	}
-
-	/* Verify the signature */
-
-	err = gpgme_op_verify(context, dh_gpg, dh, NULL);
-	gpgme_data_release(dh_gpg);
-	gpgme_data_release(dh);
-	close(gpgfd); close(fd);
-	if (err != 0) {
-		fprintf(stderr, "Error verifying '%s':\n", releasegpg);
-		return gpgerror(err);
-	}
 
 	result = gpgme_op_verify_result(context);
 	if (result == NULL) {
@@ -679,7 +638,7 @@ retvalue signature_check(const struct signature_requirement *requirements, const
 		for (i = 0 ; !fullfilled && (size_t)i < req->num_keys ; i++) {
 
 			if (key_good_enough(&req->keys[i], result->signatures,
-						releasegpg, release)) {
+						releasegpg, releasename)) {
 				fullfilled = true;
 				break;
 			}
@@ -701,12 +660,169 @@ retvalue signature_check(const struct signature_requirement *requirements, const
 		print_signatures(stdout, result->signatures, releasegpg);
 	return RET_OK;
 }
-#else /* HAVE_LIBGPGME */
 
-retvalue signature_check(const struct signature_requirement *requirements, const char *releasegpg, const char *release) {
+retvalue signature_check(const struct signature_requirement *requirements, const char *releasegpg, const char *releasename, const char *releasedata, size_t releaselen) {
+	gpg_error_t err;
+	int gpgfd;
+	gpgme_data_t dh, dh_gpg;
+
 	assert (requirements != NULL);
 
-	if (FAILEDTOALLOC(release) || FAILEDTOALLOC(releasegpg))
+	if (FAILEDTOALLOC(releasedata) || FAILEDTOALLOC(releasegpg))
+		return RET_ERROR_OOM;
+
+	assert (context != NULL);
+
+	/* Read the file and its signature into memory: */
+	gpgfd = open(releasegpg, O_RDONLY|O_NOCTTY);
+	if (gpgfd < 0) {
+		int e = errno;
+		fprintf(stderr, "Error opening '%s': %s\n",
+				releasegpg, strerror(e));
+		return RET_ERRNO(e);
+	}
+	err = gpgme_data_new_from_fd(&dh_gpg, gpgfd);
+	if (err != 0) {
+		(void)close(gpgfd);
+		fprintf(stderr, "Error reading '%s':\n", releasegpg);
+		return gpgerror(err);
+	}
+	err = gpgme_data_new_from_mem(&dh, releasedata, releaselen, 0);
+	if (err != 0) {
+		gpgme_data_release(dh_gpg);
+		return gpgerror(err);
+	}
+
+	/* Verify the signature */
+
+	err = gpgme_op_verify(context, dh_gpg, dh, NULL);
+	gpgme_data_release(dh_gpg);
+	gpgme_data_release(dh);
+	close(gpgfd);
+	if (err != 0) {
+		fprintf(stderr, "Error verifying '%s':\n", releasegpg);
+		return gpgerror(err);
+	}
+
+	return verify_signature(requirements, releasegpg, releasename);
+}
+
+retvalue signature_check_inline(const struct signature_requirement *requirements, const char *filename, char **chunk_p) {
+	gpg_error_t err;
+	gpgme_data_t dh, dh_gpg;
+	int fd;
+
+	fd = open(filename, O_RDONLY|O_NOCTTY);
+	if (fd < 0) {
+		int e = errno;
+		fprintf(stderr, "Error opening '%s': %s\n",
+				filename, strerror(e));
+		return RET_ERRNO(e);
+	}
+	err = gpgme_data_new_from_fd(&dh_gpg, fd);
+	if (err != 0) {
+		(void)close(fd);
+		return gpgerror(err);
+	}
+
+	err = gpgme_data_new(&dh);
+	if (err != 0) {
+		(void)close(fd);
+		gpgme_data_release(dh_gpg);
+		return gpgerror(err);
+	}
+	err = gpgme_op_verify(context, dh_gpg, NULL, dh);
+	(void)close(fd);
+	if (gpg_err_code(err) == GPG_ERR_NO_DATA) {
+		char *chunk; const char *n;
+		size_t len;
+		retvalue r;
+
+		gpgme_data_release(dh);
+		gpgme_data_release(dh_gpg);
+
+		r = readtextfile(filename, filename, &chunk, &len);
+		assert (r != RET_NOTHING);
+		if (RET_WAS_ERROR(r))
+			return r;
+
+		assert (chunk[len] == '\0');
+		len = chunk_extract(chunk, chunk, len, false, &n);
+		if (chunk[0] == '-' || *n != '\0') {
+			fprintf(stderr,
+"Cannot parse '%s': found no signature but does not looks safe to be assumed unsigned, either.\n",
+				filename);
+			free(chunk);
+			return RET_ERROR;
+		}
+		if (requirements != NULL) {
+			free(chunk);
+			return RET_ERROR_BADSIG;
+		}
+		fprintf(stderr,
+"WARNING: No signature found in %s, assuming it is unsigned!\n",
+				filename);
+		assert (chunk[len] == '\0');
+		*chunk_p = realloc(chunk, len+1);
+		if (FAILEDTOALLOC(*chunk_p))
+			*chunk_p = chunk;
+		return RET_OK;
+	} else {
+		char *plain_data, *chunk;
+		const char *n;
+		size_t plain_len, len;
+		retvalue r;
+
+		if (err != 0) {
+			gpgme_data_release(dh_gpg);
+			gpgme_data_release(dh);
+			return gpgerror(err);
+		}
+		gpgme_data_release(dh_gpg);
+		plain_data = gpgme_data_release_and_get_mem(dh, &plain_len);
+		if (plain_data == NULL) {
+			fprintf(stderr,
+"Error: libgpgme failed to extract the plain data out of\n"
+"'%s'.\n"
+"While it did so in a way indicating running out of memory, experience says\n"
+"this also happens when gpg returns a error code it does not understand.\n"
+"To check this please try running gpg --verify '%s' manually.\n"
+"Continuing extracting it ignoring all signatures...",
+					filename, filename);
+			return RET_ERROR;
+		}
+		chunk = malloc(plain_len+1);
+		if (FAILEDTOALLOC(chunk))
+			return RET_ERROR_OOM;
+		len = chunk_extract(chunk, plain_data, plain_len, false, &n);
+#ifdef HAVE_GPGPME_FREE
+		gpgme_free(plain_data);
+#else
+		free(plain_data);
+#endif
+		assert (len <= plain_len);
+		if (plain_len != n - plain_data) {
+			fprintf(stderr,
+"Cannot parse '%s': extraced signed data looks malformed.\n",
+				filename);
+			r = RET_ERROR;
+		} else
+			r = verify_signature(requirements, filename, NULL);
+		if (RET_IS_OK(r)) {
+			*chunk_p = realloc(chunk, len+1);
+			if (FAILEDTOALLOC(*chunk_p))
+				*chunk_p = chunk;
+		} else
+			free(chunk);
+		return r;
+	}
+}
+#else /* HAVE_LIBGPGME */
+
+retvalue signature_check(const struct signature_requirement *requirements, const char *releasegpg, const char *releasename, const char *releasedata, size_t releaselen) {
+	assert (requirements != NULL);
+
+	if (FAILEDTOALLOC(releasedata) || FAILEDTOALLOC(releasegpg))
 		return RET_ERROR_OOM;
 	fprintf(stderr,
 "ERROR: Cannot check signatures as this reprepro binary is compiled with support\n"
@@ -714,11 +830,89 @@ retvalue signature_check(const struct signature_requirement *requirements, const
 	return RET_ERROR_GPGME;
 }
 
+retvalue signature_check_inline(const struct signature_requirement *requirements, const char *filename, char **chunk_p) {
+	retvalue r;
+	char *chunk; size_t len;
+	const char *n;
+
+	if (requirements != NULL) {
+		fprintf(stderr,
+"ERROR: Cannot check signatures as this reprepro binary is compiled with support\n"
+"for libgpgme.\n");
+		return RET_ERROR_GPGME;
+	}
+	r = readtextfile(filename, filename, &chunk, &len);
+	assert (r != RET_NOTHING);
+	if (RET_WAS_ERROR(r))
+		return r;
+	assert (chunk[len] == '\0');
+
+	len = chunk_extract(chunk, chunk, len, false, &n);
+	if (len == 0) {
+		fprintf(stderr, "Could not find any data within '%s'!\n",
+				filename);
+		free(chunk);
+		return RET_ERROR;
+	}
+	if (chunk[0] == '-') {
+		const char *endmarker;
+
+		if (len < 10 || memcmp(chunk, "-----BEGIN", 10) != 0) {
+			fprintf(stderr,
+"Strange content of '%s': First non-space character is '-',\n"
+"but it does not begin with '-----BEGIN'.\n", filename);
+			free(chunk);
+			return RET_ERROR;
+		}
+		len = chunk_extract(chunk, n, strlen(n), false, &n);
+
+		endmarker = strstr(chunk, "\n-----");
+		if (endmarker != NULL) {
+			endmarker++;
+			assert ((size_t)(endmarker-chunk) < len);
+			len = endmarker-chunk;
+			chunk[len] = '\0';
+		} else if (*n == '\0') {
+			fprintf(stderr,
+"ERROR: Could not find end marker of signed data within '%s'.\n"
+"Cannot determine what is data and what is not!\n",
+						filename);
+				free(chunk);
+				return RET_ERROR;
+		} else if (strncmp(n, "-----", 5) != 0) {
+			fprintf(stderr,
+"ERROR: Spurious empty line within '%s'.\n"
+"Cannot determine what is data and what is not!\n",
+					filename);
+			free(chunk);
+			return RET_ERROR;
+		}
+	} else {
+		if (*n != '\0') {
+			fprintf(stderr,
+"Cannot parse '%s': found no signature but does not looks safe to be assumed unsigned, either.\n",
+					filename);
+			return RET_ERROR;
+		}
+		fprintf(stderr,
+"WARNING: No signature found in %s, assuming it is unsigned!\n",
+				filename);
+	}
+	assert (chunk[len] == '\0');
+	*chunk_p = realloc(chunk, len+1);
+	if (FAILEDTOALLOC(*chunk_p))
+		*chunk_p = chunk;
+	return RET_OK;
+}
+
 void signature_requirements_free(/*@only@*/struct signature_requirement *p) {
 	free(p);
 }
 
-retvalue signature_requirement_add(UNUSED(struct signature_requirement **x), UNUSED(const char *y)) {
+retvalue signature_requirement_add(UNUSED(struct signature_requirement **x), const char *condition) {
+	if (condition == NULL || strcmp(condition, "blindtrust") == 0)
+		return RET_NOTHING;
+
 	fprintf(stderr,
 "ERROR: Cannot check signatures as this reprepro binary is compiled with support\n"
 "for libgpgme.\n"); // TODO: "Only running external programs is supported.\n"

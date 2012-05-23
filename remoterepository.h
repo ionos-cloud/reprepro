@@ -23,7 +23,7 @@ struct remote_index;
 struct remote_repository *remote_repository_prepare(const char * /*name*/, const char * /*method*/, const char * /*fallback*/, const struct strlist * /*config*/);
 
 /* register remote distribution of the given repository */
-retvalue remote_distribution_prepare(struct remote_repository *, const char * /*suite*/, bool /*ignorerelease*/, const char * /*verifyrelease*/, bool /*flat*/, bool * /*ignorehashes*/, /*@out@*/struct remote_distribution **);
+retvalue remote_distribution_prepare(struct remote_repository *, const char * /*suite*/, bool /*ignorerelease*/, bool /*getinrelease*/, const char * /*verifyrelease*/, bool /*flat*/, bool * /*ignorehashes*/, /*@out@*/struct remote_distribution **);
 
 void remote_repository_free(/*@only@*/struct remote_repository *);
 
@@ -38,9 +38,9 @@ struct encoding_preferences {
 	unsigned short count;
 	/* a list of compressions to use */
 	struct compression_preference {
-		bool diff  :1;
-		bool force :1;
-		enum compression compression :6;
+		bool diff;
+		bool force;
+		enum compression compression;
 	} requested[3*c_COUNT];
 };
 

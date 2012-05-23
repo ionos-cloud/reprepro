@@ -1100,7 +1100,7 @@ while in other lines the # character and
 everything after it till the newline character are ignored.
 
 A paragraph can also consist of only a single field
-.RB \" !include: \"
+.RB \(dq !include: \(dq
 which causes the named file (relative to confdir unless starting
 with
 .BR ~/ ", " +b/ ", " +c/ " or " / " )"
@@ -1575,11 +1575,23 @@ To allow revoked or expired keys, add a "\fB!\fP" behind a key.
 is also needed).
 To also allow subkeys of a specified key, add a "\fB+\fP" behind a key.
 .TP
-.B IgnoreRelease
+.B IgnoreRelease: yes
 If this is present, no
+.B InRelease
+or
 .B Release
 file will be downloaded and thus the md5sums of the other
 index files will not be checked.
+.TP
+.B GetInRelease: no
+IF this is present, no
+.B InRelease
+file is downloaded but only
+.B Release
+(and
+.B Release.gpg
+)
+are tried.
 .TP
 .B Flat
 If this field is in an update rule, it is supposed to be a

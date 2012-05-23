@@ -134,7 +134,7 @@ dpkg-scansources . ../sourcesections > x/Sources
 cd ..
 rm sourcesections
 
-cat > source2/x/Release <<EOF
+cat > source2/x/InRelease <<EOF
 Codename: x
 Suite: toostupidfornonflat
 Architectures: coal abacus
@@ -159,7 +159,7 @@ dpkg-scanpackages pool/firmware /dev/null > dists/suitename/firmware/binary-abac
 dpkg-scanpackages -a coal pool/firmware /dev/null > dists/suitename/firmware/binary-coal/Packages
 cd ..
 
-cat > source1/dists/suitename/Release <<EOF
+cat > source1/dists/suitename/InRelease <<EOF
 Codename: hohoho
 Suite: suitename
 Architectures: coal abacus
@@ -184,18 +184,20 @@ $(odb)
 -v2*=Created directory "./lists"
 stderr
 *=./conf/updates:5:126: Ignoring all but first 18 entries...
--v6*=aptmethod start 'copy:$WORKDIR/source2/x/Release'
--v6*=aptmethod start 'copy:$WORKDIR/source1/dists/suitename/Release'
--v1*=aptmethod got 'copy:$WORKDIR/source2/x/Release'
--v1*=aptmethod got 'copy:$WORKDIR/source1/dists/suitename/Release'
-*=Error: './lists/a_suitename_Release' only lists unusable or unrequested compressions of 'main/binary-abacus/Packages'.
+-v6*=aptmethod start 'copy:$WORKDIR/source2/x/InRelease'
+-v6*=aptmethod start 'copy:$WORKDIR/source1/dists/suitename/InRelease'
+-v1*=aptmethod got 'copy:$WORKDIR/source2/x/InRelease'
+-v1*=aptmethod got 'copy:$WORKDIR/source1/dists/suitename/InRelease'
+*=WARNING: No signature found in ./lists/a_suitename_InRelease, assuming it is unsigned!
+*=WARNING: No signature found in ./lists/b_x_flat_InRelease, assuming it is unsigned!
+*=Error: './lists/a_suitename_InRelease' only lists unusable or unrequested compressions of 'main/binary-abacus/Packages'.
 *=Try e.g the '--unlzma' option (or check what it is set to) to make more useable.
 *=Or change your DownloadListsAs to request e.g. '.gz'.
 -v0*=There have been errors!
 returns 255
 EOF
 
-cat > source1/dists/suitename/Release <<EOF
+cat > source1/dists/suitename/InRelease <<EOF
 Codename: hohoho
 Suite: suitename
 Architectures: coal abacus
@@ -211,17 +213,19 @@ EOF
 testrun - --unlzma=NONE update boring 3<<EOF
 stderr
 *=./conf/updates:5:126: Ignoring all but first 18 entries...
--v6*=aptmethod start 'copy:$WORKDIR/source2/x/Release'
--v6*=aptmethod start 'copy:$WORKDIR/source1/dists/suitename/Release'
--v1*=aptmethod got 'copy:$WORKDIR/source2/x/Release'
--v1*=aptmethod got 'copy:$WORKDIR/source1/dists/suitename/Release'
-*=Error: './lists/a_suitename_Release' only lists unusable compressions of 'main/binary-abacus/Packages'.
+-v6*=aptmethod start 'copy:$WORKDIR/source2/x/InRelease'
+-v6*=aptmethod start 'copy:$WORKDIR/source1/dists/suitename/InRelease'
+-v1*=aptmethod got 'copy:$WORKDIR/source2/x/InRelease'
+-v1*=aptmethod got 'copy:$WORKDIR/source1/dists/suitename/InRelease'
+*=WARNING: No signature found in ./lists/a_suitename_InRelease, assuming it is unsigned!
+*=WARNING: No signature found in ./lists/b_x_flat_InRelease, assuming it is unsigned!
+*=Error: './lists/a_suitename_InRelease' only lists unusable compressions of 'main/binary-abacus/Packages'.
 *=Try e.g the '--unlzma' option (or check what it is set to) to make more useable.
 -v0*=There have been errors!
 returns 255
 EOF
 
-cat > source1/dists/suitename/Release <<EOF
+cat > source1/dists/suitename/InRelease <<EOF
 Codename: hohoho
 Suite: suitename
 Architectures: coal abacus
@@ -237,11 +241,13 @@ EOF
 testrun - update boring 3<<EOF
 stderr
 *=./conf/updates:5:126: Ignoring all but first 18 entries...
--v6*=aptmethod start 'copy:$WORKDIR/source2/x/Release'
--v6*=aptmethod start 'copy:$WORKDIR/source1/dists/suitename/Release'
--v1*=aptmethod got 'copy:$WORKDIR/source2/x/Release'
--v1*=aptmethod got 'copy:$WORKDIR/source1/dists/suitename/Release'
-*=Error: './lists/a_suitename_Release' only lists unrequested compressions of 'main/binary-abacus/Packages'.
+-v6*=aptmethod start 'copy:$WORKDIR/source2/x/InRelease'
+-v6*=aptmethod start 'copy:$WORKDIR/source1/dists/suitename/InRelease'
+-v1*=aptmethod got 'copy:$WORKDIR/source2/x/InRelease'
+-v1*=aptmethod got 'copy:$WORKDIR/source1/dists/suitename/InRelease'
+*=WARNING: No signature found in ./lists/a_suitename_InRelease, assuming it is unsigned!
+*=WARNING: No signature found in ./lists/b_x_flat_InRelease, assuming it is unsigned!
+*=Error: './lists/a_suitename_InRelease' only lists unrequested compressions of 'main/binary-abacus/Packages'.
 *=Try changing your DownloadListsAs to request e.g. '.'.
 -v0*=There have been errors!
 returns 255
@@ -255,24 +261,26 @@ EOF
 
 testrun - update boring 3<<EOF
 stderr
--v6*=aptmethod start 'copy:$WORKDIR/source2/x/Release'
+-v6*=aptmethod start 'copy:$WORKDIR/source2/x/InRelease'
 -v6*=aptmethod start 'copy:$WORKDIR/source2/x/Sources'
 -v6*=aptmethod start 'copy:$WORKDIR/source2/x/Packages'
--v6*=aptmethod start 'copy:$WORKDIR/source1/dists/suitename/Release'
+-v6*=aptmethod start 'copy:$WORKDIR/source1/dists/suitename/InRelease'
 -v6*=aptmethod start 'copy:$WORKDIR/source1/dists/suitename/main/source/Sources'
 -v6*=aptmethod start 'copy:$WORKDIR/source1/dists/suitename/main/binary-abacus/Packages'
 -v6*=aptmethod start 'copy:$WORKDIR/source1/dists/suitename/main/binary-coal/Packages'
 -v6*=aptmethod start 'copy:$WORKDIR/source1/dists/suitename/firmware/binary-abacus/Packages'
 -v6*=aptmethod start 'copy:$WORKDIR/source1/dists/suitename/firmware/binary-coal/Packages'
--v1*=aptmethod got 'copy:$WORKDIR/source2/x/Release'
+-v1*=aptmethod got 'copy:$WORKDIR/source2/x/InRelease'
 -v1*=aptmethod got 'copy:$WORKDIR/source2/x/Sources'
 -v1*=aptmethod got 'copy:$WORKDIR/source2/x/Packages'
--v1*=aptmethod got 'copy:$WORKDIR/source1/dists/suitename/Release'
+-v1*=aptmethod got 'copy:$WORKDIR/source1/dists/suitename/InRelease'
 -v1*=aptmethod got 'copy:$WORKDIR/source1/dists/suitename/main/source/Sources'
 -v1*=aptmethod got 'copy:$WORKDIR/source1/dists/suitename/main/binary-abacus/Packages'
 -v1*=aptmethod got 'copy:$WORKDIR/source1/dists/suitename/main/binary-coal/Packages'
 -v1*=aptmethod got 'copy:$WORKDIR/source1/dists/suitename/firmware/binary-abacus/Packages'
 -v1*=aptmethod got 'copy:$WORKDIR/source1/dists/suitename/firmware/binary-coal/Packages'
+*=WARNING: No signature found in ./lists/a_suitename_InRelease, assuming it is unsigned!
+*=WARNING: No signature found in ./lists/b_x_flat_InRelease, assuming it is unsigned!
 stdout
 -v0*=Calculating packages to get...
 -v3*=  processing updates for 'boring|firmware|source'
@@ -376,7 +384,7 @@ dpkg-scanpackages pool/firmware /dev/null > dists/suitename/firmware/binary-abac
 dpkg-scanpackages -a coal pool/firmware /dev/null > dists/suitename/firmware/binary-coal/Packages
 cd ..
 
-cat > source1/dists/suitename/Release <<EOF
+cat > source1/dists/suitename/InRelease <<EOF
 Codename: hohoho
 Suite: suitename
 Architectures: coal abacus
@@ -400,20 +408,22 @@ EOF
 
 testrun - --keepunreferenced update boring 3<<EOF
 stderr
--v6*=aptmethod start 'copy:$WORKDIR/source2/x/Release'
--v6*=aptmethod start 'copy:$WORKDIR/source1/dists/suitename/Release'
+-v6*=aptmethod start 'copy:$WORKDIR/source2/x/InRelease'
+-v6*=aptmethod start 'copy:$WORKDIR/source1/dists/suitename/InRelease'
 -v6*=aptmethod start 'copy:$WORKDIR/source1/dists/suitename/main/source/Sources'
 -v6*=aptmethod start 'copy:$WORKDIR/source1/dists/suitename/main/binary-abacus/Packages'
 -v6*=aptmethod start 'copy:$WORKDIR/source1/dists/suitename/main/binary-coal/Packages'
 -v6*=aptmethod start 'copy:$WORKDIR/source1/dists/suitename/firmware/binary-abacus/Packages'
 -v6*=aptmethod start 'copy:$WORKDIR/source1/dists/suitename/firmware/binary-coal/Packages'
--v1*=aptmethod got 'copy:$WORKDIR/source2/x/Release'
--v1*=aptmethod got 'copy:$WORKDIR/source1/dists/suitename/Release'
+-v1*=aptmethod got 'copy:$WORKDIR/source2/x/InRelease'
+-v1*=aptmethod got 'copy:$WORKDIR/source1/dists/suitename/InRelease'
 -v1*=aptmethod got 'copy:$WORKDIR/source1/dists/suitename/main/source/Sources'
 -v1*=aptmethod got 'copy:$WORKDIR/source1/dists/suitename/main/binary-abacus/Packages'
 -v1*=aptmethod got 'copy:$WORKDIR/source1/dists/suitename/main/binary-coal/Packages'
 -v1*=aptmethod got 'copy:$WORKDIR/source1/dists/suitename/firmware/binary-abacus/Packages'
 -v1*=aptmethod got 'copy:$WORKDIR/source1/dists/suitename/firmware/binary-coal/Packages'
+*=WARNING: No signature found in ./lists/a_suitename_InRelease, assuming it is unsigned!
+*=WARNING: No signature found in ./lists/b_x_flat_InRelease, assuming it is unsigned!
 stdout
 -v0*=Calculating packages to get...
 -v4*=  nothing to do for 'boring|firmware|source'
@@ -468,22 +478,28 @@ EOF
 
 testrun - --keepunreferenced update boring 3<<EOF
 stderr
--v6*=aptmethod start 'copy:$WORKDIR/source2/x/Release'
--v6*=aptmethod start 'copy:$WORKDIR/source1/dists/suitename/Release'
--v1*=aptmethod got 'copy:$WORKDIR/source2/x/Release'
--v1*=aptmethod got 'copy:$WORKDIR/source1/dists/suitename/Release'
+-v6*=aptmethod start 'copy:$WORKDIR/source2/x/InRelease'
+-v6*=aptmethod start 'copy:$WORKDIR/source1/dists/suitename/InRelease'
+-v1*=aptmethod got 'copy:$WORKDIR/source2/x/InRelease'
+-v1*=aptmethod got 'copy:$WORKDIR/source1/dists/suitename/InRelease'
+*=WARNING: No signature found in ./lists/a_suitename_InRelease, assuming it is unsigned!
+*=WARNING: No signature found in ./lists/b_x_flat_InRelease, assuming it is unsigned!
 stdout
 -v0*=Nothing to do found. (Use --noskipold to force processing)
 EOF
 
 testrun - --nolistsdownload --keepunreferenced update boring 3<<EOF
 stderr
+*=WARNING: No signature found in ./lists/a_suitename_InRelease, assuming it is unsigned!
+*=WARNING: No signature found in ./lists/b_x_flat_InRelease, assuming it is unsigned!
 stdout
 -v0*=Nothing to do found. (Use --noskipold to force processing)
 EOF
 
 testrun - --nolistsdownload --noskipold --keepunreferenced update boring 3<<EOF
 stderr
+*=WARNING: No signature found in ./lists/a_suitename_InRelease, assuming it is unsigned!
+*=WARNING: No signature found in ./lists/b_x_flat_InRelease, assuming it is unsigned!
 stdout
 -v0*=Calculating packages to get...
 -v4*=  nothing to do for 'boring|firmware|source'
@@ -525,10 +541,12 @@ sed -e 's/Update: 1/Update: - 1/' -i conf/distributions
 
 testrun - --keepunreferenced update boring 3<<EOF
 stderr
--v6*=aptmethod start 'copy:$WORKDIR/source2/x/Release'
--v6*=aptmethod start 'copy:$WORKDIR/source1/dists/suitename/Release'
--v1*=aptmethod got 'copy:$WORKDIR/source2/x/Release'
--v1*=aptmethod got 'copy:$WORKDIR/source1/dists/suitename/Release'
+-v6*=aptmethod start 'copy:$WORKDIR/source2/x/InRelease'
+-v6*=aptmethod start 'copy:$WORKDIR/source1/dists/suitename/InRelease'
+-v1*=aptmethod got 'copy:$WORKDIR/source2/x/InRelease'
+-v1*=aptmethod got 'copy:$WORKDIR/source1/dists/suitename/InRelease'
+*=WARNING: No signature found in ./lists/a_suitename_InRelease, assuming it is unsigned!
+*=WARNING: No signature found in ./lists/b_x_flat_InRelease, assuming it is unsigned!
 stdout
 -v0*=Calculating packages to get...
 -v3*=  processing updates for 'boring|firmware|source'
@@ -573,7 +591,7 @@ stdout
 EOF
 
 #Now it gets evil! Name flat and non-flat the same
-dodo sed -i -e 's/suitename/x/'  source1/dists/suitename/Release
+dodo sed -i -e 's/suitename/x/'  source1/dists/suitename/InRelease
 mv source1/dists/suitename source1/dists/x
 mv source1/dists source2/dists
 dodo sed -i -e 's/suitename/x/' -e 's/^From: a$/From: b/' -e 's/Flat: dummycomponent/#&/' conf/updates
@@ -584,20 +602,22 @@ stderr
 -v0*=is requested both flat and non-flat. While this is possible
 -v0*=(having copy:${WORKDIR}/source2/dists/x and copy:${WORKDIR}/source2/x), it is unlikely.
 -v0*=To no longer see this message, use --ignore=flatandnonflat.
--v6*=aptmethod start 'copy:$WORKDIR/source2/x/Release'
--v6*=aptmethod start 'copy:$WORKDIR/source2/dists/x/Release'
+-v6*=aptmethod start 'copy:$WORKDIR/source2/x/InRelease'
+-v6*=aptmethod start 'copy:$WORKDIR/source2/dists/x/InRelease'
 -v6*=aptmethod start 'copy:$WORKDIR/source2/dists/x/main/source/Sources'
 -v6*=aptmethod start 'copy:$WORKDIR/source2/dists/x/main/binary-abacus/Packages'
 -v6*=aptmethod start 'copy:$WORKDIR/source2/dists/x/main/binary-coal/Packages'
 -v6*=aptmethod start 'copy:$WORKDIR/source2/dists/x/firmware/binary-abacus/Packages'
 -v6*=aptmethod start 'copy:$WORKDIR/source2/dists/x/firmware/binary-coal/Packages'
--v1*=aptmethod got 'copy:$WORKDIR/source2/x/Release'
--v1*=aptmethod got 'copy:$WORKDIR/source2/dists/x/Release'
+-v1*=aptmethod got 'copy:$WORKDIR/source2/x/InRelease'
+-v1*=aptmethod got 'copy:$WORKDIR/source2/dists/x/InRelease'
 -v1*=aptmethod got 'copy:$WORKDIR/source2/dists/x/main/source/Sources'
 -v1*=aptmethod got 'copy:$WORKDIR/source2/dists/x/main/binary-abacus/Packages'
 -v1*=aptmethod got 'copy:$WORKDIR/source2/dists/x/main/binary-coal/Packages'
 -v1*=aptmethod got 'copy:$WORKDIR/source2/dists/x/firmware/binary-abacus/Packages'
 -v1*=aptmethod got 'copy:$WORKDIR/source2/dists/x/firmware/binary-coal/Packages'
+*=WARNING: No signature found in ./lists/b_x_InRelease, assuming it is unsigned!
+*=WARNING: No signature found in ./lists/b_x_flat_InRelease, assuming it is unsigned!
 stdout
 -v0*=Calculating packages to get...
 -v0*=  nothing new for 'boring|firmware|source' (use --noskipold to process anyway)
@@ -621,10 +641,12 @@ EOF
 
 testrun - --ignore=flatandnonflat update boring 3<<EOF
 stderr
--v6*=aptmethod start 'copy:$WORKDIR/source2/x/Release'
--v6*=aptmethod start 'copy:$WORKDIR/source2/dists/x/Release'
--v1*=aptmethod got 'copy:$WORKDIR/source2/x/Release'
--v1*=aptmethod got 'copy:$WORKDIR/source2/dists/x/Release'
+-v6*=aptmethod start 'copy:$WORKDIR/source2/x/InRelease'
+-v6*=aptmethod start 'copy:$WORKDIR/source2/dists/x/InRelease'
+-v1*=aptmethod got 'copy:$WORKDIR/source2/x/InRelease'
+-v1*=aptmethod got 'copy:$WORKDIR/source2/dists/x/InRelease'
+*=WARNING: No signature found in ./lists/b_x_InRelease, assuming it is unsigned!
+*=WARNING: No signature found in ./lists/b_x_flat_InRelease, assuming it is unsigned!
 stdout
 -v0*=Nothing to do found. (Use --noskipold to force processing)
 stderr

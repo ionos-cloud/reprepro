@@ -12,6 +12,7 @@ Update: flattest
 EOF
 cat > conf/updates.base <<EOF
 Name: flattest
+GetInRelease: no
 Flat: a
 VerifyRelease: blindtrust
 Method: file:$WORKDIR
@@ -64,7 +65,7 @@ EOF
 testrun - -b . update 1234 3<<EOF
 returns 255
 stderr
-*=./conf/updates:1 to 7: Update pattern may not contain Components and Flat fields ad the same time.
+*=./conf/updates:1 to 8: Update pattern may not contain Components and Flat fields ad the same time.
 -v0*=There have been errors!
 stdout
 EOF
@@ -77,7 +78,7 @@ EOF
 testrun - -b . update 1234 3<<EOF
 returns 255
 stderr
-*=./conf/updates:1 to 7: Update pattern may not contain UDebComponents and Flat fields ad the same time.
+*=./conf/updates:1 to 8: Update pattern may not contain UDebComponents and Flat fields ad the same time.
 -v0*=There have been errors!
 stdout
 EOF
@@ -228,7 +229,7 @@ stdout
 -v5*=  reading './lists/flattest_flatsource_Packages'
 stderr
 *=Missing 'Size' line in binary control chunk:
-*=Missing 'MD5sum' line in binary control chunk:
+*=No checksums found in binary control chunk:
 *= 'Package: test
 *=Architecture: all
 *=Version: 0

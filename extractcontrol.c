@@ -128,15 +128,17 @@ static retvalue try_extractcontrol(char **control, const char *debfile, bool bro
 
 	/* read data: */
 	if (RET_IS_OK(result)) {
-		size_t len; char *afterchanges;
+		size_t len, controllen;
+		const char *afterchanges;
 
 		r = readtextfilefd(pipe2[0],
 				brokentar?
 "output from ar p <debfile> control.tar.gz | tar -XOzf - control":
 "output from ar p <debfile> control.tar.gz | tar -XOzf - ./control",
-				&controlchunk, NULL);
+				&controlchunk, &controllen);
 		if (RET_IS_OK(r)) {
-			len = chunk_extract(controlchunk, controlchunk,
+			len = chunk_extract(controlchunk,
+					controlchunk, controllen,
 					&afterchanges);
 			if (len == 0)
 				r = RET_NOTHING;

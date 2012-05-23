@@ -106,9 +106,9 @@ Architectures: coal
 EOF
 
 gpg --list-secret-keys
-gpg --expert --sign -b -u 60DDED5B -u D7A5D887 -u revoked@nowhere.tld --output test/dists/test/Release.gpg test/dists/test/Release
-gpg --expert --sign -b -u 60DDED5B -u D7A5D887 -u good@nowhere.tld --output test/dists/test/Release.gpg.good test/dists/test/Release
-gpg --expert -a --sign -b -u evil@nowhere.tld --output test/dists/test/Release.gpg.evil test/dists/test/Release
+gpg --expert --sign --clearsign -u 60DDED5B -u D7A5D887 -u revoked@nowhere.tld --output test/dists/test/InRelease test/dists/test/Release
+gpg --expert --sign --clearsign -u 60DDED5B -u D7A5D887 -u good@nowhere.tld --output test/dists/test/InRelease.good test/dists/test/Release
+gpg --expert -a --sign --clearsign -u evil@nowhere.tld --output test/dists/test/InRelease.evil test/dists/test/Release
 
 rm -r gpgtestdir
 mkdir gpgtestdir
@@ -141,15 +141,13 @@ sed -e 's/D04DD3D6/&!/' -i conf/updates
 testrun - -b . update Test 3<<EOF
 return 250
 stderr
--v1*=aptmethod got 'file:${WORKDIR}/test/dists/test/Release'
--v2*=Copy file '${WORKDIR}/test/dists/test/Release' to './lists/commonbase_test_Release'...
--v1*=aptmethod got 'file:${WORKDIR}/test/dists/test/Release.gpg'
--v2*=Copy file '${WORKDIR}/test/dists/test/Release.gpg' to './lists/commonbase_test_Release.gpg'...
-*=Not accepting valid signature in './lists/commonbase_test_Release.gpg' with REVOKED '12D6C95C8C737389EAAF535972F1D61F685AF714'
+-v1*=aptmethod got 'file:${WORKDIR}/test/dists/test/InRelease'
+-v2*=Copy file '${WORKDIR}/test/dists/test/InRelease' to './lists/commonbase_test_InRelease'...
+*=Not accepting valid signature in './lists/commonbase_test_InRelease' with REVOKED '12D6C95C8C737389EAAF535972F1D61F685AF714'
 *=(To ignore it append a ! to the key and run reprepro with --ignore=revokedkey)
-*=ERROR: Condition '685AF714!|D04DD3D6!' not fullfilled for './lists/commonbase_test_Release.gpg'.
-*=Signatures in './lists/commonbase_test_Release.gpg':
-*='DCAD3A286F5178E2F4B09330A573FEB160DDED5B' (signed ${CURDATE}): valid
+*=ERROR: Condition '685AF714!|D04DD3D6!' not fullfilled for './lists/commonbase_test_InRelease'.
+*=Signatures in './lists/commonbase_test_InRelease':
+*='DCAD3A286F5178E2F4B09330A573FEB160DDED5B' (signed ${CURDATE}): expired key
 *='236B4B98B5087AF4B621CB14D8A28B7FD7A5D887' (signed ${CURDATE}): valid
 *='12D6C95C8C737389EAAF535972F1D61F685AF714' (signed ${CURDATE}): key revoced
 *=Error: Not enough signatures found for remote repository commonbase (file:${WORKDIR}/test test)!
@@ -160,28 +158,24 @@ EOF
 testrun - --ignore=revokedkey -b . update Test 3<<EOF
 return 255
 stderr
--v1*=aptmethod got 'file:${WORKDIR}/test/dists/test/Release'
--v2*=Copy file '${WORKDIR}/test/dists/test/Release' to './lists/commonbase_test_Release'...
--v1*=aptmethod got 'file:${WORKDIR}/test/dists/test/Release.gpg'
--v2*=Copy file '${WORKDIR}/test/dists/test/Release.gpg' to './lists/commonbase_test_Release.gpg'...
-*=WARNING: valid signature in './lists/commonbase_test_Release.gpg' with revoked '12D6C95C8C737389EAAF535972F1D61F685AF714' is accepted as requested!
-*=Missing checksums in Release file './lists/commonbase_test_Release'!
+-v1*=aptmethod got 'file:${WORKDIR}/test/dists/test/InRelease'
+-v2*=Copy file '${WORKDIR}/test/dists/test/InRelease' to './lists/commonbase_test_InRelease'...
+*=WARNING: valid signature in './lists/commonbase_test_InRelease' with revoked '12D6C95C8C737389EAAF535972F1D61F685AF714' is accepted as requested!
+*=Missing checksums in Release file './lists/commonbase_test_InRelease'!
 -v0*=There have been errors!
 stdout
 EOF
 
-cp test/dists/test/Release.gpg.good test/dists/test/Release.gpg
+cp test/dists/test/InRelease.good test/dists/test/InRelease
 
 testrun - -b . update Test 3<<EOF
 return 250
 stderr
--v1*=aptmethod got 'file:${WORKDIR}/test/dists/test/Release'
--v2*=Copy file '${WORKDIR}/test/dists/test/Release' to './lists/commonbase_test_Release'...
--v1*=aptmethod got 'file:${WORKDIR}/test/dists/test/Release.gpg'
--v2*=Copy file '${WORKDIR}/test/dists/test/Release.gpg' to './lists/commonbase_test_Release.gpg'...
-*=ERROR: Condition '685AF714!|D04DD3D6!' not fullfilled for './lists/commonbase_test_Release.gpg'.
-*=Signatures in './lists/commonbase_test_Release.gpg':
-*='DCAD3A286F5178E2F4B09330A573FEB160DDED5B' (signed ${CURDATE}): valid
+-v1*=aptmethod got 'file:${WORKDIR}/test/dists/test/InRelease'
+-v2*=Copy file '${WORKDIR}/test/dists/test/InRelease' to './lists/commonbase_test_InRelease'...
+*=ERROR: Condition '685AF714!|D04DD3D6!' not fullfilled for './lists/commonbase_test_InRelease'.
+*=Signatures in './lists/commonbase_test_InRelease':
+*='DCAD3A286F5178E2F4B09330A573FEB160DDED5B' (signed ${CURDATE}): expired key
 *='236B4B98B5087AF4B621CB14D8A28B7FD7A5D887' (signed ${CURDATE}): valid
 *='12E94E82B6D7A883AF6EC8E980F4C43EDC3C29B8' (signed ${CURDATE}): valid
 *=Error: Not enough signatures found for remote repository commonbase (file:${WORKDIR}/test test)!
@@ -209,13 +203,11 @@ CONFEND
 testrun - -b . update Test 3<<EOF
 return 250
 stderr
--v1*=aptmethod got 'file:${WORKDIR}/test/dists/test/Release'
--v2*=Copy file '${WORKDIR}/test/dists/test/Release' to './lists/commonbase_test_Release'...
--v1*=aptmethod got 'file:${WORKDIR}/test/dists/test/Release.gpg'
--v2*=Copy file '${WORKDIR}/test/dists/test/Release.gpg' to './lists/commonbase_test_Release.gpg'...
-*=ERROR: Condition '685AF714!|D04DD3D6!' not fullfilled for './lists/commonbase_test_Release.gpg'.
-*=Signatures in './lists/commonbase_test_Release.gpg':
-*='DCAD3A286F5178E2F4B09330A573FEB160DDED5B' (signed ${CURDATE}): valid
+-v1*=aptmethod got 'file:${WORKDIR}/test/dists/test/InRelease'
+-v2*=Copy file '${WORKDIR}/test/dists/test/InRelease' to './lists/commonbase_test_InRelease'...
+*=ERROR: Condition '685AF714!|D04DD3D6!' not fullfilled for './lists/commonbase_test_InRelease'.
+*=Signatures in './lists/commonbase_test_InRelease':
+*='DCAD3A286F5178E2F4B09330A573FEB160DDED5B' (signed ${CURDATE}): expired key
 *='236B4B98B5087AF4B621CB14D8A28B7FD7A5D887' (signed ${CURDATE}): valid
 *='12E94E82B6D7A883AF6EC8E980F4C43EDC3C29B8' (signed ${CURDATE}): valid
 *=Error: Not enough signatures found for remote repository commonbase (file:${WORKDIR}/test test)!
@@ -242,13 +234,11 @@ CONFEND
 testrun - -b . update Test 3<<EOF
 return 250
 stderr
--v1*=aptmethod got 'file:${WORKDIR}/test/dists/test/Release'
--v2*=Copy file '${WORKDIR}/test/dists/test/Release' to './lists/commonbase_test_Release'...
--v1*=aptmethod got 'file:${WORKDIR}/test/dists/test/Release.gpg'
--v2*=Copy file '${WORKDIR}/test/dists/test/Release.gpg' to './lists/commonbase_test_Release.gpg'...
-*=ERROR: Condition 'F62C6D3B' not fullfilled for './lists/commonbase_test_Release.gpg'.
-*=Signatures in './lists/commonbase_test_Release.gpg':
-*='DCAD3A286F5178E2F4B09330A573FEB160DDED5B' (signed ${CURDATE}): valid
+-v1*=aptmethod got 'file:${WORKDIR}/test/dists/test/InRelease'
+-v2*=Copy file '${WORKDIR}/test/dists/test/InRelease' to './lists/commonbase_test_InRelease'...
+*=ERROR: Condition 'F62C6D3B' not fullfilled for './lists/commonbase_test_InRelease'.
+*=Signatures in './lists/commonbase_test_InRelease':
+*='DCAD3A286F5178E2F4B09330A573FEB160DDED5B' (signed ${CURDATE}): expired key
 *='236B4B98B5087AF4B621CB14D8A28B7FD7A5D887' (signed ${CURDATE}): valid
 *='12E94E82B6D7A883AF6EC8E980F4C43EDC3C29B8' (signed ${CURDATE}): valid
 *=Error: Not enough signatures found for remote repository commonbase (file:${WORKDIR}/test test)!
@@ -261,11 +251,9 @@ sed -e 's/F62C6D3B/F62C6D3B+/' -i conf/updates
 testrun - -b . update Test 3<<EOF
 return 255
 stderr
--v1*=aptmethod got 'file:${WORKDIR}/test/dists/test/Release'
--v2*=Copy file '${WORKDIR}/test/dists/test/Release' to './lists/commonbase_test_Release'...
--v1*=aptmethod got 'file:${WORKDIR}/test/dists/test/Release.gpg'
--v2*=Copy file '${WORKDIR}/test/dists/test/Release.gpg' to './lists/commonbase_test_Release.gpg'...
-*=Missing checksums in Release file './lists/commonbase_test_Release'!
+-v1*=aptmethod got 'file:${WORKDIR}/test/dists/test/InRelease'
+-v2*=Copy file '${WORKDIR}/test/dists/test/InRelease' to './lists/commonbase_test_InRelease'...
+*=Missing checksums in Release file './lists/commonbase_test_InRelease'!
 -v0*=There have been errors!
 stdout
 EOF
@@ -285,18 +273,17 @@ From: commonbase
 Suite: test
 CONFEND
 
+# gpgme no longer seems to distinguish expired and parent-expired:
 testrun - -b . update Test 3<<EOF
 return 250
 stderr
--v1*=aptmethod got 'file:${WORKDIR}/test/dists/test/Release'
--v2*=Copy file '${WORKDIR}/test/dists/test/Release' to './lists/commonbase_test_Release'...
--v1*=aptmethod got 'file:${WORKDIR}/test/dists/test/Release.gpg'
--v2*=Copy file '${WORKDIR}/test/dists/test/Release.gpg' to './lists/commonbase_test_Release.gpg'...
-*=Not accepting valid signature in './lists/commonbase_test_Release.gpg' with parent-EXPIRED 'DCAD3A286F5178E2F4B09330A573FEB160DDED5B'
+-v1*=aptmethod got 'file:${WORKDIR}/test/dists/test/InRelease'
+-v2*=Copy file '${WORKDIR}/test/dists/test/InRelease' to './lists/commonbase_test_InRelease'...
+*=Not accepting valid signature in './lists/commonbase_test_InRelease' with EXPIRED 'DCAD3A286F5178E2F4B09330A573FEB160DDED5B'
 *=(To ignore it append a ! to the key and run reprepro with --ignore=expiredkey)
-*=ERROR: Condition '60DDED5B!' not fullfilled for './lists/commonbase_test_Release.gpg'.
-*=Signatures in './lists/commonbase_test_Release.gpg':
-*='DCAD3A286F5178E2F4B09330A573FEB160DDED5B' (signed ${CURDATE}): valid
+*=ERROR: Condition '60DDED5B!' not fullfilled for './lists/commonbase_test_InRelease'.
+*=Signatures in './lists/commonbase_test_InRelease':
+*='DCAD3A286F5178E2F4B09330A573FEB160DDED5B' (signed ${CURDATE}): expired key
 *='236B4B98B5087AF4B621CB14D8A28B7FD7A5D887' (signed ${CURDATE}): valid
 *='12E94E82B6D7A883AF6EC8E980F4C43EDC3C29B8' (signed ${CURDATE}): valid
 *=Error: Not enough signatures found for remote repository commonbase (file:${WORKDIR}/test test)!
@@ -319,18 +306,17 @@ From: commonbase
 Suite: test
 CONFEND
 
+# gpgme no longer seems to distinguish expired and parent-expired:
 testrun - -b . update Test 3<<EOF
 return 250
 stderr
--v1*=aptmethod got 'file:${WORKDIR}/test/dists/test/Release'
--v2*=Copy file '${WORKDIR}/test/dists/test/Release' to './lists/commonbase_test_Release'...
--v1*=aptmethod got 'file:${WORKDIR}/test/dists/test/Release.gpg'
--v2*=Copy file '${WORKDIR}/test/dists/test/Release.gpg' to './lists/commonbase_test_Release.gpg'...
-*=Not accepting valid signature in './lists/commonbase_test_Release.gpg' with parent-EXPIRED 'DCAD3A286F5178E2F4B09330A573FEB160DDED5B'
+-v1*=aptmethod got 'file:${WORKDIR}/test/dists/test/InRelease'
+-v2*=Copy file '${WORKDIR}/test/dists/test/InRelease' to './lists/commonbase_test_InRelease'...
+*=Not accepting valid signature in './lists/commonbase_test_InRelease' with EXPIRED 'DCAD3A286F5178E2F4B09330A573FEB160DDED5B'
 *=(To ignore it append a ! to the key and run reprepro with --ignore=expiredkey)
-*=ERROR: Condition 'A260449A!+' not fullfilled for './lists/commonbase_test_Release.gpg'.
-*=Signatures in './lists/commonbase_test_Release.gpg':
-*='DCAD3A286F5178E2F4B09330A573FEB160DDED5B' (signed ${CURDATE}): valid
+*=ERROR: Condition 'A260449A!+' not fullfilled for './lists/commonbase_test_InRelease'.
+*=Signatures in './lists/commonbase_test_InRelease':
+*='DCAD3A286F5178E2F4B09330A573FEB160DDED5B' (signed ${CURDATE}): expired key
 *='236B4B98B5087AF4B621CB14D8A28B7FD7A5D887' (signed ${CURDATE}): valid
 *='12E94E82B6D7A883AF6EC8E980F4C43EDC3C29B8' (signed ${CURDATE}): valid
 *=Error: Not enough signatures found for remote repository commonbase (file:${WORKDIR}/test test)!
@@ -339,17 +325,15 @@ stdout
 EOF
 
 # Now testing what happens when only signed with a totally different key:
-cp test/dists/test/Release.gpg.evil test/dists/test/Release.gpg
+cp test/dists/test/InRelease.evil test/dists/test/InRelease
 
 testrun - -b . update Test 3<<EOF
 return 250
 stderr
--v1*=aptmethod got 'file:${WORKDIR}/test/dists/test/Release'
--v2*=Copy file '${WORKDIR}/test/dists/test/Release' to './lists/commonbase_test_Release'...
--v1*=aptmethod got 'file:${WORKDIR}/test/dists/test/Release.gpg'
--v2*=Copy file '${WORKDIR}/test/dists/test/Release.gpg' to './lists/commonbase_test_Release.gpg'...
-*=ERROR: Condition 'A260449A!+' not fullfilled for './lists/commonbase_test_Release.gpg'.
-*=Signatures in './lists/commonbase_test_Release.gpg':
+-v1*=aptmethod got 'file:${WORKDIR}/test/dists/test/InRelease'
+-v2*=Copy file '${WORKDIR}/test/dists/test/InRelease' to './lists/commonbase_test_InRelease'...
+*=ERROR: Condition 'A260449A!+' not fullfilled for './lists/commonbase_test_InRelease'.
+*=Signatures in './lists/commonbase_test_InRelease':
 *='FDC7D039CCC83CC4921112A09FA943670C672A4A' (signed ${CURDATE}): valid
 *=Error: Not enough signatures found for remote repository commonbase (file:${WORKDIR}/test test)!
 -v0*=There have been errors!
@@ -372,31 +356,35 @@ From: commonbase
 Suite: test
 CONFEND
 
-# expired signatures are not that easy to fake, to cat it:
-cat > test/dists/test/Release.gpg <<'EOF'
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.9 (GNU/Linux)
+# expired signatures are not that easy to fake, so cat it:
+cat > test/dists/test/InRelease <<'EOF'
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA1
 
-iKIEAAECAAwFAknjKV8FgwABUYAACgkQFU9je/YsbTvOMwQAhyMjhSCosJtdvMSV
-l3OUSmHplKZZizJDO9YqO/018I2iSWgpnRxsEX4kmf07qwHjUOYXF3ezaEYWoK1H
-B5rLqWuju5lwXpPjOF1b1X/0lzyBmLT380gbMa9Nkgjxq2viX/eP9UJKeKKidmrg
-zWLyB0i6AbOlZw4eE+RCQyUqheI=
-=1UvF
+Codename: test
+Components: everything
+Architectures: coal
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.12 (GNU/Linux)
+
+iKIEAQECAAwFAk+6EiEFgwABUYAACgkQFU9je/YsbTv4LgP8DkaRBhBG7+JDD1N1
+GANCsth4rzKDfpyMrttFjW6Ra9QegDdnHyLz09IL5Hyzmst4s8DQ69q2LyZaQt3+
+0C2OG9iQ2GjQt8xvppDufvymFpqTbqnGn/LeG6KjP542Su8XZxptFPT2DyPNCe0W
+Vz5f8yupwc67sAWj/qhmBEpZp9E=
+=025V
 -----END PGP SIGNATURE-----
 EOF
 
 testrun - -b . update Test 3<<EOF
 return 250
 stderr
--v1*=aptmethod got 'file:${WORKDIR}/test/dists/test/Release'
--v2*=Copy file '${WORKDIR}/test/dists/test/Release' to './lists/commonbase_test_Release'...
--v1*=aptmethod got 'file:${WORKDIR}/test/dists/test/Release.gpg'
--v2*=Copy file '${WORKDIR}/test/dists/test/Release.gpg' to './lists/commonbase_test_Release.gpg'...
-*=Not accepting valid but EXPIRED signature in './lists/commonbase_test_Release.gpg' with '2938A0D8CD4E20437CAE9CE4154F637BF62C6D3B'
+-v1*=aptmethod got 'file:${WORKDIR}/test/dists/test/InRelease'
+-v2*=Copy file '${WORKDIR}/test/dists/test/InRelease' to './lists/commonbase_test_InRelease'...
+*=Not accepting valid but EXPIRED signature in './lists/commonbase_test_InRelease' with '2938A0D8CD4E20437CAE9CE4154F637BF62C6D3B'
 *=(To ignore it append a ! to the key and run reprepro with --ignore=expiredsignature)
-*=ERROR: Condition 'F62C6D3B+' not fullfilled for './lists/commonbase_test_Release.gpg'.
-*=Signatures in './lists/commonbase_test_Release.gpg':
-*='2938A0D8CD4E20437CAE9CE4154F637BF62C6D3B' (signed 2009-04-13): expired signature (since 2009-04-14)
+*=ERROR: Condition 'F62C6D3B+' not fullfilled for './lists/commonbase_test_InRelease'.
+*=Signatures in './lists/commonbase_test_InRelease':
+*='2938A0D8CD4E20437CAE9CE4154F637BF62C6D3B' (signed 2012-05-21): expired signature (since 2012-05-22)
 *=Error: Not enough signatures found for remote repository commonbase (file:${WORKDIR}/test test)!
 -v0*=There have been errors!
 stdout
@@ -405,15 +393,13 @@ EOF
 testrun - --ignore=expiredsignature -b . update Test 3<<EOF
 return 250
 stderr
--v1*=aptmethod got 'file:${WORKDIR}/test/dists/test/Release'
--v2*=Copy file '${WORKDIR}/test/dists/test/Release' to './lists/commonbase_test_Release'...
--v1*=aptmethod got 'file:${WORKDIR}/test/dists/test/Release.gpg'
--v2*=Copy file '${WORKDIR}/test/dists/test/Release.gpg' to './lists/commonbase_test_Release.gpg'...
-*=Not accepting valid but EXPIRED signature in './lists/commonbase_test_Release.gpg' with '2938A0D8CD4E20437CAE9CE4154F637BF62C6D3B'
+-v1*=aptmethod got 'file:${WORKDIR}/test/dists/test/InRelease'
+-v2*=Copy file '${WORKDIR}/test/dists/test/InRelease' to './lists/commonbase_test_InRelease'...
+*=Not accepting valid but EXPIRED signature in './lists/commonbase_test_InRelease' with '2938A0D8CD4E20437CAE9CE4154F637BF62C6D3B'
 *=(To ignore it append a ! to the key and run reprepro with --ignore=expiredsignature)
-*=ERROR: Condition 'F62C6D3B+' not fullfilled for './lists/commonbase_test_Release.gpg'.
-*=Signatures in './lists/commonbase_test_Release.gpg':
-*='2938A0D8CD4E20437CAE9CE4154F637BF62C6D3B' (signed 2009-04-13): expired signature (since 2009-04-14)
+*=ERROR: Condition 'F62C6D3B+' not fullfilled for './lists/commonbase_test_InRelease'.
+*=Signatures in './lists/commonbase_test_InRelease':
+*='2938A0D8CD4E20437CAE9CE4154F637BF62C6D3B' (signed 2012-05-21): expired signature (since 2012-05-22)
 *=Error: Not enough signatures found for remote repository commonbase (file:${WORKDIR}/test test)!
 -v0*=There have been errors!
 stdout
@@ -424,29 +410,24 @@ sed -e 's/F62C6D3B/&!/' -i conf/updates
 testrun - --ignore=expiredsignature -b . update Test 3<<EOF
 return 255
 stderr
--v1*=aptmethod got 'file:${WORKDIR}/test/dists/test/Release'
--v2*=Copy file '${WORKDIR}/test/dists/test/Release' to './lists/commonbase_test_Release'...
--v1*=aptmethod got 'file:${WORKDIR}/test/dists/test/Release.gpg'
--v2*=Copy file '${WORKDIR}/test/dists/test/Release.gpg' to './lists/commonbase_test_Release.gpg'...
-*=WARNING: valid but expired signature in './lists/commonbase_test_Release.gpg' with '2938A0D8CD4E20437CAE9CE4154F637BF62C6D3B' is accepted as requested!
-*=Missing checksums in Release file './lists/commonbase_test_Release'!
+-v1*=aptmethod got 'file:${WORKDIR}/test/dists/test/InRelease'
+-v2*=Copy file '${WORKDIR}/test/dists/test/InRelease' to './lists/commonbase_test_InRelease'...
+*=WARNING: valid but expired signature in './lists/commonbase_test_InRelease' with '2938A0D8CD4E20437CAE9CE4154F637BF62C6D3B' is accepted as requested!
+*=Missing checksums in Release file './lists/commonbase_test_InRelease'!
 -v0*=There have been errors!
 stdout
 EOF
 
 #empty file:
-cat > test/dists/test/Release.gpg <<EOF
+cat > test/dists/test/InRelease <<EOF
 EOF
 
 testrun - -b . update Test 3<<EOF
-return 251
+return 250
 stderr
--v1*=aptmethod got 'file:${WORKDIR}/test/dists/test/Release'
--v2*=Copy file '${WORKDIR}/test/dists/test/Release' to './lists/commonbase_test_Release'...
--v1*=aptmethod got 'file:${WORKDIR}/test/dists/test/Release.gpg'
--v2*=Copy file '${WORKDIR}/test/dists/test/Release.gpg' to './lists/commonbase_test_Release.gpg'...
-*=Error verifying './lists/commonbase_test_Release.gpg':
-*=gpgme gave error GPGME:58:  No data
+-v1*=aptmethod got 'file:${WORKDIR}/test/dists/test/InRelease'
+-v2*=Copy file '${WORKDIR}/test/dists/test/InRelease' to './lists/commonbase_test_InRelease'...
+*=Error: Not enough signatures found for remote repository commonbase (file:$WORKDIR/test test)!
 -v0*=There have been errors!
 stdout
 EOF

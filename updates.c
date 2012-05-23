@@ -24,7 +24,6 @@
  *  aptmethod.c		start, feed and take care of the apt methods
  *  downloadcache.c     keep track of what is downloaded to avoid duplicates
  *  signature.c		verify Release.gpg files, if requested
- *  readrelease.c	parse Release files, unless ignored
  *  remoterepository.c  cache remote index files and decide which to download
  *  upgradelist.c	decide which packages (and version) should be installed
  *
@@ -76,7 +75,6 @@
 #include "tracking.h"
 #include "termdecide.h"
 #include "filterlist.h"
-#include "readrelease.h"
 #include "log.h"
 #include "donefile.h"
 #include "freespace.h"
@@ -169,11 +167,14 @@ struct update_pattern {
 	component_t flat;
 	//e.g. "IgnoreRelease: Yes" for 1 (default is 0)
 	bool ignorerelease;
+	//e.g. "GetInRelease: No" for 0 (default is 1)
+	bool getinrelease;
 	/* the form in which index files are preferably downloaded */
 	struct encoding_preferences downloadlistsas;
 	/* if the specific field is there (to destinguish from an empty one) */
 	bool ignorehashes_set;
 	bool ignorerelease_set;
+	bool getinrelease_set;
 	bool architectures_set;
 	bool components_set;
 	bool udebcomponents_set;
@@ -351,6 +352,7 @@ CFurlSETPROC(update_pattern, fallback)
 CFallSETPROC(update_pattern, verifyrelease)
 CFlinelistSETPROC(update_pattern, config)
 CFtruthSETPROC(update_pattern, ignorerelease)
+CFtruthSETPROC(update_pattern, getinrelease)
 CFscriptSETPROC(update_pattern, listhook)
 CFallSETPROC(update_pattern, shellhook)
 CFfilterlistSETPROC(update_pattern, filterlist)
@@ -525,6 +527,7 @@ static const struct configfield updateconfigfields[] = {
 	CF("Components", update_pattern, components),
 	CF("Flat", update_pattern, flat),
 	CF("UDebComponents", update_pattern, udebcomponents),
+	CF("GetInRelease", update_pattern, getinrelease),
 	CF("IgnoreRelease", update_pattern, ignorerelease),
 	CF("IgnoreHashes", update_pattern, ignorehashes),
 	CF("VerifyRelease", update_pattern, verifyrelease),
@@ -760,7 +763,7 @@ static retvalue instance_pattern(struct update_pattern *pattern, const struct di
 
 	struct update_origin *update;
 	/*@dependant@*/struct update_pattern *declaration, *p, *listscomponents;
-	bool ignorehashes[cs_hashCOUNT], ignorerelease;
+	bool ignorehashes[cs_hashCOUNT], ignorerelease, getinrelease;
 	const char *verifyrelease;
 	retvalue r;
 
@@ -807,6 +810,13 @@ static retvalue instance_pattern(struct update_pattern *pattern, const struct di
 		ignorerelease = false;
 	else
 		ignorerelease = p->ignorerelease;
+	p = pattern;
+	while (p != NULL && !p->getinrelease_set)
+		p = p->pattern_from;
+	if (p == NULL)
+		getinrelease = true;
+	else
+		getinrelease = p->getinrelease;
 	/* find the first set values: */
 	p = pattern;
 	while (p != NULL && p->verifyrelease == NULL)
@@ -859,7 +869,7 @@ static retvalue instance_pattern(struct update_pattern *pattern, const struct di
 	}
 	r = remote_distribution_prepare(declaration->repository,
 			update->suite_from, ignorerelease,
-			verifyrelease, update->flat,
+			getinrelease, verifyrelease, update->flat,
 			ignorehashes, &update->from);
 	if (RET_WAS_ERROR(r)) {
 		updates_freeorigins(update);
