@@ -1,3 +1,6 @@
+2012-05-30
+	* add support for -A, -C, -T to *update and *pull.
+
 2012-05-22
 	* try to get InRelease from remote repositories
 	  instead of Release (with fall-back of the old behaviour)

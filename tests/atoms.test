@@ -144,22 +144,22 @@ EOF
 
 sed -i -e 's#ContentsUComponents: test#ContentsUComponents: component#' conf/distributions
 
-testrun - -b . -A test update 3<<EOF
-*=Action 'update' cannot be restricted to an architecture!
+testrun - -b . -A test export 3<<EOF
+*=Action 'export' cannot be restricted to an architecture!
 *=neither --archiecture nor -A make sense here.
 *=To ignore use --ignore=unusedoption.
 -v0*=There have been errors!
 return 255
 EOF
-testrun - -b . -C test update 3<<EOF
-*=Action 'update' cannot be restricted to a component!
+testrun - -b . -C test export 3<<EOF
+*=Action 'export' cannot be restricted to a component!
 *=neither --component nor -C make sense here.
 *=To ignore use --ignore=unusedoption.
 -v0*=There have been errors!
 return 255
 EOF
-testrun - -b . -T dsc update 3<<EOF
-*=Action 'update' cannot be restricted to a packagetype!
+testrun - -b . -T dsc export 3<<EOF
+*=Action 'export' cannot be restricted to a packagetype!
 *=neither --packagetype nor -T make sense here.
 *=To ignore use --ignore=unusedoption.
 -v0*=There have been errors!

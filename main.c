@@ -1506,7 +1506,7 @@ ACTION_F(n, n, y, y, export) {
 
 /***********************update********************************/
 
-ACTION_D(n, n, y, update) {
+ACTION_D(y, n, y, update) {
 	retvalue result, r;
 	struct update_pattern *patterns;
 	struct update_distribution *u_distributions;
@@ -1527,6 +1527,7 @@ ACTION_D(n, n, y, update) {
 	assert (RET_IS_OK(result));
 
 	result = updates_calcindices(patterns, alldistributions,
+			components, architectures, packagetypes,
 			&u_distributions);
 	if (!RET_IS_OK(result)) {
 		if (result == RET_NOTHING) {
@@ -1557,7 +1558,7 @@ ACTION_D(n, n, y, update) {
 	return result;
 }
 
-ACTION_D(n, n, y, predelete) {
+ACTION_D(y, n, y, predelete) {
 	retvalue result, r;
 	struct update_pattern *patterns;
 	struct update_distribution *u_distributions;
@@ -1579,6 +1580,7 @@ ACTION_D(n, n, y, predelete) {
 	assert (RET_IS_OK(result));
 
 	result = updates_calcindices(patterns, alldistributions,
+			components, architectures, packagetypes,
 			&u_distributions);
 	if (!RET_IS_OK(result)) {
 		if (result == RET_NOTHING) {
@@ -1607,7 +1609,7 @@ ACTION_D(n, n, y, predelete) {
 	return result;
 }
 
-ACTION_B(n, n, y, checkupdate) {
+ACTION_B(y, n, y, checkupdate) {
 	retvalue result;
 	struct update_pattern *patterns;
 	struct update_distribution *u_distributions;
@@ -1628,6 +1630,7 @@ ACTION_B(n, n, y, checkupdate) {
 	}
 
 	result = updates_calcindices(patterns, alldistributions,
+			components, architectures, packagetypes,
 			&u_distributions);
 	if (!RET_IS_OK(result)) {
 		if (result == RET_NOTHING) {
@@ -1652,7 +1655,7 @@ ACTION_B(n, n, y, checkupdate) {
 	return result;
 }
 
-ACTION_B(n, n, y, dumpupdate) {
+ACTION_B(y, n, y, dumpupdate) {
 	retvalue result;
 	struct update_pattern *patterns;
 	struct update_distribution *u_distributions;
@@ -1673,6 +1676,7 @@ ACTION_B(n, n, y, dumpupdate) {
 	}
 
 	result = updates_calcindices(patterns, alldistributions,
+			components, architectures, packagetypes,
 			&u_distributions);
 	if (!RET_IS_OK(result)) {
 		if (result == RET_NOTHING) {
@@ -1717,7 +1721,7 @@ ACTION_L(n, n, n, n, cleanlists) {
 
 /***********************migrate*******************************/
 
-ACTION_D(n, n, y, pull) {
+ACTION_D(y, n, y, pull) {
 	retvalue result, r;
 	struct pull_rule *rules;
 	struct pull_distribution *p;
@@ -1734,7 +1738,8 @@ ACTION_D(n, n, y, pull) {
 	}
 	assert (RET_IS_OK(result));
 
-	result = pull_prepare(alldistributions, rules, fast, &p);
+	result = pull_prepare(alldistributions, rules, fast,
+			components, architectures, packagetypes, &p);
 	if (RET_WAS_ERROR(result)) {
 		pull_freerules(rules);
 		return result;
@@ -1750,7 +1755,7 @@ ACTION_D(n, n, y, pull) {
 	return result;
 }
 
-ACTION_B(n, n, y, checkpull) {
+ACTION_B(y, n, y, checkpull) {
 	retvalue result;
 	struct pull_rule *rules;
 	struct pull_distribution *p;
@@ -1767,7 +1772,8 @@ ACTION_B(n, n, y, checkpull) {
 	}
 	assert (RET_IS_OK(result));
 
-	result = pull_prepare(alldistributions, rules, fast, &p);
+	result = pull_prepare(alldistributions, rules, fast,
+			components, architectures, packagetypes, &p);
 	if (RET_WAS_ERROR(result)) {
 		pull_freerules(rules);
 		return result;
@@ -1780,7 +1786,7 @@ ACTION_B(n, n, y, checkpull) {
 	return result;
 }
 
-ACTION_B(n, n, y, dumppull) {
+ACTION_B(y, n, y, dumppull) {
 	retvalue result;
 	struct pull_rule *rules;
 	struct pull_distribution *p;
@@ -1797,7 +1803,8 @@ ACTION_B(n, n, y, dumppull) {
 	}
 	assert (RET_IS_OK(result));
 
-	result = pull_prepare(alldistributions, rules, fast, &p);
+	result = pull_prepare(alldistributions, rules, fast,
+			components, architectures, packagetypes, &p);
 	if (RET_WAS_ERROR(result)) {
 		pull_freerules(rules);
 		return result;
@@ -3833,15 +3840,15 @@ static const struct action {
 		0, -1, "tidytracks [<distributions>]"},
 	{"removetrack",		A_D(removetrack),
 		3, 3, "removetrack <distribution> <sourcename> <version>"},
-	{"update",		A_D(update)|NEED_RESTRICT,
+	{"update",		A_Dact(update)|NEED_RESTRICT,
 		0, -1, "update [<distributions>]"},
-	{"checkupdate",		A_B(checkupdate)|NEED_RESTRICT,
+	{"checkupdate",		A_Bact(checkupdate)|NEED_RESTRICT,
 		0, -1, "checkupdate [<distributions>]"},
-	{"dumpupdate",		A_B(dumpupdate)|NEED_RESTRICT,
+	{"dumpupdate",		A_Bact(dumpupdate)|NEED_RESTRICT,
 		0, -1, "dumpupdate [<distributions>]"},
-	{"predelete",		A_D(predelete),
+	{"predelete",		A_Dact(predelete),
 		0, -1, "predelete [<distributions>]"},
-	{"pull",		A_D(pull)|NEED_RESTRICT,
+	{"pull",		A_Dact(pull)|NEED_RESTRICT,
 		0, -1, "pull [<distributions>]"},
 	{"copy",		A_Dact(copy),
 		3, -1, "[-C <component> ] [-A <architecture>] [-T <packagetype>] copy <destination-distribution> <source-distribution> <package-names to pull>"},
@@ -3859,9 +3866,9 @@ static const struct action {
 		3, 3, "[-C <component> ] [-A <architecture>] [-T <packagetype>] restorematched <distribution> <snapshot-name> <glob>"},
 	{"restorefilter",		A_Dact(restorefilter),
 		3, 3, "[-C <component> ] [-A <architecture>] [-T <packagetype>] restorefilter <distribution> <snapshot-name> <formula>"},
-	{"dumppull",		A_B(dumppull)|NEED_RESTRICT,
+	{"dumppull",		A_Bact(dumppull)|NEED_RESTRICT,
 		0, -1, "dumppull [<distributions>]"},
-	{"checkpull",		A_B(checkpull)|NEED_RESTRICT,
+	{"checkpull",		A_Bact(checkpull)|NEED_RESTRICT,
 		0, -1, "checkpull [<distributions>]"},
 	{"includedeb",		A_Dactsp(includedeb)|NEED_DELNEW,
 		2, -1, "[--delete] includedeb <distribution> <.deb-file>"},

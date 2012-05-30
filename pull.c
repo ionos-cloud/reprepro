@@ -402,7 +402,7 @@ static retvalue generatepulltarget(struct pull_distribution *pd, struct target *
 	return RET_OK;
 }
 
-static retvalue pull_generatetargets(struct pull_distribution *pull_distributions) {
+static retvalue pull_generatetargets(struct pull_distribution *pull_distributions, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes) {
 	struct pull_distribution *pd;
 	struct target *target;
 	retvalue r;
@@ -410,6 +410,9 @@ static retvalue pull_generatetargets(struct pull_distribution *pull_distribution
 	for (pd = pull_distributions ; pd != NULL ; pd = pd->next) {
 		for (target = pd->distribution->targets ; target != NULL ;
 				target = target->next) {
+
+			if (!target_matches(target, components, architectures, packagetypes))
+				continue;
 
 			r = generatepulltarget(pd, target);
 			if (RET_WAS_ERROR(r))
@@ -616,7 +619,7 @@ static void pull_searchunused(const struct distribution *alldistributions, struc
  * combination of the steps two, three and four                            *
  **************************************************************************/
 
-retvalue pull_prepare(struct distribution *alldistributions, struct pull_rule *rules, bool fast, struct pull_distribution **pd) {
+retvalue pull_prepare(struct distribution *alldistributions, struct pull_rule *rules, bool fast, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *types, struct pull_distribution **pd) {
 	struct pull_distribution *pulls;
 	retvalue r;
 
@@ -632,7 +635,7 @@ retvalue pull_prepare(struct distribution *alldistributions, struct pull_rule *r
 	if (!fast)
 		pull_searchunused(alldistributions, rules);
 
-	r = pull_generatetargets(pulls);
+	r = pull_generatetargets(pulls, components, architectures, types);
 	if (RET_WAS_ERROR(r)) {
 		pull_freedistributions(pulls);
 		return r;
