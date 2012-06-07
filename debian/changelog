@@ -1,3 +1,11 @@
+reprepro (4.12.2-1) unstable; urgency=low
+
+  * new bugfix release
+  - fix bug parsing uploader files with many group members
+    (Closes: 676519)
+
+ -- Bernhard R. Link <brlink@debian.org>  Thu, 07 Jun 2012 22:58:53 +0200
+
 reprepro (4.12.1-1) unstable; urgency=low
 
   * new bugfix release
