@@ -6,8 +6,10 @@ reprepro (4.12.1-1) unstable; urgency=low
   - add experimental -A, -C, -T support to the pull/update family of commands
     (Closes: 675182)
   * install zsh completion to /usr/share/zsh/vendor-completions
+  * mention changestool and rredtool in package description
+    (Closes: 676250)
 
- -- Bernhard R. Link <brlink@debian.org>  Thu, 07 Jun 2012 12:42:57 +0200
+ -- Bernhard R. Link <brlink@debian.org>  Thu, 07 Jun 2012 12:44:11 +0200
 
 reprepro (4.12.0-1) unstable; urgency=low
 
