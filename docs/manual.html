@@ -175,7 +175,7 @@ Suite: */updates
 VerifyRelease: A99951DAF9BB569BDB50AD90A70DAF536070D3A1|7EA391D72477203B58C04FBCB5D0C804ADB11277
 Architectures: i386
 Components: main
-UDebComponents: none
+UDebComponents:
 
 Name: debian
 Method: http://ftp2.de.debian.org/debian
@@ -183,9 +183,6 @@ Config: Acquire::Http::Proxy=http://proxy.myorg.de:8080
 VerifyRelease: A99951DAF9BB569BDB50AD90A70DAF536070D3A1|7EA391D72477203B58C04FBCB5D0C804ADB11277
 </pre>
 (If there are no Architecture, Components or UDebComponents, it will try all the distribution to update has. Fallback means a URL to try when the first cannot offer some file (Has to be the same method)).
-Note that the <tt>none</tt> argument to <tt>UDebComponents:</tt> is only needed for
-version before 3.0.0. Since 3.0.0 an empty field does the same, though <tt>none</tt>
-is still ignored for backward compatibility.
 </li>
 <li>Tell reprepro to update:
 <pre class="shell">
@@ -1122,28 +1119,26 @@ and the version of the removed package (<tt>remove</tt> and <tt>replace</tt>).
 Finally the filekeys of the new (<tt>add</tt> and <tt>replace</tt>) and/or
 removed (<tt>remove</tt> and <tt>replace</tt>) package are listed
 starting with the marker &quot;<tt>--</tt>&quot; followed by each filekey
-(the name of the file in the <tt class="dir">pool/</tt> relative to the pool)
+(the name of the file in the <tt class="dir">pool/</tt>
+relative to <tt class="env">REPREPRO_OUT_DIR</tt>)
 as its own argument.
 <br>
-Since reprepro 3.4 there is additionally the environment variable
-<tt class="env">REPREPRO_CAUSING_FILE</tt> with the name of the file
+The environment variable <tt class="env">REPREPRO_CAUSING_COMMAND</tt>
+contains the command of the action causing this change.
+The environment variable
+<tt class="env">REPREPRO_CAUSING_FILE</tt> contains the name of the file
 given at the command line causing this package to be changed,
 if there is one.
 (i.e. with <tt class="command">includedeb</tt>,
 <tt class="command">includedsc</tt> and <tt class="command">include</tt>).
-The environment variable <tt class="env">REPREPRO_CAUSING_COMMAND</tt>
-contains since 3.8.0 the command of the action causing this change.
-Since reprepro 3.9.0 there are the addional environment variables
+The environment variables
 <tt class="env">REPREPRO_CAUSING_RULE</tt> and
-<tt class="env">REPREPRO_FROM</tt>.
-The first is the name of the update or pull rule pulling in a package,
-and the second is the name of the distribution
-a package is coming from.
+<tt class="env">REPREPRO_FROM</tt> are
+the name of the update or pull rule pulling in a package
+and the name of the distribution a package is coming from.
 What this name is depends on the command and for most commands
-it is simply not set at all.)
-<h2><a name="maintenance">Maintenance</a></h2>
-This section lists some commands you can use to check and improve the health
-of you repository.
+it is simply not set at all.
+And of course all the <tt class="env">REPREPRO_*_DIR</tt> variables are set.
 <h5>Calling conventions for <tt class="suffix">.changes</tt> scripts</h5>
 This type of script is called with 5 or 6 arguments.
 The first is always &quot;<tt>accepted</tt>&quot;, to make it easier to
@@ -1155,12 +1150,17 @@ The fifth name is the <tt class="suffix">.changes</tt> itself
 (in case of <tt class="command">processingcoming</tt> the secure copy in the
 temporary dir).
 There is a sixth argument if the <tt class="suffix">.changes</tt>-file was
-added to the <tt class="dir">pool/</tt>. Then it is the name of the added
-file relative to the pool.
+added to the <tt class="dir">pool/</tt>:
+The filekey of the added .changes file
+(i.e. the filename relative to <tt class="env">REPREPRO_OUT_DIR</tt>).
 <br>
-Since reprepro 3.4 there is additionally the environment variable
-<tt class="env">REPREPRO_CAUSING_FILE</tt> with the name of the file
-in the incoming dir or the command line argument to include.
+The environment variable <tt class="env">REPREPRO_CAUSING_COMMAND</tt>
+contains the command of the action causing this change.
+The environment variable
+<tt class="env">REPREPRO_CAUSING_FILE</tt> contains the name of the file
+given at the command line, if there is one
+(e.g. with <tt class="command">include</tt>).
+And of course all the <tt class="env">REPREPRO_*_DIR</tt> variables are set.
 <h2><a name="maintenance">Maintenance</a></h2>
 This section lists some commands you can use to check and improve the health
 of you repository.
@@ -1197,16 +1197,13 @@ reprepro -b $YOURBASEDIR tidytracks
 If you use source package tracking, check for files kept because of this
 that should no longer by the current rules.
 <br>
-If you fear your tracking data could have became outdated (and you have at least
-version 3.0.0 of reprepro), you can also try the retrack command:
+If you fear your tracking data could have became outdated,
+you can also try the retrack command:
 <pre class="command">
 reprepro -b $YOURBASEDIR retrack
 </pre>
-Since 3.0.0 that refreshes the tracking information about packages used and then
-runs a tidytracks. (Beware: before version 3.0.0 this will destroy your tracking
-data and replace it with scratch information from your installed packages, so
-all information about prior versions or <tt class="suffix">.changes</tt> files
-is lost.
+That refreshes the tracking information about packages used and then
+runs a tidytracks. (Beware: don't do this with reprepro versions before 3.0.0).
 <h2><a name="internals">Internals</a></h2>
 reprepro stores the data it collects in Berkeley DB file (<tt class="suffix">.db</tt>)
 in a directory called <tt class="dir">db/</tt> or whatever you specified via command
