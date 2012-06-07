@@ -1159,7 +1159,7 @@ static retvalue adddeleteruletotarget(struct update_target *updatetargets) {
 	return RET_OK;
 }
 
-static retvalue gettargets(struct update_origin *origins, struct distribution *distribution, struct update_target **ts) {
+static retvalue gettargets(struct update_origin *origins, struct distribution *distribution, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *types,  struct update_target **ts) {
 	struct target *target;
 	struct update_origin *origin;
 	struct update_target *updatetargets;
@@ -1169,6 +1169,8 @@ static retvalue gettargets(struct update_origin *origins, struct distribution *d
 
 	for (target = distribution->targets ; target != NULL ;
 	                                      target = target->next) {
+		if (!target_matches(target, components, architectures, types))
+			continue;
 		r = newupdatetarget(&updatetargets, target);
 		if (RET_WAS_ERROR(r)) {
 			updates_freetargets(updatetargets);
@@ -1241,7 +1243,7 @@ static inline retvalue findmissingupdate(const struct distribution *distribution
 	return result;
 }
 
-retvalue updates_calcindices(struct update_pattern *patterns, struct distribution *distributions, struct update_distribution **update_distributions) {
+retvalue updates_calcindices(struct update_pattern *patterns, struct distribution *distributions, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *types, struct update_distribution **update_distributions) {
 	struct distribution *distribution;
 	struct update_distribution *u_ds;
 	retvalue result, r;
@@ -1290,7 +1292,9 @@ retvalue updates_calcindices(struct update_pattern *patterns, struct distributio
 				break;
 			}
 
-			r = gettargets(u_d->origins, distribution, &u_d->targets);
+			r = gettargets(u_d->origins, distribution,
+					components, architectures, types,
+					&u_d->targets);
 			if (RET_WAS_ERROR(r)) {
 				result = r;
 				break;
