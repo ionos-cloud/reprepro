@@ -1,3 +1,6 @@
+Updates between 4.12.1 and 4.12.2:
+- fix error with uploader files with more than 16 group members
+
 Updates between 4.12.0 and 4.12.1:
 - fix bash and zsh completion to work with config directories
 - add experimental -A, -C, -T support to the pull/update family of commands
