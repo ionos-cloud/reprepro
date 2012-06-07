@@ -25,7 +25,11 @@ _reprepro()
 				distfile="$(grep '^basedir ' -- "$conffile" 2>/dev/null | sed -e 's/^basedir *//')/conf/distributions"
 			fi
 		fi
-		if [[ -e "$distfile" ]] ; then
+		if [[ -d "$distfile" ]] ; then
+			codenames="$(awk -- '/^[Cc][Oo][Dd][Ee][Nn][Aa][Mm][Ee]: / {$1="";print}' "$distfile"/*.conf)"
+			architectures="$(awk -- '/^[Aa][Rr][Cc][Hh][Ii][Tt][Ee][Cc][Tt][Uu][Rr][Ee][Ss]: / {$1="";print}' "$distfile"/*.conf)"
+			components="$(awk -- '/^[Cc][Oo][Mm][Pp][Oo][Nn][Ee][Nn][Tt][Ss]: / {$1="";print}' "$distfile"/*.conf)"
+		elif [[ -e "$distfile" ]] ; then
 			codenames="$(awk -- '/^[Cc][Oo][Dd][Ee][Nn][Aa][Mm][Ee]: / {$1="";print}' "$distfile")"
 			architectures="$(awk -- '/^[Aa][Rr][Cc][Hh][Ii][Tt][Ee][Cc][Tt][Uu][Rr][Ee][Ss]: / {$1="";print}' "$distfile")"
 			components="$(awk -- '/^[Cc][Oo][Mm][Pp][Oo][Nn][Ee][Nn][Tt][Ss]: / {$1="";print}' "$distfile")"
@@ -88,7 +92,9 @@ _reprepro()
 				incoming="$(grep '^basedir ' -- "$conffile" 2>/dev/null | sed -e 's/^basedir //')/conf/incoming"
 			fi
 		fi
-		if [[ -e "$incomingfile" ]] ; then
+		if [[ -d "$incomingfile" ]] ; then
+			importrules="$(awk -- '/^[Nn][Aa][Mm][Ee]: / {$1="";print}' "$incomingfile"/*.conf)"
+		elif [[ -e "$incomingfile" ]] ; then
 			importrules="$(awk -- '/^[Nn][Aa][Mm][Ee]: / {$1="";print}' "$incomingfile")"
 		else
 			importrules="rule-name"

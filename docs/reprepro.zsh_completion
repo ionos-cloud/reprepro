@@ -106,34 +106,38 @@ function _reprepro_findincoming ()
 	test -e "$incomingfile"
 }
 
+function _reprepro_grepdistfile ()
+{
+	_reprepro_finddistributions &&
+		if test -d "$distfile" ; then
+			sed -n -e 's#^'"$1"': \(.*\)#\1#p' "$distfile"/*.conf
+		else
+			sed -n -e 's#^'"$1"': \(.*\)#\1#p' "$distfile"
+		fi
+}
+
 function _reprepro_architectures ()
 {
-	_reprepro_finddistributions \
-		&& architectures=($(awk '/^[Aa][Rr][Cc][Hh][Ii][Tt][Ee][Cc][Tt][Uu][Rr][Ee][Ss]: / {$1="";print}' "$distfile" 2>/dev/null)) \
+	architectures=($(_reprepro_grepdistfile '[Aa][Rr][Cc][Hh][Ii][Tt][Ee][Cc][Tt][Uu][Rr][Ee][Ss]')) \
 		|| architectures=(i386 m68k sparc alpha powerpc arm mips mipsel hppa ia64 s390 amd64 ppc64 sh armeb m32r hurd-i386 netbsd-i386 netbsd-alpha kfreebsd-gnu)
       	_wanted -V 'architectures' expl 'architecture' compadd -a architectures
 }
 
 function _reprepro_components ()
 {
-	_reprepro_finddistributions \
-		&& components=($(awk '/^[Cc][Oo][Mm][Pp][Oo][Nn][Ee][Nn][Tt][Ss]: / {$1="";print}' "$distfile" 2>/dev/null)) \
+	components=($(_reprepro_grepdistfile '[Cc][Oo][Mm][Pp][Oo][Nn][Ee][Nn][Tt][Ss]')) \
 		|| components=(main contrib non-free bad)
       	_wanted -V 'components' expl 'component' compadd -a components
 }
 function _reprepro_codenames () {
-	_reprepro_finddistributions \
-	&& codenames=($(awk '/^[Cc][Oo][Dd][Ee][Nn][Aa][Mm][Ee]: / {$1="";print}' "$distfile")) \
+	codenames=($(_reprepro_grepdistfile '[Cc][Oo][Dd][Ee][Nn][Aa][Mm][Ee]')) \
 	|| codenames=(sid lenny etch sarge unstable testing stable local)
       	_wanted -V 'codenames' expl 'codename' compadd -a codenames
 }
 function _reprepro_identifiers () {
 	_reprepro_finddistributions \
-		&& list=($(awk '
-			/^[Cc][Oo][Mm][Pp][Oo][Nn][Ee][Nn][Tt][Ss]: / {ccount = split($0,components); next}
-			/^[Uu][Dd][Ee][Bb][Cc][Oo][Mm][Pp][Oo][Nn][Ee][Nn][Tt][Ss]: / {uccount = split($0,ucomponents); next}
-			/^[Aa][Rr][Cc][Hh][Ii][Tt][Ee][Cc][Tt][Uu][Rr][Ee][Ss]: / {acount = split($0,architectures); next}
-			/^[Cc][Oo][Dd][Ee][Nn][Aa][Mm][Ee]: / {codename = $2; next}
+		&& list=($(if test -d "$distfile" ; then set -- "$distfile"/*.conf ;
+			   else set -- "$distfile" ; fi && awk '
 			/^$/ {for(a=2;a<=acount;a++){
 				for(c=2;c<=ccount;c++){
 				print codename "|" components[c] "|" architectures[a]
@@ -144,6 +148,10 @@ function _reprepro_identifiers () {
 				}
 				}
 			     }; acount=0;ccount=0;ucount=0}
+			/^[Cc][Oo][Mm][Pp][Oo][Nn][Ee][Nn][Tt][Ss]: / {ccount = split($0,components); next}
+			/^[Uu][Dd][Ee][Bb][Cc][Oo][Mm][Pp][Oo][Nn][Ee][Nn][Tt][Ss]: / {uccount = split($0,ucomponents); next}
+			/^[Aa][Rr][Cc][Hh][Ii][Tt][Ee][Cc][Tt][Uu][Rr][Ee][Ss]: / {acount = split($0,architectures); next}
+			/^[Cc][Oo][Dd][Ee][Nn][Aa][Mm][Ee]: / {codename = $2; next}
 			END {for(a=2;a<=acount;a++){
 				for(c=2;c<=ccount;c++){
 				print codename "|" components[c] "|" architectures[a]
@@ -155,13 +163,13 @@ function _reprepro_identifiers () {
 				}
 			     }; acount=0;ccount=0;ucount=0}
 			{next}
-			' "$distfile" )) \
+			' "$@" )) \
 		|| list=(identifier)
   	_wanted -V 'identifiers' expl 'identifier' compadd -a list
 }
 function _reprepro_incomings () {
 	_reprepro_findincoming \
-	&& list=($(awk '/^[Nn][Aa][Mm][Ee]: / {print $2}' "$incomingfile")) \
+	&& list=($(if test -d "$incomingfile" ; then set -- "$incomingfile"/*.conf ; else set -- "$incomingfile" ; fi && awk '/^[Nn][Aa][Mm][Ee]: / {print $2}' "$@")) \
 	|| list=(rule-name)
       	_wanted -V 'rule names' expl 'rule name' compadd -a list
 }
@@ -169,13 +177,13 @@ function _reprepro_incomingdir () {
 	local rulename=$1
 	shift
 	_reprepro_findincoming \
-	&& incomingdir=($(awk '
+	&& incomingdir=($(if test -d "$incomingfile" ; then set -- "$incomingfile"/*.conf ; else set -- "$incomingfile" ; fi && awk '
 		/^[Ii][Nn][Cc][Oo][Mm][Ii][Nn][Gg][Dd][Ii][Rr]: / {dir=$2; next}
 		/^[Nn][Aa][Mm][Ee]: / {name=$2; next}
 		/^$/ { if( name="'"$rulename"'" ) { print dir } ; next } 
 		END { if( name="'"$rulename"'" ) { print dir }}
 		{next}
-		' "$incomingfile"))
+		' "$@"))
 	# needs to be an array, as it might not be absolute...
 	list=( $incomingdir )
 }
