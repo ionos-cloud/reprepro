@@ -76,6 +76,7 @@ binary-arch: build-arch
 	dh_installdirs
 	$(MAKE) install DESTDIR=$(CURDIR)/debian/reprepro
 	install -D -m 644 docs/reprepro.bash_completion debian/reprepro/etc/bash_completion.d/reprepro
+	install -D -m 644 docs/reprepro.zsh_completion debian/reprepro/usr/share/zsh/vendor-completions/_reprepro
 	dh_installchangelogs ChangeLog
 	dh_installdocs
 	# I really discourage building packages directly from CVS
