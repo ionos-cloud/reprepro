@@ -203,6 +203,40 @@ group group add 76543210
 group foo add 00000000
 group bla contains group
 group blub contains foo
+group g5 contains foo
+group g5 unused
+group g6 contains foo
+group g6 unused
+group g7 contains foo
+group g7 unused
+group g8 contains foo
+group g8 unused
+group g9 contains foo
+group g9 unused
+group g10 contains foo
+group g10 unused
+group g11 contains foo
+group g11 unused
+group g12 contains foo
+group g12 unused
+group g13 contains foo
+group g13 unused
+group g14 contains foo
+group g14 unused
+group g15 contains foo
+group g15 unused
+group g16 contains foo
+group g16 unused
+group g17 contains foo
+group g17 unused
+group g18 contains foo
+group g18 unused
+group g19 contains foo
+group g19 unused
+group g20 contains foo
+group g20 unused
+group g21 contains foo
+group g21 unused
 allow * by group bla
 allow architectures contain 'coal' by group blub
 EOF

@@ -1,6 +1,8 @@
 2012-06-07
 	* fix bash and zsh completion to work with
 	  conf/distributions and conf/incoming directories.
+	* fix allocation error with more than 16 group
+	  members in allocation files.
 
 2012-05-30
 	* add support for -A, -C, -T to *update and *pull.
