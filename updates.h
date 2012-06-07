@@ -29,7 +29,7 @@ retvalue updates_getpatterns(/*@out@*/struct update_pattern **);
 void updates_freepatterns(/*@only@*/struct update_pattern *p);
 void updates_freeupdatedistributions(/*@only@*/struct update_distribution *d);
 
-retvalue updates_calcindices(struct update_pattern *, struct distribution *, /*@out@*/struct update_distribution **);
+retvalue updates_calcindices(struct update_pattern *, struct distribution *, const struct atomlist * /*components*/, const struct atomlist */*architectures*/, const struct atomlist */*types*/, /*@out@*/struct update_distribution **);
 
 retvalue updates_update(struct update_distribution *, bool /*nolistsdownload*/, bool /*skipold*/, enum spacecheckmode, off_t /*reserveddb*/, off_t /*reservedother*/);
 retvalue updates_checkupdate(struct update_distribution *, bool /*nolistsdownload*/, bool /*skipold*/);

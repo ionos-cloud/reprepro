@@ -1,3 +1,7 @@
+Updates between 4.12.0 and 4.12.1:
+- fix bash and zsh completion to work with config directories
+- add experimental -A, -C, -T support to the pull/update family of commands
+
 Updates between 4.11.0 and 4.12.0:
 - get InRelease from remote repositories (to disable use new GetInRelease: no)
 - always put Package field first in indices
