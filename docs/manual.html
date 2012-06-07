@@ -1122,7 +1122,7 @@ and the version of the removed package (<tt>remove</tt> and <tt>replace</tt>).
 Finally the filekeys of the new (<tt>add</tt> and <tt>replace</tt>) and/or
 removed (<tt>remove</tt> and <tt>replace</tt>) package are listed
 starting with the marker &quot;<tt>--</tt>&quot; followed by each filekey
-(the name of the file in the <tt class="dir">pool/</tt> relative to the pool)
+(the name of the file in the <tt class="dir">pool/</tt> relative &quot;$REPREPRO_OUT_DIR&quot;)
 as its own argument.
 <br>
 Since reprepro 3.4 there is additionally the environment variable
@@ -1141,9 +1141,6 @@ and the second is the name of the distribution
 a package is coming from.
 What this name is depends on the command and for most commands
 it is simply not set at all.)
-<h2><a name="maintenance">Maintenance</a></h2>
-This section lists some commands you can use to check and improve the health
-of you repository.
 <h5>Calling conventions for <tt class="suffix">.changes</tt> scripts</h5>
 This type of script is called with 5 or 6 arguments.
 The first is always &quot;<tt>accepted</tt>&quot;, to make it easier to
@@ -1155,8 +1152,9 @@ The fifth name is the <tt class="suffix">.changes</tt> itself
 (in case of <tt class="command">processingcoming</tt> the secure copy in the
 temporary dir).
 There is a sixth argument if the <tt class="suffix">.changes</tt>-file was
-added to the <tt class="dir">pool/</tt>. Then it is the name of the added
-file relative to the pool.
+added to the <tt class="dir">pool/</tt>:
+The filekey of the added .changes file
+(i.e. the filename relative to &quot;$REPREPRO_OUT_DIR&quot;).
 <br>
 Since reprepro 3.4 there is additionally the environment variable
 <tt class="env">REPREPRO_CAUSING_FILE</tt> with the name of the file
