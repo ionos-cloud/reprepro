@@ -55,6 +55,8 @@ struct tobedone {
 	/*@null@*/void *privdata1, *privdata2;
 	/* there is no fallback or that was already used */
 	bool lasttry, ignore;
+	/* how often this was redirected */
+	unsigned int redirect_count;
 };
 
 struct aptmethod {
@@ -85,6 +87,8 @@ struct aptmethod {
 	size_t alreadywritten, output_length;
 	/* old (<= squeeze) 103 behavior detected */
 	bool old103;
+	/* new (>= wheezy) 103 behavior detected, no more workarounds necessary */
+	bool new103;
 };
 
 struct aptmethodrun {
@@ -433,6 +437,7 @@ static retvalue enqueuenew(struct aptmethod *method, /*@only@*/char *uri, /*@onl
 	todo->privdata2 = privdata2;
 	todo->lasttry = method->fallbackbaseuri == NULL;
 	todo->ignore = false;
+	todo->redirect_count = 0;
 	enqueue(method, todo);
 	return RET_OK;
 }
@@ -488,6 +493,7 @@ static retvalue requeue_or_fail(struct aptmethod *method, /*@only@*/struct tobed
 		free(todo->uri);
 		todo->uri = s;
 		todo->lasttry = true;
+		todo->redirect_count = 0;
 		enqueue(method, todo);
 		return RET_OK;
 	}
@@ -562,7 +568,8 @@ static retvalue uriredirect(struct aptmethod *method, const char *uri, /*@only@*
 			if (method->lasttobedone == todo) {
 				method->lasttobedone = todo->next;
 			}
-			if (todo->redirected_filename == NULL) {
+			if (todo->redirected_filename == NULL
+			    && todo->redirect_count < 2) {
 				if (verbose > 0)
 					fprintf(stderr,
 "aptmethod redirects '%s' to '%s'\n",
@@ -570,15 +577,18 @@ static retvalue uriredirect(struct aptmethod *method, const char *uri, /*@only@*
 				/* readd with new uri */
 				free(todo->uri);
 				todo->uri = newuri;
-				/* save to a different filename. This is quite
-				 * wastefull for index files, as they will be
-				 * copied another time, but otherwise an squeeze
-				 * http method might download it two times to the
-				 * same file, corrupting it */
-				todo->redirected_filename =
-					mprintf("%s_redirect", todo->filename);
-				if (FAILEDTOALLOC(todo->redirected_filename))
-					return RET_ERROR_OOM;
+				if (!method->new103) {
+					/* save to a different filename. This is quite
+					 * wastefull for index files, as they will be
+					 * copied another time, but otherwise an squeeze
+					 * http method might download it two times to the
+					 * same file, corrupting it */
+					todo->redirected_filename =
+						mprintf("%s_redirect", todo->filename);
+					if (FAILEDTOALLOC(todo->redirected_filename))
+						return RET_ERROR_OOM;
+				}
+				todo->redirect_count++;
 				enqueue(method, todo);
 				return RET_OK;
 			}
@@ -634,7 +644,15 @@ static retvalue uridone(struct aptmethod *method, const char *uri, const char *f
 				if (!method->old103)
 					fprintf(stderr, "aptmethod '%s' seems to have a obsoleted redirect handling which causes reprepro to request files multiple times.\nTrying to limit this behavior, but better only use it for targets not redirecting (or upgrade to apt >= 0.9.4 if that is the http method from apt)!\n", method->name);
 				method->old103 = true;
+				method->new103 = false;
 				expectduplicates = true;
+			} else if (!method->old103 &&
+			           todo->redirected_filename != NULL &&
+			           strcmp(filename, todo->redirected_filename) == 0) {
+				/* nothing hints for a old 103 handling, and the redirected
+				 * file was gotten before any redirected was, so assume
+				 * this is the new style */
+				method->new103 = true;
 			}
 			r = todo->callback(qa_got,
 				todo->privdata1, todo->privdata2,
