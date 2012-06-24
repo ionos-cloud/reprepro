@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2004,2005,2007,2008,2009 Bernhard R. Link
+ *  Copyright (C) 2004,2005,2007,2008,2009,2012 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -47,11 +47,16 @@ struct tobedone {
 	char *uri;
 	/*@notnull@*/
 	char *filename;
+	/* in case of redirection, safe to another file first */
+	/*@null@*/
+	char *redirected_filename;
 	/* callback and its data: */
 	queue_callback *callback;
 	/*@null@*/void *privdata1, *privdata2;
 	/* there is no fallback or that was already used */
-	bool lasttry;
+	bool lasttry, ignore;
+	/* how often this was redirected */
+	unsigned int redirect_count;
 };
 
 struct aptmethod {
@@ -80,6 +85,10 @@ struct aptmethod {
 	/* What is currently written: */
 	/*@null@*/char *command;
 	size_t alreadywritten, output_length;
+	/* old (<= squeeze) 103 behavior detected */
+	bool old103;
+	/* new (>= wheezy) 103 behavior detected, no more workarounds necessary */
+	bool new103;
 };
 
 struct aptmethodrun {
@@ -88,6 +97,7 @@ struct aptmethodrun {
 
 static void todo_free(/*@only@*/ struct tobedone *todo) {
 	free(todo->filename);
+	free(todo->redirected_filename);
 	free(todo->uri);
 	free(todo);
 }
@@ -357,6 +367,7 @@ inline static retvalue aptmethod_startup(struct aptmethod *method) {
 		setenv("REPREPRO_BASE_DIR", global.basedir, true);
 		setenv("REPREPRO_OUT_DIR", global.outdir, true);
 		setenv("REPREPRO_CONF_DIR", global.confdir, true);
+		setenv("REPREPRO_CONFIG_DIR", global.confdir, true);
 		setenv("REPREPRO_DIST_DIR", global.distdir, true);
 		setenv("REPREPRO_LOG_DIR", global.logdir, true);
 		(void)execl(methodname, methodname, ENDOFARGUMENTS);
@@ -421,10 +432,13 @@ static retvalue enqueuenew(struct aptmethod *method, /*@only@*/char *uri, /*@onl
 	todo->next = NULL;
 	todo->uri = uri;
 	todo->filename = destfile;
+	todo->redirected_filename = NULL;
 	todo->callback = callback;
 	todo->privdata1 = privdata1;
 	todo->privdata2 = privdata2;
 	todo->lasttry = method->fallbackbaseuri == NULL;
+	todo->ignore = false;
+	todo->redirect_count = 0;
 	enqueue(method, todo);
 	return RET_OK;
 }
@@ -447,6 +461,9 @@ retvalue aptmethod_enqueueindex(struct aptmethod *method, const char *suite, con
 
 static retvalue requeue_or_fail(struct aptmethod *method, /*@only@*/struct tobedone *todo) {
 	retvalue r;
+
+	if (todo->ignore)
+		return RET_NOTHING;
 
 	if (todo->lasttry) {
 		if (todo->callback == NULL)
@@ -477,6 +494,7 @@ static retvalue requeue_or_fail(struct aptmethod *method, /*@only@*/struct tobed
 		free(todo->uri);
 		todo->uri = s;
 		todo->lasttry = true;
+		todo->redirect_count = 0;
 		enqueue(method, todo);
 		return RET_OK;
 	}
@@ -521,6 +539,79 @@ static retvalue urierror(struct aptmethod *method, const char *uri, /*@only@*/ch
 	return RET_ERROR;
 }
 
+/* look which file could not be received and readd the new name... */
+static retvalue uriredirect(struct aptmethod *method, const char *uri, /*@only@*/char *newuri) {
+	struct tobedone *todo, *lasttodo;
+
+	lasttodo = NULL; todo = method->tobedone;
+	while (todo != NULL) {
+		if (strcmp(todo->uri, uri) == 0)  {
+
+			/* with the old 103 behavior, the method will
+			 * change the url itself, but report the new one
+			 * when done, so rewrite it: */
+			if (method->old103) {
+				free(todo->uri);
+				todo->uri = newuri;
+				return RET_NOTHING;
+			}
+
+			/* remove item: */
+			if (lasttodo == NULL)
+				method->tobedone = todo->next;
+			else
+				lasttodo->next = todo->next;
+			if (method->nexttosend == todo) {
+				/* just in case some method received
+				 * files before we request them ;-) */
+				method->nexttosend = todo->next;
+			}
+			if (method->lasttobedone == todo) {
+				method->lasttobedone = todo->next;
+			}
+			if (todo->redirected_filename == NULL
+			    && todo->redirect_count < 2) {
+				if (verbose > 0)
+					fprintf(stderr,
+"aptmethod redirects '%s' to '%s'\n",
+						uri, newuri);
+				/* readd with new uri */
+				free(todo->uri);
+				todo->uri = newuri;
+				if (!method->new103) {
+					/* save to a different filename. This is quite
+					 * wastefull for index files, as they will be
+					 * copied another time, but otherwise an squeeze
+					 * http method might download it two times to the
+					 * same file, corrupting it */
+					todo->redirected_filename =
+						mprintf("%s_redirect", todo->filename);
+					if (FAILEDTOALLOC(todo->redirected_filename))
+						return RET_ERROR_OOM;
+				}
+				todo->redirect_count++;
+				enqueue(method, todo);
+				return RET_OK;
+			}
+			fprintf(stderr,
+"aptmethod redirects already redirected '%s' again to '%s'\n"
+"Multiple redirects currently not supported by reprepro",
+					uri, newuri);
+			/* put message in failed items to show it later? */
+			free(newuri);
+			return requeue_or_fail(method, todo);
+		}
+		lasttodo = todo;
+		todo = todo->next;
+	}
+	/* huh? If if have not asked for it, how can there be errors? */
+	fprintf(stderr,
+"Method '%s' reported redirect for unrequested file '%s'-> '%s'\n",
+			method->name, uri, newuri);
+	free(newuri);
+	return RET_ERROR;
+}
+
 /* look where a received file has to go to: */
 static retvalue uridone(struct aptmethod *method, const char *uri, const char *filename, /*@only@*//*@null@*/struct checksums *checksumsfromapt) {
 	struct tobedone *todo, *lasttodo;
@@ -528,32 +619,74 @@ static retvalue uridone(struct aptmethod *method, const char *uri, const char *f
 
 	lasttodo = NULL; todo = method->tobedone;
 	while (todo != NULL) {
+		bool expectduplicates = false;
+
 		if (strcmp(todo->uri, uri) != 0)  {
 			lasttodo = todo;
 			todo = todo->next;
 			continue;
 		}
 
-		r = todo->callback(qa_got,
+		if (todo->ignore) {
+			assert (method->old103);
+			assert (todo->redirected_filename != NULL);
+			r = RET_NOTHING;
+		} else {
+			/* This detection (by requesting the redirected file to
+			 * another filename and comparing here is a ugly hack
+			 * (assuming the method will process the old one before
+			 * the new one and causing an unnecessary copy with the
+			 * new behaviour...., but there is no way to destinguish
+			 * those methods).*/
+			if (todo->redirected_filename != NULL &&
+			    strcmp(filename, todo->filename) == 0) {
+				/* this looks like we met a method that gives 103
+				 * but still downloads the file. remember this */
+				if (!method->old103)
+					fprintf(stderr,
+"aptmethod '%s' seems to have a obsoleted redirect handling which causes\n"
+"reprepro to request files multiple times. Work-around activated, but better\n"
+"only use it for targets not redirecting (or upgrade to apt >= 0.9.4 if\n"
+"that is the http method from apt)!\n", method->name);
+				method->old103 = true;
+				method->new103 = false;
+				expectduplicates = true;
+			} else if (!method->old103 &&
+			           todo->redirected_filename != NULL &&
+			           strcmp(filename, todo->redirected_filename) == 0) {
+				/* nothing hints for a old 103 handling, and the redirected
+				 * file was gotten before any redirected was, so assume
+				 * this is the new style */
+				method->new103 = true;
+			}
+			r = todo->callback(qa_got,
 				todo->privdata1, todo->privdata2,
 				todo->uri, filename, todo->filename,
 				checksumsfromapt, method->name);
+		}
 		checksums_free(checksumsfromapt);
+		if (todo->redirected_filename != NULL
+		    && strcmp(filename, todo->redirected_filename) == 0)
+			unlink(todo->redirected_filename);
 
-		/* remove item: */
-		if (lasttodo == NULL)
-			method->tobedone = todo->next;
-		else
-			lasttodo->next = todo->next;
-		if (method->nexttosend == todo) {
-			/* just in case some method received
-			 * files before we request them ;-) */
-			method->nexttosend = todo->next;
+		if (expectduplicates) {
+			todo->ignore = true;
+		} else {
+			/* remove item: */
+			if (lasttodo == NULL)
+				method->tobedone = todo->next;
+			else
+				lasttodo->next = todo->next;
+			if (method->nexttosend == todo) {
+				/* just in case some method received
+				 * files before we request them ;-) */
+				method->nexttosend = todo->next;
+			}
+			if (method->lasttobedone == todo) {
+				method->lasttobedone = todo->next;
+			}
+			todo_free(todo);
 		}
-		if (method->lasttobedone == todo) {
-			method->lasttobedone = todo->next;
-		}
-		todo_free(todo);
 		return r;
 	}
 	/* huh? */
@@ -725,6 +858,33 @@ static inline retvalue goturierror(struct aptmethod *method, const char *chunk) 
 	return r;
 }
 
+static inline retvalue gotredirect(struct aptmethod *method, const char *chunk) {
+	char *uri, *newuri;
+	retvalue r;
+
+	r = chunk_getvalue(chunk, "URI", &uri);
+	if (r == RET_NOTHING) {
+		fprintf(stderr,
+"Missing URI header in uriredirect received from '%s' method!\n", method->name);
+		r = RET_ERROR;
+	}
+	if (RET_WAS_ERROR(r))
+		return r;
+	r = chunk_getvalue(chunk, "New-URI", &newuri);
+	if (r == RET_NOTHING) {
+		fprintf(stderr,
+"Missing New-URI header in uriredirect received from '%s' method!\n", method->name);
+		r = RET_ERROR;
+	}
+	if (RET_WAS_ERROR(r)) {
+		free(uri);
+		return r;
+	}
+	r = uriredirect(method, uri, newuri);
+	free(uri);
+	return r;
+}
+
 static inline retvalue parsereceivedblock(struct aptmethod *method, const char *input) {
 	const char *p;
 	retvalue r;
@@ -763,6 +923,10 @@ static inline retvalue parsereceivedblock(struct aptmethod *method, const char *
 						return logmessage(method, p, "102");
 					}
 					return RET_OK;
+				/* 103 Redirect */
+				case '3':
+					OVERLINE;
+					return gotredirect(method, p);
 				default:
 					fprintf(stderr,
 "Error or unsupported message received: '%s'\n",
@@ -927,10 +1091,15 @@ static retvalue senddata(struct aptmethod *method) {
 		*/
 		method->command = mprintf(
 			 "600 URI Acquire\nURI: %s\nFilename: %s\n\n",
-			 todo->uri, todo->filename);
+			 todo->uri,
+			 (todo->redirected_filename==NULL)
+			 	?todo->filename
+			 	:todo->redirected_filename);
 		if (FAILEDTOALLOC(method->command)) {
 			return RET_ERROR_OOM;
 		}
+		if (verbose > 20)
+			fprintf(stderr, "Will sent: '%s'\n", method->command);
 		method->output_length = strlen(method->command);
 		method->nexttosend = method->nexttosend->next;
 	}

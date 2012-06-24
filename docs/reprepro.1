@@ -1,4 +1,4 @@
-.TH REPREPRO 1 "2012-03-26" "reprepro" REPREPRO
+.TH REPREPRO 1 "2012-06-24" "reprepro" REPREPRO
 .SH NAME
 reprepro \- produce, manage and sync a local repository of Debian packages
 .mso www.tmac
@@ -19,13 +19,11 @@ reprepro is a tool to manage a repository of Debian packages
 It stores files either being injected manually or
 downloaded from some other repository (partially) mirrored
 into a pool/ hierarchy.
-Managed packages and checksums of files are stored in a libdb4.3
-database (or libdb4.4 or libdb3, depending what reprepro was compiled with),
+Managed packages and checksums of files are stored in a
+Berkeley DB database file,
 so no database server is needed.
 Checking signatures of mirrored repositories and creating
 signatures of the generated Package indices is supported.
-
-.B WARNING: Some functions are still quite experimental and not very heavily tested. Be careful.
 
 Former working title of this program was mirrorer.
 .SH "GLOBAL OPTIONS"
@@ -2397,6 +2395,38 @@ depending on how reprepro got it).
 This is not used, but only set in hook scripts called by reprepro
 to the \fBdists\fP directory (relative to the current directory or
 absolute, depending on how reprepro got it).
+.TP
+.B REPREPRO_LOG_DIR
+This is not used, but only set in hook scripts called by reprepro
+to the value setable by \fB\-\-logdir\fP.
+.TP
+.B REPREPRO_CAUSING_COMMAND
+.TP
+.B REPREPRO_CAUSING_FILE
+Those two environment variable are set (or unset) in
+\fBLog:\fP and \fBByHandHooks:\fP scripts and hint what command
+and what file caused the hook to be called (if there is some).
+.TP
+.B REPREPRO_CAUSING_RULE
+This environment variable is set (or unset) in
+\fBLog:\fP scripts and hint what update or pull rule caused
+this change.
+.TP
+.B REPREPRO_FROM
+This environment variable is set (or unset) in
+\fBLog:\fP scripts and denotes what other distribution a
+package is copied from (with pull and copy commands).
+.TP
+.B REPREPRO_FILTER_ARCHITECTURE
+.TP
+.B REPREPRO_FILTER_CODENAME
+.TP
+.B REPREPRO_FILTER_COMPONENT
+.TP
+.B REPREPRO_FILTER_PACKAGETYPE
+.TP
+.B REPREPRO_FILTER_PATTERN
+Set in \fBListFilterHook:\fP scripts.
 .TP
 .B GNUPGHOME
 Not used by reprepro directly.
