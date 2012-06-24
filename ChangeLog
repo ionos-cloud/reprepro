@@ -1,3 +1,6 @@
+2012-06-24
+	* support http-method's extended 103 redirect status
+
 2012-06-07
 	* fix bash and zsh completion to work with
 	  conf/distributions and conf/incoming directories.
