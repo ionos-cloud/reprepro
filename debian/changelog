@@ -1,3 +1,12 @@
+reprepro (4.12.3-1) unstable; urgency=low
+
+  * new bugfix release
+  - add support for new http method redirect behavior
+  - improve environment variable description in manpage (Closes: 676508)
+  - improve error message with unterminated filterlists (Closes: 678326)
+
+ -- Bernhard R. Link <brlink@debian.org>  Sun, 24 Jun 2012 23:04:55 +0200
+
 reprepro (4.12.2-1) unstable; urgency=low
 
   * new bugfix release

@@ -11,8 +11,8 @@ Homepage: http://mirrorer.alioth.debian.org/
 Package: reprepro
 Architecture: any
 Depends: ${shlibs:Depends}, ${reprepro:Depends}, ${misc:Depends}
-Recommends: apt
-Suggests: gnupg-agent, inoticoming, lzip (>= 1.11-2), xz-lzma | lzma, xz-utils
+Recommends: apt (>= 0.9.4)
+Suggests: gnupg-agent, inoticoming, lzip (>= 1.11-2), xz-utils (>= 5.1.1alpha+20120614-1~) | xz-lzma | lzma, xz-utils
 Description: Debian package repository producer
  reprepro is a tool to manage a repository of Debian packages
  (.deb, .udeb, .dsc, ...). It stores files either being
