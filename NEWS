@@ -1,3 +1,8 @@
+Updates between 4.12.2 and 4.12.3:
+- actually set REPREPRO_CONFIG_DIR in hooks as documented in manpage
+- support 103 redirect message from apt's http method.
+  (works best with apt >= 0.9.4)
+
 Updates between 4.12.1 and 4.12.2:
 - fix error with uploader files with more than 16 group members
 
