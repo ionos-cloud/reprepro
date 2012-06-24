@@ -931,6 +931,8 @@ static retvalue senddata(struct aptmethod *method) {
 		if (FAILEDTOALLOC(method->command)) {
 			return RET_ERROR_OOM;
 		}
+		if (verbose > 20)
+			fprintf(stderr, "Will sent: '%s'\n", method->command);
 		method->output_length = strlen(method->command);
 		method->nexttosend = method->nexttosend->next;
 	}
