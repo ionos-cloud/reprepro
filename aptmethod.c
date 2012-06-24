@@ -642,7 +642,11 @@ static retvalue uridone(struct aptmethod *method, const char *uri, const char *f
 				/* this looks like we met a method that gives 103
 				 * but still downloads the file. remember this */
 				if (!method->old103)
-					fprintf(stderr, "aptmethod '%s' seems to have a obsoleted redirect handling which causes reprepro to request files multiple times.\nTrying to limit this behavior, but better only use it for targets not redirecting (or upgrade to apt >= 0.9.4 if that is the http method from apt)!\n", method->name);
+					fprintf(stderr,
+"aptmethod '%s' seems to have a obsoleted redirect handling which causes\n"
+"reprepro to request files multiple times. Work-around activated, but better\n"
+"only use it for targets not redirecting (or upgrade to apt >= 0.9.4 if\n"
+"that is the http method from apt)!\n", method->name);
 				method->old103 = true;
 				method->new103 = false;
 				expectduplicates = true;
