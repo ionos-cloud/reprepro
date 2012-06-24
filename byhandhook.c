@@ -194,6 +194,7 @@ retvalue byhandhook_call(const struct byhandhook *h, const char *codename, const
 		setenv("REPREPRO_BASE_DIR", global.basedir, true);
 		setenv("REPREPRO_OUT_DIR", global.outdir, true);
 		setenv("REPREPRO_CONF_DIR", global.confdir, true);
+		setenv("REPREPRO_CONFIG_DIR", global.confdir, true);
 		setenv("REPREPRO_DIST_DIR", global.distdir, true);
 		setenv("REPREPRO_LOG_DIR", global.logdir, true);
 		(void)execl(h->script, h->script, codename,

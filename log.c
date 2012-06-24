@@ -624,6 +624,7 @@ static retvalue startchild(void) {
 		setenv("REPREPRO_BASE_DIR", global.basedir, true);
 		setenv("REPREPRO_OUT_DIR", global.outdir, true);
 		setenv("REPREPRO_CONF_DIR", global.confdir, true);
+		setenv("REPREPRO_CONFIG_DIR", global.confdir, true);
 		setenv("REPREPRO_DIST_DIR", global.distdir, true);
 		setenv("REPREPRO_LOG_DIR", global.logdir, true);
 		(void)execv(p->arguments[0], p->arguments);
