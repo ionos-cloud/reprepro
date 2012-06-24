@@ -2396,6 +2396,38 @@ This is not used, but only set in hook scripts called by reprepro
 to the \fBdists\fP directory (relative to the current directory or
 absolute, depending on how reprepro got it).
 .TP
+.B REPREPRO_LOG_DIR
+This is not used, but only set in hook scripts called by reprepro
+to the value setable by \fB\-\-logdir\fP.
+.TP
+.B REPREPRO_CAUSING_COMMAND
+.TP
+.B REPREPRO_CAUSING_FILE
+Those two environment variable are set (or unset) in
+\fBLog:\fP and \fBByHandHooks:\fP scripts and hint what command
+and what file caused the hook to be called (if there is some).
+.TP
+.B REPREPRO_CAUSING_RULE
+This environment variable is set (or unset) in
+\fBLog:\fP scripts and hint what update or pull rule caused
+this change.
+.TP
+.B REPREPRO_FROM
+This environment variable is set (or unset) in
+\fBLog:\fP scripts and denotes what other distribution a
+package is copied from (with pull and copy commands).
+.TP
+.B REPREPRO_FILTER_ARCHITECTURE
+.TP
+.B REPREPRO_FILTER_CODENAME
+.TP
+.B REPREPRO_FILTER_COMPONENT
+.TP
+.B REPREPRO_FILTER_PACKAGETYPE
+.TP
+.B REPREPRO_FILTER_PATTERN
+Set in \fBListFilterHook:\fP scripts.
+.TP
 .B GNUPGHOME
 Not used by reprepro directly.
 But reprepro uses libgpgme, which calls gpg for signing and verification

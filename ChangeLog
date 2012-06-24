@@ -2,6 +2,7 @@
 	* support http-method's extended 103 redirect status
 	* actually set REPREPRO_CONFIG_DIR in hooks as
 	  documented in manpage.
+	* document more environment variables in manpage
 
 2012-06-07
 	* fix bash and zsh completion to work with
