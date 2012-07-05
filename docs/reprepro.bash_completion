@@ -259,6 +259,7 @@ _reprepro()
 			copysrc\
 			createsymlinks\
 			deleteunreferenced\
+			deleteifunreferenced\
 			dumpreferences\
 			dumptracks\
 			dumppull\
@@ -534,8 +535,15 @@ _reprepro()
 			# here we could look for package names existing in
 			# that distribution, but that would be slow...
 			;;
-		__dumpuncompressors|translatelageacychecksums)
+		__dumpuncompressors|translatelageacychecksums|deleteunreferenced)
 			# no arguments
+			return 0
+			;;
+		deleteifunreferenced)
+			# less usefull than the output of dumpunreferenced,
+			# but this way it should be massively faster:
+			parse_config_for_distdir
+			COMPREPLY=( $(cd "$outdir" && compgen -o filenames -f -- $cur) )
 			return 0
 			;;
 	esac

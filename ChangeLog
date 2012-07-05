@@ -1,3 +1,8 @@
+2012-07-12
+	* add 'deleteifunreferenced' command to safely delete
+	  and forget the given files in a repository with
+	  keepunreferencedfiles set.
+
 2012-07-11
 	* fix bug in checking old unchanged {Packages/Sources}.bz2
 	  files for existance. (Triggering even an assertion when

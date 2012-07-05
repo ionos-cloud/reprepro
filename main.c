@@ -578,6 +578,37 @@ ACTION_RF(n, n, n, deleteunreferenced) {
 	return result;
 }
 
+ACTION_RF(n, n, y, deleteifunreferenced) {
+	char buffer[5000], *nl;
+	int i;
+	retvalue r, ret;
+
+	ret = RET_NOTHING;
+	if (argc > 1) {
+		for (i = 1 ; i < argc ; i++) {
+			r = deleteifunreferenced(NULL, argv[i]);
+			RET_UPDATE(ret, r);
+			if (r == RET_NOTHING && verbose >= 0)
+				fprintf(stderr, "Not removing '%s'\n",
+						argv[i]);
+		}
+
+	} else
+		while (fgets(buffer, 4999, stdin) != NULL) {
+			nl = strchr(buffer, '\n');
+			if (nl == NULL) {
+				return RET_ERROR;
+			}
+			*nl = '\0';
+			r = deleteifunreferenced(NULL, buffer);
+			RET_UPDATE(ret, r);
+			if (r == RET_NOTHING && verbose >= 0)
+				fprintf(stderr, "Not removing '%s'\n",
+						buffer);
+		}
+	return ret;
+}
+
 ACTION_R(n, n, n, y, addreference) {
 	assert (argc == 2 || argc == 3);
 	return references_increment(argv[1], argv[2]);
@@ -3828,6 +3859,8 @@ static const struct action {
 		0, 0, "dumpreferences", },
 	{"dumpunreferenced", 	A_RF(dumpunreferenced),
 		0, 0, "dumpunreferenced", },
+	{"deleteifunreferenced", A_RF(deleteifunreferenced),
+		0, -1, "deleteifunreferenced"},
 	{"deleteunreferenced", 	A_RF(deleteunreferenced),
 		0, 0, "deleteunreferenced", },
 	{"retrack",	 	A_D(retrack),

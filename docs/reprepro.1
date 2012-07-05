@@ -1,4 +1,4 @@
-.TH REPREPRO 1 "2012-06-24" "reprepro" REPREPRO
+.TH REPREPRO 1 "2012-07-12" "reprepro" REPREPRO
 .SH NAME
 reprepro \- produce, manage and sync a local repository of Debian packages
 .mso www.tmac
@@ -753,6 +753,16 @@ not known to be needed.
 .B deleteunreferenced
 Remove all known files (and forget them) in the pool not marked to be
 needed by anything.
+.TP
+.BR deleteifunreferenced " [ " \fIfilekeys\fP " ]"
+Remove the given files (and forget them) in the pool if they
+are not marked to be used by anything.
+If no command line arguments are given,
+stdin is read and every line treated as one filekey.
+This is mostly useful together with \fB\-\-keepunreferenced\fP
+in \fBconf/options\fP or in situations where one does not want
+to run \fBdeleteunreferenced\fP, which removes all files eligible
+to be deleted with this command.
 .TP
 .BR reoverride " [ " \fIcodenames\fP " ]"
 Reapply the override files to the given distributions (Or only parts
