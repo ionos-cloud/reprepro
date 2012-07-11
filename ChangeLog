@@ -1,3 +1,8 @@
+2012-07-11
+	* fix bug in checking old unchanged {Packages/Sources}.bz2
+	  files for existance. (Triggering even an assertion when
+	  only .bz2 index files are requested).
+
 2012-06-24
 	* support http-method's extended 103 redirect status
 	* actually set REPREPRO_CONFIG_DIR in hooks as
