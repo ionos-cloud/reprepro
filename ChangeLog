@@ -2,6 +2,8 @@
 	* fix bug in checking old unchanged {Packages/Sources}.bz2
 	  files for existance. (Triggering even an assertion when
 	  only .bz2 index files are requested).
+	* ignore diff comments about unterminated lines
+	  when parsing .diff files
 
 2012-06-24
 	* support http-method's extended 103 redirect status
