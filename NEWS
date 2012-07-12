@@ -1,3 +1,7 @@
+Updates between 4.12.3 and 4.12.4:
+- fix bug when only generating .bz2 indices
+- ignore diff comments about unterminated lines when parsing .diff files
+
 Updates between 4.12.2 and 4.12.3:
 - actually set REPREPRO_CONFIG_DIR in hooks as documented in manpage
 - support 103 redirect message from apt's http method.
