@@ -315,6 +315,13 @@ static retvalue parsediff(struct compressedfile *f, /*@null@*/char **section_p, 
 				return RET_OK;
 			}
 		}
+		if (memcmp(p, "\\ No newline at end of file", 27) == 0) {
+			if (!u_getline()) {
+				/* nothing found successfully */
+				*found_p = false;
+				return RET_OK;
+			}
+		}
 		if (memcmp(p, "diff ", 4) == 0) {
 			if (!u_getline()) {
 				/* strange file, but nothing explicitly wrong */
