@@ -4,7 +4,7 @@ reprepro (4.12.4-1) unstable; urgency=low
   - fix assert() triggering when requesting only .bz2 indicies
   - fix typo in manpage (Closes: 681105)
   - don't stop on no-newline warnings when parsing .diff.gz files
-    (Closes: 676519)
+    (Closes: 681094)
 
  -- Bernhard R. Link <brlink@debian.org>  Thu, 12 Jul 2012 15:30:12 +0200
 
