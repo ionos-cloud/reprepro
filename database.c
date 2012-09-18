@@ -1765,7 +1765,7 @@ retvalue database_opentracking(const char *codename, bool readonly, struct table
 
 	if (rdb_nopackages) {
 		(void)fputs(
-"Internal Error: Accessing packages databse while that was not prepared!\n",
+"Internal Error: Accessing packages database while that was not prepared!\n",
 				stderr);
 		return RET_ERROR;
 	}
@@ -1793,7 +1793,7 @@ retvalue database_openpackages(const char *identifier, bool readonly, struct tab
 
 	if (rdb_nopackages) {
 		(void)fputs(
-"Internal Error: Accessing packages databse while that was not prepared!\n",
+"Internal Error: Accessing packages database while that was not prepared!\n",
 				stderr);
 		return RET_ERROR;
 	}
