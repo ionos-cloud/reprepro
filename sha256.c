@@ -189,8 +189,10 @@ SHA256Final(struct SHA256_Context *ctx, uint8_t *digest)
   /* Put the 64-bit file length in *bits* at the end of the buffer.  */
   bitslow = ctx->total << 3;
   bitshigh = ctx->total >> 29;
-  *(uint32_t *) &ctx->buffer[bytes + pad + 4] = SWAP (bitslow);
-  *(uint32_t *) &ctx->buffer[bytes + pad] = SWAP (bitshigh);
+  bitslow = SWAP(bitslow);
+  memcpy(ctx->buffer + bytes + pad + 4, &bitslow, 4);
+  bitshigh = SWAP(bitshigh);
+  memcpy(ctx->buffer + bytes + pad, &bitshigh, 4);
 
   /* Process last bytes.  */
   sha256_process_block (ctx->buffer, bytes + pad + 8, ctx);
