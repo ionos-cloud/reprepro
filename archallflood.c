@@ -189,7 +189,7 @@ static retvalue find_or_add_source(struct floodlist *list, /*@only@*/char *sourc
 			return RET_ERROR_OOM;
 		}
 		memcpy(n, *p, sizeof(struct aa_source_package));
-		memset(*p, 0, sizeof(struct aa_source_package));
+		setzero(struct aa_source_package, *p);
 		(*p)->name = source;
 		(*p)->version = sourceversion;
 		(*p)->left_child = n->left_child;

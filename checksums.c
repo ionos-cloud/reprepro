@@ -156,7 +156,7 @@ retvalue checksums_init(/*@out@*/struct checksums **checksums_p, char *hashes[cs
 			free(hashes[type]);
 		return RET_ERROR_OOM;
 	}
-	memset(n, 0, sizeof(struct checksums));
+	setzero(struct checksums, n);
 	d = n->representation;
 
 	for (type = cs_firstEXTENDED ; type < cs_hashCOUNT ; type++) {
@@ -223,7 +223,7 @@ retvalue checksums_initialize(struct checksums **checksums_p, const struct hash_
 	if (FAILEDTOALLOC(n))
 		return RET_ERROR_OOM;
 
-	memset(n, 0, sizeof(struct checksums));
+	setzero(struct checksums, n);
 	d = n->representation;
 
 	for (type = cs_firstEXTENDED ; type < cs_hashCOUNT ; type++) {
@@ -277,7 +277,7 @@ retvalue checksums_parse(struct checksums **checksums_p, const char *combinedche
 	n = malloc(sizeof(struct checksums) + len + 1);
 	if (FAILEDTOALLOC(n))
 		return RET_ERROR_OOM;
-	memset(n, 0, sizeof(struct checksums));
+	setzero(struct checksums, n);
 	d = n->representation;
 	while (*p == ':') {
 
@@ -504,7 +504,7 @@ retvalue checksums_combine(struct checksums **checksums_p, const struct checksum
 	n = malloc(sizeof(struct checksums)+ len + 1);
 	if (FAILEDTOALLOC(n))
 		return RET_ERROR_OOM;
-	memset(n, 0, sizeof(struct checksums));
+	setzero(struct checksums, n);
 	o = old->representation;
 	b = by->representation;
 	d = n->representation;
@@ -1152,7 +1152,7 @@ retvalue checksums_from_context(struct checksums **out, struct checksumscontext 
 			+ 2*SHA1_DIGEST_SIZE + 2*SHA256_DIGEST_SIZE + 30);
 	if (FAILEDTOALLOC(n))
 		return RET_ERROR_OOM;
-	memset(n, 0, sizeof(struct checksums));
+	setzero(struct checksums, n);
 	d = n->representation;
 	*(d++) = ':';
 	*(d++) = '1';

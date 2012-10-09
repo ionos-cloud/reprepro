@@ -86,9 +86,11 @@ extern struct global_config {
 
 enum compression { c_none, c_gzip, c_bzip2, c_lzma, c_xz, c_lunzip, c_COUNT };
 
+#define setzero(type, pointer) ({type *__var = pointer; memset(__var, 0, sizeof(type));})
 #define NEW(type) ((type *)malloc(sizeof(type)))
 #define nNEW(num, type) ((type *)malloc((num) * sizeof(type)))
 #define zNEW(type) ((type *)calloc(1, sizeof(type)))
 #define nzNEW(num, type) ((type *)calloc(num, sizeof(type)))
+#define arrayinsert(type, array, position, length) ({type *__var = array; memmove(__var + (position) + 1, __var + (position), sizeof(type) * ((length) - (position)));})
 
 #endif

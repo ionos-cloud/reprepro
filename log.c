@@ -230,7 +230,7 @@ static retvalue notificator_parse(struct notificator *n, struct configiterator *
 	retvalue r;
 	int c;
 
-	memset(n, 0, sizeof(struct notificator));
+	setzero(struct notificator, n);
 	n->architecture = atom_unknown;
 	n->component = atom_unknown;
 	n->packagetype = atom_unknown;

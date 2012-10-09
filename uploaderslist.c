@@ -721,7 +721,7 @@ static retvalue parse_condition(const struct filebeingparsed *fbp, int column, c
 	const char *p = *pp;
 	struct upload_condition *fallback, *last, *or_scope;
 
-	memset(condition, 0, sizeof(struct upload_condition));
+	setzero(struct upload_condition, condition);
 
 	/* allocate a new fallback-node:
 	 * (this one is used to make it easier to concatenate those decision
@@ -942,7 +942,7 @@ static retvalue parse_condition(const struct filebeingparsed *fbp, int column, c
 			errorcol(fbp, column + (int)(p - *pp),
 "'by','and' or 'or' keyword expected!");
 			uploadpermission_release(condition);
-			memset(condition, 0, sizeof(struct upload_condition));
+			setzero(struct upload_condition, condition);
 			return RET_ERROR;
 		}
 		while (*p != '\0' && xisspace(*p))
@@ -956,7 +956,7 @@ static void condition_add(struct upload_condition *permissions, struct upload_co
 	if (permissions->next == NULL) {
 		/* first condition, as no fallback yet allocated */
 		*permissions = *c;
-		memset(c, 0, sizeof(struct upload_condition));
+		setzero(struct upload_condition, c);
 	} else {
 		struct upload_condition *last;
 
@@ -971,7 +971,7 @@ static void condition_add(struct upload_condition *permissions, struct upload_co
 		assert(!last->accept_if_true);
 
 		*last = *c;
-		memset(c, 0, sizeof(struct upload_condition));
+		setzero(struct upload_condition, c);
 	}
 }
 
