@@ -22,7 +22,6 @@
 #include <stdarg.h>
 #include <unistd.h>
 #include <stdlib.h>
-#include <malloc.h>
 #include <string.h>
 #include <ctype.h>
 #include <time.h>

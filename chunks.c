@@ -17,7 +17,6 @@
 
 #include <errno.h>
 #include <stdlib.h>
-#include <malloc.h>
 #include <string.h>
 #include <stdio.h>
 #include <ctype.h>

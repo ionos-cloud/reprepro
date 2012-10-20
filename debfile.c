@@ -22,7 +22,6 @@
 #include <sys/stat.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <malloc.h>
 #include <string.h>
 #include <ctype.h>
 #include <archive.h>

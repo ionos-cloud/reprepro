@@ -21,7 +21,6 @@
 #include <stdarg.h>
 #include <unistd.h>
 #include <stdlib.h>
-#include <malloc.h>
 #include <string.h>
 #include <strings.h>
 #include <ctype.h>
