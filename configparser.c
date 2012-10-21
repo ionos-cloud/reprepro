@@ -680,8 +680,8 @@ retvalue config_getword(struct configiterator *iter, char **result_p) {
 	return config_completeword(iter, c, result_p);
 }
 
-retvalue config_gettimespan(struct configiterator *iter, const char *header, time_t *time_p) {
-	time_t currentnumber, currentsum = 0;
+retvalue config_gettimespan(struct configiterator *iter, const char *header, unsigned long *time_p) {
+	long long currentnumber, currentsum = 0;
 	bool empty = true;
 	int c;
 
@@ -707,6 +707,11 @@ retvalue config_gettimespan(struct configiterator *iter, const char *header, tim
 		}
 		empty = false;
 		do {
+			if (currentnumber > 3660) {
+				configparser_errorlast(iter,
+"Absurdly long time span (> 100 years) in %s header.", header);
+				return RET_ERROR;
+			}
 			currentnumber *= 10;
 			currentnumber += (c - '0');
 			c = config_nextchar(iter);
@@ -714,12 +719,32 @@ retvalue config_gettimespan(struct configiterator *iter, const char *header, tim
 		if (c == ' ' || c == '\t' || c == '\n')
 			c = config_nextnonspace(iter);
 		if (c == 'y') {
+			if (currentnumber > 100) {
+				configparser_errorlast(iter,
+"Absurdly long time span (> 100 years) in %s header.", header);
+				return RET_ERROR;
+			}
 			currentnumber *= 365*24*60*60;
 		} else if (c == 'm') {
+			if (currentnumber > 1200) {
+				configparser_errorlast(iter,
+"Absurdly long time span (> 100 years) in %s header.", header);
+				return RET_ERROR;
+			}
 			currentnumber *= 31*24*60*60;
 		} else if (c == 'd') {
+			if (currentnumber > 36600) {
+				configparser_errorlast(iter,
+"Absurdly long time span (> 100 years) in %s header.", header);
+				return RET_ERROR;
+			}
 			currentnumber *= 24*60*60;
 		} else {
+			if (currentnumber > 36600) {
+				configparser_errorlast(iter,
+"Absurdly long time span (> 100 years) in %s header.", header);
+				return RET_ERROR;
+			}
 			currentnumber *= 24*60*60;
 			if (c != EOF) {
 				configparser_errorlast(iter,
