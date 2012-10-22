@@ -23,7 +23,6 @@
 #include <getopt.h>
 #include <string.h>
 #include <strings.h>
-#include <malloc.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <dirent.h>

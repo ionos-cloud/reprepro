@@ -23,7 +23,6 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <stdlib.h>
-#include <malloc.h>
 #include "error.h"
 #include "mprintf.h"
 #include "strlist.h"

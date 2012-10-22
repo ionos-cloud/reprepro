@@ -23,7 +23,6 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
-#include <malloc.h>
 #include <string.h>
 #include <ctype.h>
 

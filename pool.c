@@ -18,7 +18,6 @@
 #include <errno.h>
 #include <assert.h>
 #include <limits.h>
-#include <malloc.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>

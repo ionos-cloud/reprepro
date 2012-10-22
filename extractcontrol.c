@@ -24,7 +24,6 @@
 #include <stdio.h>
 #include <getopt.h>
 #include <string.h>
-#include <malloc.h>
 #include "error.h"
 #include "filecntl.h"
 #include "readtextfile.h"
