@@ -39,8 +39,8 @@
 // **********************************************************************
 
 static retvalue try_extractcontrol(char **control, const char *debfile, bool brokentar) {
-	int pipe1[2];
-	int pipe2[2];
+	int pipe_1[2];
+	int pipe_2[2];
 	int ret;
 	pid_t ar, tar, pid;
 	int status;
@@ -50,17 +50,17 @@ static retvalue try_extractcontrol(char **control, const char *debfile, bool bro
 
 	result = RET_OK;
 
-	ret = pipe(pipe1);
+	ret = pipe(pipe_1);
 	if (ret < 0) {
 		int e = errno;
 		fprintf(stderr, "Error %d creating pipe: %s\n", e, strerror(e));
 		return RET_ERRNO(e);
 	}
 
-	ret = pipe(pipe2);
+	ret = pipe(pipe_2);
 	if (ret < 0) {
 		int e = errno;
-		close(pipe1[0]); close(pipe1[1]);
+		close(pipe_1[0]); close(pipe_1[1]);
 		fprintf(stderr, "Error %d creating pipe: %s\n", e, strerror(e));
 		return RET_ERRNO(e);
 	}
@@ -70,18 +70,18 @@ static retvalue try_extractcontrol(char **control, const char *debfile, bool bro
 		int e = errno;
 		fprintf(stderr, "Error %d forking: %s\n", e, strerror(e));
 		result = RET_ERRNO(e);
-		close(pipe1[0]); close(pipe1[1]);
-		close(pipe2[0]); close(pipe2[1]);
+		close(pipe_1[0]); close(pipe_1[1]);
+		close(pipe_2[0]); close(pipe_2[1]);
 		return result;
 	}
 
 	if (ar == 0) {
 		int e;
 		/* calling ar */
-		if (dup2(pipe1[1], 1) < 0)
+		if (dup2(pipe_1[1], 1) < 0)
 			exit(255);
-		close(pipe1[0]); close(pipe1[1]);
-		close(pipe2[0]); close(pipe2[1]);
+		close(pipe_1[0]); close(pipe_1[1]);
+		close(pipe_2[0]); close(pipe_2[1]);
 		//TODO without explicit path
 		ret = execl("/usr/bin/ar",
 				"ar", "p", debfile, "control.tar.gz",
@@ -97,18 +97,18 @@ static retvalue try_extractcontrol(char **control, const char *debfile, bool bro
 		int e = errno;
 		result = RET_ERRNO(e);
 		fprintf(stderr, "Error %d forking: %s\n", e, strerror(e));
-		close(pipe1[0]); close(pipe1[1]);
-		close(pipe2[0]); close(pipe2[1]);
+		close(pipe_1[0]); close(pipe_1[1]);
+		close(pipe_2[0]); close(pipe_2[1]);
 		tar = -1;
 	} else if (tar == 0) {
 		int e;
 		/* calling tar */
-		if (dup2(pipe1[0], 0) < 0)
+		if (dup2(pipe_1[0], 0) < 0)
 			exit(255);
-		if (dup2(pipe2[1], 1) < 0)
+		if (dup2(pipe_2[1], 1) < 0)
 			exit(255);
-		close(pipe1[0]); close(pipe1[1]);
-		close(pipe2[0]); close(pipe2[1]);
+		close(pipe_1[0]); close(pipe_1[1]);
+		close(pipe_2[0]); close(pipe_2[1]);
 		//TODO without explicit path
 		execl("/bin/tar", "tar", "-xOzf", "-",
 				brokentar?"control":"./control",
@@ -120,8 +120,8 @@ static retvalue try_extractcontrol(char **control, const char *debfile, bool bro
 
 	}
 
-	close(pipe1[0]); close(pipe1[1]);
-	markcloseonexec(pipe2[0]); close(pipe2[1]);
+	close(pipe_1[0]); close(pipe_1[1]);
+	markcloseonexec(pipe_2[0]); close(pipe_2[1]);
 
 	controlchunk = NULL;
 
@@ -130,7 +130,7 @@ static retvalue try_extractcontrol(char **control, const char *debfile, bool bro
 		size_t len, controllen;
 		const char *afterchanges;
 
-		r = readtextfilefd(pipe2[0],
+		r = readtextfilefd(pipe_2[0],
 				brokentar?
 "output from ar p <debfile> control.tar.gz | tar -xOzf - control":
 "output from ar p <debfile> control.tar.gz | tar -xOzf - ./control",
@@ -242,8 +242,8 @@ retvalue getfilelist(/*@out@*/char **filelist, /*@out@*/size_t *size, const char
 "Extraction of file list without libarchive currently not implemented.\n");
 	return RET_ERROR;
 #if 0
-	int pipe1[2];
-	int pipe2[2];
+	int pipe_1[2];
+	int pipe_2[2];
 	int ret;
 	pid_t ar, tar, pid;
 	int status;
@@ -258,7 +258,7 @@ retvalue getfilelist(/*@out@*/char **filelist, /*@out@*/size_t *size, const char
 
 	result = RET_OK;
 
-	ret = pipe(pipe1);
+	ret = pipe(pipe_1);
 	if (ret < 0) {
 		int e = errno;
 		fprintf(stderr, "Error %d creating pipe: %s\n", e, strerror(e));
@@ -266,11 +266,11 @@ retvalue getfilelist(/*@out@*/char **filelist, /*@out@*/size_t *size, const char
 		return RET_ERRNO(e);
 	}
 
-	ret = pipe(pipe2);
+	ret = pipe(pipe_2);
 	if (ret < 0) {
 		int e = errno;
 		fprintf(stderr, "Error %d creating pipe: %s\n", e, strerror(e));
-		close(pipe1[0]); close(pipe1[1]);
+		close(pipe_1[0]); close(pipe_1[1]);
 		filelistcompressor_cancel(&c);
 		return RET_ERRNO(e);
 	}
@@ -280,8 +280,8 @@ retvalue getfilelist(/*@out@*/char **filelist, /*@out@*/size_t *size, const char
 		int e = errno;
 		fprintf(stderr, "Error %d forking: %s\n", e, strerror(e));
 		result = RET_ERRNO(e);
-		close(pipe1[0]); close(pipe1[1]);
-		close(pipe2[0]); close(pipe2[1]);
+		close(pipe_1[0]); close(pipe_1[1]);
+		close(pipe_2[0]); close(pipe_2[1]);
 		filelistcompressor_cancel(&c);
 		return result;
 	}
@@ -289,10 +289,10 @@ retvalue getfilelist(/*@out@*/char **filelist, /*@out@*/size_t *size, const char
 	if (ar == 0) {
 		int e;
 		/* calling ar */
-		if (dup2(pipe1[1], 1) < 0)
+		if (dup2(pipe_1[1], 1) < 0)
 			exit(255);
-		close(pipe1[0]); close(pipe1[1]);
-		close(pipe2[0]); close(pipe2[1]);
+		close(pipe_1[0]); close(pipe_1[1]);
+		close(pipe_2[0]); close(pipe_2[1]);
 		//TODO without explicit path
 		ret = execl("/usr/bin/ar",
 				"ar", "p", debfile, "data.tar.gz",
@@ -308,18 +308,18 @@ retvalue getfilelist(/*@out@*/char **filelist, /*@out@*/size_t *size, const char
 		int e = errno;
 		result = RET_ERRNO(e);
 		fprintf(stderr, "Error %d forking: %s\n", e, strerror(e));
-		close(pipe1[0]); close(pipe1[1]);
-		close(pipe2[0]); close(pipe2[1]);
+		close(pipe_1[0]); close(pipe_1[1]);
+		close(pipe_2[0]); close(pipe_2[1]);
 		tar = -1;
 	} else if (tar == 0) {
 		int e;
 		/* calling tar */
-		if (dup2(pipe1[0], 0) < 0)
+		if (dup2(pipe_1[0], 0) < 0)
 			exit(255);
-		if (dup2(pipe2[1], 1) < 0)
+		if (dup2(pipe_2[1], 1) < 0)
 			exit(255);
-		close(pipe1[0]); close(pipe1[1]);
-		close(pipe2[0]); close(pipe2[1]);
+		close(pipe_1[0]); close(pipe_1[1]);
+		close(pipe_2[0]); close(pipe_2[1]);
 		//TODO without explicit path
 		execl("/bin/tar", "tar", "-tzf", "-", ENDOFARGUMENTS);
 		e = errno;
@@ -329,8 +329,8 @@ retvalue getfilelist(/*@out@*/char **filelist, /*@out@*/size_t *size, const char
 
 	}
 
-	close(pipe1[0]); close(pipe1[1]);
-	close(pipe2[1]);
+	close(pipe_1[0]); close(pipe_1[1]);
+	close(pipe_2[1]);
 
 	/* read data: */
 	if (RET_IS_OK(result)) do {
@@ -350,7 +350,7 @@ retvalue getfilelist(/*@out@*/char **filelist, /*@out@*/size_t *size, const char
 		}
 
 		ignore = 0;
-		bytes_read = read(pipe2[0], list+len, listsize-len-1);
+		bytes_read = read(pipe_2[0], list+len, listsize-len-1);
 		if (bytes_read < 0) {
 			int e = errno;
 			fprintf(stderr, "Error %d reading from pipe: %s\n",
@@ -415,7 +415,7 @@ retvalue getfilelist(/*@out@*/char **filelist, /*@out@*/size_t *size, const char
 			list[len] = '\0';
 		}
 	}
-	close(pipe2[0]);
+	close(pipe_2[0]);
 
 	while (ar != -1 || tar != -1) {
 		pid=wait(&status);
