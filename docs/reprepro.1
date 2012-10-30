@@ -420,6 +420,15 @@ will either be the same as
 or the same as
 .BR ${package} .
 
+The special field names
+.BR $basename ", " $filekey " and " $fullfilename
+denote the first package file part of this entry
+(i.e. usually the .deb, .udeb or .dsc file)
+as basename, as filekey (filename relative to the outdir)
+and the full filename with outdir prepended
+(i.e. as relative or absolute as your
+outdir (or basedir if you did not set outdir) is).
+
 When \fB\-\-list\-format\fP is not given or \fBNONE\fP, then the default
 is equivalent to
 .br

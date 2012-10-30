@@ -30,6 +30,7 @@
 #include "target.h"
 #include "distribution.h"
 #include "printlistformat.h"
+#include "dirs.h"
 
 retvalue listformat_print(const char *listformat, const struct target *target, const char *package, const char *control) {
 	retvalue r;
@@ -96,6 +97,34 @@ retvalue listformat_print(const char *listformat, const struct target *target, c
 		if (q - p == 12 && strncasecmp(p, "{$identifier", 12) == 0) {
 			value = NULL;
 			v = target->identifier;
+		} else if (   (q - p == 10 && strncasecmp(p, "{$basename", 10) == 0)
+		           || (q - p == 14 && strncasecmp(p, "{$fullfilename", 14) == 0)
+		           || (q - p ==  9 && strncasecmp(p, "{$filekey", 9) == 0)) {
+			struct strlist filekeys;
+			r = target->getfilekeys(control, &filekeys);
+			if (RET_WAS_ERROR(r))
+				return r;
+			if (RET_IS_OK(r) && filekeys.count > 0) {
+				if (q - p == 9) { /* filekey */
+					value = filekeys.values[0];
+					filekeys.values[0] = NULL;
+					v = value;
+				} else if (q - p == 10) { /* basename */
+					value = filekeys.values[0];
+					filekeys.values[0] = NULL;
+					v = dirs_basename(value);;
+				} else { /* fullfilename */
+					value = calc_dirconcat(global.basedir,
+							filekeys.values[0]);
+					if (FAILEDTOALLOC(value))
+						return RET_ERROR_OOM;
+					v = value;
+				}
+				strlist_done(&filekeys);
+			} else {
+				value = NULL;
+				v = "";
+			}
 		} else if (q - p == 6 && strncasecmp(p, "{$type", 6) == 0) {
 			value = NULL;
 			v = atoms_packagetypes[target->packagetype];
