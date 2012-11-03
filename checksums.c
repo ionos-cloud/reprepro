@@ -1140,7 +1140,6 @@ static const char tab[16] = {'0', '1', '2', '3', '4', '5', '6', '7',
                              '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
 
 retvalue checksums_from_context(struct checksums **out, struct checksumscontext *context) {
-#define MD5_DIGEST_SIZE 16
 	unsigned char md5buffer[MD5_DIGEST_SIZE], sha1buffer[SHA1_DIGEST_SIZE],
 		      sha256buffer[SHA256_DIGEST_SIZE];
 	char *d;
