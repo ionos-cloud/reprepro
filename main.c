@@ -72,6 +72,7 @@
 #include "uploaderslist.h"
 #include "sizes.h"
 #include "filterlist.h"
+#include "descriptions.h"
 
 #ifndef STD_BASE_DIR
 #define STD_BASE_DIR "."
@@ -2507,6 +2508,102 @@ ACTION_F(y, n, y, y, reoverride) {
 	return result;
 }
 
+/*****************retrieving Description data from .deb files***************/
+
+static retvalue repair_descriptions(struct target *target, bool force) {
+        struct target_cursor iterator;
+        retvalue result, r;
+        const char *package, *controlchunk;
+
+        assert(target->packages == NULL);
+	assert(target->packagetype == pt_deb);
+
+        if (verbose > 2) {
+                printf(
+"Redoing checksum information for packages in '%s'...\n",
+                                target->identifier);
+        }
+
+        r = target_openiterator(target, READWRITE, &iterator);
+        if (!RET_IS_OK(r))
+                return r;
+        result = RET_NOTHING;
+        while (target_nextpackage(&iterator, &package, &controlchunk)) {
+                char *newcontrolchunk = NULL;
+
+		if (interrupted()) {
+			result = RET_ERROR_INTERRUPTED;
+			break;
+		}
+                r = description_complete(package, controlchunk, false,
+				&newcontrolchunk);
+                RET_UPDATE(result, r);
+                if (RET_WAS_ERROR(r))
+                        break;
+                if (RET_IS_OK(r)) {
+			if (verbose >= 0) {
+				printf(
+"Fixing description for '%s'...\n", package);
+			}
+                        r = cursor_replace(target->packages, iterator.cursor,
+                                newcontrolchunk, strlen(newcontrolchunk));
+                        free(newcontrolchunk);
+                        if (RET_WAS_ERROR(r)) {
+                                result = r;
+                                break;
+                        }
+                        target->wasmodified = true;
+                }
+        }
+        r = target_closeiterator(&iterator);
+        RET_ENDUPDATE(result, r);
+        return result;
+}
+
+ACTION_F(y, n, y, y, repairdescriptions) {
+	retvalue result, r;
+	struct distribution *d;
+	bool force = strcmp(argv[0], "forcerepairdescriptions") == 0;
+
+	result = distribution_match(alldistributions, argc-1, argv+1,
+			true, READWRITE);
+	assert (result != RET_NOTHING);
+	if (RET_WAS_ERROR(result)) {
+		return result;
+	}
+	result = RET_NOTHING;
+	for (d = alldistributions ; d != NULL ; d = d->next) {
+		struct target *t;
+
+		if (!d->selected)
+			continue;
+
+		if (verbose > 0) {
+			printf(
+"Looking for 'Description's to repair in %s...\n", d->codename);
+		}
+
+		for (t = d->targets ; t != NULL ; t = t->next) {
+			if (interrupted()) {
+				result = RET_ERROR_INTERRUPTED;
+				break;
+			}
+			if (!target_matches(t, components, architectures, packagetypes))
+				continue;
+			if (t->packagetype != pt_deb)
+				continue;
+			r = repair_descriptions(t, force);
+			RET_UPDATE(result, r);
+			RET_UPDATE(d->status, r);
+			if (RET_WAS_ERROR(r))
+				break;
+		}
+	}
+	r = distribution_exportlist(export, alldistributions);
+	RET_ENDUPDATE(result, r);
+	return result;
+}
+
 /*****************adding checkums of files again*****************/
 
 ACTION_F(y, n, y, y, redochecksums) {
@@ -3846,6 +3943,10 @@ static const struct action {
 		0, -1, "check [<distributions>]"},
 	{"reoverride", 		A_Fact(reoverride),
 		0, -1, "[-T ...] [-C ...] [-A ...] reoverride [<distributions>]"},
+	{"repairdescriptions", 	A_Fact(repairdescriptions),
+		0, -1, "[-C ...] [-A ...] [force]repairdescriptions [<distributions>]"},
+	{"forcerepairdescriptions", 	A_Fact(repairdescriptions),
+		0, -1, "[-C ...] [-A ...] [force]repairdescriptions [<distributions>]"},
 	{"redochecksums", 	A_Fact(redochecksums),
 		0, -1, "[-T ...] [-C ...] [-A ...] redo [<distributions>]"},
 	{"collectnewchecksums", A_F(collectnewchecksums),

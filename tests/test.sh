@@ -98,9 +98,9 @@ if [ -z "$TESTOPTIONS" ] ; then
 		# leak-check=full is better than leak-check=summary,
 		# sadly squeeze's valgrind counts them into the error number
 		# with full, and we want to ignore them for childs....
-		TESTOPTIONS="-e -a --debug --leak-check=summary --suppressions=$TESTSDIR/valgrind.supp"
+		TESTOPTIONS="-e -a --debug --leak-check=full --suppressions=$TESTSDIR/valgrind.supp"
 	else
-		TESTOPTIONS="-e -a --debug --leak-check=summary --suppressions=$VALGRIND_SUP"
+		TESTOPTIONS="-e -a --debug --leak-check=full --suppressions=$VALGRIND_SUP"
 	fi
 fi
 case "$verbosity" in
@@ -190,6 +190,7 @@ runtest() {
 if test x"$testtorun" != x"all" ; then
 	runtest "$testtorun"
 else
+	runtest descriptions
 	runtest easyupdate
 	runtest srcfilterlist
 	runtest uploaders

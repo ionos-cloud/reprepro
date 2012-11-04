@@ -1,0 +1,146 @@
+set -u
+. "$TESTSDIR"/test.inc
+
+dodo test ! -d db
+mkdir -p conf
+cat > conf/distributions <<EOF
+Codename: 1234
+Components: a
+UDebComponents: a
+Architectures: abacus source
+UDebIndices: Packages .
+DebIndices: Packages .
+DscIndices: Sources .
+
+Codename: 4321
+Components: a
+UDebComponents: a
+Architectures: abacus source
+UDebIndices: Packages .
+DebIndices: Packages .
+DscIndices: Sources .
+EOF
+
+testrun - -b . export 3<<EOF
+stderr
+stdout
+$(odb)
+-v1*=Exporting 1234...
+-v2*=Created directory "./dists"
+-v2*=Created directory "./dists/1234"
+-v2*=Created directory "./dists/1234/a"
+-v2*=Created directory "./dists/1234/a/binary-abacus"
+-v6*= exporting '1234|a|abacus'...
+-v6*=  creating './dists/1234/a/binary-abacus/Packages' (uncompressed)
+-v2*=Created directory "./dists/1234/a/debian-installer"
+-v2*=Created directory "./dists/1234/a/debian-installer/binary-abacus"
+-v6*= exporting 'u|1234|a|abacus'...
+-v6*=  creating './dists/1234/a/debian-installer/binary-abacus/Packages' (uncompressed)
+-v2*=Created directory "./dists/1234/a/source"
+-v6*= exporting '1234|a|source'...
+-v6*=  creating './dists/1234/a/source/Sources' (uncompressed)
+-v1*=Exporting 4321...
+-v2*=Created directory "./dists/4321"
+-v2*=Created directory "./dists/4321/a"
+-v2*=Created directory "./dists/4321/a/binary-abacus"
+-v6*= exporting '4321|a|abacus'...
+-v6*=  creating './dists/4321/a/binary-abacus/Packages' (uncompressed)
+-v2*=Created directory "./dists/4321/a/debian-installer"
+-v2*=Created directory "./dists/4321/a/debian-installer/binary-abacus"
+-v6*= exporting 'u|4321|a|abacus'...
+-v6*=  creating './dists/4321/a/debian-installer/binary-abacus/Packages' (uncompressed)
+-v2*=Created directory "./dists/4321/a/source"
+-v6*= exporting '4321|a|source'...
+-v6*=  creating './dists/4321/a/source/Sources' (uncompressed)
+EOF
+
+mkdir i
+(cd i ; PACKAGE=hello EPOCH="" VERSION=1 REVISION="" SECTION="base" genpackage.sh)
+
+testrun - -b . -C a includedeb 1234 i/hello_1_abacus.deb 3<<EOF
+stdout
+-v9*=Adding reference to 'pool/a/h/hello/hello_1_abacus.deb' by '1234|a|abacus'
+-v2*=Created directory "./pool"
+-v2*=Created directory "./pool/a"
+-v2*=Created directory "./pool/a/h"
+-v2*=Created directory "./pool/a/h/hello"
+$(ofa 'pool/a/h/hello/hello_1_abacus.deb')
+-d1*=db: 'hello' added to packages.db(1234|a|abacus).
+-v0*=Exporting indices...
+-v6*= looking for changes in '1234|a|abacus'...
+-v6*=  replacing './dists/1234/a/binary-abacus/Packages' (uncompressed)
+-v6*= looking for changes in '1234|a|source'...
+-v6*= looking for changes in 'u|1234|a|abacus'...
+EOF
+
+cp dists/1234/a/binary-abacus/Packages i/mangled
+sed -i -e "s/^ blub/Description-md5: 29e34048cfd56bbec39e6997af9c7057/" i/mangled
+
+testrun - -b . -T deb -A abacus -C a _addpackage 4321 i/mangled hello 3<<EOF
+stdout
+-v1*=Adding 'hello' '1' to '4321|a|abacus'.
+-v9*=Adding reference to 'pool/a/h/hello/hello_1_abacus.deb' by '4321|a|abacus'
+-d1*=db: 'hello' added to packages.db(4321|a|abacus).
+-v0*=Exporting indices...
+-v6*= looking for changes in '4321|a|abacus'...
+-v6*=  replacing './dists/4321/a/binary-abacus/Packages' (uncompressed)
+-v6*= looking for changes in '4321|a|source'...
+-v6*= looking for changes in 'u|4321|a|abacus'...
+EOF
+
+if diff dists/1234/a/binary-abacus/Packages dists/4321/a/binary-abacus/Packages  ; then
+	echo "Failed to include Description-md5 for test" 2>&1
+	exit 1
+fi
+
+testrun - -b . repairdescriptions 4321 3<<EOF
+stdout
+-v1*=Looking for 'Description's to repair in 4321...
+-v3*=Redoing checksum information for packages in '4321|a|abacus'...
+-v0*=Fixing description for 'hello'...
+-v0*=Exporting indices...
+-v6*= looking for changes in '4321|a|abacus'...
+-v6*=  replacing './dists/4321/a/binary-abacus/Packages' (uncompressed)
+-v6*= looking for changes in '4321|a|source'...
+-v6*= looking for changes in 'u|4321|a|abacus'...
+EOF
+
+dodiff dists/1234/a/binary-abacus/Packages dists/4321/a/binary-abacus/Packages
+
+testrun - -b . remove 4321 hello 3<<EOF
+stdout
+-v1*=removing 'hello' from '4321|a|abacus'...
+-v9*=Removing reference to 'pool/a/h/hello/hello_1_abacus.deb' from '4321|a|abacus'
+-d1*=db: 'hello' removed from packages.db(4321|a|abacus).
+-v0*=Exporting indices...
+-v6*= looking for changes in '4321|a|abacus'...
+-v6*=  replacing './dists/4321/a/binary-abacus/Packages' (uncompressed)
+-v6*= looking for changes in '4321|a|source'...
+-v6*= looking for changes in 'u|4321|a|abacus'...
+EOF
+
+testrun - -b . -T deb -A abacus -C a _addpackage 4321 i/mangled hello 3<<EOF
+stdout
+-v1*=Adding 'hello' '1' to '4321|a|abacus'.
+-v9*=Adding reference to 'pool/a/h/hello/hello_1_abacus.deb' by '4321|a|abacus'
+-d1*=db: 'hello' added to packages.db(4321|a|abacus).
+-v0*=Exporting indices...
+-v6*= looking for changes in '4321|a|abacus'...
+-v6*=  replacing './dists/4321/a/binary-abacus/Packages' (uncompressed)
+-v6*= looking for changes in '4321|a|source'...
+-v6*= looking for changes in 'u|4321|a|abacus'...
+EOF
+
+rm pool/a/h/hello/hello_1_abacus.deb
+
+testrun - -b . repairdescriptions 4321 3<<EOF
+stdout
+-v1*=Looking for 'Description's to repair in 4321...
+-v3*=Redoing checksum information for packages in '4321|a|abacus'...
+stderr
+*=Error 2 opening ./pool/a/h/hello/hello_1_abacus.deb: No such file or directory
+*=Cannot retrieve long description for package 'hello' out of package's files!
+EOF
+
+rm -r -f db conf dists pool i
+testsuccess
