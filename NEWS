@@ -1,3 +1,9 @@
+Updates between 4.12.4 and 4.13.0:
+- new commands: deleteifunreferenced repairdescriptions
+- add ${$basename}, ${$filekey} and ${$fullfilename} to --listformat
+- reject absurd large values in ValidFor header
+- several small cleanups and fixes
+
 Updates between 4.12.3 and 4.12.4:
 - fix bug when only generating .bz2 indices
 - ignore diff comments about unterminated lines when parsing .diff files

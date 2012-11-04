@@ -1,3 +1,16 @@
+2012-11-04  Bernhard R. Link <brlink@debian.org>
+	* add repairdescriptions command to readd  missing long
+	  descriptions (which you might get as reprepro cannot yet
+	  get Translations files and get them from there)
+	  from the .deb files.
+
+2012-10-30  Bernhard R. Link <brlink@debian.org>
+	* add ${$basename}, ${$filekey} and ${$fullfilename} to --listformat
+	* fix some bitrot in the non-libarchive code paths
+
+2012-10-21  Bernhard R. Link <brlink@debian.org>
+	* reject absurd large values in ValidFor header
+
 2012-07-12
 	* add 'deleteifunreferenced' command to safely delete
 	  and forget the given files in a repository with
