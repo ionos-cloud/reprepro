@@ -1737,12 +1737,21 @@ ListShellHook: grep\-dctrl \-X \-S apt \-o \-X \-S dpkg || [ $? \-eq 1 ]
 will limit the update rule to packages from the specified source packages.
 .TP
 .B DownloadListsAs
-The arguments of this field, which much be elements of the
-form \fB.\fP, \fB.gz\fP, \fB.bz2\fP, \fB.lzma\fP, \fB.xz\fP and \fB.diff\fP
-specify in which order reprepro
-will look for a usable variant of needed index files
-in the downloaded Release file.
-(The default is \fB.diff .xz .lzma .bz2 .gz .\fP, i.e.
+The arguments of this field specify which index files reprepro
+will download.
+
+Allowed values are
+.BR . ", " .gz ", " .bz2 ", " .lzma ", " .xz ", " .lz ", " .diff ", "
+.BR force.gz ", " force.bz2 ", " force.lzma ", " force.xz ", "
+.BR force.lz ", and " force.diff "."
+
+Reprepro will try the first supported variant in the list given:
+Only compressions compiled in or for which an uncompressor was found
+are used.
+Unless the value starts with \fBforce.\fP,
+it is only tried if if is found in the Release or InRelease file.
+
+The default value is \fB.diff .xz .lzma .bz2 .gz .\fP, i.e.
 download Packages.diff if listed in the Release file,
 otherwise or if not usable download .xz if
 listed in the Release file and there is a way to uncompress it,
@@ -1750,14 +1759,15 @@ then .lzma if usable,
 then .bz2 if usable,
 then .gz and then uncompressed).
 
-Together with \fBIgnoreRelease\fP reprepro will download the first
-in this list that could be unpacked.
-
 Note there is no way to see if an uncompressed variant
 of the file is available (as the Release file always lists their
 checksums, even if not there),
 so putting '\fB.\fP' anywhere but as the last argument can mean
 trying to download a file that does not exist.
+
+Together with \fBIgnoreRelease\fP reprepro will download the first
+in this list that could be unpacked (i.e. \fBforce\fP is always assumed)
+and the default value is \fB.gz .bzip2 . .lzma .xz\fP.
 .SS conf/pulls
 This file contains the rules for pulling packages from one
 distribution to another.
