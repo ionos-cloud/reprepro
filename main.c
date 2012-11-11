@@ -106,6 +106,7 @@ static char /*@only@*/ /*@null@*/
 	*x_architecture = NULL,
 	*x_packagetype = NULL;
 static char /*@only@*/ /*@null@*/ *listformat = NULL;
+static char /*@only@*/ /*@null@*/ *endhook = NULL;
 static char /*@only@*/
 	*gunzip = NULL,
 	*bunzip2 = NULL,
@@ -138,7 +139,7 @@ static off_t reservedotherspace = 1024*1024;
  * to change something owned by lower owners. */
 enum config_option_owner config_state,
 #define O(x) owner_ ## x = CONFIG_OWNER_DEFAULT
-O(fast), O(x_morguedir), O(x_outdir), O(x_basedir), O(x_distdir), O(x_dbdir), O(x_listdir), O(x_confdir), O(x_logdir), O(x_methoddir), O(x_section), O(x_priority), O(x_component), O(x_architecture), O(x_packagetype), O(nothingiserror), O(nolistsdownload), O(keepunusednew), O(keepunreferenced), O(keeptemporaries), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock), O(spacecheckmode), O(reserveddbspace), O(reservedotherspace), O(guessgpgtty), O(verbosedatabase), O(gunzip), O(bunzip2), O(unlzma), O(unxz), O(lunzip), O(gnupghome), O(listformat), O(listmax), O(listskip), O(onlysmalldeletes);
+O(fast), O(x_morguedir), O(x_outdir), O(x_basedir), O(x_distdir), O(x_dbdir), O(x_listdir), O(x_confdir), O(x_logdir), O(x_methoddir), O(x_section), O(x_priority), O(x_component), O(x_architecture), O(x_packagetype), O(nothingiserror), O(nolistsdownload), O(keepunusednew), O(keepunreferenced), O(keeptemporaries), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock), O(spacecheckmode), O(reserveddbspace), O(reservedotherspace), O(guessgpgtty), O(verbosedatabase), O(gunzip), O(bunzip2), O(unlzma), O(unxz), O(lunzip), O(gnupghome), O(listformat), O(listmax), O(listskip), O(onlysmalldeletes), O(endhook);
 #undef O
 
 #define CONFIGSET(variable, value) if (owner_ ## variable <= config_state) { \
@@ -4356,6 +4357,7 @@ LO_RESTRICT_BIN,
 LO_RESTRICT_SRC,
 LO_RESTRICT_FILE_BIN,
 LO_RESTRICT_FILE_SRC,
+LO_ENDHOOK,
 LO_UNIGNORE};
 static int longoption = 0;
 const char *programname;
@@ -4637,6 +4639,9 @@ static void handle_option(int c, const char *argument) {
 				case LO_GNUPGHOME:
 					CONFIGDUP(gnupghome, argument);
 					break;
+				case LO_ENDHOOK:
+					CONFIGDUP(endhook, argument);
+					break;
 				case LO_LISTMAX:
 					i = parse_number("--list-max",
 							argument, INT_MAX);
@@ -4799,6 +4804,7 @@ static void myexit(int status) {
 	free(x_priority);
 	free(x_morguedir);
 	free(gnupghome);
+	free(endhook);
 	pool_free();
 	exit(status);
 }
@@ -4857,6 +4863,40 @@ static char *expand_plus_prefix(/*@only@*/char *dir, const char *name, const cha
 	if (freedir)
 		free(dir);
 	return newdir;
+}
+
+static inline int callendhook(int status, char *argv[]) {
+	char exitcode[4];
+
+	/* Try to close all open fd but 0,1,2 */
+	closefrom(3);
+	if (causingfile != NULL)
+		setenv("REPREPRO_CAUSING_FILE", causingfile, true);
+	else
+		unsetenv("REPREPRO_CAUSING_FILE");
+	unsetenv("REPREPRO_CAUSING_RULE");
+	unsetenv("REPREPRO_FROM");
+	if (atom_defined(causingcommand))
+		setenv("REPREPRO_CAUSING_COMMAND",
+				atoms_commands[causingcommand],
+				true);
+	else
+		unsetenv("REPREPRO_CAUSING_COMMAND");
+	setenv("REPREPRO_BASE_DIR", global.basedir, true);
+	setenv("REPREPRO_OUT_DIR", global.outdir, true);
+	setenv("REPREPRO_CONF_DIR", global.confdir, true);
+	setenv("REPREPRO_CONFIG_DIR", global.confdir, true);
+	setenv("REPREPRO_DIST_DIR", global.distdir, true);
+	setenv("REPREPRO_LOG_DIR", global.logdir, true);
+	if (snprintf(exitcode, 4, "%u", ((unsigned int)status)&255U) > 3)
+		setenv("REPREPRO_EXIT_CODE", "255", true);
+	else
+		setenv("REPREPRO_EXIT_CODE", exitcode, true);
+	argv[0] = endhook,
+	(void)execv(endhook, argv);
+	fprintf(stderr, "Error executing '%s': %s\n", endhook,
+				strerror(errno));
+	return EXIT_RET(RET_ERROR);
 }
 
 int main(int argc, char *argv[]) {
@@ -4940,6 +4980,7 @@ int main(int argc, char *argv[]) {
 		{"restrict-file-source", required_argument, &longoption, LO_RESTRICT_FILE_SRC},
 		{"restrict-file-src", required_argument, &longoption, LO_RESTRICT_FILE_SRC},
 		{"restrict-file-binary", required_argument, &longoption, LO_RESTRICT_FILE_BIN},
+		{"endhook", required_argument, &longoption, LO_ENDHOOK},
 		{NULL, 0, NULL, 0}
 	};
 	const struct action *a;
@@ -5020,6 +5061,21 @@ int main(int argc, char *argv[]) {
 	if (x_morguedir != NULL)
 		x_morguedir = expand_plus_prefix(x_morguedir, "morguedir",
 				"boc", true);
+	if (endhook != NULL) {
+		if (endhook[0] == '+' || endhook[0] == '/' ||
+				(endhook[0] == '.' && endhook[1] == '/')) {
+			endhook = expand_plus_prefix(endhook, "endhook", "boc",
+					true);
+		} else {
+			char *h;
+
+			h = calc_dirconcat(x_confdir, endhook);
+			free(endhook);
+			endhook = h;
+			if (endhook == NULL)
+				exit(EXIT_RET(RET_ERROR_OOM));
+		}
+	}
 
 	if (guessgpgtty && (getenv("GPG_TTY")==NULL) && isatty(0)) {
 		static char terminalname[1024];
@@ -5111,6 +5167,11 @@ int main(int argc, char *argv[]) {
 					(void)fputs(
 "There have been errors!\n",
 						stderr);
+			}
+			if (endhook != NULL) {
+				assert (optind > 0);
+				/* only returns upon error: */
+				r = callendhook(EXIT_RET(r), argv + optind - 1);
 			}
 			myexit(EXIT_RET(r));
 		} else

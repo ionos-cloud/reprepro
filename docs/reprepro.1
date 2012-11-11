@@ -477,6 +477,41 @@ Like \fB\-\-restrict\fP but read a whole file in the \fBFilterSrcList\fP format.
 .TP
 .B \-\-restrict\-file\-bin \fIfilename\fP
 Like \fB\-\-restrict\-bin\fP but read a whole file in the \fBFilterList\fP format.
+.TP
+.B \-\-endhook \fIhookscript\fP
+
+Run the specified \fIhookscript\fP once reprepro exits.
+It will get the usual \fBREPREPRO_\fP* environment variables set (or unset)
+and additionally a variable \fBREPREPRO_EXIT_CODE\fP that is the exit code
+with which reprepro would have exited (the hook is always called once the
+initial parsing of global options and the command name is done, no matter
+if reprepro did anything or not).
+Reprepro will return to the calling process with the exitcode of this script.
+Reprepro has closed all its databases and removed all its locks,
+so you can run reprepro again in this script
+(unless someone else did so in the same repository before, of course).
+
+The only advantage over running that command always directly after reprepro
+is that you can some environment variables set and cannot so easily forget
+it if this option is in conf/options.
+
+The script is supposed to be located relative to \fIconfdir\fP, unless its
+name starts with \fB/\fP, \fB./\fP, \fB+b/\fP, \fB+o/\fP, or \fB+c/\fP
+and the name may not start (except in the cases given before) with a \fB+\fP.
+
+An example script looks like: \fB
+ #!/bin/sh
+ 
+ if [ "$REPREPRO_EXIT_CODE" -ne 0 ] ; then
+ 	exit "$REPREPRO_EXIT_CODE"
+ fi
+ 
+ echo "congratulations, reprepro with arguments: $*"
+ echo "seems to have run successfully. REPREPRO_ part of the environment is:"
+ set | grep ^REPREPRO_
+ 
+ exit 0
+ \fP
 .SH COMMANDS
 .TP
 .BR export " [ " \fIcodenames\fP " ]"
