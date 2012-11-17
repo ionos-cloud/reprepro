@@ -1312,6 +1312,8 @@ See the description for \fBconf/pulls\fP.
 .B SignWith
 When this field is present, a Release.gpg file will be generated.
 If the value is "yes" or "default", the default key of gpg is used.
+If the field starts with an exlamation mark ("!"), the given script
+is executed to do the signing.
 Otherwise the value will be given to libgpgme to determine to key to
 use.
 
@@ -1326,6 +1328,23 @@ that gpg can more easily associate with a unique key.
 
 If this key has a passphrase, you need to use gpg\-agent
 or the insecure option \fB\-\-ask\-passphrase\fP.
+
+A '\fB!\fP' hook script is looked for in the confdir,
+unless it starts with
+.BR ~/ ", " ./ ", " +b/ ", " +o/ ", " +c/ " or " / " ."
+Is gets three command line arguments: The filename to sign,
+an empty argument or the filename to create with an inline
+signature (i.e. InRelease) and
+an empty argument or the filename to create an detached signature
+(i.e. Release.gpg).
+The script may generate no Release.gpg file if it choses to
+(then the repository will look like unsigned for older clients),
+but generating empty files is not allowed.
+Reprepro waits for the script to finish and will abort the exporting
+of the distribution this signing is part of unless the scripts
+returns normally with exit code 0.
+Using a space after ! is recommended to avoid incompatibilities
+with possible future extensions.
 .TP
 .B DebOverride
 When this field is present, it describes the override file used
