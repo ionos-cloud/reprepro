@@ -1137,13 +1137,40 @@ retvalue config_getsignwith(struct configiterator *iter, const char *name, struc
 	}
 	/* if the first character is a '!', a script to start follows */
 	if (c == '!') {
-		r = strlist_add_dup(&data, "!");
+		const char *type = "!";
+
+		iter->markerline = iter->line;
+		iter->markercolumn = iter->column;
+		c = config_nextchar(iter);
+		if (c == '-') {
+			configparser_errorlast(iter,
+"'!-' in signwith lines reserved for future usage!\n");
+			return RET_ERROR;
+			type = "!-";
+			c = config_nextnonspace(iter);
+		} else if (c == '\n' || c == ' ' || c == '\t')
+			c = config_nextnonspace(iter);
+		if (c == EOF) {
+			configparser_errorlast(iter,
+"Missing value for %s field.", name);
+			return RET_ERROR;
+		}
+		r = config_completeword(iter, c, &value);
 		if (RET_WAS_ERROR(r))
 			return r;
-		r = config_getscript(iter, name, &value);
-		assert (r != RET_NOTHING);
+		if (config_nextnonspace(iter) != EOF) {
+			configparser_error(iter,
+"End of %s header expected (but trailing garbage).", name);
+			free(value);
+			return RET_ERROR;
+		}
+		assert (value != NULL && value[0] != '\0');
+		value = configfile_expandname(value, value);
+		if (FAILEDTOALLOC(value))
+			return RET_ERROR_OOM;
+		r = strlist_add_dup(&data, type);
 		if (RET_WAS_ERROR(r)) {
-			strlist_done(&data);
+			free(value);
 			return r;
 		}
 		r = strlist_add(&data, value);

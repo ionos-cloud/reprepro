@@ -1,6 +1,7 @@
 2012-11-17  Bernhard R. Link <brlink@debian.org>
 	* '~/' or '+{b,o,c}/' or './' now also special
 	 in ByHandHooks and ListHook.
+	* add support for signing hooks (SignWith: !...)
 
 2012-11-11  Bernhard R. Link <brlink@debian.org>
 	* add --endhook to start a script when terminating
