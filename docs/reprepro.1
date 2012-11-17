@@ -1,4 +1,4 @@
-.TH REPREPRO 1 "2012-06-24" "reprepro" REPREPRO
+.TH REPREPRO 1 "2012-11-17" "reprepro" REPREPRO
 .SH NAME
 reprepro \- produce, manage and sync a local repository of Debian packages
 .mso www.tmac
@@ -1439,7 +1439,7 @@ at manual.html in reprepro's source or
 If the filename for the log files does not start with a slash,
 it is relative to the directory specified with \fB\-\-logdir\fP,
 the scripts are relative to \fB\-\-confdir\fP unless starting with
-a slash.
+.BR ~/ ", " +b/ ", " +c/ " or " / .
 .TP
 .B ValidFor
 If this field exists, an Valid\-Until field is put into generated
@@ -1637,7 +1637,8 @@ These take at least two arguments:
 The first one is the default action when something is not found in the list,
 then a list of filenames (relative to
 .B \-\-confdir\fR,
-if not starting with a slash),
+if not starting with
+.BR ~/ ", " +b/ ", " +c/ " or " / " )"
 in the format of dpkg \-\-get\-selections and only packages listed in
 there as
 .B install
@@ -2304,7 +2305,7 @@ tracking, put in some log directory when using processincoming, or given to
 an hook script (currently only possible with processincoming).
 .TP
 .B filekey
-the position relative to the mirrordir.  (as found as "Filename:" in Packages.gz)
+the position relative to the outdir.  (as found in "Filename:" in Packages.gz)
 .TP
 .B "full filename"
 the position relative to /
