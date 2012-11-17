@@ -789,18 +789,16 @@ retvalue config_getonlyword(struct configiterator *iter, const char *header, che
 }
 
 retvalue config_getscript(struct configiterator *iter, const char *name, char **value_p) {
-	char *value, *fullvalue; retvalue r;
+	char *value;
+	retvalue r;
+
 	r = config_getonlyword(iter, name, NULL, &value);
 	if (RET_IS_OK(r)) {
 		assert (value != NULL && value[0] != '\0');
-		if (value[0] != '/') {
-			fullvalue = calc_dirconcat(global.confdir, value);
-			free(value);
-		} else
-			fullvalue = value;
-		if (FAILEDTOALLOC(fullvalue))
+		value = configfile_expandname(value, value);
+		if (FAILEDTOALLOC(value))
 			return RET_ERROR_OOM;
-		*value_p = fullvalue;
+		*value_p = value;
 	}
 	return r;
 }

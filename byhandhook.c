@@ -123,15 +123,11 @@ retvalue byhandhooks_parse(struct configiterator *iter, struct byhandhook **hook
 		if (RET_WAS_ERROR(r))
 			break;
 		assert (v != NULL && v[0] != '\0'); \
-		if (v[0] != '/') {
-			h->script = calc_dirconcat(global.confdir, v);
-			free(v);
-			if (FAILEDTOALLOC(h->script)) {
-				r = RET_ERROR_OOM;
-				break;
-			}
-		} else
-			h->script = v;
+		h->script = configfile_expandname(v, v);
+		if (FAILEDTOALLOC(h->script)) {
+			r = RET_ERROR_OOM;
+			break;
+		}
 		r = config_getwordinline(iter, &v);
 		if (RET_IS_OK(r)) {
 			fprintf(stderr,

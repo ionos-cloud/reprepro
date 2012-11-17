@@ -1,3 +1,7 @@
+2012-11-17  Bernhard R. Link <brlink@debian.org>
+	* '~/' or '+{b,o,c}/' or './' now also special
+	 in ByHandHooks and ListHook.
+
 2012-11-11  Bernhard R. Link <brlink@debian.org>
 	* add --endhook to start a script when terminating
 
