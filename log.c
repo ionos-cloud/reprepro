@@ -433,7 +433,6 @@ static retvalue notificator_parse(struct notificator *n, struct configiterator *
 	/*@null@*/char *causingfile;
 	/*@null@*/char *causingrule;
 	/*@null@*/char *suitefrom;
-	command_t causingcommand;
 	/* data to send to the process */
 	size_t datalen, datasent;
 	/*@null@*/char *data;
@@ -614,9 +613,9 @@ static retvalue startchild(void) {
 			setenv("REPREPRO_FROM", p->suitefrom, true);
 		else
 			unsetenv("REPREPRO_FROM");
-		if (atom_defined(p->causingcommand))
+		if (atom_defined(causingcommand))
 			setenv("REPREPRO_CAUSING_COMMAND",
-					atoms_commands[p->causingcommand],
+					atoms_commands[causingcommand],
 					true);
 		else
 			unsetenv("REPREPRO_CAUSING_COMMAND");
@@ -750,7 +749,6 @@ static retvalue notificator_enqueuechanges(struct notificator *n, const char *co
 		free(arguments);
 		return RET_ERROR_OOM;
 	}
-	p->causingcommand = causingcommand;
 	if (causingfile != NULL) {
 		p->causingfile = strdup(causingfile);
 		if (FAILEDTOALLOC(p->causingfile)) {
@@ -890,7 +888,6 @@ static retvalue notificator_enqueue(struct notificator *n, struct target *target
 		free(arguments);
 		return RET_ERROR_OOM;
 	}
-	p->causingcommand = causingcommand;
 	if (causingfile != NULL) {
 		size_t j;
 		p->causingfile = strdup(causingfile);
