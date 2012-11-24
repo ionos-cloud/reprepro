@@ -1374,12 +1374,7 @@ static retvalue calllisthook(struct update_target *ut, struct update_index_conne
 	if (child == 0) {
 		int e;
 		(void)closefrom(3);
-		setenv("REPREPRO_BASE_DIR", global.basedir, true);
-		setenv("REPREPRO_OUT_DIR", global.outdir, true);
-		setenv("REPREPRO_CONF_DIR", global.confdir, true);
-		setenv("REPREPRO_CONFIG_DIR", global.confdir, true);
-		setenv("REPREPRO_DIST_DIR", global.distdir, true);
-		setenv("REPREPRO_LOG_DIR", global.logdir, true);
+		sethookenvironment(NULL, NULL, NULL, NULL);
 		setenv("REPREPRO_FILTER_CODENAME",
 				ut->target->distribution->codename, true);
 		setenv("REPREPRO_FILTER_PACKAGETYPE",
@@ -1490,12 +1485,7 @@ static retvalue callshellhook(struct update_target *ut, struct update_index_conn
 		close(infd);
 		close(outfd);
 		(void)closefrom(3);
-		setenv("REPREPRO_BASE_DIR", global.basedir, true);
-		setenv("REPREPRO_OUT_DIR", global.outdir, true);
-		setenv("REPREPRO_CONF_DIR", global.confdir, true);
-		setenv("REPREPRO_CONFIG_DIR", global.confdir, true);
-		setenv("REPREPRO_DIST_DIR", global.distdir, true);
-		setenv("REPREPRO_LOG_DIR", global.logdir, true);
+		sethookenvironment(NULL, NULL, NULL, NULL);
 		setenv("REPREPRO_FILTER_CODENAME",
 				ut->target->distribution->codename, true);
 		setenv("REPREPRO_FILTER_PACKAGETYPE",

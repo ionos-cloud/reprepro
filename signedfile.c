@@ -36,6 +36,7 @@
 #include "chunks.h"
 #include "release.h"
 #include "filecntl.h"
+#include "hooks.h"
 
 #ifdef HAVE_LIBGPGME
 static retvalue check_signature_created(bool clearsign, bool willcleanup, /*@null@*/const struct strlist *options, const char *filename, const char *signaturename) {
@@ -258,16 +259,7 @@ static retvalue signature_with_extern(const struct strlist *options, const char 
 	if (child == 0) {
 		/* Try to close all open fd but 0,1,2 */
 		closefrom(3);
-		unsetenv("REPREPRO_CAUSING_FILE");
-		unsetenv("REPREPRO_CAUSING_RULE");
-		unsetenv("REPREPRO_FROM");
-			unsetenv("REPREPRO_CAUSING_COMMAND");
-		setenv("REPREPRO_BASE_DIR", global.basedir, true);
-		setenv("REPREPRO_OUT_DIR", global.outdir, true);
-		setenv("REPREPRO_CONF_DIR", global.confdir, true);
-		setenv("REPREPRO_CONFIG_DIR", global.confdir, true);
-		setenv("REPREPRO_DIST_DIR", global.distdir, true);
-		setenv("REPREPRO_LOG_DIR", global.logdir, true);
+		sethookenvironment(NULL, NULL, NULL, NULL);
 		(void)execl(command, command, filename,
 				clearsign, detached, ENDOFARGUMENTS);
 		fprintf(stderr, "Error executing '%s' '%s' '%s' '%s': %s\n",

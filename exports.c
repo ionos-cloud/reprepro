@@ -36,6 +36,7 @@
 #include "exports.h"
 #include "configparser.h"
 #include "filecntl.h"
+#include "hooks.h"
 
 static const char *exportdescription(const struct exportmode *mode, char *buffer, size_t buffersize) {
 	char *result = buffer;
@@ -345,12 +346,7 @@ static retvalue callexporthook(/*@null@*/const char *hook, const char *relfilena
 		if (reltmpfilename == NULL) {
 			exit(255);
 		}
-		setenv("REPREPRO_BASE_DIR", global.basedir, true);
-		setenv("REPREPRO_OUT_DIR", global.outdir, true);
-		setenv("REPREPRO_CONF_DIR", global.confdir, true);
-		setenv("REPREPRO_CONFIG_DIR", global.confdir, true);
-		setenv("REPREPRO_DIST_DIR", global.distdir, true);
-		setenv("REPREPRO_LOG_DIR", global.logdir, true);
+		sethookenvironment(causingfile, NULL, NULL, NULL);
 		(void)execl(hook, hook, release_dirofdist(release),
 				reltmpfilename, relfilename, mode,
 				ENDOFARGUMENTS);

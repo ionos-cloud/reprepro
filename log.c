@@ -41,9 +41,6 @@
 #include "log.h"
 #include "filecntl.h"
 
-const char *causingfile = NULL;
-command_t causingcommand = atom_unknown;
-
 /*@null@*/ static /*@refcounted@*/ struct logfile {
 	/*@null@*/struct logfile *next;
 	char *filename;
@@ -601,30 +598,8 @@ static retvalue startchild(void) {
 		}
 		/* Try to close all open fd but 0,1,2 */
 		closefrom(3);
-		if (p->causingfile != NULL)
-			setenv("REPREPRO_CAUSING_FILE", p->causingfile, true);
-		else
-			unsetenv("REPREPRO_CAUSING_FILE");
-		if (p->causingrule != NULL)
-			setenv("REPREPRO_CAUSING_RULE", p->causingrule, true);
-		else
-			unsetenv("REPREPRO_CAUSING_RULE");
-		if (p->suitefrom != NULL)
-			setenv("REPREPRO_FROM", p->suitefrom, true);
-		else
-			unsetenv("REPREPRO_FROM");
-		if (atom_defined(causingcommand))
-			setenv("REPREPRO_CAUSING_COMMAND",
-					atoms_commands[causingcommand],
-					true);
-		else
-			unsetenv("REPREPRO_CAUSING_COMMAND");
-		setenv("REPREPRO_BASE_DIR", global.basedir, true);
-		setenv("REPREPRO_OUT_DIR", global.outdir, true);
-		setenv("REPREPRO_CONF_DIR", global.confdir, true);
-		setenv("REPREPRO_CONFIG_DIR", global.confdir, true);
-		setenv("REPREPRO_DIST_DIR", global.distdir, true);
-		setenv("REPREPRO_LOG_DIR", global.logdir, true);
+		sethookenvironment(p->causingfile, p->causingrule,
+				p->suitefrom, NULL);
 		(void)execv(p->arguments[0], p->arguments);
 		fprintf(stderr, "Error executing '%s': %s\n", p->arguments[0],
 				strerror(errno));

@@ -4870,28 +4870,10 @@ static inline int callendhook(int status, char *argv[]) {
 
 	/* Try to close all open fd but 0,1,2 */
 	closefrom(3);
-	if (causingfile != NULL)
-		setenv("REPREPRO_CAUSING_FILE", causingfile, true);
-	else
-		unsetenv("REPREPRO_CAUSING_FILE");
-	unsetenv("REPREPRO_CAUSING_RULE");
-	unsetenv("REPREPRO_FROM");
-	if (atom_defined(causingcommand))
-		setenv("REPREPRO_CAUSING_COMMAND",
-				atoms_commands[causingcommand],
-				true);
-	else
-		unsetenv("REPREPRO_CAUSING_COMMAND");
-	setenv("REPREPRO_BASE_DIR", global.basedir, true);
-	setenv("REPREPRO_OUT_DIR", global.outdir, true);
-	setenv("REPREPRO_CONF_DIR", global.confdir, true);
-	setenv("REPREPRO_CONFIG_DIR", global.confdir, true);
-	setenv("REPREPRO_DIST_DIR", global.distdir, true);
-	setenv("REPREPRO_LOG_DIR", global.logdir, true);
+
 	if (snprintf(exitcode, 4, "%u", ((unsigned int)status)&255U) > 3)
-		setenv("REPREPRO_EXIT_CODE", "255", true);
-	else
-		setenv("REPREPRO_EXIT_CODE", exitcode, true);
+		memcpy(exitcode, "255", 4);
+	sethookenvironment(causingfile, NULL, NULL, exitcode);
 	argv[0] = endhook,
 	(void)execv(endhook, argv);
 	fprintf(stderr, "Error executing '%s': %s\n", endhook,

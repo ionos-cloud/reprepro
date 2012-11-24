@@ -30,7 +30,7 @@
 #include "names.h"
 #include "configparser.h"
 #include "globmatch.h"
-#include "log.h" // for causing*
+#include "hooks.h"
 #include "byhandhook.h"
 
 struct byhandhook {
@@ -177,22 +177,7 @@ retvalue byhandhook_call(const struct byhandhook *h, const char *codename, const
 	if (child == 0) {
 		/* Try to close all open fd but 0,1,2 */
 		closefrom(3);
-		if (causingfile != NULL)
-			setenv("REPREPRO_CAUSING_FILE", causingfile, true);
-		else
-			unsetenv("REPREPRO_CAUSING_FILE");
-		if (atom_defined(causingcommand))
-			setenv("REPREPRO_CAUSING_COMMAND",
-					atoms_commands[causingcommand],
-					true);
-		else
-			unsetenv("REPREPRO_CAUSING_COMMAND");
-		setenv("REPREPRO_BASE_DIR", global.basedir, true);
-		setenv("REPREPRO_OUT_DIR", global.outdir, true);
-		setenv("REPREPRO_CONF_DIR", global.confdir, true);
-		setenv("REPREPRO_CONFIG_DIR", global.confdir, true);
-		setenv("REPREPRO_DIST_DIR", global.distdir, true);
-		setenv("REPREPRO_LOG_DIR", global.logdir, true);
+		sethookenvironment(causingfile, NULL, NULL, NULL);
 		(void)execl(h->script, h->script, codename,
 				section, priority, name,
 				fullfilename, (char*)NULL);

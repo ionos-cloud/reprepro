@@ -38,7 +38,7 @@
 #include "guesscomponent.h"
 #include "tracking.h"
 #include "override.h"
-#include "log.h"
+#include "hooks.h"
 
 /* This file includes the code to include binaries, i.e.
    to create the chunk for the Packages.gz-file and
