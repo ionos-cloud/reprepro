@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005,2007,2009 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2007,2009,2012 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -69,11 +69,11 @@ struct release {
 		char *fullfinalfilename;
 		char *fulltemporaryfilename;
 		char *symlinktarget;
-		/* name NULL NULL NULL: add old filename
-		 * name file file NULL: rename new file and publish
-		 * NULL file file NULL: rename new file
-		 * NULL file NULL NULL: delete if done
-		 * NULL file NULL file: create symlink */
+		/* name chks NULL NULL NULL: add old filename or virtual file
+		 * name chks file file NULL: rename new file and publish
+		 * name NULL file file NULL: rename new file
+		 * name NULL file NULL NULL: delete if done
+		 * name NULL file NULL file: create symlink */
 	} *files;
 	/* the Release file in preperation
 	 * (only valid between _prepare and _finish) */
@@ -118,20 +118,18 @@ static retvalue newreleaseentry(struct release *release, /*@only@*/ char *relati
 		/*@only@*/ /*@null@*/ char *symlinktarget) {
 	struct release_entry *n, *p;
 
+	/* everything has a relative name */
+	assert (relativefilename != NULL);
 	/* it's either something to do or to publish */
-	assert (fullfinalfilename != NULL || relativefilename != NULL);
+	assert (fullfinalfilename != NULL || checksums != NULL);
 	/* if there is something temporary, it has a final place */
 	assert (fulltemporaryfilename == NULL || fullfinalfilename != NULL);
-	/* something to publish must have a checksum */
-	assert (checksums != NULL || relativefilename == NULL);
-	/* no checksum means nothing to publish */
-	assert (checksums == NULL || relativefilename != NULL);
 	/* a symlink cannot be published (Yet?) */
-	assert (symlinktarget == NULL || relativefilename == NULL);
+	assert (symlinktarget == NULL || checksums == NULL);
 	/* cannot place a file and a symlink */
 	assert (symlinktarget == NULL || fulltemporaryfilename == NULL);
 	/* something to publish cannot be a file deletion */
-	assert (relativefilename == NULL
+	assert (checksums == NULL
 			|| fullfinalfilename == NULL
 			|| fulltemporaryfilename != NULL
 			|| symlinktarget != NULL);
@@ -255,8 +253,7 @@ retvalue release_adddel(struct release *release, /*@only@*/char *reltmpfile) {
 		free(reltmpfile);
 		return RET_ERROR_OOM;
 	}
-	free(reltmpfile);
-	return newreleaseentry(release, NULL, NULL, filename, NULL, NULL);
+	return newreleaseentry(release, reltmpfile, NULL, filename, NULL, NULL);
 }
 
 retvalue release_addnew(struct release *release, /*@only@*/char *reltmpfile, /*@only@*/char *relfilename) {
@@ -305,9 +302,8 @@ retvalue release_addsilentnew(struct release *release, /*@only@*/char *reltmpfil
 		free(filename);
 		return RET_ERROR_OOM;
 	}
-	free(relfilename);
 	release->new = true;
-	return newreleaseentry(release, NULL,
+	return newreleaseentry(release, relfilename,
 			NULL, finalfilename, filename, NULL);
 }
 
@@ -329,6 +325,20 @@ retvalue release_addold(struct release *release, /*@only@*/char *relfilename) {
 	}
 	return newreleaseentry(release, relfilename,
 			checksums, NULL, NULL, NULL);
+}
+
+static retvalue release_addsymlink(struct release *release, /*@only@*/char *relfilename, /*@only@*/ char *symlinktarget) {
+	char *fullfilename;
+
+	fullfilename = calc_dirconcat(release->dirofdist, relfilename);
+	if (FAILEDTOALLOC(fullfilename)) {
+		free(symlinktarget);
+		free(relfilename);
+		return RET_ERROR_OOM;
+	}
+	release->new = true;
+	return newreleaseentry(release, relfilename, NULL,
+				fullfilename, NULL, symlinktarget);
 }
 
 static char *calc_compressedname(const char *name, enum indexcompression ic) {
@@ -679,8 +689,7 @@ static inline retvalue setfilename(struct release *release, struct filetorelease
 	/* symlink creation fails horrible if the symlink is not in the base
 	 * directory */
 	assert (strchr(symlinkas, '/') == NULL);
-	n->f[ic].symlinkas = mprintf("%s/%s%s", release->dirofdist, symlinkas,
-			ics[ic]);
+	n->f[ic].symlinkas = mprintf("%s%s", symlinkas, ics[ic]);
 	if (FAILEDTOALLOC(n->f[ic].symlinkas))
 		return RET_ERROR_OOM;
 	return RET_OK;
@@ -866,11 +875,11 @@ static retvalue releasefile(struct release *release, struct openfile *f) {
 	if (RET_WAS_ERROR(r))
 		return r;
 	if (f->symlinkas) {
-		char *symlinktarget = calc_relative_path(f->fullfinalfilename,
+		char *symlinktarget = calc_relative_path(f->relativefilename,
 				f->symlinkas);
 		if (FAILEDTOALLOC(symlinktarget))
 			return RET_ERROR_OOM;
-		r = newreleaseentry(release, NULL, NULL, f->symlinkas, NULL,
+		r = release_addsymlink(release, f->symlinkas,
 				symlinktarget);
 		f->symlinkas = NULL;
 		if (RET_WAS_ERROR(r))
@@ -1283,13 +1292,15 @@ static retvalue storechecksums(struct release *release) {
 
 	for (file = release->files ; file != NULL ; file = file->next) {
 
-		if (file->relativefilename == NULL)
-			continue;
+		assert (file->relativefilename != NULL);
 
 		r = table_deleterecord(release->cachedb,
 				file->relativefilename, true);
 		if (RET_WAS_ERROR(r))
 			return r;
+
+		if (file->checksums == NULL)
+			continue;
 
 		r = checksums_getcombined(file->checksums, &combinedchecksum, &len);
 		RET_UPDATE(result, r);
@@ -1438,7 +1449,7 @@ retvalue release_prepare(struct release *release, struct distribution *distribut
 		for (file = release->files ; file != NULL ; file = file->next) {
 			const char *hash, *size;
 			size_t hashlen, sizelen;
-			if (file->relativefilename == NULL)
+			if (file->checksums == NULL)
 				continue;
 			if (!checksums_gethashpart(file->checksums, cs,
 					&hash, &hashlen, &size, &sizelen))
@@ -1473,7 +1484,8 @@ retvalue release_finish(/*@only@*/struct release *release, struct distribution *
 	result = RET_OK;
 
 	for (file = release->files ; file != NULL ; file = file->next) {
-		if (file->relativefilename == NULL
+		assert (file->relativefilename != NULL);
+		if (file->checksums == NULL
 				&& file->fullfinalfilename != NULL
 				&& file->fulltemporaryfilename == NULL
 				&& file->symlinktarget == NULL) {

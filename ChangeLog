@@ -1,3 +1,6 @@
+2012-12-02  Bernhard R. Link <brlink@debian.org>
+	* keep around relative release filenames always
+
 2012-11-24  Bernhard R. Link <brlink@debian.org>
 	* make setting of environment variables for
 	  hooks more uniform (and with less code duplication).
