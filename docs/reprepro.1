@@ -189,16 +189,19 @@ This option specify whether and how the high level actions
 (e.g. install, update, pull, delete)
 should export the index files of the distributions they work with.
 .TP
-.BR \-\-export=normal " (default till 3.0.0)"
-.BR \-\-export=lookedat " (alternative new name since 3.0.1)"
+.BR \-\-export=lookedat
 In this mode every distribution the action handled will be exported,
 unless there was an error possibly corrupting it.
 .br
 \fINote\fP that only missing files and files whose intended content changed
 between before and after the action will be written.
 To get a guaranteed current export, use the \fBexport\fP action.
+.br
+For backwards compatibility, \fBlookedat\fP is also available under the
+old name \fBnormal\fP.
+The name \fBnormal\fP is deprecated and will be removed in future versions.
 .TP
-.BR \-\-export=changed " (default since 3.0.1)"
+.BR \-\-export=changed
 In this mode every distribution actually changed will be exported,
 unless there was an error possibly corrupting it.
 (i.e. if nothing changed, not even missing files will be created.)
