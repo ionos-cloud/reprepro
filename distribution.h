@@ -132,8 +132,6 @@ retvalue distribution_remove_packages(struct distribution *, const struct atomli
 
 retvalue distribution_fullexport(struct distribution *distribution);
 
-enum exportwhen {EXPORT_NEVER, EXPORT_SILENT_NEVER, EXPORT_CHANGED, EXPORT_NORMAL, EXPORT_FORCE };
-retvalue distribution_export(enum exportwhen, struct distribution *);
 
 retvalue distribution_snapshot(struct distribution *distribution, const char *name);
 
@@ -147,6 +145,7 @@ retvalue distribution_match(struct distribution * /*alldistributions*/, int /*ar
 struct distribution *distribution_find(struct distribution *, const char *);
 
 retvalue distribution_freelist(/*@only@*/struct distribution *distributions);
+enum exportwhen {EXPORT_NEVER, EXPORT_SILENT_NEVER, EXPORT_CHANGED, EXPORT_NORMAL, EXPORT_FORCE };
 retvalue distribution_exportlist(enum exportwhen when, /*@only@*/struct distribution *distributions);
 
 retvalue distribution_loadalloverrides(struct distribution *);

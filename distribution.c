@@ -965,58 +965,6 @@ retvalue distribution_exportlist(enum exportwhen when, struct distribution *dist
 	return result;
 }
 
-retvalue distribution_export(enum exportwhen when, struct distribution *distribution) {
-	if (when == EXPORT_SILENT_NEVER) {
-		struct target *t;
-
-		for (t = distribution->targets ; t != NULL ; t = t->next)
-			t->wasmodified = false;
-		return RET_NOTHING;
-	}
-	if (when == EXPORT_NEVER) {
-		if (verbose >= 10)
-			fprintf(stderr,
-"Not exporting %s because of --export=never.\n"
-"Make sure to run a full export soon.\n", distribution->codename);
-		return RET_NOTHING;
-	}
-	if (when != EXPORT_FORCE &&
-			(RET_WAS_ERROR(distribution->status)||interrupted())) {
-		if (verbose >= 10)
-			fprintf(stderr,
-"Not exporting %s because there have been errors and no --export=force.\n"
-"Make sure to run a full export soon.\n", distribution->codename);
-		return RET_NOTHING;
-	}
-	if (when == EXPORT_CHANGED && distribution->status == RET_NOTHING) {
-		struct target *t;
-
-		if (verbose >= 10)
-			fprintf(stderr,
-"Not exporting %s because of no recorded changes and --export=changed.\n",
-	distribution->codename);
-
-		/* some paranoid check */
-
-		for (t = distribution->targets ; t != NULL ; t = t->next) {
-			if (t->wasmodified) {
-				fprintf(stderr,
-"A paranoid check found distribution %s would not have been exported,\n"
-"despite having parts that are marked changed by deeper code.\n"
-"Please report this and how you got this message as bugreport. Thanks.\n"
-"Doing a export despite --export=changed....\n",
-						distribution->codename);
-				return export(distribution, true);
-				break;
-			}
-		}
-
-		return RET_NOTHING;
-	}
-	if (verbose >= 0)
-		printf("Exporting indices...\n");
-	return export(distribution, true);
-}
 
 /* get a pointer to the apropiate part of the linked list */
 struct distribution *distribution_find(struct distribution *distributions, const char *name) {

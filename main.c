@@ -698,11 +698,6 @@ ACTION_D(y, n, y, remove) {
 			 break;
 	}
 
-	logger_wait();
-
-	r = distribution_export(export, distribution);
-	RET_ENDUPDATE(result, r);
-
 	if (distribution->tracking != dt_NONE) {
 		if (RET_WAS_ERROR(result))
 			trackingdata_done(&trackingdata);
@@ -809,22 +804,15 @@ static retvalue remove_packages(struct distribution *distribution, struct remove
 				}
 			}
 		}
-		if (RET_IS_OK(result)) {
-			r = distribution_export(export, distribution);
-			RET_ENDUPDATE(result, r);
-		}
 		r = tracking_done(tracks);
 		RET_ENDUPDATE(result, r);
 		return result;
 	}
-	result = distribution_remove_packages(distribution,
+	return distribution_remove_packages(distribution,
 			// TODO: why not arch comp pt here?
 			atom_unknown, atom_unknown, atom_unknown,
 			package_source_fits, NULL,
 			toremove);
-	r = distribution_export(export, distribution);
-	RET_ENDUPDATE(result, r);
-	return result;
 }
 
 ACTION_D(n, n, y, removesrc) {
@@ -1002,8 +990,6 @@ ACTION_D(y, n, y, removefilter) {
 			package_matches_condition,
 			(tracks != NULL)?&trackingdata:NULL,
 			condition);
-	r = distribution_export(export, distribution);
-	RET_ENDUPDATE(result, r);
 	if (tracks != NULL) {
 		trackingdata_finish(tracks, &trackingdata);
 		r = tracking_done(tracks);
@@ -1065,8 +1051,6 @@ ACTION_D(y, n, y, removematched) {
 			package_matches_glob,
 			(tracks != NULL)?&trackingdata:NULL,
 			(void*)argv[2]);
-	r = distribution_export(export, distribution);
-	RET_ENDUPDATE(result, r);
 	if (tracks != NULL) {
 		trackingdata_finish(tracks, &trackingdata);
 		r = tracking_done(tracks);
@@ -1528,6 +1512,9 @@ ACTION_F(n, n, y, y, export) {
 		}
 
 		r = distribution_fullexport(d);
+		if (RET_IS_OK(r))
+			/* avoid being exported again */
+			d->lookedat = false;
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(r) && export != EXPORT_FORCE) {
 			return r;
@@ -1539,7 +1526,7 @@ ACTION_F(n, n, y, y, export) {
 /***********************update********************************/
 
 ACTION_D(y, n, y, update) {
-	retvalue result, r;
+	retvalue result;
 	struct update_pattern *patterns;
 	struct update_distribution *u_distributions;
 
@@ -1583,15 +1570,11 @@ ACTION_D(y, n, y, update) {
 				reservedotherspace);
 	updates_freeupdatedistributions(u_distributions);
 	updates_freepatterns(patterns);
-
-	r = distribution_exportlist(export, alldistributions);
-	RET_ENDUPDATE(result, r);
-
 	return result;
 }
 
 ACTION_D(y, n, y, predelete) {
-	retvalue result, r;
+	retvalue result;
 	struct update_pattern *patterns;
 	struct update_distribution *u_distributions;
 
@@ -1634,10 +1617,6 @@ ACTION_D(y, n, y, predelete) {
 				nolistsdownload, skipold);
 	updates_freeupdatedistributions(u_distributions);
 	updates_freepatterns(patterns);
-
-	r = distribution_exportlist(export, alldistributions);
-	RET_ENDUPDATE(result, r);
-
 	return result;
 }
 
@@ -1754,7 +1733,7 @@ ACTION_L(n, n, n, n, cleanlists) {
 /***********************migrate*******************************/
 
 ACTION_D(y, n, y, pull) {
-	retvalue result, r;
+	retvalue result;
 	struct pull_rule *rules;
 	struct pull_distribution *p;
 
@@ -1780,10 +1759,6 @@ ACTION_D(y, n, y, pull) {
 
 	pull_freerules(rules);
 	pull_freedistributions(p);
-
-	r = distribution_exportlist(export, alldistributions);
-	RET_ENDUPDATE(result, r);
-
 	return result;
 }
 
@@ -1851,7 +1826,7 @@ ACTION_B(y, n, y, dumppull) {
 
 ACTION_D(y, n, y, copy) {
 	struct distribution *destination, *source;
-	retvalue result, r;
+	retvalue result;
 
 	result = distribution_get(alldistributions, argv[1], true, &destination);
 	assert (result != RET_NOTHING);
@@ -1872,22 +1847,13 @@ ACTION_D(y, n, y, copy) {
 	if (RET_WAS_ERROR(result))
 		return result;
 
-	r = copy_by_name(destination, source, argc-3, argv+3,
+	return copy_by_name(destination, source, argc-3, argv+3,
 			components, architectures, packagetypes);
-	RET_ENDUPDATE(result, r);
-
-	logger_wait();
-
-	r = distribution_export(export, destination);
-	RET_ENDUPDATE(result, r);
-
-	return result;
-
 }
 
 ACTION_D(y, n, y, copysrc) {
 	struct distribution *destination, *source;
-	retvalue result, r;
+	retvalue result;
 
 	result = distribution_get(alldistributions, argv[1], true, &destination);
 	assert (result != RET_NOTHING);
@@ -1907,21 +1873,14 @@ ACTION_D(y, n, y, copysrc) {
 	if (RET_WAS_ERROR(result))
 		return result;
 
-	r = copy_by_source(destination, source, argc-3, argv+3,
+	return copy_by_source(destination, source, argc-3, argv+3,
 			components, architectures, packagetypes);
-	RET_ENDUPDATE(result, r);
-
-	logger_wait();
-
-	r = distribution_export(export, destination);
-	RET_ENDUPDATE(result, r);
-
 	return result;
 }
 
 ACTION_D(y, n, y, copyfilter) {
 	struct distribution *destination, *source;
-	retvalue result, r;
+	retvalue result;
 
 	assert (argc == 4);
 
@@ -1943,21 +1902,13 @@ ACTION_D(y, n, y, copyfilter) {
 	if (RET_WAS_ERROR(result))
 		return result;
 
-	r = copy_by_formula(destination, source, argv[3],
+	return copy_by_formula(destination, source, argv[3],
 			components, architectures, packagetypes);
-	RET_ENDUPDATE(result, r);
-
-	logger_wait();
-
-	r = distribution_export(export, destination);
-	RET_ENDUPDATE(result, r);
-
-	return result;
 }
 
 ACTION_D(y, n, y, copymatched) {
 	struct distribution *destination, *source;
-	retvalue result, r;
+	retvalue result;
 
 	assert (argc == 4);
 
@@ -1979,21 +1930,13 @@ ACTION_D(y, n, y, copymatched) {
 	if (RET_WAS_ERROR(result))
 		return result;
 
-	r = copy_by_glob(destination, source, argv[3],
+	return copy_by_glob(destination, source, argv[3],
 			components, architectures, packagetypes);
-	RET_ENDUPDATE(result, r);
-
-	logger_wait();
-
-	r = distribution_export(export, destination);
-	RET_ENDUPDATE(result, r);
-
-	return result;
 }
 
 ACTION_D(y, n, y, restore) {
 	struct distribution *destination;
-	retvalue result, r;
+	retvalue result;
 
 	result = distribution_get(alldistributions, argv[1], true, &destination);
 	assert (result != RET_NOTHING);
@@ -2009,23 +1952,14 @@ ACTION_D(y, n, y, restore) {
 	if (RET_WAS_ERROR(result))
 		return result;
 
-	r = restore_by_name(destination,
+	return restore_by_name(destination,
 			components, architectures, packagetypes, argv[2],
 			argc-3, argv+3);
-	RET_ENDUPDATE(result, r);
-
-	logger_wait();
-
-	r = distribution_export(export, destination);
-	RET_ENDUPDATE(result, r);
-
-	return result;
-
 }
 
 ACTION_D(y, n, y, restoresrc) {
 	struct distribution *destination;
-	retvalue result, r;
+	retvalue result;
 
 	result = distribution_get(alldistributions, argv[1], true, &destination);
 	assert (result != RET_NOTHING);
@@ -2041,22 +1975,14 @@ ACTION_D(y, n, y, restoresrc) {
 	if (RET_WAS_ERROR(result))
 		return result;
 
-	r = restore_by_source(destination,
+	return restore_by_source(destination,
 			components, architectures, packagetypes, argv[2],
 			argc-3, argv+3);
-	RET_ENDUPDATE(result, r);
-
-	logger_wait();
-
-	r = distribution_export(export, destination);
-	RET_ENDUPDATE(result, r);
-
-	return result;
 }
 
 ACTION_D(y, n, y, restorematched) {
 	struct distribution *destination;
-	retvalue result, r;
+	retvalue result;
 
 	assert (argc == 4);
 
@@ -2074,22 +2000,14 @@ ACTION_D(y, n, y, restorematched) {
 	if (RET_WAS_ERROR(result))
 		return result;
 
-	r = restore_by_glob(destination,
+	return restore_by_glob(destination,
 			components, architectures, packagetypes, argv[2],
 			argv[3]);
-	RET_ENDUPDATE(result, r);
-
-	logger_wait();
-
-	r = distribution_export(export, destination);
-	RET_ENDUPDATE(result, r);
-
-	return result;
 }
 
 ACTION_D(y, n, y, restorefilter) {
 	struct distribution *destination;
-	retvalue result, r;
+	retvalue result;
 
 	assert (argc == 4);
 
@@ -2107,22 +2025,14 @@ ACTION_D(y, n, y, restorefilter) {
 	if (RET_WAS_ERROR(result))
 		return result;
 
-	r = restore_by_formula(destination,
+	return restore_by_formula(destination,
 			components, architectures, packagetypes, argv[2],
 			argv[3]);
-	RET_ENDUPDATE(result, r);
-
-	logger_wait();
-
-	r = distribution_export(export, destination);
-	RET_ENDUPDATE(result, r);
-
-	return result;
 }
 
 ACTION_D(y, n, y, addpackage) {
 	struct distribution *destination;
-	retvalue result, r;
+	retvalue result;
 	architecture_t architecture = atom_unknown;
 	component_t component = atom_unknown;
 	packagetype_t packagetype = atom_unknown;
@@ -2180,15 +2090,9 @@ ACTION_D(y, n, y, addpackage) {
 	if (RET_WAS_ERROR(result))
 		return result;
 
-	result = copy_from_file(destination,
+	return copy_from_file(destination,
 			component, architecture, packagetype, argv[2],
 			argc-3, argv+3);
-	logger_wait();
-
-	r = distribution_export(export, destination);
-	RET_ENDUPDATE(result, r);
-
-	return result;
 }
 
 /***********************rereferencing*************************/
@@ -2197,7 +2101,7 @@ ACTION_R(n, n, y, y, rereference) {
 	struct distribution *d;
 	struct target *t;
 
-	result = distribution_match(alldistributions, argc-1, argv+1, true, READONLY);
+	result = distribution_match(alldistributions, argc-1, argv+1, false, READONLY);
 	assert (result != RET_NOTHING);
 	if (RET_WAS_ERROR(result)) {
 		return result;
@@ -2227,7 +2131,7 @@ ACTION_D(n, n, y, retrack) {
 	retvalue result, r;
 	struct distribution *d;
 
-	result = distribution_match(alldistributions, argc-1, argv+1, true, READONLY);
+	result = distribution_match(alldistributions, argc-1, argv+1, false, READONLY);
 	assert (result != RET_NOTHING);
 	if (RET_WAS_ERROR(result)) {
 		return result;
@@ -2260,7 +2164,7 @@ ACTION_D(n, n, y, removetrack) {
 
 	assert (argc == 4);
 
-	result = distribution_get(alldistributions, argv[1], true, &distribution);
+	result = distribution_get(alldistributions, argv[1], false, &distribution);
 	assert (result != RET_NOTHING);
 	if (RET_WAS_ERROR(result))
 		return result;
@@ -2329,7 +2233,7 @@ ACTION_D(n, n, y, tidytracks) {
 	struct distribution *d;
 
 	result = distribution_match(alldistributions, argc-1, argv+1,
-			true, READONLY);
+			false, READONLY);
 	assert (result != RET_NOTHING);
 	if (RET_WAS_ERROR(result)) {
 		return result;
@@ -2503,9 +2407,6 @@ ACTION_F(y, n, y, y, reoverride) {
 		if (RET_WAS_ERROR(result))
 			break;
 	}
-	r = distribution_exportlist(export, alldistributions);
-	RET_ENDUPDATE(result, r);
-
 	return result;
 }
 
@@ -2600,8 +2501,6 @@ ACTION_F(y, n, y, y, repairdescriptions) {
 				break;
 		}
 	}
-	r = distribution_exportlist(export, alldistributions);
-	RET_ENDUPDATE(result, r);
 	return result;
 }
 
@@ -2642,8 +2541,6 @@ ACTION_F(y, n, y, y, redochecksums) {
 		if (RET_WAS_ERROR(result))
 			break;
 	}
-	r = distribution_exportlist(export, alldistributions);
-	RET_ENDUPDATE(result, r);
 	return result;
 }
 
@@ -2785,12 +2682,6 @@ ACTION_D(y, y, y, includedeb) {
 
 	r = tracking_done(tracks);
 	RET_ENDUPDATE(result, r);
-
-	logger_wait();
-
-	r = distribution_export(export, distribution);
-	RET_ENDUPDATE(result, r);
-
 	return result;
 }
 
@@ -2865,9 +2756,6 @@ ACTION_D(y, y, y, includedsc) {
 	distribution_unloadoverrides(distribution);
 	r = tracking_done(tracks);
 	RET_ENDUPDATE(result, r);
-	r = distribution_export(export, distribution);
-	RET_ENDUPDATE(result, r);
-
 	return result;
 }
 
@@ -2935,9 +2823,6 @@ ACTION_D(y, y, y, include) {
 	distribution_unloaduploaders(distribution);
 	r = tracking_done(tracks);
 	RET_ENDUPDATE(result, r);
-	r = distribution_export(export, distribution);
-	RET_ENDUPDATE(result, r);
-
 	return result;
 }
 
@@ -3645,21 +3530,13 @@ ACTION_N(n, n, y, versioncompare) {
 }
 /***********************processincoming********************************/
 ACTION_D(n, n, y, processincoming) {
-	retvalue result, r;
 	struct distribution *d;
 
 	for (d = alldistributions ; d != NULL ; d = d->next)
 		d->selected = true;
 
-	result = process_incoming(alldistributions, argv[1],
+	return process_incoming(alldistributions, argv[1],
 			(argc==3) ? argv[2] : NULL);
-
-	logger_wait();
-
-	r = distribution_exportlist(export, alldistributions);
-	RET_ENDUPDATE(result, r);
-
-	return result;
 }
 /***********************gensnapshot********************************/
 ACTION_R(n, n, y, y, gensnapshot) {
@@ -3668,7 +3545,7 @@ ACTION_R(n, n, y, y, gensnapshot) {
 
 	assert (argc == 3);
 
-	result = distribution_get(alldistributions, argv[1], true, &distribution);
+	result = distribution_get(alldistributions, argv[1], false, &distribution);
 	assert (result != RET_NOTHING);
 	if (RET_WAS_ERROR(result))
 		return result;
@@ -3776,8 +3653,6 @@ ACTION_D(y, n, y, flood) {
 	result = flood(distribution, components, architectures, packagetypes,
 			architecture, tracks);
 
-	logger_wait();
-
 	if (RET_WAS_ERROR(result))
 		RET_UPDATE(distribution->status, result);
 
@@ -3785,9 +3660,6 @@ ACTION_D(y, n, y, flood) {
 		r = tracking_done(tracks);
 		RET_ENDUPDATE(result, r);
 	}
-	r = distribution_export(export, distribution);
-	RET_ENDUPDATE(result, r);
-
 	return result;
 }
 
@@ -4140,6 +4012,13 @@ static retvalue callaction(command_t command, const struct action *action, int a
 				x_section, x_priority,
 				atom_unknown, atom_unknown, atom_unknown,
 				argc, argv);
+		logger_wait();
+
+		if (!RET_WAS_ERROR(result)) {
+			r = distribution_exportlist(export, alldistributions);
+			RET_ENDUPDATE(result, r);
+		}
+
 		r = distribution_freelist(alldistributions);
 		RET_ENDUPDATE(result, r);
 		return result;
@@ -4255,6 +4134,13 @@ static retvalue callaction(command_t command, const struct action *action, int a
 					argc, argv);
 				/* wait for package specific loggers */
 				logger_wait();
+				/* export changed/lookedat distributions */
+				if (!RET_WAS_ERROR(result)) {
+					r = distribution_exportlist(export,
+							alldistributions);
+					RET_ENDUPDATE(result, r);
+				}
+
 				/* remove files added but not used */
 				pool_tidyadded(deletenew);
 
