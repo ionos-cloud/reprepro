@@ -56,14 +56,11 @@ retvalue signature_readsignedchunk(const char *filename, const char *filenametos
 struct signedfile;
 struct strlist;
 
-retvalue signature_startsignedfile(const char */*directory*/, const char */*basename*/, const char */*inlinebasename*/, /*@out@*/struct signedfile **);
+retvalue signature_startsignedfile(/*@out@*/struct signedfile **);
 void signedfile_write(struct signedfile *, const void *, size_t);
 /* generate signature in temporary file */
-retvalue signedfile_prepare(struct signedfile *, const struct strlist *, bool /*willcleanup*/);
-/* move temporary files to final places */
-retvalue signedfile_finalize(struct signedfile *, bool *toolate);
-/* may only be called after signedfile_prepare */
-void signedfile_free(/*@only@*/struct signedfile *, bool cleanup);
+retvalue signedfile_create(struct signedfile *, const char *, char **, char **, const struct strlist *, bool /*willcleanup*/);
+void signedfile_free(/*@only@*/struct signedfile *);
 
 void signatures_done(void);
 #endif

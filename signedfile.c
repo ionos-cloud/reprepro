@@ -342,39 +342,22 @@ static retvalue signature_with_extern(const struct strlist *options, const char 
 }
 
 struct signedfile {
-	char *plainfilename, *newplainfilename;
-	char *signfilename, *newsignfilename;
-	char *inlinefilename, *newinlinefilename;
 	retvalue result;
 #define DATABUFFERUNITS (128ul * 1024ul)
 	size_t bufferlen, buffersize;
 	char *buffer;
 };
 
-retvalue signature_startsignedfile(const char *directory, const char *basefilename, const char *inlinefilename, struct signedfile **out) {
+retvalue signature_startsignedfile(struct signedfile **out) {
 	struct signedfile *n;
 
 	n = zNEW(struct signedfile);
 	if (FAILEDTOALLOC(n))
 		return RET_ERROR_OOM;
-	n->plainfilename = calc_dirconcat(directory, basefilename);
-	if (FAILEDTOALLOC(n->plainfilename)) {
-		free(n);
-		return RET_ERROR_OOM;
-	}
-	n->inlinefilename = calc_dirconcat(directory, inlinefilename);
-	if (FAILEDTOALLOC(n->inlinefilename)) {
-		free(n->plainfilename);
-		free(n);
-		return RET_ERROR_OOM;
-	}
-	n->newplainfilename = NULL;
 	n->bufferlen = 0;
 	n->buffersize = DATABUFFERUNITS;
 	n->buffer = malloc(n->buffersize);
 	if (FAILEDTOALLOC(n->buffer)) {
-		free(n->plainfilename);
-		free(n->inlinefilename);
 		free(n);
 		return RET_ERROR_OOM;
 	}
@@ -382,27 +365,9 @@ retvalue signature_startsignedfile(const char *directory, const char *basefilena
 	return RET_OK;
 }
 
-void signedfile_free(struct signedfile *f, bool cleanup) {
+void signedfile_free(struct signedfile *f) {
 	if (f == NULL)
 		return;
-	if (f->newplainfilename != NULL) {
-		if (cleanup)
-			(void)unlink(f->newplainfilename);
-		free(f->newplainfilename);
-	}
-	free(f->plainfilename);
-	if (f->newsignfilename != NULL) {
-		if (cleanup)
-			(void)unlink(f->newsignfilename);
-		free(f->newsignfilename);
-	}
-	free(f->signfilename);
-	if (f->newinlinefilename != NULL) {
-		if (cleanup)
-			(void)unlink(f->newinlinefilename);
-		free(f->newinlinefilename);
-	}
-	free(f->inlinefilename);
 	free(f->buffer);
 	free(f);
 	return;
@@ -439,7 +404,7 @@ void signedfile_write(struct signedfile *f, const void *data, size_t len) {
 	assert (f->bufferlen <= f->buffersize);
 }
 
-retvalue signedfile_prepare(struct signedfile *f, const struct strlist *options, bool willcleanup) {
+retvalue signedfile_create(struct signedfile *f, const char *newplainfilename, char **newsignedfilename_p, char **newdetachedsignature_p, const struct strlist *options, bool willcleanup) {
 	size_t len, ofs;
 	int fd, ret;
 
@@ -448,21 +413,17 @@ retvalue signedfile_prepare(struct signedfile *f, const struct strlist *options,
 
 	/* write content to file */
 
-	f->newplainfilename = calc_addsuffix(f->plainfilename, "new");
-	if (FAILEDTOALLOC(f->newplainfilename))
-		return RET_ERROR_OOM;
+	assert (newplainfilename != NULL);
 
-	(void)dirs_make_parent(f->newplainfilename);
-	(void)unlink(f->newplainfilename);
+	(void)dirs_make_parent(newplainfilename);
+	(void)unlink(newplainfilename);
 
-	fd = open(f->newplainfilename, O_WRONLY|O_CREAT|O_TRUNC|O_NOCTTY, 0666);
+	fd = open(newplainfilename, O_WRONLY|O_CREAT|O_TRUNC|O_NOCTTY, 0666);
 	if (fd < 0) {
 		int e = errno;
 		fprintf(stderr, "Error creating file '%s': %s\n",
-				f->newplainfilename,
+				newplainfilename,
 				strerror(e));
-		free(f->newplainfilename);
-		f->newplainfilename = NULL;
 		return RET_ERRNO(e);
 	}
 	ofs = 0;
@@ -474,12 +435,9 @@ retvalue signedfile_prepare(struct signedfile *f, const struct strlist *options,
 		if (written < 0) {
 			int e = errno;
 			fprintf(stderr, "Error %d writing to file '%s': %s\n",
-					e, f->newplainfilename,
+					e, newplainfilename,
 					strerror(e));
 			(void)close(fd);
-			(void)unlink(f->newplainfilename);
-			free(f->newplainfilename);
-			f->newplainfilename = NULL;
 			return RET_ERRNO(e);
 		}
 		assert ((size_t)written <= len);
@@ -490,53 +448,39 @@ retvalue signedfile_prepare(struct signedfile *f, const struct strlist *options,
 	if (ret < 0) {
 		int e = errno;
 		fprintf(stderr, "Error %d writing to file '%s': %s\n",
-				e, f->newplainfilename,
+				e, newplainfilename,
 				strerror(e));
-		(void)unlink(f->newplainfilename);
-		free(f->newplainfilename);
-		f->newplainfilename = NULL;
 		return RET_ERRNO(e);
 	}
 	/* now do the actual signing */
 	if (options != NULL && options->count > 0) {
 		retvalue r;
-
-		assert (f->newplainfilename != NULL);
-		f->signfilename = calc_addsuffix(f->plainfilename, "gpg");
-		if (FAILEDTOALLOC(f->signfilename))
-			return RET_ERROR_OOM;
-		f->newsignfilename = calc_addsuffix(f->signfilename, "new");
-		if (FAILEDTOALLOC(f->newsignfilename))
-			return RET_ERROR_OOM;
-		f->newinlinefilename = calc_addsuffix(f->inlinefilename, "new");
-		if (FAILEDTOALLOC(f->newinlinefilename))
-			return RET_ERROR_OOM;
+		const char *newsigned = *newsignedfilename_p;
+		const char *newdetached = *newdetachedsignature_p;
 
 		/* make sure the new files do not already exist: */
-		if (unlink(f->newsignfilename) != 0 && errno != ENOENT) {
+		if (unlink(newdetached) != 0 && errno != ENOENT) {
 			fprintf(stderr,
 "Could not remove '%s' to prepare replacement: %s\n",
-					f->newsignfilename, strerror(errno));
+					newdetached, strerror(errno));
 			return RET_ERROR;
 		}
-		if (unlink(f->newinlinefilename) != 0 && errno != ENOENT) {
+		if (unlink(newsigned) != 0 && errno != ENOENT) {
 			fprintf(stderr,
 "Could not remove '%s' to prepare replacement: %s\n",
-					f->newinlinefilename, strerror(errno));
+					newsigned, strerror(errno));
 			return RET_ERROR;
 		}
 		/* if an hook is given, use that instead */
 		if (options->values[0][0] == '!')
-			r = signature_with_extern(options, f->newplainfilename,
-					f->newinlinefilename,
-					&f->newsignfilename);
+			r = signature_with_extern(options, newplainfilename,
+					newsigned, newdetachedsignature_p);
 		else
 #ifdef HAVE_LIBGPGME
 			r = signature_sign(options,
-				f->newplainfilename,
+				newplainfilename,
 				f->buffer, f->bufferlen,
-				f->newsignfilename,
-				f->newinlinefilename,
+				newdetached, newsigned,
 				willcleanup);
 #else /* HAVE_LIBGPGME */
 			fputs(
@@ -547,67 +491,12 @@ retvalue signedfile_prepare(struct signedfile *f, const struct strlist *options,
 #endif
 		if (RET_WAS_ERROR(r))
 			return r;
+	} else {
+		/* no signatures requested */
+		free(*newsignedfilename_p);
+		*newsignedfilename_p = NULL;
+		free(*newdetachedsignature_p);
+		*newdetachedsignature_p = NULL;
 	}
 	return RET_OK;
-}
-
-retvalue signedfile_finalize(struct signedfile *f, bool *toolate) {
-	retvalue result = RET_OK, r;
-	int e;
-
-	if (f->newsignfilename != NULL && f->signfilename != NULL) {
-		e = rename(f->newsignfilename, f->signfilename);
-		if (e < 0) {
-			e = errno;
-			fprintf(stderr, "Error %d moving %s to %s: %s!\n", e,
-					f->newsignfilename,
-					f->signfilename, strerror(e));
-			result = RET_ERRNO(e);
-			/* after something was done, do not stop
-			 * but try to do as much as possible */
-			if (!*toolate)
-				return result;
-		} else {
-			/* does not need deletion any more */
-			free(f->newsignfilename);
-			f->newsignfilename = NULL;
-			*toolate = true;
-		}
-	} else if (f->newsignfilename == NULL && f->signfilename != NULL) {
-		(void)unlink(f->signfilename);
-	}
-	if (f->newinlinefilename != NULL && f->inlinefilename != NULL) {
-		e = rename(f->newinlinefilename, f->inlinefilename);
-		if (e < 0) {
-			e = errno;
-			fprintf(stderr, "Error %d moving %s to %s: %s!\n", e,
-					f->newinlinefilename,
-					f->inlinefilename, strerror(e));
-			result = RET_ERRNO(e);
-			/* after something was done, do not stop
-			 * but try to do as much as possible */
-			if (!*toolate)
-				return result;
-		} else {
-			/* does not need deletion any more */
-			free(f->newinlinefilename);
-			f->newinlinefilename = NULL;
-			*toolate = true;
-		}
-	} else if (f->newinlinefilename == NULL && f->inlinefilename != NULL) {
-		(void)unlink(f->inlinefilename);
-	}
-	e = rename(f->newplainfilename, f->plainfilename);
-	if (e < 0) {
-		e = errno;
-		fprintf(stderr, "Error %d moving %s to %s: %s!\n", e,
-				f->newplainfilename,
-				f->plainfilename, strerror(e));
-		r = RET_ERRNO(e);
-		RET_UPDATE(result, r);
-	} else {
-		free(f->newplainfilename);
-		f->newplainfilename = NULL;
-	}
-	return result;
 }

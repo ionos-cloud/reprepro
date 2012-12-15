@@ -82,6 +82,17 @@ struct release {
 	struct table *cachedb;
 };
 
+static void release_freeentry(struct release_entry *e) {
+	free(e->relativefilename);
+	checksums_free(e->checksums);
+	free(e->fullfinalfilename);
+	if (!global.keeptemporaries && e->fulltemporaryfilename != NULL)
+		(void)unlink(e->fulltemporaryfilename);
+	free(e->fulltemporaryfilename);
+	free(e->symlinktarget);
+	free(e);
+}
+
 void release_free(struct release *release) {
 	struct release_entry *e;
 
@@ -90,17 +101,10 @@ void release_free(struct release *release) {
 	free(release->fakecodename);
 	while ((e = release->files) != NULL) {
 		release->files = e->next;
-		free(e->relativefilename);
-		checksums_free(e->checksums);
-		free(e->fullfinalfilename);
-		if (!global.keeptemporaries && e->fulltemporaryfilename != NULL)
-			unlink(e->fulltemporaryfilename);
-		free(e->fulltemporaryfilename);
-		free(e->symlinktarget);
-		free(e);
+		release_freeentry(e);
 	}
 	if (release->signedfile != NULL)
-		signedfile_free(release->signedfile, !global.keeptemporaries);
+		signedfile_free(release->signedfile);
 	if (release->cachedb != NULL) {
 		table_close(release->cachedb);
 	}
@@ -1324,6 +1328,56 @@ static inline bool componentneedsfake(const char *cn, const struct release *rele
 	return cn[release->fakecomponentprefixlen] != '/';
 }
 
+
+static struct release_entry *newspecialreleaseentry(struct release *release, const char *relativefilename) {
+	struct release_entry *n, *p;
+
+	assert (relativefilename != NULL);
+	n = zNEW(struct release_entry);
+	if (FAILEDTOALLOC(n))
+		return NULL;
+	n->relativefilename = strdup(relativefilename);
+	n->fullfinalfilename = calc_dirconcat(release->dirofdist,
+			relativefilename);
+	if (!FAILEDTOALLOC(n->fullfinalfilename))
+		n->fulltemporaryfilename = mprintf("%s.new",
+				n->fullfinalfilename);
+	if (FAILEDTOALLOC(n->relativefilename)
+			|| FAILEDTOALLOC(n->fullfinalfilename)
+			|| FAILEDTOALLOC(n->fulltemporaryfilename)) {
+		release_freeentry(n);
+		return NULL;
+	}
+	if (release->files == NULL)
+		release->files = n;
+	else {
+		p = release->files;
+		while (p->next != NULL)
+			p = p->next;
+		p->next = n;
+	}
+	return n;
+}
+static void omitunusedspecialreleaseentry(struct release *release, struct release_entry *e) {
+	struct release_entry **p;
+
+	if (e->fulltemporaryfilename != NULL)
+		/* new file available, nothing to omit */
+		return;
+	if (isregularfile(e->fullfinalfilename))
+		/* this will be deleted, everything fine */
+		return;
+	p = &release->files;
+	while (*p != NULL && *p != e)
+		p = &(*p)->next;
+	if (*p != e) {
+		assert (*p == e);
+		return;
+	}
+	*p = e->next;
+	release_freeentry(e);
+}
+
 /* Generate a main "Release" file for a distribution */
 retvalue release_prepare(struct release *release, struct distribution *distribution, bool onlyifneeded) {
 	size_t s;
@@ -1336,6 +1390,7 @@ retvalue release_prepare(struct release *release, struct distribution *distribut
 	int i;
 	static const char * const release_checksum_headers[cs_hashCOUNT] =
 		{ "MD5Sum:\n", "SHA1:\n", "SHA256:\n" };
+	struct release_entry *plainentry, *signedentry, *detachedentry;
 
 	// TODO: check for existance of Release file here first?
 	if (onlyifneeded && !release->new) {
@@ -1363,12 +1418,18 @@ retvalue release_prepare(struct release *release, struct distribution *distribut
 			return RET_ERROR;
 		}
 	}
-	r = signature_startsignedfile(release->dirofdist,
-			"Release", "InRelease",
-			&release->signedfile);
-	if (RET_WAS_ERROR(r)) {
+	plainentry = newspecialreleaseentry(release, "Release");
+	if (FAILEDTOALLOC(plainentry))
+		return RET_ERROR_OOM;
+	signedentry = newspecialreleaseentry(release, "InRelease");
+	if (FAILEDTOALLOC(signedentry))
+		return RET_ERROR_OOM;
+	detachedentry = newspecialreleaseentry(release, "Release.gpg");
+	if (FAILEDTOALLOC(signedentry))
+		return RET_ERROR_OOM;
+	r = signature_startsignedfile(&release->signedfile);
+	if (RET_WAS_ERROR(r))
 		return r;
-	}
 #define writestring(s) signedfile_write(release->signedfile, s, strlen(s))
 #define writechar(c) {char __c = c ; signedfile_write(release->signedfile, &__c, 1); }
 
@@ -1463,13 +1524,18 @@ retvalue release_prepare(struct release *release, struct distribution *distribut
 			writechar('\n');
 		}
 	}
-	r = signedfile_prepare(release->signedfile, &distribution->signwith,
-			!global.keeptemporaries);
+	r = signedfile_create(release->signedfile,
+			plainentry->fulltemporaryfilename,
+			&signedentry->fulltemporaryfilename,
+			&detachedentry->fulltemporaryfilename,
+			&distribution->signwith, !global.keeptemporaries);
 	if (RET_WAS_ERROR(r)) {
-		signedfile_free(release->signedfile, !global.keeptemporaries);
+		signedfile_free(release->signedfile);
 		release->signedfile = NULL;
 		return r;
 	}
+	omitunusedspecialreleaseentry(release, signedentry);
+	omitunusedspecialreleaseentry(release, detachedentry);
 	return RET_OK;
 }
 
@@ -1548,12 +1614,6 @@ retvalue release_finish(/*@only@*/struct release *release, struct distribution *
 			}
 		}
 	}
-	r = signedfile_finalize(release->signedfile, &somethingwasdone);
-	if (RET_WAS_ERROR(r) && !somethingwasdone) {
-		release_free(release);
-		return r;
-	}
-	RET_UPDATE(result, r);
 	if (RET_WAS_ERROR(result) && somethingwasdone) {
 		fprintf(stderr,
 "ATTENTION: some files were already moved to place, some could not be.\n"
