@@ -278,6 +278,7 @@ _reprepro()
 			listfilter\
 			listmatched\
 			ls\
+			lsbycomponent\
 			predelete\
 			processincoming\
 			pull\

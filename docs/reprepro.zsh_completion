@@ -229,6 +229,7 @@ commands=(
 	listmatched:"list packages matching filter"
 	list:"list packages"
 	ls:"list versions of package"
+	lsbycomponent:"list versions of package (grouped by component)"
 	predelete:"delete what would be removed or superseeded by an update"
 	processincoming:"process files from an incoming directory"
 	pull:"update from another local distribtuion"

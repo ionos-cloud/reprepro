@@ -1,3 +1,8 @@
+2012-12-20  Bernhard R. Link <brlink@debian.org>
+	* fix inconsistent spacing of ls command,
+	* fix --nothingiserror ls not treating no result as error
+	* add lsbycomponent command (as ls, but grouped by component)
+
 2012-12-15  Bernhard R. Link <brlink@debian.org>
 	* move around some of the code related to moving
 	  (In)Release(.gpg) to it's final place. Side effect

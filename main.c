@@ -1215,6 +1215,12 @@ struct lsversion {
 	char *version;
 	struct atomlist architectures;
 };
+struct lspart {
+	struct lspart *next;
+	const char *codename;
+	const char *component;
+	struct lsversion *versions;
+};
 
 static retvalue newlsversion(struct lsversion **versions_p, /*@only@*/char *version, architecture_t architecture) {
 	struct lsversion *v, **v_p;
@@ -1255,53 +1261,46 @@ static retvalue ls_in_target(struct target *target, const char *packagename, str
 	return result;
 }
 
-ACTION_B(y, n, y, ls) {
-	retvalue r;
-	struct distribution *d;
-	struct target *t;
-	size_t maxcodenamelen;
+static inline retvalue printlsparts(const char *pkgname, struct lspart *parts) {
+	int versionlen, codenamelen, componentlen;
+	struct lspart *p;
+	retvalue result = RET_NOTHING;
 
-	assert (argc == 2);
-	maxcodenamelen = 1;
+	versionlen = 0; codenamelen = 0; componentlen = 0;
+	for (p = parts ; p->codename != NULL ; p = p->next) {
+		struct lsversion *v;
+		size_t l;
 
-	for (d = alldistributions ; d != NULL ; d = d->next) {
-		size_t l = strlen(d->codename);
-		if (l > maxcodenamelen)
-			maxcodenamelen = l;
+		l = strlen(p->codename);
+		if (l > codenamelen)
+			codenamelen = l;
+		if (p->component != NULL) {
+			l = strlen(p->component);
+			if (l > componentlen)
+				componentlen = l;
+		}
+		for (v = p->versions ; v != NULL ; v = v->next) {
+			l = strlen(v->version);
+			if (l > versionlen)
+				versionlen = l;
+		}
 	}
+	while (parts->codename != NULL) {
+		p = parts;
+		parts = parts->next;
+		while (p->versions != NULL) {
+			architecture_t a; int i;
+			struct lsversion *v;
 
-	for (d = alldistributions ; d != NULL ; d = d->next) {
-		struct lsversion *versions = NULL, *v;
-		size_t maxversionlen;
-		int i;
+			v = p->versions;
+			p->versions = v->next;
 
-		for (t = d->targets ; t != NULL ; t = t->next) {
-			if (!target_matches(t, components, architectures,
-						packagetypes))
-				continue;
-			r = ls_in_target(t, argv[1], &versions);
-			if (RET_WAS_ERROR(r))
-				return r;
-		}
-		maxversionlen = 1;
-		for (v = versions ; v != NULL ; v = v->next) {
-			size_t l = strlen(v->version);
-
-			if (l > maxversionlen)
-				maxversionlen = l;
-		}
-		while (versions != NULL) {
-			architecture_t a;
-
-			v = versions;
-			versions = v->next;
-
-			printf("%s | %*s | %*s | ",
-					argv[1],
-					(int)maxversionlen,
-					v->version,
-					(int)maxcodenamelen,
-					d->codename);
+			result = RET_OK;
+			printf("%s | %*s | %*s | ", pkgname,
+					versionlen, v->version,
+					codenamelen, p->codename);
+			if (componentlen > 0 && p->component != NULL)
+				printf("%*s | ", componentlen, p->component);
 			for (i = 0 ; i + 1 < v->architectures.count ; i++) {
 				a = v->architectures.atoms[i];
 				printf("%s, ", atoms_architectures[a]);
@@ -1313,10 +1312,82 @@ ACTION_B(y, n, y, ls) {
 			atomlist_done(&v->architectures);
 			free(v);
 		}
+		free(p);
 	}
-	return RET_OK;
+	free(parts);
+	return result;
 }
 
+ACTION_B(y, n, y, ls) {
+	retvalue r;
+	struct distribution *d;
+	struct target *t;
+	struct lspart *first, *last;
+
+	assert (argc == 2);
+
+	first = zNEW(struct lspart);
+	last = first;
+
+	for (d = alldistributions ; d != NULL ; d = d->next) {
+		for (t = d->targets ; t != NULL ; t = t->next) {
+			if (!target_matches(t, components, architectures,
+						packagetypes))
+				continue;
+			r = ls_in_target(t, argv[1], &last->versions);
+			if (RET_WAS_ERROR(r))
+				return r;
+		}
+		if (last->versions != NULL) {
+			last->codename = d->codename;
+			last->next = zNEW(struct lspart);
+			last = last->next;
+		}
+	}
+	return printlsparts(argv[1], first);
+}
+
+ACTION_B(y, n, y, lsbycomponent) {
+	retvalue r;
+	struct distribution *d;
+	struct target *t;
+	struct lspart *first, *last;
+	int i;
+
+	assert (argc == 2);
+
+	first = zNEW(struct lspart);
+	last = first;
+
+	for (d = alldistributions ; d != NULL ; d = d->next) {
+		for (i = 0 ; i < d->components.count ; i ++) {
+			component_t component = d->components.atoms[i];
+
+			if (limitations_missed(components, component))
+				continue;
+			for (t = d->targets ; t != NULL ; t = t->next) {
+				if (t->component != component)
+					continue;
+				if (limitations_missed(architectures,
+							t->architecture))
+					continue;
+				if (limitations_missed(packagetypes,
+							t->packagetype))
+					continue;
+				r = ls_in_target(t, argv[1], &last->versions);
+				if (RET_WAS_ERROR(r))
+					return r;
+			}
+			if (last->versions != NULL) {
+				last->codename = d->codename;
+				last->component = atoms_components[component];
+				last->next = zNEW(struct lspart);
+				last = last->next;
+			}
+		}
+	}
+	return printlsparts(argv[1], first);
+}
 
 static retvalue listfilterprint(UNUSED(struct distribution *di), struct target *target, const char *packagename, const char *control, void *data) {
 	term *condition = data;
@@ -3796,6 +3867,8 @@ static const struct action {
 		2, -1, "removesrcs <codename> (<source-package-name>[=<source-version>])+"},
 	{"ls", 		A_ROBact(ls),
 		1, 1, "[-C <component>] [-A <architecture>] [-T <type>] ls <package-name>"},
+	{"lsbycomponent",	A_ROBact(lsbycomponent),
+		1, 1, "[-C <component>] [-A <architecture>] [-T <type>] lsbycomponent <package-name>"},
 	{"list", 		A_ROBact(list),
 		1, 2, "[-C <component>] [-A <architecture>] [-T <type>] list <codename> [<package-name>]"},
 	{"listfilter", 		A_ROBact(listfilter),

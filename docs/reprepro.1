@@ -1,4 +1,4 @@
-.TH REPREPRO 1 "2012-11-17" "reprepro" REPREPRO
+.TH REPREPRO 1 "2012-11-20" "reprepro" REPREPRO
 .SH NAME
 reprepro \- produce, manage and sync a local repository of Debian packages
 .mso www.tmac
@@ -640,6 +640,9 @@ having an \fB\-2.6\fP.
 .TP
 .B ls \fIpackage-name\fP
 List the versions of the the specified package in all distributions.
+.TP
+.B lsbycomponent \fIpackage-name\fP
+Like ls, but group by component (and print component names).
 .TP
 .B remove \fIcodename\fP \fIpackage-names\fP
 Delete all packages in the specified distribution,
