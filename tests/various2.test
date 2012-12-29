@@ -104,17 +104,20 @@ Component: stupid
 Architecture: abacus
 END
 dodiff dists/test1/stupid/binary-abacus/Release.expected dists/test1/stupid/binary-abacus/Release
+rm dists/test1/stupid/binary-abacus/Release.expected
 cat > dists/test1/ugly/binary-abacus/Release.expected <<END
 Component: ugly
 Architecture: abacus
 END
+dodiff dists/test1/ugly/binary-abacus/Release.expected dists/test1/ugly/binary-abacus/Release
+rm dists/test1/ugly/binary-abacus/Release.expected
+
 echo "super-compressed" > "fakesuper"
 FAKESUPERMD5="$(mdandsize fakesuper)"
 FAKESUPERSHA1="$(sha1andsize fakesuper)"
 FAKESUPERSHA2="$(sha2andsize fakesuper)"
 
-dodiff dists/test1/ugly/binary-abacus/Release.expected dists/test1/ugly/binary-abacus/Release
-cat > dists/test1/Release.expected <<END
+cat > Release.test1.expected <<END
 Codename: test1
 Date: normalized
 Architectures: abacus
@@ -181,6 +184,7 @@ Architecture: abacus
 Description: test with all fields set
 END
 dodiff dists/test2/stupid/binary-abacus/Release.expected dists/test2/stupid/binary-abacus/Release
+rm dists/test2/stupid/binary-abacus/Release.expected
 cat > dists/test2/ugly/binary-abacus/Release.expected <<END
 Archive: broken
 Version: 9999999.02
@@ -190,8 +194,9 @@ Label: Only a test
 Architecture: abacus
 Description: test with all fields set
 END
-dodiff dists/test1/ugly/binary-abacus/Release.expected dists/test1/ugly/binary-abacus/Release
-cat > dists/test2/Release.expected <<END
+dodiff dists/test2/ugly/binary-abacus/Release.expected dists/test2/ugly/binary-abacus/Release
+rm dists/test2/ugly/binary-abacus/Release.expected
+cat > Release.test2.expected <<END
 Origin: Brain
 Label: Only a test
 Suite: broken
@@ -295,10 +300,11 @@ SHA256:
  $FAKESUPERSHA2 ugly/source/Sources.super
  $(sha2andsize dists/test2/ugly/source/Release) ugly/source/Release
 END
-printf '%%g/^Date:/s/Date: .*/Date: normalized/\n%%g/gz$/s/^ 163be0a88c70ca629fd516dbaadad96a / 7029066c27ac6f5ef18d660d5741979a /\nw\nq\n' | ed -s dists/test1/Release
-printf '%%g/^Date:/s/Date: .*/Date: normalized/\n%%g/gz$/s/^ 163be0a88c70ca629fd516dbaadad96a / 7029066c27ac6f5ef18d660d5741979a /\nw\nq\n' | ed -s dists/test2/Release
-dodiff dists/test1/Release.expected dists/test1/Release || exit 1
-dodiff dists/test2/Release.expected dists/test2/Release || exit 1
+normalizerelease dists/test1/Release > dists/test1/Release.normalized
+normalizerelease dists/test2/Release > dists/test2/Release.normalized
+dodiff Release.test1.expected dists/test1/Release.normalized
+dodiff Release.test2.expected dists/test2/Release.normalized
+rm dists/*/Release.normalized
 
 PACKAGE=simple EPOCH="" VERSION=1 REVISION="" SECTION="stupid/base" genpackage.sh
 checknolog log1
@@ -465,9 +471,9 @@ checklog log1 <<EOF
 DATESTR remove test1 deb stupid abacus simple-addons 1
 EOF
 CURDATE="`TZ=GMT LC_ALL=C date +'%a, %d %b %Y %H:%M:%S UTC'`"
-printf '%%g/^Date:/s/Date: .*/Date: normalized/\n%%g/gz$/s/^ 163be0a88c70ca629fd516dbaadad96a / 7029066c27ac6f5ef18d660d5741979a /\nw\nq\n' | ed -s dists/test1/Release
-
-dodiff dists/test1/Release.expected dists/test1/Release || exit 1
+normalizerelease dists/test1/Release > Release.test1.normalized
+dodiff Release.test1.expected Release.test1.normalized
+rm Release.test1.normalized
 
 cat > conf/srcoverride <<END
 simple Section ugly/games
@@ -712,7 +718,7 @@ simple			install
 bloat+-0a9z.app-addons	install
 END
 
-cp dists/test2/Release dists/test2/Release.safe
+cp dists/test2/Release Release.test2.safe
 ed -s dists/test2/Release <<EOF
 g/stupid.source.Sources/s/^ ................................ / ffffffffffffffffffffffffffffffff /
 w
@@ -750,8 +756,7 @@ stderr
 stdout
 -v2*=Created directory "./lists"
 EOF
-
-cp dists/test2/Release.safe dists/test2/Release
+cp Release.test2.safe dists/test2/Release
 ed -s dists/test2/Release <<EOF
 g/stupid.source.Sources/s/^ ........................................ / 1111111111111111111111111111111111111111 /
 w
@@ -773,8 +778,7 @@ stderr
 -v0*=There have been errors!
 stdout
 EOF
-
-cp dists/test2/Release.safe dists/test2/Release
+cp Release.test2.safe dists/test2/Release
 ed -s dists/test2/Release <<EOF
 g/stupid.source.Sources/s/^ ................................................................ / 9999999999999999999999999999999999999999999999999999999999999999 /
 w
@@ -886,8 +890,7 @@ stdout
 -v6*= looking for changes in 'test1|ugly|source'...
 -v6*=  replacing './dists/test1/ugly/source/Sources' (gzipped,bzip2ed)
 EOF
-
-mv dists/test2/Release.safe dists/test2/Release
+mv Release.test2.safe dists/test2/Release
 mv conf/updates.safe conf/updates
 
 checklog log1 <<EOF
