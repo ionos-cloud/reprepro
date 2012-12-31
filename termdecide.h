@@ -2,10 +2,10 @@
 #define REPREPRO_TERMDECIDE_H
 
 #ifndef REPREPRO_TERMS_H
-#include <terms.h>
+#include "terms.h"
 #endif
 #ifndef REPREPRO_TARGET_H
-#include <target.h>
+#include "target.h"
 #endif
 
 /* decide based on a chunk, (warning: string comparisons even for version!)*/

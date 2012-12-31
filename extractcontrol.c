@@ -29,6 +29,7 @@
 #include "filecntl.h"
 #include "readtextfile.h"
 #include "debfile.h"
+#include "chunks.h"
 
 #ifdef HAVE_LIBARCHIVE
 #error Why did this file got compiled instead of debfile.c?
@@ -139,7 +140,7 @@ static retvalue try_extractcontrol(char **control, const char *debfile, bool bro
 		if (RET_IS_OK(r)) {
 			len = chunk_extract(controlchunk,
 					controlchunk, controllen,
-					&afterchanges);
+					false, &afterchanges);
 			if (len == 0)
 				r = RET_NOTHING;
 			if (*afterchanges != '\0') {
