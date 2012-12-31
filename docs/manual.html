@@ -1039,8 +1039,9 @@ it often can be be added by some kind of hook.
 <br>
 Currently you can execute your own scripts at the following occasions:
 <ul>
-<li><a href="#exporthook">when creating index files (Packages.gz, Sources.gz)</a></li>
 <li><a href="#addhook">after adding or removing packages</a></li>
+<li><a href="#byhandhook">to process byhand files</a></li>
+<li><a href="#exporthook">when creating index files (Packages.gz, Sources.gz)</a></li>
 </ul>
 <h3><a name="addhook">Scripts to be run when adding or removing packages</a></h3>
 Whenever a package is added or removed,
@@ -1161,6 +1162,29 @@ The environment variable
 given at the command line, if there is one
 (e.g. with <tt class="command">include</tt>).
 And of course all the <tt class="env">REPREPRO_*_DIR</tt> variables are set.
+<h3><a name="byhandhook">Scripts to be run to process byhand files</a></h3>
+<tt class="suffix">.changes</tt> files can (beside the usual packages files
+to be included in the repository) contain additional files to be processed
+specially.
+Those are marked by the special section <tt class="constant">byhand</tt> (in Debian)
+or <tt class="constant">raw-</tt>something (in Ubuntu).
+Besides storing them just in the pool besides the packages using the
+<tt class="constant">includebyhand</tt> value in the <tt class="field">Tracking</tt>
+settings you can also let reprepro process a hook to process them when encountering
+them in the <tt class="action">processincomming</tt> action
+(Typical usages are uploading documentation files this way that are unpacked next
+to the repository, or installer images or stuff like that).
+
+To use them add to the distribution's defining stanca in <tt class="filename">conf/distributions</tt> a field like:
+<pre class="config">
+ByhandHooks:
+ byhand * manifesto.txt handle-byhand.sh
+</pre>
+This will call the hook script <tt class="constant">handle-byhand.sh</tt> for every byhand file with section <tt class="constant">byhand</tt>, any priority and filename <tt class="constant">manifesto.txt</tt>. (The first three fields allow glob characters for matching).
+
+The script will then be alled with 5 arguments: the codename of the distribution, the section, the priority, the filename as found in the changes file and the filename of where the script can find the actual file.
+<h3>Scripts to be run when creating index files (Packages.gz, Sources.gz)</h3>
+this hook is described in the section <a href="#exporthook">&quot;Additional index files&quot;</a>.
 <h2><a name="maintenance">Maintenance</a></h2>
 This section lists some commands you can use to check and improve the health
 of you repository.
