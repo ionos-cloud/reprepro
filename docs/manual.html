@@ -1042,6 +1042,8 @@ Currently you can execute your own scripts at the following occasions:
 <li><a href="#addhook">after adding or removing packages</a></li>
 <li><a href="#byhandhook">to process byhand files</a></li>
 <li><a href="#exporthook">when creating index files (Packages.gz, Sources.gz)</a></li>
+<li><a href="#signhook">when signing releases</a></li>
+<li><a href="#endhook">when reprepro finished</a></li>
 </ul>
 <h3><a name="addhook">Scripts to be run when adding or removing packages</a></h3>
 Whenever a package is added or removed,
@@ -1185,6 +1187,23 @@ This will call the hook script <tt class="constant">handle-byhand.sh</tt> for ev
 The script will then be alled with 5 arguments: the codename of the distribution, the section, the priority, the filename as found in the changes file and the filename of where the script can find the actual file.
 <h3>Scripts to be run when creating index files (Packages.gz, Sources.gz)</h3>
 this hook is described in the section <a href="#exporthook">&quot;Additional index files&quot;</a>.
+<h3><a name="signhook">Scripts to be run when signing releases</a></h3>
+Instead of creating <tt class="filename">InRelease</tt> and
+<tt class="filename">Release.gpg</tt> files using libgpgme,
+the <tt class="option">SignWith</tt> option can also contain
+a exclamation mark followed by a space and the name of a hook script to call.
+
+The script gets three arguments: The filename to sign, the filename of the InRelease
+file to create and the filename of the Release.gpg to create (a Release.gpg does not
+need to be created. reprepro will assume you do not care about that legacy file if it
+<h3><a name="endhook">when reprepro finished</a></h3>
+With the <tt class="option">--endhook</tt> command line option (or the corresponding
+<tt class="constant">endhook</tt> in the <tt class="filename">options</tt> file) you
+can specify a hook to be executed after reprepro finished but before reprepro returns
+the to calling process.
+The hook gets all the command line arguments after the options (i.e. starting with
+the name of the action) and the exit code reprepro would have produces.
+For an example see the man page.
 <h2><a name="maintenance">Maintenance</a></h2>
 This section lists some commands you can use to check and improve the health
 of you repository.
