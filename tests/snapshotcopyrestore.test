@@ -2,6 +2,10 @@ set -u
 . "$TESTSDIR"/test.inc
 
 mkdir -p conf
+cat > conf/options <<CONFEND
+outhook $SRCDIR/docs/outstore.py
+CONFEND
+export REPREPRO_OUT_DB=db.out
 cat > conf/distributions <<CONFEND
 Codename: A
 Architectures: abacus calculator
@@ -58,6 +62,7 @@ $(odb)
 -v6*= exporting 'A|cat|calculator'...
 -v6*=  creating './dists/A/cat/binary-calculator/Packages' (uncompressed,gzipped)
 EOF
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 dodo test -f db/checksums.db
 
 ed -s conf/distributions <<EOF
@@ -142,6 +147,7 @@ testrun - -b . -T deb -A abacus -C dog _addpackage B importindex bar foo 3<<EOF
 stderr
 stdout
 EOF
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 
 cat > importindex <<EOF
 Package: foo
@@ -178,14 +184,14 @@ stdout
 EOF
 
 mkdir -p pool/dog/f/foo
-echo "some data" > pool/dog/f/foo/foo_0_abacus.deb
+echo "some data" > foo_0_abacus.deb
 
 cat > importindex <<EOF
 Package: foo
 Version: 0
 Architecture: abacus
-MD5sum: $(md5 pool/dog/f/foo/foo_0_abacus.deb)
-Size: $(stat -c "%s" pool/dog/f/foo/foo_0_abacus.deb)
+MD5sum: $(md5 foo_0_abacus.deb)
+Size: $(stat -c "%s" foo_0_abacus.deb)
 Filename: pool/dog/f/foo/foo_0_abacus.deb
 EOF
 
@@ -196,9 +202,11 @@ stderr
 -v0*=There have been errors!
 stdout
 EOF
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 
 testrun empty -b . dumpunreferenced
 
+mv foo_0_abacus.deb pool/dog/f/foo/foo_0_abacus.deb
 testrun - -b . _detect pool/dog/f/foo/foo_0_abacus.deb 3<<EOF
 stderr
 stdout
@@ -206,6 +214,7 @@ $(ofa 'pool/dog/f/foo/foo_0_abacus.deb')
 -v0*=1 files were added but not used.
 -v0*=The next deleteunreferenced call will delete them.
 EOF
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 
 testrun - -b . dumpunreferenced 3<<EOF
 stderr
@@ -228,6 +237,7 @@ stdout
 -v6*= looking for changes in 'B|cat|source'...
 -v1*= generating dog/Contents-abacus...
 EOF
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 
 testrun empty -b . dumpunreferenced
 
@@ -261,6 +271,10 @@ $(ofa 'pool/dog/f/foo/foo_1.dsc')
 -v0*=The next deleteunreferenced call will delete them.
 EOF
 
+mv pool/dog/f/foo/foo_1.tar.gz foo_1.tar.gz
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
+mv foo_1.tar.gz pool/dog/f/foo/foo_1.tar.gz
+
 testrun - -b . -T dsc -C dog _addpackage B importindex bar foo 3<<EOF
 returns 249
 stderr
@@ -276,6 +290,7 @@ $(ofa 'pool/dog/f/foo/foo_1.tar.gz')
 -v0*=1 files were added but not used.
 -v0*=The next deleteunreferenced call will delete them.
 EOF
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 
 testrun - -b . dumpunreferenced 3<<EOF
 stderr
@@ -296,6 +311,7 @@ stdout
 -v6*= looking for changes in 'B|cat|abacus'...
 -v6*= looking for changes in 'B|cat|source'...
 EOF
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 
 testrun empty -b . dumpunreferenced
 
@@ -318,6 +334,7 @@ stdout
 -v6*= exporting 'B|cat|source'...
 -v6*=  creating './dists/B/snapshots/now/cat/source/Sources' (gzipped)
 EOF
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 
 testrun - -b . dumpreferences 3<<EOF
 stdout
@@ -348,6 +365,7 @@ stdout
 -v6*= exporting 'A|cat|calculator'...
 -v6*=  creating './dists/A/snapshots/now/cat/binary-calculator/Packages' (uncompressed,gzipped)
 EOF
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 
 testout "" -b . dumpreferences
 grep '^.|' results | sed -e 's/|[^ ]* / contains /' | uniq > references.normal
@@ -581,5 +599,5 @@ EOF
 testrun empty -b . dumpunreferenced
 testrun empty -b . dumpreferences
 
-rm -r conf db dists importindex logs tmp
+rm -r conf db dists importindex logs tmp db.out*
 testsuccess

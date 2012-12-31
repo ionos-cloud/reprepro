@@ -44,6 +44,7 @@
 #include "names.h"
 #include "signature.h"
 #include "distribution.h"
+#include "outhook.h"
 #include "release.h"
 
 #define INPUT_BUFFER_SIZE 1024
@@ -55,8 +56,9 @@ struct release {
 	char *dirofdist;
 	/* anything new yet added */
 	bool new;
-	/* snapshot */
-	bool snapshot;
+	/* NULL if no snapshot */
+	/*@null@*/char *snapshotname;
+	/* specific overrides for fakeprefixes or snapshots: */
 	/*@null@*/char *fakesuite;
 	/*@null@*/char *fakecodename;
 	/*@null@*/const char *fakecomponentprefix;
@@ -96,6 +98,7 @@ static void release_freeentry(struct release_entry *e) {
 void release_free(struct release *release) {
 	struct release_entry *e;
 
+	free(release->snapshotname);
 	free(release->dirofdist);
 	free(release->fakesuite);
 	free(release->fakecodename);
@@ -244,7 +247,13 @@ retvalue release_initsnapshot(const char *codename, const char *name, struct rel
 	n->fakecomponentprefix = NULL;
 	n->fakecomponentprefixlen = 0;
 	n->cachedb = NULL;
-	n->snapshot = true;
+	n->snapshotname = strdup(name);
+	if (n->snapshotname == NULL) {
+		free(n->fakesuite);
+		free(n->dirofdist);
+		free(n);
+		return RET_ERROR_OOM;
+	}
 	*release = n;
 	return RET_OK;
 }
@@ -1539,6 +1548,62 @@ retvalue release_prepare(struct release *release, struct distribution *distribut
 	return RET_OK;
 }
 
+static inline void release_toouthook(struct release *release, struct distribution *distribution) {
+	struct release_entry *file;
+	char *reldir;
+
+	if (release->snapshotname != NULL) {
+		reldir = mprintf("dists/%s/snapshots/%s",
+				distribution->codename, release->snapshotname);
+		if (FAILEDTOALLOC(reldir))
+			return;
+		outhook_send("BEGIN-SNAPSHOT", distribution->codename,
+				reldir, release->snapshotname);
+	} else {
+		reldir = mprintf("dists/%s", distribution->codename);
+		if (FAILEDTOALLOC(reldir))
+			return;
+		outhook_send("BEGIN-DISTRIBUTION", distribution->codename,
+				reldir, distribution->suite);
+	}
+
+	for (file = release->files ; file != NULL ; file = file->next) {
+		/* relf chks ffn  ftfn symt
+		 * name chks NULL NULL NULL: added old filename or virtual file
+		 * name chks file NULL NULL: renamed new file and published
+		 * name NULL file NULL NULL: renamed new file
+		 * name NULL NULL NULL NULL: deleted file
+		 * name NULL NULL NULL file: created symlink */
+
+		/* should already be in place: */
+		assert (file->fulltemporaryfilename == NULL);
+		/* symlinks are special: */
+		if (file->symlinktarget != NULL) {
+			outhook_send("DISTSYMLINK",
+					reldir,
+					file->relativefilename,
+					file->symlinktarget);
+		} else if (file->fullfinalfilename != NULL) {
+			outhook_send("DISTFILE", reldir,
+					file->relativefilename,
+					file->fullfinalfilename);
+		} else if (file->checksums == NULL){
+			outhook_send("DISTDELETE", reldir,
+					file->relativefilename, NULL);
+		}
+		/* would be nice to distinguish kept and virtual files... */
+	}
+
+	if (release->snapshotname != NULL) {
+		outhook_send("END-SNAPSHOT", distribution->codename,
+				reldir, release->snapshotname);
+	} else {
+		outhook_send("END-DISTRIBUTION", distribution->codename,
+				reldir, distribution->suite);
+	}
+	free(reldir);
+}
+
 /* Generate a main "Release" file for a distribution */
 retvalue release_finish(/*@only@*/struct release *release, struct distribution *distribution) {
 	retvalue result, r;
@@ -1636,6 +1701,7 @@ retvalue release_finish(/*@only@*/struct release *release, struct distribution *
 		release->cachedb = NULL;
 		RET_ENDUPDATE(result, r);
 	}
+	release_toouthook(release, distribution);
 	/* free everything */
 	release_free(release);
 	return result;

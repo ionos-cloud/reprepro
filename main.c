@@ -73,6 +73,7 @@
 #include "sizes.h"
 #include "filterlist.h"
 #include "descriptions.h"
+#include "outhook.h"
 
 #ifndef STD_BASE_DIR
 #define STD_BASE_DIR "."
@@ -107,6 +108,7 @@ static char /*@only@*/ /*@null@*/
 	*x_packagetype = NULL;
 static char /*@only@*/ /*@null@*/ *listformat = NULL;
 static char /*@only@*/ /*@null@*/ *endhook = NULL;
+static char /*@only@*/ /*@null@*/ *outhook = NULL;
 static char /*@only@*/
 	*gunzip = NULL,
 	*bunzip2 = NULL,
@@ -139,7 +141,7 @@ static off_t reservedotherspace = 1024*1024;
  * to change something owned by lower owners. */
 enum config_option_owner config_state,
 #define O(x) owner_ ## x = CONFIG_OWNER_DEFAULT
-O(fast), O(x_morguedir), O(x_outdir), O(x_basedir), O(x_distdir), O(x_dbdir), O(x_listdir), O(x_confdir), O(x_logdir), O(x_methoddir), O(x_section), O(x_priority), O(x_component), O(x_architecture), O(x_packagetype), O(nothingiserror), O(nolistsdownload), O(keepunusednew), O(keepunreferenced), O(keeptemporaries), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock), O(spacecheckmode), O(reserveddbspace), O(reservedotherspace), O(guessgpgtty), O(verbosedatabase), O(gunzip), O(bunzip2), O(unlzma), O(unxz), O(lunzip), O(gnupghome), O(listformat), O(listmax), O(listskip), O(onlysmalldeletes), O(endhook);
+O(fast), O(x_morguedir), O(x_outdir), O(x_basedir), O(x_distdir), O(x_dbdir), O(x_listdir), O(x_confdir), O(x_logdir), O(x_methoddir), O(x_section), O(x_priority), O(x_component), O(x_architecture), O(x_packagetype), O(nothingiserror), O(nolistsdownload), O(keepunusednew), O(keepunreferenced), O(keeptemporaries), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock), O(spacecheckmode), O(reserveddbspace), O(reservedotherspace), O(guessgpgtty), O(verbosedatabase), O(gunzip), O(bunzip2), O(unlzma), O(unxz), O(lunzip), O(gnupghome), O(listformat), O(listmax), O(listskip), O(onlysmalldeletes), O(endhook), O(outhook);
 #undef O
 
 #define CONFIGSET(variable, value) if (owner_ ## variable <= config_state) { \
@@ -1581,7 +1583,6 @@ ACTION_F(n, n, y, y, export) {
 		if (verbose > 0) {
 			printf("Exporting %s...\n", d->codename);
 		}
-
 		r = distribution_fullexport(d);
 		if (RET_IS_OK(r))
 			/* avoid being exported again */
@@ -4193,6 +4194,13 @@ static retvalue callaction(command_t command, const struct action *action, int a
 		if (ISSET(needs, NEED_FILESDB))
 			result = database_openfiles();
 
+		if (RET_IS_OK(result)) {
+			if (outhook != NULL) {
+				r = outhook_start();
+				RET_UPDATE(result, r);
+			}
+		}
+
 		assert (result != RET_NOTHING);
 		if (RET_IS_OK(result)) {
 
@@ -4207,18 +4215,19 @@ static retvalue callaction(command_t command, const struct action *action, int a
 					argc, argv);
 				/* wait for package specific loggers */
 				logger_wait();
+
+				/* remove files added but not used */
+				pool_tidyadded(deletenew);
+
+				/* tell an outhook about added files */
+				if (outhook != NULL)
+					pool_sendnewfiles();
 				/* export changed/lookedat distributions */
 				if (!RET_WAS_ERROR(result)) {
 					r = distribution_exportlist(export,
 							alldistributions);
 					RET_ENDUPDATE(result, r);
 				}
-
-				/* remove files added but not used */
-				pool_tidyadded(deletenew);
-
-				// TODO: tell hook script the added files
-				// TODO: tell hook scripts the modified distributions
 
 				/* delete files losing references, or
 				 * tell how many lost their references */
@@ -4239,7 +4248,13 @@ static retvalue callaction(command_t command, const struct action *action, int a
 				r = pool_removeunreferenced(deletederef);
 				RET_ENDUPDATE(result, r);
 
-				// TODO: tell hook scripts the deleted files
+				if (outhook != NULL) {
+					if (interrupted())
+						r = RET_ERROR_INTERRUPTED;
+					else
+						r = outhook_call(outhook);
+					RET_ENDUPDATE(result, r);
+				}
 			}
 		}
 	}
@@ -4317,6 +4332,7 @@ LO_RESTRICT_SRC,
 LO_RESTRICT_FILE_BIN,
 LO_RESTRICT_FILE_SRC,
 LO_ENDHOOK,
+LO_OUTHOOK,
 LO_UNIGNORE};
 static int longoption = 0;
 const char *programname;
@@ -4601,6 +4617,9 @@ static void handle_option(int c, const char *argument) {
 				case LO_ENDHOOK:
 					CONFIGDUP(endhook, argument);
 					break;
+				case LO_OUTHOOK:
+					CONFIGDUP(outhook, argument);
+					break;
 				case LO_LISTMAX:
 					i = parse_number("--list-max",
 							argument, INT_MAX);
@@ -4764,6 +4783,7 @@ static void myexit(int status) {
 	free(x_morguedir);
 	free(gnupghome);
 	free(endhook);
+	free(outhook);
 	pool_free();
 	exit(status);
 }
@@ -4922,6 +4942,7 @@ int main(int argc, char *argv[]) {
 		{"restrict-file-src", required_argument, &longoption, LO_RESTRICT_FILE_SRC},
 		{"restrict-file-binary", required_argument, &longoption, LO_RESTRICT_FILE_BIN},
 		{"endhook", required_argument, &longoption, LO_ENDHOOK},
+		{"outhook", required_argument, &longoption, LO_OUTHOOK},
 		{NULL, 0, NULL, 0}
 	};
 	const struct action *a;
@@ -5014,6 +5035,21 @@ int main(int argc, char *argv[]) {
 			free(endhook);
 			endhook = h;
 			if (endhook == NULL)
+				exit(EXIT_RET(RET_ERROR_OOM));
+		}
+	}
+	if (outhook != NULL) {
+		if (outhook[0] == '+' || outhook[0] == '/' ||
+				(outhook[0] == '.' && outhook[1] == '/')) {
+			outhook = expand_plus_prefix(outhook, "outhook", "boc",
+					true);
+		} else {
+			char *h;
+
+			h = calc_dirconcat(x_confdir, outhook);
+			free(outhook);
+			outhook = h;
+			if (outhook == NULL)
 				exit(EXIT_RET(RET_ERROR_OOM));
 		}
 	}

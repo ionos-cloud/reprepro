@@ -1,4 +1,4 @@
-.TH REPREPRO 1 "2012-12-02" "reprepro" REPREPRO
+.TH REPREPRO 1 "2012-12-31" "reprepro" REPREPRO
 .SH NAME
 reprepro \- produce, manage and sync a local repository of Debian packages
 .mso www.tmac
@@ -515,6 +515,17 @@ An example script looks like: \fB
  
  exit 0
  \fP
+.TP
+.B \-\-outhook \fIhookscript\fP
+\fIhookscript\fP is called with a \fB.outlog\fP file as argument (located
+in \fIlogdir\fP) containing a description of all changes made to \fIoutdir\fP.
+
+The script is supposed to be located relative to \fIconfdir\fP, unless its
+name starts with \fB/\fP, \fB./\fP, \fB+b/\fP, \fB+o/\fP, or \fB+c/\fP
+and the name may not start (except in the cases given before) with a \fB+\fP.
+
+For a format of the \fB.outlog\fP files generated for this script see the
+\fBmanual.html\fP shiped with reprepro.
 .SH COMMANDS
 .TP
 .BR export " [ " \fIcodenames\fP " ]"

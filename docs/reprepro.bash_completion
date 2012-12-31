@@ -124,7 +124,8 @@ _reprepro()
 	--section -S --priority -P --component -C\
 	--architecture -A --type -T --export --waitforlock \
 	--spacecheck --safetymargin --dbsafetymargin\
-	--gunzip --bunzip2 --unlzma --unxz --lunzip --gnupghome --list-format --list-skip --list-max'
+	--gunzip --bunzip2 --unlzma --unxz --lunzip --gnupghome --list-format --list-skip --list-max\
+	--outhook --endhook'
 
 	i=1
 	prev=""

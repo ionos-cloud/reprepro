@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2008,2009 Bernhard R. Link
+ *  Copyright (C) 2008,2009,2012 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -36,6 +36,7 @@
 #include "reference.h"
 #include "files.h"
 #include "sources.h"
+#include "outhook.h"
 
 /* for now save them only in memory. In later times some way to store
  * them on disk would be nice */
@@ -437,6 +438,8 @@ static retvalue deletepoolfile(const char *filekey, bool new) {
 
 	if (interrupted())
 		return RET_ERROR_INTERRUPTED;
+	if (!new)
+		outhook_send("POOLDELETE", filekey, NULL, NULL);
 	filename = files_calcfullfilename(filekey);
 	if (FAILEDTOALLOC(filename))
 		return RET_ERROR_OOM;
@@ -785,6 +788,58 @@ void pool_tidyadded(bool delete) {
 "The next deleteunreferenced call will delete them.\n",
 			woulddelete_count);
 	}
+	return;
+
+}
+
+static void reportnewlegacyfiles(const void *nodep, const VISIT which, UNUSED(const int depth)) {
+	char *node;
+
+	if (which != leaf && which != postorder)
+		return;
+
+	node = *(char **)nodep;
+	/* only look at newly added and not already deleted */
+	if ((*node & (pl_ADDED|pl_DELETED)) != pl_ADDED)
+		return;
+	outhook_sendpool(atom_unknown, NULL, node + 1);
+}
+
+
+static void reportnewproperfiles(const void *nodep, const VISIT which, UNUSED(const int depth)) {
+	char *node;
+
+	if (which != leaf && which != postorder)
+		return;
+
+	node = *(char **)nodep;
+	/* only look at newly added and not already deleted */
+	if ((*node & (pl_ADDED|pl_DELETED)) != pl_ADDED)
+		return;
+	outhook_sendpool(current_component, sourcename, node + 1);
+}
+
+static void reportnewfiles(const void *nodep, const VISIT which, UNUSED(const int depth)) {
+	struct source_node *node;
+
+	if (which != leaf && which != postorder)
+		return;
+
+	node = *(struct source_node **)nodep;
+	sourcename = node->sourcename;
+	twalk(node->file_changes, reportnewproperfiles);
+}
+
+void pool_sendnewfiles(void) {
+	component_t c;
+
+	for (c = 1 ; c <= reserved_components ; c++) {
+		assert (file_changes_per_component != NULL);
+		current_component = c;
+		twalk(file_changes_per_component[c],
+				reportnewfiles);
+	}
+	twalk(legacy_file_changes, reportnewlegacyfiles);
 	return;
 
 }

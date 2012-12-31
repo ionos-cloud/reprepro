@@ -130,10 +130,10 @@ retvalue distribution_remove_packages(struct distribution *, const struct atomli
 /* like distribtion_getpart, but returns NULL if there is no such target */
 /*@null@*//*@dependent@*/struct target *distribution_gettarget(const struct distribution *distribution, component_t, architecture_t, packagetype_t);
 
-retvalue distribution_fullexport(struct distribution *distribution);
+retvalue distribution_fullexport(struct distribution *);
 
 
-retvalue distribution_snapshot(struct distribution *distribution, const char *name);
+retvalue distribution_snapshot(struct distribution *, const char */*name*/);
 
 /* read the configuration from all distributions */
 retvalue distribution_readall(/*@out@*/struct distribution **distributions);
@@ -146,7 +146,7 @@ struct distribution *distribution_find(struct distribution *, const char *);
 
 retvalue distribution_freelist(/*@only@*/struct distribution *distributions);
 enum exportwhen {EXPORT_NEVER, EXPORT_SILENT_NEVER, EXPORT_CHANGED, EXPORT_NORMAL, EXPORT_FORCE };
-retvalue distribution_exportlist(enum exportwhen when, /*@only@*/struct distribution *distributions);
+retvalue distribution_exportlist(enum exportwhen when, /*@only@*/struct distribution *);
 
 retvalue distribution_loadalloverrides(struct distribution *);
 void distribution_unloadoverrides(struct distribution *distribution);
