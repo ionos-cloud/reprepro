@@ -1,3 +1,24 @@
+2012-12-31
+	* document byhandhook in manual.html
+
+2012-12-02
+	* add a reference to listfilter in the FilterFormula description
+
+2012-11-17
+	* improve some manpage descriptions about where ~/, +b/, +o/ and +c/ are allowed
+
+2012-11-10
+	* improve DownloadListsAs description in manpage
+
+2012-10-21
+	* fix wrong include type in termdecide.h
+
+2012-10-30
+	* repair bitrot of code used without libarchive
+
+2012-09-03
+	* fix overlong VerifyRelease example in manual.html
+
 2012-07-11
 	* fix bug in checking old unchanged {Packages/Sources}.bz2
 	  files for existance. (Triggering even an assertion when
