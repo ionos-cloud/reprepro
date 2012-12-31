@@ -1,4 +1,4 @@
-.TH REPREPRO 1 "2012-06-24" "reprepro" REPREPRO
+.TH REPREPRO 1 "2012-12-02" "reprepro" REPREPRO
 .SH NAME
 reprepro \- produce, manage and sync a local repository of Debian packages
 .mso www.tmac
@@ -1364,7 +1364,8 @@ while an empty one causes no \fBuContents\-\fP\fIarch\fP files to
 be generated.
 .TP
 .B Uploaders
-Specifies a file (relative to confdir if not starting with a slash)
+Specifies a file (relative to confdir if not starting with
+.BR ~/ ", " +b/ ", " +c/ " or " / " )"
 to specify who is allowed to upload packages. Without this there are no
 limits, and this file can be ignored via \fB\-\-ignore=uploaders\fP.
 See the section \fBUPLOADERS FILES\fP below.
@@ -1439,7 +1440,7 @@ at manual.html in reprepro's source or
 If the filename for the log files does not start with a slash,
 it is relative to the directory specified with \fB\-\-logdir\fP,
 the scripts are relative to \fB\-\-confdir\fP unless starting with
-a slash.
+.BR ~/ ", " +b/ ", " +c/ " or " / .
 .TP
 .B ValidFor
 If this field exists, an Valid\-Until field is put into generated
@@ -1631,13 +1632,17 @@ this source. The format is misusing the parser intended for
 Dependency lines. To get only architecture all packages use
 "architecture (== all)", to get only at least important
 packages use "priority (==required) | priority (==important)".
+
+See the description of the listfilter command for the semantics
+of formulas.
 .TP
 .B FilterList\fR, \fPFilterSrcList
 These take at least two arguments:
 The first one is the default action when something is not found in the list,
 then a list of filenames (relative to
 .B \-\-confdir\fR,
-if not starting with a slash),
+if not starting with
+.BR ~/ ", " +b/ ", " +c/ " or " / " )"
 in the format of dpkg \-\-get\-selections and only packages listed in
 there as
 .B install
@@ -1708,12 +1713,21 @@ ListShellHook: grep\-dctrl \-X \-S apt \-o \-X \-S dpkg || [ $? \-eq 1 ]
 will limit the update rule to packages from the specified source packages.
 .TP
 .B DownloadListsAs
-The arguments of this field, which much be elements of the
-form \fB.\fP, \fB.gz\fP, \fB.bz2\fP, \fB.lzma\fP, \fB.xz\fP and \fB.diff\fP
-specify in which order reprepro
-will look for a usable variant of needed index files
-in the downloaded Release file.
-(The default is \fB.diff .xz .lzma .bz2 .gz .\fP, i.e.
+The arguments of this field specify which index files reprepro
+will download.
+
+Allowed values are
+.BR . ", " .gz ", " .bz2 ", " .lzma ", " .xz ", " .lz ", " .diff ", "
+.BR force.gz ", " force.bz2 ", " force.lzma ", " force.xz ", "
+.BR force.lz ", and " force.diff "."
+
+Reprepro will try the first supported variant in the list given:
+Only compressions compiled in or for which an uncompressor was found
+are used.
+Unless the value starts with \fBforce.\fP,
+it is only tried if if is found in the Release or InRelease file.
+
+The default value is \fB.diff .xz .lzma .bz2 .gz .\fP, i.e.
 download Packages.diff if listed in the Release file,
 otherwise or if not usable download .xz if
 listed in the Release file and there is a way to uncompress it,
@@ -1721,14 +1735,15 @@ then .lzma if usable,
 then .bz2 if usable,
 then .gz and then uncompressed).
 
-Together with \fBIgnoreRelease\fP reprepro will download the first
-in this list that could be unpacked.
-
 Note there is no way to see if an uncompressed variant
 of the file is available (as the Release file always lists their
 checksums, even if not there),
 so putting '\fB.\fP' anywhere but as the last argument can mean
 trying to download a file that does not exist.
+
+Together with \fBIgnoreRelease\fP reprepro will download the first
+in this list that could be unpacked (i.e. \fBforce\fP is always assumed)
+and the default value is \fB.gz .bzip2 . .lzma .xz\fP.
 .SS conf/pulls
 This file contains the rules for pulling packages from one
 distribution to another.
@@ -2294,7 +2309,7 @@ tracking, put in some log directory when using processincoming, or given to
 an hook script (currently only possible with processincoming).
 .TP
 .B filekey
-the position relative to the mirrordir.  (as found as "Filename:" in Packages.gz)
+the position relative to the outdir.  (as found in "Filename:" in Packages.gz)
 .TP
 .B "full filename"
 the position relative to /
