@@ -1,4 +1,4 @@
-.TH REPREPRO 1 "2012-11-20" "reprepro" REPREPRO
+.TH REPREPRO 1 "2012-12-02" "reprepro" REPREPRO
 .SH NAME
 reprepro \- produce, manage and sync a local repository of Debian packages
 .mso www.tmac
@@ -1721,6 +1721,9 @@ this source. The format is misusing the parser intended for
 Dependency lines. To get only architecture all packages use
 "architecture (== all)", to get only at least important
 packages use "priority (==required) | priority (==important)".
+
+See the description of the listfilter command for the semantics
+of formulas.
 .TP
 .B FilterList\fR, \fPFilterSrcList
 These take at least two arguments:
