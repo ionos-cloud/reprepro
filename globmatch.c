@@ -47,7 +47,7 @@ bool globmatch(const char *string, const char *pattern) {
 	if (strlen(pattern) > (size_t)INT_MAX)
 		return false;
 
-	memset(possible, 0, sizeof(bool)*(l+1));
+	memset(possible, 0, sizeof(possible));
 	/* the first character must match the first pattern character
 	   or the first one after the first star */
 	possible[smallest_possible] = true;

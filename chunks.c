@@ -17,7 +17,6 @@
 
 #include <errno.h>
 #include <stdlib.h>
-#include <malloc.h>
 #include <string.h>
 #include <stdio.h>
 #include <ctype.h>
@@ -175,6 +174,8 @@ retvalue chunk_getwholedata(const char *chunk, const char *name, char **value) {
 	f = chunk_getfield(name, chunk);
 	if (f == NULL)
 		return RET_NOTHING;
+	while (*f == ' ')
+		f++;
 	for (e = p = f ; *p != '\0' ; p++) {
 		if (afternewline) {
 			if (*p == ' ' || *p == '\t')

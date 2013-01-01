@@ -23,6 +23,8 @@
 #ifndef MD5_H
 #define MD5_H
 
+#define MD5_DIGEST_SIZE 16
+
 #define md5byte unsigned char
 #define UWORD32 unsigned int
 
@@ -34,6 +36,6 @@ struct MD5Context {
 
 void MD5Init(/*@out@*/struct MD5Context *context);
 void MD5Update(struct MD5Context *context, md5byte const *buf, unsigned int len);
-void MD5Final(/*@out@*/unsigned char digest[16], struct MD5Context *context);
+void MD5Final(/*@out@*/unsigned char digest[MD5_DIGEST_SIZE], struct MD5Context *context);
 
 #endif /* !MD5_H */

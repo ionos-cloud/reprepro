@@ -1,23 +1,57 @@
-2012-12-31
-	* document byhandhook in manual.html
+2012-12-31  Bernhard R. Link <brlink@debian.org>
+	* add --outhook
 
-2012-12-02
-	* add a reference to listfilter in the FilterFormula description
+2012-12-20  Bernhard R. Link <brlink@debian.org>
+	* fix inconsistent spacing of ls command,
+	* fix --nothingiserror ls not treating no result as error
+	* add lsbycomponent command (as ls, but grouped by component)
 
-2012-11-17
-	* improve some manpage descriptions about where ~/, +b/, +o/ and +c/ are allowed
+2012-12-15  Bernhard R. Link <brlink@debian.org>
+	* move around some of the code related to moving
+	  (In)Release(.gpg) to it's final place. Side effect
+	  is that those files are removed if there are no longer
+	  requested.
 
-2012-11-10
-	* improve DownloadListsAs description in manpage
+2012-12-09  Bernhard R. Link <brlink@debian.org>
+	* unify export handling (moving it out of the
+	  action specific code)
 
-2012-10-21
+2012-12-02  Bernhard R. Link <brlink@debian.org>
+	* keep around relative release filenames always
+
+2012-11-24  Bernhard R. Link <brlink@debian.org>
+	* make setting of environment variables for
+	  hooks more uniform (and with less code duplication).
+
+2012-11-17  Bernhard R. Link <brlink@debian.org>
+	* '~/' or '+{b,o,c}/' or './' now also special
+	 in ByHandHooks and ListHook.
+	* add support for signing hooks (SignWith: !...)
+
+2012-11-11  Bernhard R. Link <brlink@debian.org>
+	* add --endhook to start a script when terminating
+
+2012-11-04  Bernhard R. Link <brlink@debian.org>
+	* add repairdescriptions command to readd  missing long
+	  descriptions (which you might get as reprepro cannot yet
+	  get Translations files and get them from there)
+	  from the .deb files.
+
+2012-10-30  Bernhard R. Link <brlink@debian.org>
+	* add ${$basename}, ${$filekey} and ${$fullfilename} to --listformat
+	* fix some bitrot in the non-libarchive code paths
+
+2012-10-21  Bernhard R. Link <brlink@debian.org>
+	* reject absurd large values in ValidFor header
 	* fix wrong include type in termdecide.h
-
-2012-10-30
-	* repair bitrot of code used without libarchive
 
 2012-09-03
 	* fix overlong VerifyRelease example in manual.html
+
+2012-07-12
+	* add 'deleteifunreferenced' command to safely delete
+	  and forget the given files in a repository with
+	  keepunreferencedfiles set.
 
 2012-07-11
 	* fix bug in checking old unchanged {Packages/Sources}.bz2

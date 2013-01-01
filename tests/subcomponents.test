@@ -61,7 +61,7 @@ $(odb)
 EOF
 cat > results.expected <<EOF
 Codename: foo/updates
-Date: unified
+Date: normalized
 Architectures: x
 Components: a bb ccc dddd
 MD5Sum:
@@ -152,7 +152,7 @@ SHA256:
  $EMPTYGZSHA2 dddd/source/Sources.gz
  504549b725951e79fb2e43149bb0cf42619286284890666b8e9fe5fb0787f306 37 dddd/source/Release
 EOF
-sed -e 's/^Date: .*/Date: unified/' dists/foo/updates/Release > results
+normalizerelease dists/foo/updates/Release > results
 dodiff results.expected results
 cat > conf/distributions <<EOF
 Codename: foo/updates
@@ -188,7 +188,7 @@ stdout
 EOF
 cat > results.expected <<EOF
 Codename: foo
-Date: unified
+Date: normalized
 Architectures: x
 Components: updates/a updates/bb updates/ccc updates/dddd
 MD5Sum:
@@ -279,7 +279,7 @@ SHA256:
  $EMPTYGZSHA2 dddd/source/Sources.gz
  504549b725951e79fb2e43149bb0cf42619286284890666b8e9fe5fb0787f306 37 dddd/source/Release
 EOF
-sed -e 's/^Date: .*/Date: unified/' dists/foo/updates/Release > results
+normalizerelease dists/foo/updates/Release > results
 dodiff results.expected results
 # Now try with suite
 cat > conf/distributions <<EOF
@@ -318,7 +318,7 @@ EOF
 cat > results.expected <<EOF
 Suite: bla
 Codename: foo
-Date: unified
+Date: normalized
 Architectures: x
 Components: updates/a updates/bb updates/ccc updates/dddd
 MD5Sum:
@@ -409,7 +409,7 @@ SHA256:
  $EMPTYGZSHA2 dddd/source/Sources.gz
  $(sha2releaseline foo/updates dddd/source/Release)
 EOF
-sed -e 's/^Date: .*/Date: unified/' dists/foo/updates/Release > results
+normalizerelease dists/foo/updates/Release > results
 dodiff results.expected results
 testrun - -b . createsymlinks 3<<EOF
 stderr

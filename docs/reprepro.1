@@ -1,4 +1,4 @@
-.TH REPREPRO 1 "2012-12-02" "reprepro" REPREPRO
+.TH REPREPRO 1 "2012-12-31" "reprepro" REPREPRO
 .SH NAME
 reprepro \- produce, manage and sync a local repository of Debian packages
 .mso www.tmac
@@ -189,16 +189,19 @@ This option specify whether and how the high level actions
 (e.g. install, update, pull, delete)
 should export the index files of the distributions they work with.
 .TP
-.BR \-\-export=normal " (default till 3.0.0)"
-.BR \-\-export=lookedat " (alternative new name since 3.0.1)"
+.BR \-\-export=lookedat
 In this mode every distribution the action handled will be exported,
 unless there was an error possibly corrupting it.
 .br
 \fINote\fP that only missing files and files whose intended content changed
 between before and after the action will be written.
 To get a guaranteed current export, use the \fBexport\fP action.
+.br
+For backwards compatibility, \fBlookedat\fP is also available under the
+old name \fBnormal\fP.
+The name \fBnormal\fP is deprecated and will be removed in future versions.
 .TP
-.BR \-\-export=changed " (default since 3.0.1)"
+.BR \-\-export=changed
 In this mode every distribution actually changed will be exported,
 unless there was an error possibly corrupting it.
 (i.e. if nothing changed, not even missing files will be created.)
@@ -420,6 +423,15 @@ will either be the same as
 or the same as
 .BR ${package} .
 
+The special field names
+.BR $basename ", " $filekey " and " $fullfilename
+denote the first package file part of this entry
+(i.e. usually the .deb, .udeb or .dsc file)
+as basename, as filekey (filename relative to the outdir)
+and the full filename with outdir prepended
+(i.e. as relative or absolute as your
+outdir (or basedir if you did not set outdir) is).
+
 When \fB\-\-list\-format\fP is not given or \fBNONE\fP, then the default
 is equivalent to
 .br
@@ -468,6 +480,52 @@ Like \fB\-\-restrict\fP but read a whole file in the \fBFilterSrcList\fP format.
 .TP
 .B \-\-restrict\-file\-bin \fIfilename\fP
 Like \fB\-\-restrict\-bin\fP but read a whole file in the \fBFilterList\fP format.
+.TP
+.B \-\-endhook \fIhookscript\fP
+
+Run the specified \fIhookscript\fP once reprepro exits.
+It will get the usual \fBREPREPRO_\fP* environment variables set (or unset)
+and additionally a variable \fBREPREPRO_EXIT_CODE\fP that is the exit code
+with which reprepro would have exited (the hook is always called once the
+initial parsing of global options and the command name is done, no matter
+if reprepro did anything or not).
+Reprepro will return to the calling process with the exitcode of this script.
+Reprepro has closed all its databases and removed all its locks,
+so you can run reprepro again in this script
+(unless someone else did so in the same repository before, of course).
+
+The only advantage over running that command always directly after reprepro
+is that you can some environment variables set and cannot so easily forget
+it if this option is in conf/options.
+
+The script is supposed to be located relative to \fIconfdir\fP, unless its
+name starts with \fB/\fP, \fB./\fP, \fB+b/\fP, \fB+o/\fP, or \fB+c/\fP
+and the name may not start (except in the cases given before) with a \fB+\fP.
+
+An example script looks like: \fB
+ #!/bin/sh
+ 
+ if [ "$REPREPRO_EXIT_CODE" -ne 0 ] ; then
+ 	exit "$REPREPRO_EXIT_CODE"
+ fi
+ 
+ echo "congratulations, reprepro with arguments: $*"
+ echo "seems to have run successfully. REPREPRO_ part of the environment is:"
+ set | grep ^REPREPRO_
+ 
+ exit 0
+ \fP
+.TP
+.B \-\-outhook \fIhookscript\fP
+\fIhookscript\fP is called with a \fB.outlog\fP file as argument (located
+in \fIlogdir\fP) containing a description of all changes made to \fIoutdir\fP.
+
+The script is supposed to be located relative to \fIconfdir\fP, unless its
+name starts with \fB/\fP, \fB./\fP, \fB+b/\fP, \fB+o/\fP, or \fB+c/\fP
+and the name may not start (except in the cases given before) with a \fB+\fP.
+
+For a format of the \fB.outlog\fP files generated for this script see the
+\fBmanual.html\fP shiped with reprepro.
 .SH COMMANDS
 .TP
 .BR export " [ " \fIcodenames\fP " ]"
@@ -593,6 +651,9 @@ having an \fB\-2.6\fP.
 .TP
 .B ls \fIpackage-name\fP
 List the versions of the the specified package in all distributions.
+.TP
+.B lsbycomponent \fIpackage-name\fP
+Like ls, but group by component (and print component names).
 .TP
 .B remove \fIcodename\fP \fIpackage-names\fP
 Delete all packages in the specified distribution,
@@ -753,6 +814,16 @@ not known to be needed.
 .B deleteunreferenced
 Remove all known files (and forget them) in the pool not marked to be
 needed by anything.
+.TP
+.BR deleteifunreferenced " [ " \fIfilekeys\fP " ]"
+Remove the given files (and forget them) in the pool if they
+are not marked to be used by anything.
+If no command line arguments are given,
+stdin is read and every line treated as one filekey.
+This is mostly useful together with \fB\-\-keepunreferenced\fP
+in \fBconf/options\fP or in situations where one does not want
+to run \fBdeleteunreferenced\fP, which removes all files eligible
+to be deleted with this command.
 .TP
 .BR reoverride " [ " \fIcodenames\fP " ]"
 Reapply the override files to the given distributions (Or only parts
@@ -965,6 +1036,16 @@ the packages only in this distribution or its snapshots.
 If more than one distribution is selected, also list a sum of those
 (in which 'Only' means only in selected ones, and not only only in
 one of the selected ones).
+
+.TP
+.BR repairdescriptions " [ " \fIcodenames\fP " ]"
+Look for binary packages only having a short description
+and try to get the long description from the .deb file
+(and also remove a possible Description-md5 in this case).
+
+The variant \fBforcerepairdescriptions\fP also replaces
+descriptions that do not match the previous short Description
+or the Description-md5 header.
 
 .SS internal commands
 These are hopefully never needed, but allow manual intervention.
@@ -1248,6 +1329,8 @@ See the description for \fBconf/pulls\fP.
 .B SignWith
 When this field is present, a Release.gpg file will be generated.
 If the value is "yes" or "default", the default key of gpg is used.
+If the field starts with an exlamation mark ("!"), the given script
+is executed to do the signing.
 Otherwise the value will be given to libgpgme to determine to key to
 use.
 
@@ -1262,6 +1345,23 @@ that gpg can more easily associate with a unique key.
 
 If this key has a passphrase, you need to use gpg\-agent
 or the insecure option \fB\-\-ask\-passphrase\fP.
+
+A '\fB!\fP' hook script is looked for in the confdir,
+unless it starts with
+.BR ~/ ", " ./ ", " +b/ ", " +o/ ", " +c/ " or " / " ."
+Is gets three command line arguments: The filename to sign,
+an empty argument or the filename to create with an inline
+signature (i.e. InRelease) and
+an empty argument or the filename to create an detached signature
+(i.e. Release.gpg).
+The script may generate no Release.gpg file if it choses to
+(then the repository will look like unsigned for older clients),
+but generating empty files is not allowed.
+Reprepro waits for the script to finish and will abort the exporting
+of the distribution this signing is part of unless the scripts
+returns normally with exit code 0.
+Using a space after ! is recommended to avoid incompatibilities
+with possible future extensions.
 .TP
 .B DebOverride
 When this field is present, it describes the override file used

@@ -62,7 +62,7 @@ retvalue config_getnumber(struct configiterator *, const char *, long long *, lo
 retvalue config_getconstant(struct configiterator *, const struct constant *, int *);
 #define config_getenum(iter, type, constants, result) ({int _val;retvalue _r = config_getconstant(iter, type ## _ ## constants, &_val);*(result) = (enum type)_val;_r;})
 retvalue config_completeword(struct configiterator *, char, /*@out@*/char **);
-retvalue config_gettimespan(struct configiterator *, const char *, /*@out@*/time_t *);
+retvalue config_gettimespan(struct configiterator *, const char *, /*@out@*/unsigned long *);
 retvalue config_getscript(struct configiterator *, const char *, /*@out@*/char **);
 retvalue config_getsignwith(struct configiterator *, const char *, struct strlist *);
 void config_overline(struct configiterator *);

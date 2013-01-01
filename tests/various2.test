@@ -4,8 +4,10 @@ set -u
 echo "Running various other old test..."
 mkdir -p conf logs
 cat > conf/options <<CONFEND
+outhook $SRCDIR/docs/outstore.py
 export changed
 CONFEND
+export REPREPRO_OUT_DB=db.out
 cat > conf/distributions <<CONFEND
 Codename: test1
 Architectures: abacus source
@@ -46,6 +48,13 @@ chmod a+x conf/testhook
 
 mkdir -p "dists/test2/stupid/binary-abacus"
 touch "dists/test2/stupid/binary-abacus/Packages.deprecated"
+cat > logs/fake.outlog << EOF
+BEGIN-DISTRIBUTION	test2	dists/test2
+DISTFILE	dists/test2	stupid/binary-abacus/Packages.deprecated	dists/test2/stupid/binary-abacus/Packages.deprecated
+END-DISTRIBUTION	test2	dists/test2
+EOF
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py logs/fake.outlog
+rm logs/fake.outlog
 
 set -v
 checknolog logfile
@@ -95,6 +104,7 @@ $(odb)
 -v6*= exporting 'test1|ugly|source'...
 -v6*=  creating './dists/test1/ugly/source/Sources' (gzipped,bzip2ed)
 EOF
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 dodo test '!' -e "dists/test2/stupid/binary-abacus/Packages.deprecated"
 test -f dists/test1/Release
 test -f dists/test2/Release
@@ -104,17 +114,20 @@ Component: stupid
 Architecture: abacus
 END
 dodiff dists/test1/stupid/binary-abacus/Release.expected dists/test1/stupid/binary-abacus/Release
+rm dists/test1/stupid/binary-abacus/Release.expected
 cat > dists/test1/ugly/binary-abacus/Release.expected <<END
 Component: ugly
 Architecture: abacus
 END
+dodiff dists/test1/ugly/binary-abacus/Release.expected dists/test1/ugly/binary-abacus/Release
+rm dists/test1/ugly/binary-abacus/Release.expected
+
 echo "super-compressed" > "fakesuper"
 FAKESUPERMD5="$(mdandsize fakesuper)"
 FAKESUPERSHA1="$(sha1andsize fakesuper)"
 FAKESUPERSHA2="$(sha2andsize fakesuper)"
 
-dodiff dists/test1/ugly/binary-abacus/Release.expected dists/test1/ugly/binary-abacus/Release
-cat > dists/test1/Release.expected <<END
+cat > Release.test1.expected <<END
 Codename: test1
 Date: normalized
 Architectures: abacus
@@ -181,6 +194,7 @@ Architecture: abacus
 Description: test with all fields set
 END
 dodiff dists/test2/stupid/binary-abacus/Release.expected dists/test2/stupid/binary-abacus/Release
+rm dists/test2/stupid/binary-abacus/Release.expected
 cat > dists/test2/ugly/binary-abacus/Release.expected <<END
 Archive: broken
 Version: 9999999.02
@@ -190,8 +204,9 @@ Label: Only a test
 Architecture: abacus
 Description: test with all fields set
 END
-dodiff dists/test1/ugly/binary-abacus/Release.expected dists/test1/ugly/binary-abacus/Release
-cat > dists/test2/Release.expected <<END
+dodiff dists/test2/ugly/binary-abacus/Release.expected dists/test2/ugly/binary-abacus/Release
+rm dists/test2/ugly/binary-abacus/Release.expected
+cat > Release.test2.expected <<END
 Origin: Brain
 Label: Only a test
 Suite: broken
@@ -295,10 +310,11 @@ SHA256:
  $FAKESUPERSHA2 ugly/source/Sources.super
  $(sha2andsize dists/test2/ugly/source/Release) ugly/source/Release
 END
-printf '%%g/^Date:/s/Date: .*/Date: normalized/\n%%g/gz$/s/^ 163be0a88c70ca629fd516dbaadad96a / 7029066c27ac6f5ef18d660d5741979a /\nw\nq\n' | ed -s dists/test1/Release
-printf '%%g/^Date:/s/Date: .*/Date: normalized/\n%%g/gz$/s/^ 163be0a88c70ca629fd516dbaadad96a / 7029066c27ac6f5ef18d660d5741979a /\nw\nq\n' | ed -s dists/test2/Release
-dodiff dists/test1/Release.expected dists/test1/Release || exit 1
-dodiff dists/test2/Release.expected dists/test2/Release || exit 1
+normalizerelease dists/test1/Release > dists/test1/Release.normalized
+normalizerelease dists/test2/Release > dists/test2/Release.normalized
+dodiff Release.test1.expected dists/test1/Release.normalized
+dodiff Release.test2.expected dists/test2/Release.normalized
+rm dists/*/Release.normalized
 
 PACKAGE=simple EPOCH="" VERSION=1 REVISION="" SECTION="stupid/base" genpackage.sh
 checknolog log1
@@ -325,6 +341,7 @@ $(ofa 'pool/stupid/s/simple/simple_1_source+abacus+all.changes')
 -v6*= looking for changes in 'test1|ugly|abacus'...
 -v6*= looking for changes in 'test1|ugly|source'...
 EOF
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 echo returned: $?
 checklog log1 << EOF
 DATESTR add test1 deb stupid abacus simple-addons 1
@@ -355,6 +372,7 @@ $(ofa 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:0.9-A:Z+a:z-0+aA.9zZ_sourc
 -v6*= looking for changes in 'test1|ugly|source'...
 -v6*=  replacing './dists/test1/ugly/source/Sources' (gzipped,bzip2ed)
 EOF
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 echo returned: $?
 checklog log1 <<EOF
 DATESTR add test1 deb ugly abacus bloat+-0a9z.app-addons 99:0.9-A:Z+a:z-0+aA.9zZ
@@ -376,6 +394,7 @@ stdout
 -v6*= looking for changes in 'test1|ugly|abacus'...
 -v6*= looking for changes in 'test1|ugly|source'...
 EOF
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 checklog log1 <<EOF
 DATESTR remove test1 dsc stupid source simple 1
 EOF
@@ -393,6 +412,7 @@ stdout
 -v6*=  replacing './dists/test1/ugly/binary-abacus/Packages' (uncompressed,gzipped,bzip2ed)
 -v6*= looking for changes in 'test1|ugly|source'...
 EOF
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 checklog log1 <<EOF
 DATESTR remove test1 deb ugly abacus bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
 EOF
@@ -410,6 +430,7 @@ stdout
 -v6*= looking for changes in 'test1|ugly|source'...
 -v6*=  replacing './dists/test1/ugly/source/Sources' (gzipped,bzip2ed)
 EOF
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 checklog log1 <<EOF
 DATESTR remove test1 dsc ugly source bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
 EOF
@@ -427,6 +448,7 @@ stdout
 -v6*= looking for changes in 'test1|ugly|abacus'...
 -v6*= looking for changes in 'test1|ugly|source'...
 EOF
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 checklog log1 <<EOF
 DATESTR remove test1 deb stupid abacus simple 1
 EOF
@@ -444,6 +466,7 @@ stdout
 -v6*=  replacing './dists/test1/ugly/binary-abacus/Packages' (uncompressed,gzipped,bzip2ed)
 -v6*= looking for changes in 'test1|ugly|source'...
 EOF
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 checklog log1 <<EOF
 DATESTR remove test1 deb ugly abacus bloat+-0a9z.app-addons 99:0.9-A:Z+a:z-0+aA.9zZ
 EOF
@@ -461,13 +484,14 @@ stdout
 -v6*= looking for changes in 'test1|ugly|abacus'...
 -v6*= looking for changes in 'test1|ugly|source'...
 EOF
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 checklog log1 <<EOF
 DATESTR remove test1 deb stupid abacus simple-addons 1
 EOF
 CURDATE="`TZ=GMT LC_ALL=C date +'%a, %d %b %Y %H:%M:%S UTC'`"
-printf '%%g/^Date:/s/Date: .*/Date: normalized/\n%%g/gz$/s/^ 163be0a88c70ca629fd516dbaadad96a / 7029066c27ac6f5ef18d660d5741979a /\nw\nq\n' | ed -s dists/test1/Release
-
-dodiff dists/test1/Release.expected dists/test1/Release || exit 1
+normalizerelease dists/test1/Release > Release.test1.normalized
+dodiff Release.test1.expected Release.test1.normalized
+rm Release.test1.normalized
 
 cat > conf/srcoverride <<END
 simple Section ugly/games
@@ -518,6 +542,7 @@ $(ofa 'pool/ugly/s/simple/simple_1.tar.gz')
 -v6*= looking for changes in 'test2|ugly|source'...
 -v6*=  replacing './dists/test2/ugly/source/Sources' (uncompressed,gzipped,script: bzip.example,testhook)
 EOF
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 checklog log2 <<EOF
 DATESTR add test2 dsc ugly source simple 1
 EOF
@@ -546,6 +571,7 @@ $(ofa 'pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.tar.gz
 *=testhook got 4: './dists/test2' 'ugly/binary-coal/Packages.new' 'ugly/binary-coal/Packages' 'old'
 *=testhook got 4: './dists/test2' 'ugly/source/Sources.new' 'ugly/source/Sources' 'old'
 EOF
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 checklog log2 <<EOF
 DATESTR add test2 dsc stupid source bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
 EOF
@@ -571,6 +597,7 @@ $(ofa 'pool/ugly/s/simple/simple_1_abacus.deb')
 *=testhook got 4: './dists/test2' 'ugly/binary-coal/Packages.new' 'ugly/binary-coal/Packages' 'old'
 *=testhook got 4: './dists/test2' 'ugly/source/Sources.new' 'ugly/source/Sources' 'old'
 EOF
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 checklog log2  <<EOF
 DATESTR add test2 deb ugly abacus simple 1
 EOF
@@ -596,6 +623,7 @@ $(ofa 'pool/ugly/s/simple/simple-addons_1_all.deb')
 *=testhook got 4: './dists/test2' 'ugly/binary-coal/Packages.new' 'ugly/binary-coal/Packages' 'change'
 *=testhook got 4: './dists/test2' 'ugly/source/Sources.new' 'ugly/source/Sources' 'old'
 EOF
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 checklog log2  <<EOF
 DATESTR add test2 deb ugly coal simple-addons 1
 EOF
@@ -621,6 +649,7 @@ $(ofa 'pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_abacus
 *=testhook got 4: './dists/test2' 'ugly/binary-coal/Packages.new' 'ugly/binary-coal/Packages' 'old'
 *=testhook got 4: './dists/test2' 'ugly/source/Sources.new' 'ugly/source/Sources' 'old'
 EOF
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 checklog log2 <<EOF
 DATESTR add test2 deb stupid abacus bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
 EOF
@@ -646,6 +675,7 @@ $(ofa 'pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ
 *=testhook got 4: './dists/test2' 'ugly/binary-coal/Packages.new' 'ugly/binary-coal/Packages' 'old'
 *=testhook got 4: './dists/test2' 'ugly/source/Sources.new' 'ugly/source/Sources' 'old'
 EOF
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 checklog log2 <<EOF
 DATESTR add test2 deb stupid coal bloat+-0a9z.app-addons 99:0.9-A:Z+a:z-0+aA.9zZ
 EOF
@@ -712,7 +742,7 @@ simple			install
 bloat+-0a9z.app-addons	install
 END
 
-cp dists/test2/Release dists/test2/Release.safe
+cp dists/test2/Release Release.test2.safe
 ed -s dists/test2/Release <<EOF
 g/stupid.source.Sources/s/^ ................................ / ffffffffffffffffffffffffffffffff /
 w
@@ -750,8 +780,8 @@ stderr
 stdout
 -v2*=Created directory "./lists"
 EOF
-
-cp dists/test2/Release.safe dists/test2/Release
+cp Release.test2.safe dists/test2/Release
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 ed -s dists/test2/Release <<EOF
 g/stupid.source.Sources/s/^ ........................................ / 1111111111111111111111111111111111111111 /
 w
@@ -773,8 +803,8 @@ stderr
 -v0*=There have been errors!
 stdout
 EOF
-
-cp dists/test2/Release.safe dists/test2/Release
+cp Release.test2.safe dists/test2/Release
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 ed -s dists/test2/Release <<EOF
 g/stupid.source.Sources/s/^ ................................................................ / 9999999999999999999999999999999999999999999999999999999999999999 /
 w
@@ -796,6 +826,7 @@ stderr
 -v0*=There have been errors!
 stdout
 EOF
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 
 cp conf/updates conf/updates.safe
 cat >> conf/updates <<EOF
@@ -811,6 +842,7 @@ stderr
 -v0*=There have been errors!
 stdout
 EOF
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 
 cp conf/updates.safe conf/updates
 cat >> conf/updates <<EOF
@@ -886,8 +918,8 @@ stdout
 -v6*= looking for changes in 'test1|ugly|source'...
 -v6*=  replacing './dists/test1/ugly/source/Sources' (gzipped,bzip2ed)
 EOF
-
-mv dists/test2/Release.safe dists/test2/Release
+mv Release.test2.safe dists/test2/Release
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 mv conf/updates.safe conf/updates
 
 checklog log1 <<EOF
@@ -909,6 +941,7 @@ testrun - -b . update test1 3<<EOF
 stdout
 -v0*=Nothing to do found. (Use --noskipold to force processing)
 EOF
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 checklog log1 < /dev/null
 checknolog log2
 testrun - --nolistsdownload --noskipold -b . update test1 3<<EOF
@@ -933,6 +966,7 @@ stdout
 -v5*=  reading './lists/_test1_stupid_abacus_Test2toTest1_Test2toTest1_test2_stupid_abacus_Packages'
 -v5*=  reading './lists/_test1_stupid_abacus_Test2toTest1_Test2toTest1_test2_stupid_coal_Packages'
 EOF
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 checklog log1 < /dev/null
 checknolog log2
 
@@ -1071,6 +1105,7 @@ $(ofd 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:0.9-A:Z+a:z-0+aA.9zZ_sourc
 -v2*=removed now empty directory ./pool/ugly/b
 EOF
 echo returned: $?
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 testrun - -b . include test1 test.changes 3<<EOF
 stdout
 -v2*=Created directory "./pool/ugly/b"
@@ -1092,6 +1127,7 @@ $(ofa 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:0.9-A:Z+a:z-0+aA.9zZ_sourc
 -v6*= looking for changes in 'test1|ugly|source'...
 -v6*=  replacing './dists/test1/ugly/source/Sources' (gzipped,bzip2ed)
 EOF
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 checklog log1 <<EOF
 DATESTR add test1 deb ugly abacus bloat+-0a9z.app-addons 99:0.9-A:Z+a:z-0+aA.9zZ
 DATESTR add test1 deb ugly abacus bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
@@ -1122,6 +1158,7 @@ $(ofa 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:9.0-A:Z+a:z-0+aA.9zZ_sourc
 -v6*=  replacing './dists/test1/ugly/source/Sources' (gzipped,bzip2ed)
 EOF
 echo returned: $?
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 checklog log1 <<EOF
 DATESTR replace test1 deb ugly abacus bloat+-0a9z.app-addons 99:9.0-A:Z+a:z-0+aA.9zZ 99:0.9-A:Z+a:z-0+aA.9zZ
 DATESTR replace test1 deb ugly abacus bloat+-0a9z.app 99:9.0-A:Z+a:z-0+aA.9zZ 99:0.9-A:Z+a:z-0+aA.9zZ
@@ -1144,6 +1181,7 @@ $(ofa 'pool/stupid/s/simple/simple_1_abacus.deb')
 -v6*= looking for changes in 'test1|ugly|source'...
 EOF
 echo returned: $?
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 dodo zgrep '^Section: sectiontest' dists/test1/stupid/binary-abacus/Packages.gz
 dodo zgrep '^Priority: prioritytest' dists/test1/stupid/binary-abacus/Packages.gz
 checklog log1 <<EOF
@@ -1164,6 +1202,7 @@ $(ofa 'pool/stupid/s/simple/simple_1.tar.gz')
 -v6*= looking for changes in 'test1|ugly|source'...
 EOF
 echo returned: $?
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 dodo zgrep '^Section: sectiontest' dists/test1/stupid/source/Sources.gz
 dodo zgrep '^Priority: prioritytest' dists/test1/stupid/source/Sources.gz
 checklog log1 <<EOF
@@ -1231,6 +1270,7 @@ $(ofd 'pool/stupid/t/test/test_1-2.dsc')
 -v2*=removed now empty directory ./pool/stupid/t/test
 -v2*=removed now empty directory ./pool/stupid/t
 EOF
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 checknolog log1
 checknolog log2
 testrun - -b . --ignore=missingfile include test1 test.changes 3<<EOF
@@ -1259,6 +1299,7 @@ $(ofa 'pool/stupid/t/test/test_1-2_source+abacus+all.changes')
 -v6*= looking for changes in 'test1|ugly|abacus'...
 -v6*= looking for changes in 'test1|ugly|source'...
 EOF
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 checklog log1 <<EOF
 DATESTR add test1 deb stupid abacus test-addons 1-2
 DATESTR add test1 deb stupid abacus test 1-2
@@ -1289,6 +1330,7 @@ $(ofa 'pool/stupid/t/testb/testb_1:2-2_source+abacus+all.changes')
 -v6*= looking for changes in 'test1|ugly|abacus'...
 -v6*= looking for changes in 'test1|ugly|source'...
 EOF
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 checklog log1 <<EOF
 DATESTR add test1 deb stupid abacus testb-addons 1:2-2
 DATESTR add test1 deb stupid abacus testb 1:2-2
@@ -1319,6 +1361,7 @@ $(ofa 'pool/stupid/t/testb/testb_1:2-3_source+abacus+all.changes')
 -v6*= looking for changes in 'test1|ugly|abacus'...
 -v6*= looking for changes in 'test1|ugly|source'...
 EOF
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 checklog log1 <<EOF
 DATESTR replace test1 deb stupid abacus testb-addons 1:2-3 1:2-2
 DATESTR replace test1 deb stupid abacus testb 1:2-3 1:2-2
@@ -1352,6 +1395,7 @@ $(ofa 'pool/stupid/4/4test/4test_1:0b.1-1_source+abacus+all.changes')
 -v6*= looking for changes in 'test1|ugly|abacus'...
 -v6*= looking for changes in 'test1|ugly|source'...
 EOF
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 checklog log1 <<EOF
 DATESTR add test1 deb stupid abacus 4test-addons 1:0b.1-1
 DATESTR add test1 deb stupid abacus 4test 1:0b.1-1
@@ -1476,6 +1520,7 @@ $(ofd 'pool/stupid/t/testb/testb_2-2.dsc')
 $(ofd 'pool/stupid/t/testb/testb_2-2.diff.gz')
 $(ofd 'pool/stupid/t/testb/testb_1:2-2_source+abacus+all.changes')
 EOF
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 cp db/tracking.db db/saved2tracking.db
 cp db/references.db db/saved2references.db
 testout "" -b . dumpunreferenced
@@ -1553,6 +1598,7 @@ $(ofd 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:9.0-A:Z+a:z-0+aA.9zZ_sourc
 $(ofd 'pool/stupid/t/test/test_1-2_source+abacus+all.changes')
 $(ofd 'pool/stupid/t/testb/testb_1:2-3_source+abacus+all.changes')
 EOF
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 testout "" -b . dumpunreferenced
 dodiff /dev/null results
 testout "" -b . dumptracks
@@ -1916,6 +1962,7 @@ stdout
 *=Deleting vanished identifier 'foo|unneeded|abacus'.
 *=Deleting vanished identifier 'foo|unneeded|fingers'.
 EOF
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 testout "" -b . dumpunreferenced
 dodiff /dev/null results
 echo "Format: 2.0" > broken.changes
@@ -2063,6 +2110,7 @@ $(ofd 'pool/stupid/n/nowhere/nowhere_0old.dsc')
 -v2*=removed now empty directory ./pool/stupid/n/nowhere
 -v2*=removed now empty directory ./pool/stupid/n
 EOF
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 rm nowhere_0old.dsc
 mv conf/distributions.old conf/distributions
 testrun - -b . clearvanished 3<<EOF
@@ -2079,6 +2127,7 @@ $(ofa 'pool/stupid/n/nowhere/filename_version.tar.gz')
 -v0*=1 files were added but not used.
 -v0*=The next deleteunreferenced call will delete them.
 EOF
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 testout "" -b . dumpunreferenced
 cat >results.expected <<EOF
 pool/stupid/n/nowhere/filename_version.tar.gz
@@ -2090,6 +2139,7 @@ $(ofd 'pool/stupid/n/nowhere/filename_version.tar.gz')
 -v2*=removed now empty directory ./pool/stupid/n/nowhere
 -v2*=removed now empty directory ./pool/stupid/n
 EOF
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 testout "" -b . dumpunreferenced
 dodiff /dev/null results
 testout "" -b . dumpreferences
@@ -2098,6 +2148,7 @@ testrun - -b . _forget pool/ugly/s/simple/simple_1_abacus.deb 3<<EOF
 stdout
 $(ofd 'pool/ugly/s/simple/simple_1_abacus.deb' false)
 EOF
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 testrun - -b . remove test1 simple 3<<EOF
 # ???
 =Warning: tracking database of test1 missed files for simple_1.
@@ -2120,6 +2171,7 @@ stdout
 -v6*= looking for changes in 'test1|ugly|source'...
 -v6*=  replacing './dists/test1/ugly/source/Sources' (gzipped,bzip2ed)
 EOF
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 checklog log1 <<EOF
 DATESTR remove test1 deb stupid abacus simple 1
 DATESTR remove test1 dsc stupid source simple 1
@@ -2155,6 +2207,7 @@ $(ofd 'pool/ugly/s/simple/simple_1.tar.gz')
 -v1*=deleting and forgetting pool/ugly/s/simple/simple_1_abacus.deb
 returns 249
 EOF
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 checklog log2 <<EOF
 DATESTR remove test2 deb ugly abacus simple 1
 DATESTR remove test2 dsc ugly source simple 1
@@ -2233,6 +2286,7 @@ $(ofd 'pool/stupid/d/differently/differently_0another.dsc')
 -v2*=removed now empty directory ./pool/stupid/d
 returns 255
 EOF
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 cat > broken.changes <<EOF
 Format: -1.0
 Date: yesterday
@@ -2275,6 +2329,7 @@ $(ofa 'pool/stupid/4/4test/4test_0orso.dsc')
 $(ofd 'pool/stupid/4/4test/4test_0orso.dsc')
 returns 255
 EOF
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 checknolog log1
 checknolog log2
 testrun - -b . --ignore=wrongsourceversion --ignore=wrongversion include test2 broken.changes 3<<EOF
@@ -2302,6 +2357,7 @@ $(ofa 'pool/stupid/4/4test/4test_0orso.dsc')
 *=testhook got 4: './dists/test2' 'ugly/binary-coal/Packages.new' 'ugly/binary-coal/Packages' 'old'
 *=testhook got 4: './dists/test2' 'ugly/source/Sources.new' 'ugly/source/Sources' 'old'
 EOF
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 checklog log2 <<EOF
 DATESTR add test2 deb stupid abacus 4test 1:0b.1-1
 DATESTR add test2 dsc stupid source 4test 1:0b.1-1
@@ -2330,6 +2386,7 @@ $(ofd 'pool/stupid/4/4test/4test_0orso.dsc')
 *=testhook got 4: './dists/test2' 'ugly/binary-coal/Packages.new' 'ugly/binary-coal/Packages' 'old'
 *=testhook got 4: './dists/test2' 'ugly/source/Sources.new' 'ugly/source/Sources' 'old'
 EOF
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 checklog log2 <<EOF
 DATESTR remove test2 deb stupid abacus 4test 1:0b.1-1
 DATESTR remove test2 dsc stupid source 4test 1:0b.1-1
@@ -2408,6 +2465,7 @@ $(ofd 'pool/ugly/s/simple/simple-addons_1_all.deb')
 -v2*=removed now empty directory ./pool/ugly
 -v2*=removed now empty directory ./pool
 EOF
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 
 checknolog logfile
 checknolog log1
@@ -2420,7 +2478,7 @@ dodiff /dev/null results
 
 rm -r dists db conf conf2 logs lists
 rm 4test* bloat* simple* test_* test-* testb* differently* filename_version.tar.gz
-rm test1 test2 test2.changes broken.changes test.changes fakesuper
+rm test1 test2 test2.changes broken.changes test.changes fakesuper db.out*
 rm results results.expected results.log.expected includeerror.rules
 dodo test ! -d pool
 

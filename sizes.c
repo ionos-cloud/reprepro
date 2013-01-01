@@ -20,7 +20,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <malloc.h>
+#include <stdlib.h>
 
 #include "error.h"
 #include "strlist.h"

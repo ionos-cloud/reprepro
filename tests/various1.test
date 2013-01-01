@@ -19,6 +19,7 @@ Components:
 EOF
 touch conf/updates
 dodo test ! -d db
+mkdir logs
 testrun - -b . checkupdate test 3<<EOF
 stderr
 *=Nothing to do, because none of the selected distributions has an Update: field.
@@ -31,8 +32,10 @@ rm -r -f db conf
 dodo test ! -d d/ab
 mkdir -p conf
 cat > conf/options <<CONFEND
+outhook $SRCDIR/docs/outstore.py
 export changed
 CONFEND
+export REPREPRO_OUT_DB=db/out
 cat > conf/distributions <<CONFEND
 Codename: A
 Architectures: abacus calculator
@@ -98,7 +101,7 @@ Log: logfile
 Codename: B
 Architectures: abacus source
 Components: dog cat
-Contents: percomponent
+Contents: compatsymlink percomponent
 Log: logfile
 CONFEND
 testrun - -b . export B A 3<<EOF
@@ -140,6 +143,7 @@ $(odb)
 -v6*= exporting 'A|cat|calculator'...
 -v6*=  creating './dists/A/cat/binary-calculator/Packages' (uncompressed,gzipped)
 EOF
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 dodo test -f db/checksums.db
 find dists -type f | LC_ALL=C sort -f > results
 cat > results.expected <<END
@@ -176,7 +180,7 @@ cat > results.expected <<END
 dists/B/Contents-abacus.gz -> dog/Contents-abacus.gz
 END
 
-sed -e "s/^Contents:/Contents: allcomponents/" -i conf/distributions
+sed -e "s/^Contents: compatsymlink/Contents: allcomponents/" -i conf/distributions
 
 dodiff results.expected results
 testrun - -b . processincoming default 3<<EOF
@@ -360,7 +364,6 @@ $(ofa 'pool/dog/b/bird/bird_1.dsc')
 $(ofa 'pool/dog/b/bird/bird_1.tar.gz')
 $(ofa 'pool/dog/b/bird/bird_1_abacus.deb')
 $(ofa 'pool/dog/b/bird/bird-addons_1_all.deb')
--v2*=Created directory "./logs"
 -d1*=db: 'bird' added to packages.db(B|dog|source).
 -d1*=db: 'bird' added to packages.db(B|dog|abacus).
 -d1*=db: 'bird-addons' added to packages.db(B|dog|abacus).
@@ -948,6 +951,7 @@ $(ofa 'pool/dog/s/sourceindeb/indebname_0versionindeb~1_all.deb')
 -v6*= looking for changes in 'A|dog|abacus'...
 -v6*= looking for changes in 'A|dog|calculator'...
 EOF
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 checklog logfile <<EOF
 DATESTR add A deb dog abacus indebname 1:0versionindeb~1
 DATESTR add A deb dog calculator indebname 1:0versionindeb~1
@@ -1137,6 +1141,7 @@ $(ofa 'pool/dog/d/dscfilename/dscfilename_0versionindsc.dsc')
 -v6*= looking for changes in 'B|cat|abacus'...
 -v6*= looking for changes in 'B|cat|source'...
 EOF
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 checklog logfile <<EOF
 DATESTR add B dsc dog source dscfilename 0versionindsc
 EOF
@@ -1360,6 +1365,7 @@ $(ofa 'pool/dog/d/dscfilename/strangefile_xyz')
 -v0*=Deleting files no longer referenced...
 $(ofd 'pool/dog/d/dscfilename/dscfilename_0versionindsc.dsc')
 EOF
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 checklog logfile <<EOF
 DATESTR replace B dsc dog source dscfilename 1:newversion~ 0versionindsc
 EOF
@@ -1435,6 +1441,8 @@ dodiff results.expected results
 
 testout "" -b . dumpunreferenced
 dodiff /dev/null results
+
+REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 
 rm -r conf db pool dists i pkg logs temp
 rm results.expected results.log.expected results bird.preprocessed

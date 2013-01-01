@@ -1,5 +1,4 @@
 TODO:
- 	allow signing with external programs ('! sign-script')
         think about a way to make removesrc work on all distributions ('*'?)
 	-> or make things like remove(src)/list/.. work with distribution globs...
 	write something for manual.html how to manually modify snapshots...
@@ -7,8 +6,7 @@ TODO:
 	 (not even run in the testcase yet: reoverride, ... (probably many))
 	finish import from incoming dir, implement sending mails to uploader
 	extend FilterList et al to specify type/architecture/component
-	command to check for binary packages without source and one for source without binaries.
-	switch to only include if source is present
+	add switch to only include if source is present
 	action to redownload missing pool/ files from some update-rules (looking for md5sum)
 	Fields to exclude architectures and components in update rules,
 	 (or alternatively allow ! in inclusion lists).
@@ -17,12 +15,8 @@ half far goals:
 	rewrite error handling, caching error messages and handling Ctrl-C better.
 
 far goals:
-	check for source of package,
-	      for sources without packages.
-	      for unmeet Dependencies
+	check for unmeet Dependencies
 	      for unmeet Build-dependencies.
-	switch to only include a package if no binaries from an older
-		source of this package would be left.
 	write dokumentation, some examples
 	allow multiple versions in a distribution (needs major rewrite I fear)
 	record timestamp when packages are added.

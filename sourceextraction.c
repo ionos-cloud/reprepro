@@ -19,7 +19,6 @@
 #include <assert.h>
 #include <limits.h>
 #include <stdlib.h>
-#include <malloc.h>
 #include <string.h>
 #include <stdio.h>
 #ifdef HAVE_LIBARCHIVE

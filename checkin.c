@@ -24,7 +24,6 @@
 #include <stdio.h>
 #include <getopt.h>
 #include <string.h>
-#include <malloc.h>
 #include <ctype.h>
 #include "error.h"
 #include "ignore.h"

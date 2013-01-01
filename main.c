@@ -25,7 +25,6 @@
 #include <getopt.h>
 #include <string.h>
 #include <strings.h>
-#include <malloc.h>
 #include <fcntl.h>
 #include <signal.h>
 #include "error.h"
@@ -73,6 +72,8 @@
 #include "uploaderslist.h"
 #include "sizes.h"
 #include "filterlist.h"
+#include "descriptions.h"
+#include "outhook.h"
 
 #ifndef STD_BASE_DIR
 #define STD_BASE_DIR "."
@@ -106,6 +107,8 @@ static char /*@only@*/ /*@null@*/
 	*x_architecture = NULL,
 	*x_packagetype = NULL;
 static char /*@only@*/ /*@null@*/ *listformat = NULL;
+static char /*@only@*/ /*@null@*/ *endhook = NULL;
+static char /*@only@*/ /*@null@*/ *outhook = NULL;
 static char /*@only@*/
 	*gunzip = NULL,
 	*bunzip2 = NULL,
@@ -138,7 +141,7 @@ static off_t reservedotherspace = 1024*1024;
  * to change something owned by lower owners. */
 enum config_option_owner config_state,
 #define O(x) owner_ ## x = CONFIG_OWNER_DEFAULT
-O(fast), O(x_morguedir), O(x_outdir), O(x_basedir), O(x_distdir), O(x_dbdir), O(x_listdir), O(x_confdir), O(x_logdir), O(x_methoddir), O(x_section), O(x_priority), O(x_component), O(x_architecture), O(x_packagetype), O(nothingiserror), O(nolistsdownload), O(keepunusednew), O(keepunreferenced), O(keeptemporaries), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock), O(spacecheckmode), O(reserveddbspace), O(reservedotherspace), O(guessgpgtty), O(verbosedatabase), O(gunzip), O(bunzip2), O(unlzma), O(unxz), O(lunzip), O(gnupghome), O(listformat), O(listmax), O(listskip), O(onlysmalldeletes);
+O(fast), O(x_morguedir), O(x_outdir), O(x_basedir), O(x_distdir), O(x_dbdir), O(x_listdir), O(x_confdir), O(x_logdir), O(x_methoddir), O(x_section), O(x_priority), O(x_component), O(x_architecture), O(x_packagetype), O(nothingiserror), O(nolistsdownload), O(keepunusednew), O(keepunreferenced), O(keeptemporaries), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock), O(spacecheckmode), O(reserveddbspace), O(reservedotherspace), O(guessgpgtty), O(verbosedatabase), O(gunzip), O(bunzip2), O(unlzma), O(unxz), O(lunzip), O(gnupghome), O(listformat), O(listmax), O(listskip), O(onlysmalldeletes), O(endhook), O(outhook);
 #undef O
 
 #define CONFIGSET(variable, value) if (owner_ ## variable <= config_state) { \
@@ -578,6 +581,37 @@ ACTION_RF(n, n, n, deleteunreferenced) {
 	return result;
 }
 
+ACTION_RF(n, n, y, deleteifunreferenced) {
+	char buffer[5000], *nl;
+	int i;
+	retvalue r, ret;
+
+	ret = RET_NOTHING;
+	if (argc > 1) {
+		for (i = 1 ; i < argc ; i++) {
+			r = deleteifunreferenced(NULL, argv[i]);
+			RET_UPDATE(ret, r);
+			if (r == RET_NOTHING && verbose >= 0)
+				fprintf(stderr, "Not removing '%s'\n",
+						argv[i]);
+		}
+
+	} else
+		while (fgets(buffer, 4999, stdin) != NULL) {
+			nl = strchr(buffer, '\n');
+			if (nl == NULL) {
+				return RET_ERROR;
+			}
+			*nl = '\0';
+			r = deleteifunreferenced(NULL, buffer);
+			RET_UPDATE(ret, r);
+			if (r == RET_NOTHING && verbose >= 0)
+				fprintf(stderr, "Not removing '%s'\n",
+						buffer);
+		}
+	return ret;
+}
+
 ACTION_R(n, n, n, y, addreference) {
 	assert (argc == 2 || argc == 3);
 	return references_increment(argv[1], argv[2]);
@@ -665,11 +699,6 @@ ACTION_D(y, n, y, remove) {
 		 if (RET_WAS_ERROR(result))
 			 break;
 	}
-
-	logger_wait();
-
-	r = distribution_export(export, distribution);
-	RET_ENDUPDATE(result, r);
 
 	if (distribution->tracking != dt_NONE) {
 		if (RET_WAS_ERROR(result))
@@ -777,22 +806,15 @@ static retvalue remove_packages(struct distribution *distribution, struct remove
 				}
 			}
 		}
-		if (RET_IS_OK(result)) {
-			r = distribution_export(export, distribution);
-			RET_ENDUPDATE(result, r);
-		}
 		r = tracking_done(tracks);
 		RET_ENDUPDATE(result, r);
 		return result;
 	}
-	result = distribution_remove_packages(distribution,
+	return distribution_remove_packages(distribution,
 			// TODO: why not arch comp pt here?
 			atom_unknown, atom_unknown, atom_unknown,
 			package_source_fits, NULL,
 			toremove);
-	r = distribution_export(export, distribution);
-	RET_ENDUPDATE(result, r);
-	return result;
 }
 
 ACTION_D(n, n, y, removesrc) {
@@ -970,8 +992,6 @@ ACTION_D(y, n, y, removefilter) {
 			package_matches_condition,
 			(tracks != NULL)?&trackingdata:NULL,
 			condition);
-	r = distribution_export(export, distribution);
-	RET_ENDUPDATE(result, r);
 	if (tracks != NULL) {
 		trackingdata_finish(tracks, &trackingdata);
 		r = tracking_done(tracks);
@@ -1033,8 +1053,6 @@ ACTION_D(y, n, y, removematched) {
 			package_matches_glob,
 			(tracks != NULL)?&trackingdata:NULL,
 			(void*)argv[2]);
-	r = distribution_export(export, distribution);
-	RET_ENDUPDATE(result, r);
 	if (tracks != NULL) {
 		trackingdata_finish(tracks, &trackingdata);
 		r = tracking_done(tracks);
@@ -1199,6 +1217,12 @@ struct lsversion {
 	char *version;
 	struct atomlist architectures;
 };
+struct lspart {
+	struct lspart *next;
+	const char *codename;
+	const char *component;
+	struct lsversion *versions;
+};
 
 static retvalue newlsversion(struct lsversion **versions_p, /*@only@*/char *version, architecture_t architecture) {
 	struct lsversion *v, **v_p;
@@ -1239,53 +1263,46 @@ static retvalue ls_in_target(struct target *target, const char *packagename, str
 	return result;
 }
 
-ACTION_B(y, n, y, ls) {
-	retvalue r;
-	struct distribution *d;
-	struct target *t;
-	size_t maxcodenamelen;
+static inline retvalue printlsparts(const char *pkgname, struct lspart *parts) {
+	int versionlen, codenamelen, componentlen;
+	struct lspart *p;
+	retvalue result = RET_NOTHING;
 
-	assert (argc == 2);
-	maxcodenamelen = 1;
+	versionlen = 0; codenamelen = 0; componentlen = 0;
+	for (p = parts ; p->codename != NULL ; p = p->next) {
+		struct lsversion *v;
+		size_t l;
 
-	for (d = alldistributions ; d != NULL ; d = d->next) {
-		size_t l = strlen(d->codename);
-		if (l > maxcodenamelen)
-			maxcodenamelen = l;
+		l = strlen(p->codename);
+		if (l > codenamelen)
+			codenamelen = l;
+		if (p->component != NULL) {
+			l = strlen(p->component);
+			if (l > componentlen)
+				componentlen = l;
+		}
+		for (v = p->versions ; v != NULL ; v = v->next) {
+			l = strlen(v->version);
+			if (l > versionlen)
+				versionlen = l;
+		}
 	}
+	while (parts->codename != NULL) {
+		p = parts;
+		parts = parts->next;
+		while (p->versions != NULL) {
+			architecture_t a; int i;
+			struct lsversion *v;
 
-	for (d = alldistributions ; d != NULL ; d = d->next) {
-		struct lsversion *versions = NULL, *v;
-		size_t maxversionlen;
-		int i;
+			v = p->versions;
+			p->versions = v->next;
 
-		for (t = d->targets ; t != NULL ; t = t->next) {
-			if (!target_matches(t, components, architectures,
-						packagetypes))
-				continue;
-			r = ls_in_target(t, argv[1], &versions);
-			if (RET_WAS_ERROR(r))
-				return r;
-		}
-		maxversionlen = 1;
-		for (v = versions ; v != NULL ; v = v->next) {
-			size_t l = strlen(v->version);
-
-			if (l > maxversionlen)
-				maxversionlen = l;
-		}
-		while (versions != NULL) {
-			architecture_t a;
-
-			v = versions;
-			versions = v->next;
-
-			printf("%s | %*s | %*s | ",
-					argv[1],
-					(int)maxversionlen,
-					v->version,
-					(int)maxcodenamelen,
-					d->codename);
+			result = RET_OK;
+			printf("%s | %*s | %*s | ", pkgname,
+					versionlen, v->version,
+					codenamelen, p->codename);
+			if (componentlen > 0 && p->component != NULL)
+				printf("%*s | ", componentlen, p->component);
 			for (i = 0 ; i + 1 < v->architectures.count ; i++) {
 				a = v->architectures.atoms[i];
 				printf("%s, ", atoms_architectures[a]);
@@ -1297,10 +1314,82 @@ ACTION_B(y, n, y, ls) {
 			atomlist_done(&v->architectures);
 			free(v);
 		}
+		free(p);
 	}
-	return RET_OK;
+	free(parts);
+	return result;
 }
 
+ACTION_B(y, n, y, ls) {
+	retvalue r;
+	struct distribution *d;
+	struct target *t;
+	struct lspart *first, *last;
+
+	assert (argc == 2);
+
+	first = zNEW(struct lspart);
+	last = first;
+
+	for (d = alldistributions ; d != NULL ; d = d->next) {
+		for (t = d->targets ; t != NULL ; t = t->next) {
+			if (!target_matches(t, components, architectures,
+						packagetypes))
+				continue;
+			r = ls_in_target(t, argv[1], &last->versions);
+			if (RET_WAS_ERROR(r))
+				return r;
+		}
+		if (last->versions != NULL) {
+			last->codename = d->codename;
+			last->next = zNEW(struct lspart);
+			last = last->next;
+		}
+	}
+	return printlsparts(argv[1], first);
+}
+
+ACTION_B(y, n, y, lsbycomponent) {
+	retvalue r;
+	struct distribution *d;
+	struct target *t;
+	struct lspart *first, *last;
+	int i;
+
+	assert (argc == 2);
+
+	first = zNEW(struct lspart);
+	last = first;
+
+	for (d = alldistributions ; d != NULL ; d = d->next) {
+		for (i = 0 ; i < d->components.count ; i ++) {
+			component_t component = d->components.atoms[i];
+
+			if (limitations_missed(components, component))
+				continue;
+			for (t = d->targets ; t != NULL ; t = t->next) {
+				if (t->component != component)
+					continue;
+				if (limitations_missed(architectures,
+							t->architecture))
+					continue;
+				if (limitations_missed(packagetypes,
+							t->packagetype))
+					continue;
+				r = ls_in_target(t, argv[1], &last->versions);
+				if (RET_WAS_ERROR(r))
+					return r;
+			}
+			if (last->versions != NULL) {
+				last->codename = d->codename;
+				last->component = atoms_components[component];
+				last->next = zNEW(struct lspart);
+				last = last->next;
+			}
+		}
+	}
+	return printlsparts(argv[1], first);
+}
 
 static retvalue listfilterprint(UNUSED(struct distribution *di), struct target *target, const char *packagename, const char *control, void *data) {
 	term *condition = data;
@@ -1494,8 +1583,10 @@ ACTION_F(n, n, y, y, export) {
 		if (verbose > 0) {
 			printf("Exporting %s...\n", d->codename);
 		}
-
 		r = distribution_fullexport(d);
+		if (RET_IS_OK(r))
+			/* avoid being exported again */
+			d->lookedat = false;
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(r) && export != EXPORT_FORCE) {
 			return r;
@@ -1507,7 +1598,7 @@ ACTION_F(n, n, y, y, export) {
 /***********************update********************************/
 
 ACTION_D(y, n, y, update) {
-	retvalue result, r;
+	retvalue result;
 	struct update_pattern *patterns;
 	struct update_distribution *u_distributions;
 
@@ -1551,15 +1642,11 @@ ACTION_D(y, n, y, update) {
 				reservedotherspace);
 	updates_freeupdatedistributions(u_distributions);
 	updates_freepatterns(patterns);
-
-	r = distribution_exportlist(export, alldistributions);
-	RET_ENDUPDATE(result, r);
-
 	return result;
 }
 
 ACTION_D(y, n, y, predelete) {
-	retvalue result, r;
+	retvalue result;
 	struct update_pattern *patterns;
 	struct update_distribution *u_distributions;
 
@@ -1602,10 +1689,6 @@ ACTION_D(y, n, y, predelete) {
 				nolistsdownload, skipold);
 	updates_freeupdatedistributions(u_distributions);
 	updates_freepatterns(patterns);
-
-	r = distribution_exportlist(export, alldistributions);
-	RET_ENDUPDATE(result, r);
-
 	return result;
 }
 
@@ -1722,7 +1805,7 @@ ACTION_L(n, n, n, n, cleanlists) {
 /***********************migrate*******************************/
 
 ACTION_D(y, n, y, pull) {
-	retvalue result, r;
+	retvalue result;
 	struct pull_rule *rules;
 	struct pull_distribution *p;
 
@@ -1748,10 +1831,6 @@ ACTION_D(y, n, y, pull) {
 
 	pull_freerules(rules);
 	pull_freedistributions(p);
-
-	r = distribution_exportlist(export, alldistributions);
-	RET_ENDUPDATE(result, r);
-
 	return result;
 }
 
@@ -1819,7 +1898,7 @@ ACTION_B(y, n, y, dumppull) {
 
 ACTION_D(y, n, y, copy) {
 	struct distribution *destination, *source;
-	retvalue result, r;
+	retvalue result;
 
 	result = distribution_get(alldistributions, argv[1], true, &destination);
 	assert (result != RET_NOTHING);
@@ -1840,22 +1919,13 @@ ACTION_D(y, n, y, copy) {
 	if (RET_WAS_ERROR(result))
 		return result;
 
-	r = copy_by_name(destination, source, argc-3, argv+3,
+	return copy_by_name(destination, source, argc-3, argv+3,
 			components, architectures, packagetypes);
-	RET_ENDUPDATE(result, r);
-
-	logger_wait();
-
-	r = distribution_export(export, destination);
-	RET_ENDUPDATE(result, r);
-
-	return result;
-
 }
 
 ACTION_D(y, n, y, copysrc) {
 	struct distribution *destination, *source;
-	retvalue result, r;
+	retvalue result;
 
 	result = distribution_get(alldistributions, argv[1], true, &destination);
 	assert (result != RET_NOTHING);
@@ -1875,21 +1945,14 @@ ACTION_D(y, n, y, copysrc) {
 	if (RET_WAS_ERROR(result))
 		return result;
 
-	r = copy_by_source(destination, source, argc-3, argv+3,
+	return copy_by_source(destination, source, argc-3, argv+3,
 			components, architectures, packagetypes);
-	RET_ENDUPDATE(result, r);
-
-	logger_wait();
-
-	r = distribution_export(export, destination);
-	RET_ENDUPDATE(result, r);
-
 	return result;
 }
 
 ACTION_D(y, n, y, copyfilter) {
 	struct distribution *destination, *source;
-	retvalue result, r;
+	retvalue result;
 
 	assert (argc == 4);
 
@@ -1911,21 +1974,13 @@ ACTION_D(y, n, y, copyfilter) {
 	if (RET_WAS_ERROR(result))
 		return result;
 
-	r = copy_by_formula(destination, source, argv[3],
+	return copy_by_formula(destination, source, argv[3],
 			components, architectures, packagetypes);
-	RET_ENDUPDATE(result, r);
-
-	logger_wait();
-
-	r = distribution_export(export, destination);
-	RET_ENDUPDATE(result, r);
-
-	return result;
 }
 
 ACTION_D(y, n, y, copymatched) {
 	struct distribution *destination, *source;
-	retvalue result, r;
+	retvalue result;
 
 	assert (argc == 4);
 
@@ -1947,21 +2002,13 @@ ACTION_D(y, n, y, copymatched) {
 	if (RET_WAS_ERROR(result))
 		return result;
 
-	r = copy_by_glob(destination, source, argv[3],
+	return copy_by_glob(destination, source, argv[3],
 			components, architectures, packagetypes);
-	RET_ENDUPDATE(result, r);
-
-	logger_wait();
-
-	r = distribution_export(export, destination);
-	RET_ENDUPDATE(result, r);
-
-	return result;
 }
 
 ACTION_D(y, n, y, restore) {
 	struct distribution *destination;
-	retvalue result, r;
+	retvalue result;
 
 	result = distribution_get(alldistributions, argv[1], true, &destination);
 	assert (result != RET_NOTHING);
@@ -1977,23 +2024,14 @@ ACTION_D(y, n, y, restore) {
 	if (RET_WAS_ERROR(result))
 		return result;
 
-	r = restore_by_name(destination,
+	return restore_by_name(destination,
 			components, architectures, packagetypes, argv[2],
 			argc-3, argv+3);
-	RET_ENDUPDATE(result, r);
-
-	logger_wait();
-
-	r = distribution_export(export, destination);
-	RET_ENDUPDATE(result, r);
-
-	return result;
-
 }
 
 ACTION_D(y, n, y, restoresrc) {
 	struct distribution *destination;
-	retvalue result, r;
+	retvalue result;
 
 	result = distribution_get(alldistributions, argv[1], true, &destination);
 	assert (result != RET_NOTHING);
@@ -2009,22 +2047,14 @@ ACTION_D(y, n, y, restoresrc) {
 	if (RET_WAS_ERROR(result))
 		return result;
 
-	r = restore_by_source(destination,
+	return restore_by_source(destination,
 			components, architectures, packagetypes, argv[2],
 			argc-3, argv+3);
-	RET_ENDUPDATE(result, r);
-
-	logger_wait();
-
-	r = distribution_export(export, destination);
-	RET_ENDUPDATE(result, r);
-
-	return result;
 }
 
 ACTION_D(y, n, y, restorematched) {
 	struct distribution *destination;
-	retvalue result, r;
+	retvalue result;
 
 	assert (argc == 4);
 
@@ -2042,22 +2072,14 @@ ACTION_D(y, n, y, restorematched) {
 	if (RET_WAS_ERROR(result))
 		return result;
 
-	r = restore_by_glob(destination,
+	return restore_by_glob(destination,
 			components, architectures, packagetypes, argv[2],
 			argv[3]);
-	RET_ENDUPDATE(result, r);
-
-	logger_wait();
-
-	r = distribution_export(export, destination);
-	RET_ENDUPDATE(result, r);
-
-	return result;
 }
 
 ACTION_D(y, n, y, restorefilter) {
 	struct distribution *destination;
-	retvalue result, r;
+	retvalue result;
 
 	assert (argc == 4);
 
@@ -2075,22 +2097,14 @@ ACTION_D(y, n, y, restorefilter) {
 	if (RET_WAS_ERROR(result))
 		return result;
 
-	r = restore_by_formula(destination,
+	return restore_by_formula(destination,
 			components, architectures, packagetypes, argv[2],
 			argv[3]);
-	RET_ENDUPDATE(result, r);
-
-	logger_wait();
-
-	r = distribution_export(export, destination);
-	RET_ENDUPDATE(result, r);
-
-	return result;
 }
 
 ACTION_D(y, n, y, addpackage) {
 	struct distribution *destination;
-	retvalue result, r;
+	retvalue result;
 	architecture_t architecture = atom_unknown;
 	component_t component = atom_unknown;
 	packagetype_t packagetype = atom_unknown;
@@ -2148,15 +2162,9 @@ ACTION_D(y, n, y, addpackage) {
 	if (RET_WAS_ERROR(result))
 		return result;
 
-	result = copy_from_file(destination,
+	return copy_from_file(destination,
 			component, architecture, packagetype, argv[2],
 			argc-3, argv+3);
-	logger_wait();
-
-	r = distribution_export(export, destination);
-	RET_ENDUPDATE(result, r);
-
-	return result;
 }
 
 /***********************rereferencing*************************/
@@ -2165,7 +2173,7 @@ ACTION_R(n, n, y, y, rereference) {
 	struct distribution *d;
 	struct target *t;
 
-	result = distribution_match(alldistributions, argc-1, argv+1, true, READONLY);
+	result = distribution_match(alldistributions, argc-1, argv+1, false, READONLY);
 	assert (result != RET_NOTHING);
 	if (RET_WAS_ERROR(result)) {
 		return result;
@@ -2195,7 +2203,7 @@ ACTION_D(n, n, y, retrack) {
 	retvalue result, r;
 	struct distribution *d;
 
-	result = distribution_match(alldistributions, argc-1, argv+1, true, READONLY);
+	result = distribution_match(alldistributions, argc-1, argv+1, false, READONLY);
 	assert (result != RET_NOTHING);
 	if (RET_WAS_ERROR(result)) {
 		return result;
@@ -2228,7 +2236,7 @@ ACTION_D(n, n, y, removetrack) {
 
 	assert (argc == 4);
 
-	result = distribution_get(alldistributions, argv[1], true, &distribution);
+	result = distribution_get(alldistributions, argv[1], false, &distribution);
 	assert (result != RET_NOTHING);
 	if (RET_WAS_ERROR(result))
 		return result;
@@ -2297,7 +2305,7 @@ ACTION_D(n, n, y, tidytracks) {
 	struct distribution *d;
 
 	result = distribution_match(alldistributions, argc-1, argv+1,
-			true, READONLY);
+			false, READONLY);
 	assert (result != RET_NOTHING);
 	if (RET_WAS_ERROR(result)) {
 		return result;
@@ -2471,9 +2479,100 @@ ACTION_F(y, n, y, y, reoverride) {
 		if (RET_WAS_ERROR(result))
 			break;
 	}
-	r = distribution_exportlist(export, alldistributions);
-	RET_ENDUPDATE(result, r);
+	return result;
+}
 
+/*****************retrieving Description data from .deb files***************/
+
+static retvalue repair_descriptions(struct target *target, bool force) {
+        struct target_cursor iterator;
+        retvalue result, r;
+        const char *package, *controlchunk;
+
+        assert(target->packages == NULL);
+	assert(target->packagetype == pt_deb);
+
+        if (verbose > 2) {
+                printf(
+"Redoing checksum information for packages in '%s'...\n",
+                                target->identifier);
+        }
+
+        r = target_openiterator(target, READWRITE, &iterator);
+        if (!RET_IS_OK(r))
+                return r;
+        result = RET_NOTHING;
+        while (target_nextpackage(&iterator, &package, &controlchunk)) {
+                char *newcontrolchunk = NULL;
+
+		if (interrupted()) {
+			result = RET_ERROR_INTERRUPTED;
+			break;
+		}
+                r = description_complete(package, controlchunk, false,
+				&newcontrolchunk);
+                RET_UPDATE(result, r);
+                if (RET_WAS_ERROR(r))
+                        break;
+                if (RET_IS_OK(r)) {
+			if (verbose >= 0) {
+				printf(
+"Fixing description for '%s'...\n", package);
+			}
+                        r = cursor_replace(target->packages, iterator.cursor,
+                                newcontrolchunk, strlen(newcontrolchunk));
+                        free(newcontrolchunk);
+                        if (RET_WAS_ERROR(r)) {
+                                result = r;
+                                break;
+                        }
+                        target->wasmodified = true;
+                }
+        }
+        r = target_closeiterator(&iterator);
+        RET_ENDUPDATE(result, r);
+        return result;
+}
+
+ACTION_F(y, n, y, y, repairdescriptions) {
+	retvalue result, r;
+	struct distribution *d;
+	bool force = strcmp(argv[0], "forcerepairdescriptions") == 0;
+
+	result = distribution_match(alldistributions, argc-1, argv+1,
+			true, READWRITE);
+	assert (result != RET_NOTHING);
+	if (RET_WAS_ERROR(result)) {
+		return result;
+	}
+	result = RET_NOTHING;
+	for (d = alldistributions ; d != NULL ; d = d->next) {
+		struct target *t;
+
+		if (!d->selected)
+			continue;
+
+		if (verbose > 0) {
+			printf(
+"Looking for 'Description's to repair in %s...\n", d->codename);
+		}
+
+		for (t = d->targets ; t != NULL ; t = t->next) {
+			if (interrupted()) {
+				result = RET_ERROR_INTERRUPTED;
+				break;
+			}
+			if (!target_matches(t, components, architectures, packagetypes))
+				continue;
+			if (t->packagetype != pt_deb)
+				continue;
+			r = repair_descriptions(t, force);
+			RET_UPDATE(result, r);
+			RET_UPDATE(d->status, r);
+			if (RET_WAS_ERROR(r))
+				break;
+		}
+	}
 	return result;
 }
 
@@ -2514,8 +2613,6 @@ ACTION_F(y, n, y, y, redochecksums) {
 		if (RET_WAS_ERROR(result))
 			break;
 	}
-	r = distribution_exportlist(export, alldistributions);
-	RET_ENDUPDATE(result, r);
 	return result;
 }
 
@@ -2657,12 +2754,6 @@ ACTION_D(y, y, y, includedeb) {
 
 	r = tracking_done(tracks);
 	RET_ENDUPDATE(result, r);
-
-	logger_wait();
-
-	r = distribution_export(export, distribution);
-	RET_ENDUPDATE(result, r);
-
 	return result;
 }
 
@@ -2737,9 +2828,6 @@ ACTION_D(y, y, y, includedsc) {
 	distribution_unloadoverrides(distribution);
 	r = tracking_done(tracks);
 	RET_ENDUPDATE(result, r);
-	r = distribution_export(export, distribution);
-	RET_ENDUPDATE(result, r);
-
 	return result;
 }
 
@@ -2807,9 +2895,6 @@ ACTION_D(y, y, y, include) {
 	distribution_unloaduploaders(distribution);
 	r = tracking_done(tracks);
 	RET_ENDUPDATE(result, r);
-	r = distribution_export(export, distribution);
-	RET_ENDUPDATE(result, r);
-
 	return result;
 }
 
@@ -3517,21 +3602,13 @@ ACTION_N(n, n, y, versioncompare) {
 }
 /***********************processincoming********************************/
 ACTION_D(n, n, y, processincoming) {
-	retvalue result, r;
 	struct distribution *d;
 
 	for (d = alldistributions ; d != NULL ; d = d->next)
 		d->selected = true;
 
-	result = process_incoming(alldistributions, argv[1],
+	return process_incoming(alldistributions, argv[1],
 			(argc==3) ? argv[2] : NULL);
-
-	logger_wait();
-
-	r = distribution_exportlist(export, alldistributions);
-	RET_ENDUPDATE(result, r);
-
-	return result;
 }
 /***********************gensnapshot********************************/
 ACTION_R(n, n, y, y, gensnapshot) {
@@ -3540,7 +3617,7 @@ ACTION_R(n, n, y, y, gensnapshot) {
 
 	assert (argc == 3);
 
-	result = distribution_get(alldistributions, argv[1], true, &distribution);
+	result = distribution_get(alldistributions, argv[1], false, &distribution);
 	assert (result != RET_NOTHING);
 	if (RET_WAS_ERROR(result))
 		return result;
@@ -3648,8 +3725,6 @@ ACTION_D(y, n, y, flood) {
 	result = flood(distribution, components, architectures, packagetypes,
 			architecture, tracks);
 
-	logger_wait();
-
 	if (RET_WAS_ERROR(result))
 		RET_UPDATE(distribution->status, result);
 
@@ -3657,9 +3732,6 @@ ACTION_D(y, n, y, flood) {
 		r = tracking_done(tracks);
 		RET_ENDUPDATE(result, r);
 	}
-	r = distribution_export(export, distribution);
-	RET_ENDUPDATE(result, r);
-
 	return result;
 }
 
@@ -3796,6 +3868,8 @@ static const struct action {
 		2, -1, "removesrcs <codename> (<source-package-name>[=<source-version>])+"},
 	{"ls", 		A_ROBact(ls),
 		1, 1, "[-C <component>] [-A <architecture>] [-T <type>] ls <package-name>"},
+	{"lsbycomponent",	A_ROBact(lsbycomponent),
+		1, 1, "[-C <component>] [-A <architecture>] [-T <type>] lsbycomponent <package-name>"},
 	{"list", 		A_ROBact(list),
 		1, 2, "[-C <component>] [-A <architecture>] [-T <type>] list <codename> [<package-name>]"},
 	{"listfilter", 		A_ROBact(listfilter),
@@ -3816,6 +3890,10 @@ static const struct action {
 		0, -1, "check [<distributions>]"},
 	{"reoverride", 		A_Fact(reoverride),
 		0, -1, "[-T ...] [-C ...] [-A ...] reoverride [<distributions>]"},
+	{"repairdescriptions", 	A_Fact(repairdescriptions),
+		0, -1, "[-C ...] [-A ...] [force]repairdescriptions [<distributions>]"},
+	{"forcerepairdescriptions", 	A_Fact(repairdescriptions),
+		0, -1, "[-C ...] [-A ...] [force]repairdescriptions [<distributions>]"},
 	{"redochecksums", 	A_Fact(redochecksums),
 		0, -1, "[-T ...] [-C ...] [-A ...] redo [<distributions>]"},
 	{"collectnewchecksums", A_F(collectnewchecksums),
@@ -3828,6 +3906,8 @@ static const struct action {
 		0, 0, "dumpreferences", },
 	{"dumpunreferenced", 	A_RF(dumpunreferenced),
 		0, 0, "dumpunreferenced", },
+	{"deleteifunreferenced", A_RF(deleteifunreferenced),
+		0, -1, "deleteifunreferenced"},
 	{"deleteunreferenced", 	A_RF(deleteunreferenced),
 		0, 0, "deleteunreferenced", },
 	{"retrack",	 	A_D(retrack),
@@ -4006,6 +4086,13 @@ static retvalue callaction(command_t command, const struct action *action, int a
 				x_section, x_priority,
 				atom_unknown, atom_unknown, atom_unknown,
 				argc, argv);
+		logger_wait();
+
+		if (!RET_WAS_ERROR(result)) {
+			r = distribution_exportlist(export, alldistributions);
+			RET_ENDUPDATE(result, r);
+		}
+
 		r = distribution_freelist(alldistributions);
 		RET_ENDUPDATE(result, r);
 		return result;
@@ -4107,6 +4194,13 @@ static retvalue callaction(command_t command, const struct action *action, int a
 		if (ISSET(needs, NEED_FILESDB))
 			result = database_openfiles();
 
+		if (RET_IS_OK(result)) {
+			if (outhook != NULL) {
+				r = outhook_start();
+				RET_UPDATE(result, r);
+			}
+		}
+
 		assert (result != RET_NOTHING);
 		if (RET_IS_OK(result)) {
 
@@ -4121,11 +4215,19 @@ static retvalue callaction(command_t command, const struct action *action, int a
 					argc, argv);
 				/* wait for package specific loggers */
 				logger_wait();
+
 				/* remove files added but not used */
 				pool_tidyadded(deletenew);
 
-				// TODO: tell hook script the added files
-				// TODO: tell hook scripts the modified distributions
+				/* tell an outhook about added files */
+				if (outhook != NULL)
+					pool_sendnewfiles();
+				/* export changed/lookedat distributions */
+				if (!RET_WAS_ERROR(result)) {
+					r = distribution_exportlist(export,
+							alldistributions);
+					RET_ENDUPDATE(result, r);
+				}
 
 				/* delete files losing references, or
 				 * tell how many lost their references */
@@ -4146,7 +4248,13 @@ static retvalue callaction(command_t command, const struct action *action, int a
 				r = pool_removeunreferenced(deletederef);
 				RET_ENDUPDATE(result, r);
 
-				// TODO: tell hook scripts the deleted files
+				if (outhook != NULL) {
+					if (interrupted())
+						r = RET_ERROR_INTERRUPTED;
+					else
+						r = outhook_call(outhook);
+					RET_ENDUPDATE(result, r);
+				}
 			}
 		}
 	}
@@ -4223,6 +4331,8 @@ LO_RESTRICT_BIN,
 LO_RESTRICT_SRC,
 LO_RESTRICT_FILE_BIN,
 LO_RESTRICT_FILE_SRC,
+LO_ENDHOOK,
+LO_OUTHOOK,
 LO_UNIGNORE};
 static int longoption = 0;
 const char *programname;
@@ -4504,6 +4614,12 @@ static void handle_option(int c, const char *argument) {
 				case LO_GNUPGHOME:
 					CONFIGDUP(gnupghome, argument);
 					break;
+				case LO_ENDHOOK:
+					CONFIGDUP(endhook, argument);
+					break;
+				case LO_OUTHOOK:
+					CONFIGDUP(outhook, argument);
+					break;
 				case LO_LISTMAX:
 					i = parse_number("--list-max",
 							argument, INT_MAX);
@@ -4666,6 +4782,8 @@ static void myexit(int status) {
 	free(x_priority);
 	free(x_morguedir);
 	free(gnupghome);
+	free(endhook);
+	free(outhook);
 	pool_free();
 	exit(status);
 }
@@ -4724,6 +4842,22 @@ static char *expand_plus_prefix(/*@only@*/char *dir, const char *name, const cha
 	if (freedir)
 		free(dir);
 	return newdir;
+}
+
+static inline int callendhook(int status, char *argv[]) {
+	char exitcode[4];
+
+	/* Try to close all open fd but 0,1,2 */
+	closefrom(3);
+
+	if (snprintf(exitcode, 4, "%u", ((unsigned int)status)&255U) > 3)
+		memcpy(exitcode, "255", 4);
+	sethookenvironment(causingfile, NULL, NULL, exitcode);
+	argv[0] = endhook,
+	(void)execv(endhook, argv);
+	fprintf(stderr, "Error executing '%s': %s\n", endhook,
+				strerror(errno));
+	return EXIT_RET(RET_ERROR);
 }
 
 int main(int argc, char *argv[]) {
@@ -4807,6 +4941,8 @@ int main(int argc, char *argv[]) {
 		{"restrict-file-source", required_argument, &longoption, LO_RESTRICT_FILE_SRC},
 		{"restrict-file-src", required_argument, &longoption, LO_RESTRICT_FILE_SRC},
 		{"restrict-file-binary", required_argument, &longoption, LO_RESTRICT_FILE_BIN},
+		{"endhook", required_argument, &longoption, LO_ENDHOOK},
+		{"outhook", required_argument, &longoption, LO_OUTHOOK},
 		{NULL, 0, NULL, 0}
 	};
 	const struct action *a;
@@ -4887,6 +5023,36 @@ int main(int argc, char *argv[]) {
 	if (x_morguedir != NULL)
 		x_morguedir = expand_plus_prefix(x_morguedir, "morguedir",
 				"boc", true);
+	if (endhook != NULL) {
+		if (endhook[0] == '+' || endhook[0] == '/' ||
+				(endhook[0] == '.' && endhook[1] == '/')) {
+			endhook = expand_plus_prefix(endhook, "endhook", "boc",
+					true);
+		} else {
+			char *h;
+
+			h = calc_dirconcat(x_confdir, endhook);
+			free(endhook);
+			endhook = h;
+			if (endhook == NULL)
+				exit(EXIT_RET(RET_ERROR_OOM));
+		}
+	}
+	if (outhook != NULL) {
+		if (outhook[0] == '+' || outhook[0] == '/' ||
+				(outhook[0] == '.' && outhook[1] == '/')) {
+			outhook = expand_plus_prefix(outhook, "outhook", "boc",
+					true);
+		} else {
+			char *h;
+
+			h = calc_dirconcat(x_confdir, outhook);
+			free(outhook);
+			outhook = h;
+			if (outhook == NULL)
+				exit(EXIT_RET(RET_ERROR_OOM));
+		}
+	}
 
 	if (guessgpgtty && (getenv("GPG_TTY")==NULL) && isatty(0)) {
 		static char terminalname[1024];
@@ -4978,6 +5144,11 @@ int main(int argc, char *argv[]) {
 					(void)fputs(
 "There have been errors!\n",
 						stderr);
+			}
+			if (endhook != NULL) {
+				assert (optind > 0);
+				/* only returns upon error: */
+				r = callendhook(EXIT_RET(r), argv + optind - 1);
 			}
 			myexit(EXIT_RET(r));
 		} else

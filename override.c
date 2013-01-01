@@ -21,7 +21,6 @@
 #include <stdarg.h>
 #include <unistd.h>
 #include <stdlib.h>
-#include <malloc.h>
 #include <string.h>
 #include <strings.h>
 #include <ctype.h>
@@ -56,6 +55,7 @@ struct overridefile {
 	struct overridepattern *patterns;
 };
 
+#ifdef HAVE_TDESTROY
 static void freeoverridepackage(void *n) {
 	struct overridepackage *p = n;
 
@@ -63,6 +63,7 @@ static void freeoverridepackage(void *n) {
 	strlist_done(&p->data.fields);
 	free(p);
 }
+#endif
 
 void override_free(struct overridefile *info) {
 	struct overridepattern *i;
@@ -70,7 +71,9 @@ void override_free(struct overridefile *info) {
 	if (info == NULL)
 		return;
 
+#ifdef HAVE_TDESTROY
 	tdestroy(info->packages, freeoverridepackage);
+#endif
 	while ((i = info->patterns) != NULL) {
 		if (i == NULL)
 			return;

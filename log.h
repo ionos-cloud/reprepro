@@ -4,17 +4,12 @@
 #ifndef REPREPRO_STRLIST_H
 #include "strlist.h"
 #endif
-#ifndef REPREPRO_ATOMS_H
-#include "atoms.h"
+#ifndef REPREPRO_HOOKS_H
+#include "hooks.h"
 #endif
 
 struct target;
 struct logger;
-
-/* file causing the current logger_log* run */
-extern /*@null@*/ const char *causingfile;
-/* command causing the current logger_log* run */
-extern command_t causingcommand;
 
 retvalue logger_init(struct configiterator *, /*@out@*/struct logger **);
 void logger_free(/*@only@*/struct logger *);

@@ -1,3 +1,11 @@
+Updates between 4.12.5 and 4.13.0:
+- new commands: deleteifunreferenced repairdescriptions lsbycomponent
+- add ${$basename}, ${$filekey} and ${$fullfilename} to --listformat
+- reject absurd large values in ValidFor header
+- add --endhook, --outhook
+- SignWith: can now also contain external scripts for signing
+- several small cleanups and fixes
+
 Updates between 4.12.4 and 4.12.5:
 - various documentation improvements
 - fix bitrot on non-libarchive code
