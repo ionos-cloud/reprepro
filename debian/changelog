@@ -1,3 +1,12 @@
+reprepro (4.13.0-1) experimental; urgency=low
+
+  * new release
+  - add signing hook to replace how Release files are signed (Closes: 469656)
+  - add outhook to be called when things are changed (Closes: 495302)
+  - add lsbycomponent command (Closes: 696322)
+
+ -- Bernhard R. Link <brlink@debian.org>  Tue, 01 Jan 2013 10:59:34 +0100
+
 reprepro (4.12.5-1) unstable; urgency=low
 
   * new bugfix release
