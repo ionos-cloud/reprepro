@@ -124,7 +124,8 @@ _reprepro()
 	--section -S --priority -P --component -C\
 	--architecture -A --type -T --export --waitforlock \
 	--spacecheck --safetymargin --dbsafetymargin\
-	--gunzip --bunzip2 --unlzma --unxz --lunzip --gnupghome --list-format --list-skip --list-max'
+	--gunzip --bunzip2 --unlzma --unxz --lunzip --gnupghome --list-format --list-skip --list-max\
+	--outhook --endhook'
 
 	i=1
 	prev=""
@@ -259,12 +260,14 @@ _reprepro()
 			copysrc\
 			createsymlinks\
 			deleteunreferenced\
+			deleteifunreferenced\
 			dumpreferences\
 			dumptracks\
 			dumppull\
 			dumpunreferenced\
 			dumpupdate\
 			export\
+			forcerepairdescriptions\
 			flood\
 			generatefilelists\
 			gensnapshot\
@@ -276,6 +279,7 @@ _reprepro()
 			listfilter\
 			listmatched\
 			ls\
+			lsbycomponent\
 			predelete\
 			processincoming\
 			pull\
@@ -287,6 +291,7 @@ _reprepro()
 			removesrcs\
 			removetrack\
 			reoverride\
+			repairdescriptions\
 			reportcruft\
 			rereference\
 			rerunnotifiers\
@@ -361,7 +366,7 @@ _reprepro()
 			# these later could also look for stuff, but
 			# that might become a bit slow
 			;;
-		export|update|checkupdate|pull|checkpull|rereference|retrack|removealltracks|tidytracks|dumptracks|check|reoverride|rerunnotifiers|dumppull|dumpupdate|unusedsources|sourcemissing|reportcruft)
+		export|update|checkupdate|pull|checkpull|rereference|retrack|removealltracks|tidytracks|dumptracks|check|repairdescriptions|forcerepairdescriptions|reoverride|rerunnotifiers|dumppull|dumpupdate|unusedsources|sourcemissing|reportcruft)
 			# all arguments are codenames
 			parse_config
 			COMPREPLY=( $( compgen -W "$codenames" -- $cur ) )
@@ -534,8 +539,15 @@ _reprepro()
 			# here we could look for package names existing in
 			# that distribution, but that would be slow...
 			;;
-		__dumpuncompressors|translatelageacychecksums)
+		__dumpuncompressors|translatelageacychecksums|deleteunreferenced)
 			# no arguments
+			return 0
+			;;
+		deleteifunreferenced)
+			# less usefull than the output of dumpunreferenced,
+			# but this way it should be massively faster:
+			parse_config_for_distdir
+			COMPREPLY=( $(cd "$outdir" && compgen -o filenames -f -- $cur) )
 			return 0
 			;;
 	esac

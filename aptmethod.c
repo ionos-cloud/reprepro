@@ -38,6 +38,7 @@
 #include "uncompression.h"
 #include "aptmethod.h"
 #include "filecntl.h"
+#include "hooks.h"
 
 struct tobedone {
 	/*@null@*/
@@ -364,12 +365,8 @@ inline static retvalue aptmethod_startup(struct aptmethod *method) {
 
 		/* not really useful here, unless someone write reprepro
 		 * specific modules (which I hope noone will) */
-		setenv("REPREPRO_BASE_DIR", global.basedir, true);
-		setenv("REPREPRO_OUT_DIR", global.outdir, true);
-		setenv("REPREPRO_CONF_DIR", global.confdir, true);
-		setenv("REPREPRO_CONFIG_DIR", global.confdir, true);
-		setenv("REPREPRO_DIST_DIR", global.distdir, true);
-		setenv("REPREPRO_LOG_DIR", global.logdir, true);
+		sethookenvironment(NULL, NULL, NULL, NULL);
+		/* actually call the method without any arguments: */
 		(void)execl(methodname, methodname, ENDOFARGUMENTS);
 
 		e = errno;

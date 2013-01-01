@@ -42,24 +42,6 @@
 #include "rredpatch.h"
 #include "remoterepository.h"
 
-/*  This file is part of "reprepro"
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1301  USA
- */
-#include <config.h>
-
-
-
 /* This is code to handle lists from remote repositories.
    Those are stored in the lists/ (or --listdir) directory
    and needs some maintaince:
@@ -116,7 +98,8 @@ struct remote_distribution {
 	/* linked list of key descriptions to check against, each must match */
 	struct signature_requirement *verify;
 
-	/* local copy of InRelease, Release and Release.gpg file, once and if available */
+	/* local copy of InRelease, Release and Release.gpg file,
+	 * only set if available */
 	char *inreleasefile;
 	char *releasefile;
 	char *releasegpgfile;
@@ -585,7 +568,8 @@ retvalue remote_distribution_prepare(struct remote_repository *repository, const
 		if (verifyrelease != NULL) {
 			retvalue r;
 
-			r = signature_requirement_add(&n->verify, verifyrelease);
+			r = signature_requirement_add(&n->verify,
+					verifyrelease);
 			if (RET_WAS_ERROR(r))
 				return r;
 		}
@@ -734,7 +718,7 @@ static retvalue enqueue_old_release_files(struct remote_distribution *d) {
 	return RET_OK;
 }
 
-static retvalue remote_distribution_metalistqueue(struct remote_distribution *d) {
+static retvalue remote_distribution_enqueuemetalists(struct remote_distribution *d) {
 	struct remote_repository *repository = d->repository;
 
 	assert (repository->download != NULL);
@@ -752,8 +736,8 @@ static retvalue remote_distribution_metalistqueue(struct remote_distribution *d)
 		return enqueue_old_release_files(d);
 	else
 		return aptmethod_enqueueindex(repository->download,
-			d->suite_base_dir, "InRelease", "", d->inreleasefile, "",
-			release_callback, d, d->inreleasefile);
+			d->suite_base_dir, "InRelease", "", d->inreleasefile,
+			"", release_callback, d, d->inreleasefile);
 }
 
 retvalue remote_startup(struct aptmethodrun *run) {
@@ -919,7 +903,7 @@ retvalue remote_preparemetalists(struct aptmethodrun *run, bool nodownload) {
 		for (rr = repositories ; rr != NULL ; rr = rr->next) {
 			for (rd = rr->distributions ; rd != NULL ;
 			                              rd = rd->next) {
-				r = remote_distribution_metalistqueue(rd);
+				r = remote_distribution_enqueuemetalists(rd);
 				if (RET_WAS_ERROR(r))
 					return r;
 			}
@@ -1144,7 +1128,7 @@ static inline retvalue find_requested_encoding(struct remote_index *ri, const ch
 			// known about compressions and say they are not
 			// yet know yet instead then here...
 			fprintf(stderr,
-					"Could not find '%s' within '%s'\n",
+"Could not find '%s' within '%s'\n",
 					ri->filename_in_release, releasefile);
 			return RET_ERROR_WRONG_MD5;
 		}
@@ -1227,7 +1211,7 @@ static inline retvalue find_requested_encoding(struct remote_index *ri, const ch
 			return RET_ERROR;
 		}
 		fprintf(stderr,
-				"Could not find '%s' within '%s'\n",
+"Could not find '%s' within '%s'\n",
 				ri->filename_in_release, releasefile);
 		return RET_ERROR_WRONG_MD5;
 
@@ -1248,6 +1232,42 @@ static inline retvalue remove_old_uncompressed(struct remote_index *ri) {
 }
 
 static retvalue queue_next_encoding(struct remote_distribution *rd, struct remote_index *ri);
+
+// TODO: check if this still makes sense.
+// (might be left over to support switching from older versions
+// of reprepro that also put compressed files there)
+static inline retvalue reuse_old_compressed_index(struct remote_distribution *rd, struct remote_index *ri, enum compression c, const char *oldfullfilename) {
+	retvalue r;
+
+	r = uncompress_file(oldfullfilename, ri->cachefilename, c);
+	assert (r != RET_NOTHING);
+	if (RET_WAS_ERROR(r))
+		return r;
+	if (ri->ofs[c_none] >= 0) {
+		r = checksums_test(ri->cachefilename,
+				rd->remotefiles.checksums[ri->ofs[c_none]],
+				&rd->remotefiles.checksums[ri->ofs[c_none]]);
+		if (r == RET_ERROR_WRONG_MD5) {
+			fprintf(stderr,
+"Error: File '%s' looked correct according to '%s',\n"
+"but after unpacking '%s' looks wrong.\n"
+"Something is seriously broken!\n",
+					oldfullfilename, rd->usedreleasefile,
+					ri->cachefilename);
+		}
+		if (r == RET_NOTHING) {
+			fprintf(stderr,
+"File '%s' mysteriously vanished!\n", ri->cachefilename);
+			r = RET_ERROR_MISSING;
+		}
+		if (RET_WAS_ERROR(r))
+			return r;
+	}
+	/* already there, nothing to do to get it... */
+	ri->queued = true;
+	ri->got = true;
+	return RET_OK;
+}
 
 static inline retvalue queueindex(struct remote_distribution *rd, struct remote_index *ri, bool nodownload, /*@null@*/struct cachedlistfile *oldfiles) {
 	enum compression c;
@@ -1330,37 +1350,8 @@ static inline retvalue queueindex(struct remote_distribution *rd, struct remote_
 				if (RET_WAS_ERROR(r))
 					return r;
 				assert (old[c_none] == NULL);
-				r = uncompress_file(old[c]->fullfilename,
-						ri->cachefilename,
-						c);
-				assert (r != RET_NOTHING);
-				if (RET_WAS_ERROR(r))
-					return r;
-				if (ri->ofs[c_none] >= 0) {
-					r = checksums_test(ri->cachefilename,
-						rd->remotefiles.checksums[ri->ofs[c_none]],
-						&rd->remotefiles.checksums[ri->ofs[c_none]]);
-					if (r == RET_ERROR_WRONG_MD5) {
-						fprintf(stderr,
-"Error: File '%s' looked correct according to '%s',\n"
-"but after unpacking '%s' looks wrong.\n"
-"Something is seriously broken!\n",
-							old[c]->fullfilename,
-							rd->usedreleasefile,
-							ri->cachefilename);
-					}
-					if (r == RET_NOTHING) {
-						fprintf(stderr,
-"File '%s' mysteriously vanished!\n", ri->cachefilename);
-						r = RET_ERROR_MISSING;
-					}
-					if (RET_WAS_ERROR(r))
-						return r;
-				}
-				/* already there, nothing to do to get it... */
-				ri->queued = true;
-				ri->got = true;
-				return RET_OK;
+				return reuse_old_compressed_index(rd, ri, c,
+						old[c]->fullfilename);
 			}
 		}
 		r = cachedlistfile_delete(old[c]);
@@ -1434,7 +1425,7 @@ static retvalue queue_next_encoding(struct remote_distribution *rd, struct remot
 }
 
 
-static retvalue remote_distribution_listqueue(struct remote_distribution *rd, bool nodownload, struct cachedlistfile *oldfiles) {
+static retvalue remote_distribution_enqueuelists(struct remote_distribution *rd, bool nodownload, struct cachedlistfile *oldfiles) {
 	struct remote_index *ri;
 	retvalue r;
 
@@ -1471,9 +1462,8 @@ retvalue remote_preparelists(struct aptmethodrun *run, bool nodownload) {
 	for (rr = repositories ; rr != NULL ; rr = rr->next) {
 		for (rd = rr->distributions ; rd != NULL
 				; rd = rd->next) {
-			r = remote_distribution_listqueue(rd,
-					nodownload,
-					oldfiles);
+			r = remote_distribution_enqueuelists(rd,
+					nodownload, oldfiles);
 			if (RET_WAS_ERROR(r)) {
 				cachedlistfile_freelist(oldfiles);
 				return r;
@@ -1539,20 +1529,22 @@ struct remote_index *remote_index(struct remote_distribution *rd, const char *ar
 
 	assert (!rd->flat);
 	if (packagetype == pt_deb) {
-		filename_in_release = mprintf("%s/binary-%s/Packages",
+		filename_in_release = mprintf(
+"%s/binary-%s/Packages",
 				component, architecture);
 		cachefilename = genlistsfilename("Packages", 4,
 				rd->repository->name, rd->suite,
 				component, architecture, ENDOFARGUMENTS);
 	} else if (packagetype == pt_udeb) {
 		filename_in_release = mprintf(
-				"%s/debian-installer/binary-%s/Packages",
+"%s/debian-installer/binary-%s/Packages",
 				component, architecture);
 		cachefilename = genlistsfilename("uPackages", 4,
 				rd->repository->name, rd->suite,
 				component, architecture, ENDOFARGUMENTS);
 	} else if (packagetype == pt_dsc) {
-		filename_in_release = mprintf("%s/source/Sources",
+		filename_in_release = mprintf(
+"%s/source/Sources",
 				component);
 		cachefilename = genlistsfilename("Sources", 3,
 				rd->repository->name, rd->suite,
@@ -2083,8 +2075,7 @@ static retvalue diff_callback(enum queue_action action, void *privdata, UNUSED(v
 			fprintf(stderr,
 "Wrong checksum during receive of '%s':\n", uri);
 			checksums_printdifferences(stderr,
-					wantedchecksums,
-					gotchecksums);
+					wantedchecksums, gotchecksums);
 			checksums_free(readchecksums);
 			return RET_ERROR_WRONG_MD5;
 		}

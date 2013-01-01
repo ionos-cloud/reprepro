@@ -22,7 +22,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <malloc.h>
 #include <dirent.h>
 
 #include "error.h"
@@ -680,8 +679,8 @@ retvalue config_getword(struct configiterator *iter, char **result_p) {
 	return config_completeword(iter, c, result_p);
 }
 
-retvalue config_gettimespan(struct configiterator *iter, const char *header, time_t *time_p) {
-	time_t currentnumber, currentsum = 0;
+retvalue config_gettimespan(struct configiterator *iter, const char *header, unsigned long *time_p) {
+	long long currentnumber, currentsum = 0;
 	bool empty = true;
 	int c;
 
@@ -707,6 +706,11 @@ retvalue config_gettimespan(struct configiterator *iter, const char *header, tim
 		}
 		empty = false;
 		do {
+			if (currentnumber > 3660) {
+				configparser_errorlast(iter,
+"Absurdly long time span (> 100 years) in %s header.", header);
+				return RET_ERROR;
+			}
 			currentnumber *= 10;
 			currentnumber += (c - '0');
 			c = config_nextchar(iter);
@@ -714,12 +718,32 @@ retvalue config_gettimespan(struct configiterator *iter, const char *header, tim
 		if (c == ' ' || c == '\t' || c == '\n')
 			c = config_nextnonspace(iter);
 		if (c == 'y') {
+			if (currentnumber > 100) {
+				configparser_errorlast(iter,
+"Absurdly long time span (> 100 years) in %s header.", header);
+				return RET_ERROR;
+			}
 			currentnumber *= 365*24*60*60;
 		} else if (c == 'm') {
+			if (currentnumber > 1200) {
+				configparser_errorlast(iter,
+"Absurdly long time span (> 100 years) in %s header.", header);
+				return RET_ERROR;
+			}
 			currentnumber *= 31*24*60*60;
 		} else if (c == 'd') {
+			if (currentnumber > 36600) {
+				configparser_errorlast(iter,
+"Absurdly long time span (> 100 years) in %s header.", header);
+				return RET_ERROR;
+			}
 			currentnumber *= 24*60*60;
 		} else {
+			if (currentnumber > 36600) {
+				configparser_errorlast(iter,
+"Absurdly long time span (> 100 years) in %s header.", header);
+				return RET_ERROR;
+			}
 			currentnumber *= 24*60*60;
 			if (c != EOF) {
 				configparser_errorlast(iter,
@@ -765,18 +789,16 @@ retvalue config_getonlyword(struct configiterator *iter, const char *header, che
 }
 
 retvalue config_getscript(struct configiterator *iter, const char *name, char **value_p) {
-	char *value, *fullvalue; retvalue r;
+	char *value;
+	retvalue r;
+
 	r = config_getonlyword(iter, name, NULL, &value);
 	if (RET_IS_OK(r)) {
 		assert (value != NULL && value[0] != '\0');
-		if (value[0] != '/') {
-			fullvalue = calc_dirconcat(global.confdir, value);
-			free(value);
-		} else
-			fullvalue = value;
-		if (FAILEDTOALLOC(fullvalue))
+		value = configfile_expandname(value, value);
+		if (FAILEDTOALLOC(value))
 			return RET_ERROR_OOM;
-		*value_p = fullvalue;
+		*value_p = value;
 	}
 	return r;
 }
@@ -1115,13 +1137,40 @@ retvalue config_getsignwith(struct configiterator *iter, const char *name, struc
 	}
 	/* if the first character is a '!', a script to start follows */
 	if (c == '!') {
-		r = strlist_add_dup(&data, "!");
+		const char *type = "!";
+
+		iter->markerline = iter->line;
+		iter->markercolumn = iter->column;
+		c = config_nextchar(iter);
+		if (c == '-') {
+			configparser_errorlast(iter,
+"'!-' in signwith lines reserved for future usage!\n");
+			return RET_ERROR;
+			type = "!-";
+			c = config_nextnonspace(iter);
+		} else if (c == '\n' || c == ' ' || c == '\t')
+			c = config_nextnonspace(iter);
+		if (c == EOF) {
+			configparser_errorlast(iter,
+"Missing value for %s field.", name);
+			return RET_ERROR;
+		}
+		r = config_completeword(iter, c, &value);
 		if (RET_WAS_ERROR(r))
 			return r;
-		r = config_getscript(iter, name, &value);
-		assert (r != RET_NOTHING);
+		if (config_nextnonspace(iter) != EOF) {
+			configparser_error(iter,
+"End of %s header expected (but trailing garbage).", name);
+			free(value);
+			return RET_ERROR;
+		}
+		assert (value != NULL && value[0] != '\0');
+		value = configfile_expandname(value, value);
+		if (FAILEDTOALLOC(value))
+			return RET_ERROR_OOM;
+		r = strlist_add_dup(&data, type);
 		if (RET_WAS_ERROR(r)) {
-			strlist_done(&data);
+			free(value);
 			return r;
 		}
 		r = strlist_add(&data, value);

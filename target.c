@@ -24,7 +24,6 @@
 #include <strings.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <malloc.h>
 #include "error.h"
 #include "ignore.h"
 #include "mprintf.h"

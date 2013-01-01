@@ -217,6 +217,7 @@ commands=(
 	dumpupdate:"dump what would be updated"
 	dumpunreferenced:"dump files without reference (i.e. unneded)"
 	export:"export index files"
+	forcerepairdescriptions:"forcefully readd lost long descriptions from .deb file"
 	flood:"copy architecture all packages within a distribution"
 	generatefilelists:"pre-prepare filelist caches for all binary packages"
 	gensnapshot:"generate a snapshot"
@@ -228,6 +229,7 @@ commands=(
 	listmatched:"list packages matching filter"
 	list:"list packages"
 	ls:"list versions of package"
+	lsbycomponent:"list versions of package (grouped by component)"
 	predelete:"delete what would be removed or superseeded by an update"
 	processincoming:"process files from an incoming directory"
 	pull:"update from another local distribtuion"
@@ -239,6 +241,7 @@ commands=(
 	removesrcs:"remove packages belonging to names source packages"
 	removetrack:"remove a single tracking data"
 	reoverride:"apply override information to already existing packages"
+	repairdescriptions:"readd lost long descriptions from .deb file"
 	reportcruft:"report source packages without binaries and vice versa"
 	rereference:"recreate references"
 	rerunnotifiers:"call notificators as if all packages were just included"
@@ -373,7 +376,7 @@ case "$state" in
 
  (first argument|second argument|third argument|argument)
 	case "$words[1]" in
-	 (export|update|checkupdate|predelete|pull|checkpull|check|reoverride|rereference|dumptracks|retrack|removealltracks|tidytracks|dumppull|dumpupdate|rerunnotifiers|unusedsources|sourcemissing|reportcruft)
+	 (export|update|checkupdate|predelete|pull|checkpull|check|reoverride|repairdescriptions|forcerepairdescriptions|rereference|dumptracks|retrack|removealltracks|tidytracks|dumppull|dumpupdate|rerunnotifiers|unusedsources|sourcemissing|reportcruft)
 		_reprepro_codenames
 		;;
 	 (checkpool)

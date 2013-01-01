@@ -7,6 +7,7 @@ atoms.test \
 buildneeding.test \
 check.test \
 copy.test \
+descriptions.test \
 diffgeneration.test \
 easyupdate.test \
 exporthooks.test \

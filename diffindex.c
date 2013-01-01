@@ -43,7 +43,7 @@ void diffindex_free(struct diffindex *diffindex) {
 }
 
 static void parse_sha1line(const char *p, /*@out@*/struct hashes *hashes, /*@out@*/const char **rest) {
-	memset(hashes, 0, sizeof(struct hashes));
+	setzero(struct hashes, hashes);
 
 	hashes->hashes[cs_sha1sum].start = p;
 	while ((*p >= 'a' && *p <= 'f') || (*p >= 'A' && *p <= 'F')

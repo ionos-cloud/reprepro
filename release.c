@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005,2007,2009 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2007,2009,2012 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -24,7 +24,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <stdlib.h>
-#include <malloc.h>
 #include <string.h>
 #include <ctype.h>
 #include <fcntl.h>
@@ -45,6 +44,7 @@
 #include "names.h"
 #include "signature.h"
 #include "distribution.h"
+#include "outhook.h"
 #include "release.h"
 
 #define INPUT_BUFFER_SIZE 1024
@@ -56,8 +56,9 @@ struct release {
 	char *dirofdist;
 	/* anything new yet added */
 	bool new;
-	/* snapshot */
-	bool snapshot;
+	/* NULL if no snapshot */
+	/*@null@*/char *snapshotname;
+	/* specific overrides for fakeprefixes or snapshots: */
 	/*@null@*/char *fakesuite;
 	/*@null@*/char *fakecodename;
 	/*@null@*/const char *fakecomponentprefix;
@@ -70,11 +71,11 @@ struct release {
 		char *fullfinalfilename;
 		char *fulltemporaryfilename;
 		char *symlinktarget;
-		/* name NULL NULL NULL: add old filename
-		 * name file file NULL: rename new file and publish
-		 * NULL file file NULL: rename new file
-		 * NULL file NULL NULL: delete if done
-		 * NULL file NULL file: create symlink */
+		/* name chks NULL NULL NULL: add old filename or virtual file
+		 * name chks file file NULL: rename new file and publish
+		 * name NULL file file NULL: rename new file
+		 * name NULL file NULL NULL: delete if done
+		 * name NULL file NULL file: create symlink */
 	} *files;
 	/* the Release file in preperation
 	 * (only valid between _prepare and _finish) */
@@ -83,25 +84,30 @@ struct release {
 	struct table *cachedb;
 };
 
+static void release_freeentry(struct release_entry *e) {
+	free(e->relativefilename);
+	checksums_free(e->checksums);
+	free(e->fullfinalfilename);
+	if (!global.keeptemporaries && e->fulltemporaryfilename != NULL)
+		(void)unlink(e->fulltemporaryfilename);
+	free(e->fulltemporaryfilename);
+	free(e->symlinktarget);
+	free(e);
+}
+
 void release_free(struct release *release) {
 	struct release_entry *e;
 
+	free(release->snapshotname);
 	free(release->dirofdist);
 	free(release->fakesuite);
 	free(release->fakecodename);
 	while ((e = release->files) != NULL) {
 		release->files = e->next;
-		free(e->relativefilename);
-		checksums_free(e->checksums);
-		free(e->fullfinalfilename);
-		if (!global.keeptemporaries && e->fulltemporaryfilename != NULL)
-			unlink(e->fulltemporaryfilename);
-		free(e->fulltemporaryfilename);
-		free(e->symlinktarget);
-		free(e);
+		release_freeentry(e);
 	}
 	if (release->signedfile != NULL)
-		signedfile_free(release->signedfile, !global.keeptemporaries);
+		signedfile_free(release->signedfile);
 	if (release->cachedb != NULL) {
 		table_close(release->cachedb);
 	}
@@ -119,20 +125,18 @@ static retvalue newreleaseentry(struct release *release, /*@only@*/ char *relati
 		/*@only@*/ /*@null@*/ char *symlinktarget) {
 	struct release_entry *n, *p;
 
+	/* everything has a relative name */
+	assert (relativefilename != NULL);
 	/* it's either something to do or to publish */
-	assert (fullfinalfilename != NULL || relativefilename != NULL);
+	assert (fullfinalfilename != NULL || checksums != NULL);
 	/* if there is something temporary, it has a final place */
 	assert (fulltemporaryfilename == NULL || fullfinalfilename != NULL);
-	/* something to publish must have a checksum */
-	assert (checksums != NULL || relativefilename == NULL);
-	/* no checksum means nothing to publish */
-	assert (checksums == NULL || relativefilename != NULL);
 	/* a symlink cannot be published (Yet?) */
-	assert (symlinktarget == NULL || relativefilename == NULL);
+	assert (symlinktarget == NULL || checksums == NULL);
 	/* cannot place a file and a symlink */
 	assert (symlinktarget == NULL || fulltemporaryfilename == NULL);
 	/* something to publish cannot be a file deletion */
-	assert (relativefilename == NULL
+	assert (checksums == NULL
 			|| fullfinalfilename == NULL
 			|| fulltemporaryfilename != NULL
 			|| symlinktarget != NULL);
@@ -243,7 +247,13 @@ retvalue release_initsnapshot(const char *codename, const char *name, struct rel
 	n->fakecomponentprefix = NULL;
 	n->fakecomponentprefixlen = 0;
 	n->cachedb = NULL;
-	n->snapshot = true;
+	n->snapshotname = strdup(name);
+	if (n->snapshotname == NULL) {
+		free(n->fakesuite);
+		free(n->dirofdist);
+		free(n);
+		return RET_ERROR_OOM;
+	}
 	*release = n;
 	return RET_OK;
 }
@@ -256,8 +266,7 @@ retvalue release_adddel(struct release *release, /*@only@*/char *reltmpfile) {
 		free(reltmpfile);
 		return RET_ERROR_OOM;
 	}
-	free(reltmpfile);
-	return newreleaseentry(release, NULL, NULL, filename, NULL, NULL);
+	return newreleaseentry(release, reltmpfile, NULL, filename, NULL, NULL);
 }
 
 retvalue release_addnew(struct release *release, /*@only@*/char *reltmpfile, /*@only@*/char *relfilename) {
@@ -306,9 +315,8 @@ retvalue release_addsilentnew(struct release *release, /*@only@*/char *reltmpfil
 		free(filename);
 		return RET_ERROR_OOM;
 	}
-	free(relfilename);
 	release->new = true;
-	return newreleaseentry(release, NULL,
+	return newreleaseentry(release, relfilename,
 			NULL, finalfilename, filename, NULL);
 }
 
@@ -330,6 +338,20 @@ retvalue release_addold(struct release *release, /*@only@*/char *relfilename) {
 	}
 	return newreleaseentry(release, relfilename,
 			checksums, NULL, NULL, NULL);
+}
+
+static retvalue release_addsymlink(struct release *release, /*@only@*/char *relfilename, /*@only@*/ char *symlinktarget) {
+	char *fullfilename;
+
+	fullfilename = calc_dirconcat(release->dirofdist, relfilename);
+	if (FAILEDTOALLOC(fullfilename)) {
+		free(symlinktarget);
+		free(relfilename);
+		return RET_ERROR_OOM;
+	}
+	release->new = true;
+	return newreleaseentry(release, relfilename, NULL,
+				fullfilename, NULL, symlinktarget);
 }
 
 static char *calc_compressedname(const char *name, enum indexcompression ic) {
@@ -680,8 +702,7 @@ static inline retvalue setfilename(struct release *release, struct filetorelease
 	/* symlink creation fails horrible if the symlink is not in the base
 	 * directory */
 	assert (strchr(symlinkas, '/') == NULL);
-	n->f[ic].symlinkas = mprintf("%s/%s%s", release->dirofdist, symlinkas,
-			ics[ic]);
+	n->f[ic].symlinkas = mprintf("%s%s", symlinkas, ics[ic]);
 	if (FAILEDTOALLOC(n->f[ic].symlinkas))
 		return RET_ERROR_OOM;
 	return RET_OK;
@@ -867,11 +888,11 @@ static retvalue releasefile(struct release *release, struct openfile *f) {
 	if (RET_WAS_ERROR(r))
 		return r;
 	if (f->symlinkas) {
-		char *symlinktarget = calc_relative_path(f->fullfinalfilename,
+		char *symlinktarget = calc_relative_path(f->relativefilename,
 				f->symlinkas);
 		if (FAILEDTOALLOC(symlinktarget))
 			return RET_ERROR_OOM;
-		r = newreleaseentry(release, NULL, NULL, f->symlinkas, NULL,
+		r = release_addsymlink(release, f->symlinkas,
 				symlinktarget);
 		f->symlinkas = NULL;
 		if (RET_WAS_ERROR(r))
@@ -1284,13 +1305,15 @@ static retvalue storechecksums(struct release *release) {
 
 	for (file = release->files ; file != NULL ; file = file->next) {
 
-		if (file->relativefilename == NULL)
-			continue;
+		assert (file->relativefilename != NULL);
 
 		r = table_deleterecord(release->cachedb,
 				file->relativefilename, true);
 		if (RET_WAS_ERROR(r))
 			return r;
+
+		if (file->checksums == NULL)
+			continue;
 
 		r = checksums_getcombined(file->checksums, &combinedchecksum, &len);
 		RET_UPDATE(result, r);
@@ -1314,6 +1337,56 @@ static inline bool componentneedsfake(const char *cn, const struct release *rele
 	return cn[release->fakecomponentprefixlen] != '/';
 }
 
+
+static struct release_entry *newspecialreleaseentry(struct release *release, const char *relativefilename) {
+	struct release_entry *n, *p;
+
+	assert (relativefilename != NULL);
+	n = zNEW(struct release_entry);
+	if (FAILEDTOALLOC(n))
+		return NULL;
+	n->relativefilename = strdup(relativefilename);
+	n->fullfinalfilename = calc_dirconcat(release->dirofdist,
+			relativefilename);
+	if (!FAILEDTOALLOC(n->fullfinalfilename))
+		n->fulltemporaryfilename = mprintf("%s.new",
+				n->fullfinalfilename);
+	if (FAILEDTOALLOC(n->relativefilename)
+			|| FAILEDTOALLOC(n->fullfinalfilename)
+			|| FAILEDTOALLOC(n->fulltemporaryfilename)) {
+		release_freeentry(n);
+		return NULL;
+	}
+	if (release->files == NULL)
+		release->files = n;
+	else {
+		p = release->files;
+		while (p->next != NULL)
+			p = p->next;
+		p->next = n;
+	}
+	return n;
+}
+static void omitunusedspecialreleaseentry(struct release *release, struct release_entry *e) {
+	struct release_entry **p;
+
+	if (e->fulltemporaryfilename != NULL)
+		/* new file available, nothing to omit */
+		return;
+	if (isregularfile(e->fullfinalfilename))
+		/* this will be deleted, everything fine */
+		return;
+	p = &release->files;
+	while (*p != NULL && *p != e)
+		p = &(*p)->next;
+	if (*p != e) {
+		assert (*p == e);
+		return;
+	}
+	*p = e->next;
+	release_freeentry(e);
+}
+
 /* Generate a main "Release" file for a distribution */
 retvalue release_prepare(struct release *release, struct distribution *distribution, bool onlyifneeded) {
 	size_t s;
@@ -1326,6 +1399,7 @@ retvalue release_prepare(struct release *release, struct distribution *distribut
 	int i;
 	static const char * const release_checksum_headers[cs_hashCOUNT] =
 		{ "MD5Sum:\n", "SHA1:\n", "SHA256:\n" };
+	struct release_entry *plainentry, *signedentry, *detachedentry;
 
 	// TODO: check for existance of Release file here first?
 	if (onlyifneeded && !release->new) {
@@ -1353,12 +1427,18 @@ retvalue release_prepare(struct release *release, struct distribution *distribut
 			return RET_ERROR;
 		}
 	}
-	r = signature_startsignedfile(release->dirofdist,
-			"Release", "InRelease",
-			&release->signedfile);
-	if (RET_WAS_ERROR(r)) {
+	plainentry = newspecialreleaseentry(release, "Release");
+	if (FAILEDTOALLOC(plainentry))
+		return RET_ERROR_OOM;
+	signedentry = newspecialreleaseentry(release, "InRelease");
+	if (FAILEDTOALLOC(signedentry))
+		return RET_ERROR_OOM;
+	detachedentry = newspecialreleaseentry(release, "Release.gpg");
+	if (FAILEDTOALLOC(signedentry))
+		return RET_ERROR_OOM;
+	r = signature_startsignedfile(&release->signedfile);
+	if (RET_WAS_ERROR(r))
 		return r;
-	}
 #define writestring(s) signedfile_write(release->signedfile, s, strlen(s))
 #define writechar(c) {char __c = c ; signedfile_write(release->signedfile, &__c, 1); }
 
@@ -1439,7 +1519,7 @@ retvalue release_prepare(struct release *release, struct distribution *distribut
 		for (file = release->files ; file != NULL ; file = file->next) {
 			const char *hash, *size;
 			size_t hashlen, sizelen;
-			if (file->relativefilename == NULL)
+			if (file->checksums == NULL)
 				continue;
 			if (!checksums_gethashpart(file->checksums, cs,
 					&hash, &hashlen, &size, &sizelen))
@@ -1453,14 +1533,75 @@ retvalue release_prepare(struct release *release, struct distribution *distribut
 			writechar('\n');
 		}
 	}
-	r = signedfile_prepare(release->signedfile, &distribution->signwith,
-			!global.keeptemporaries);
+	r = signedfile_create(release->signedfile,
+			plainentry->fulltemporaryfilename,
+			&signedentry->fulltemporaryfilename,
+			&detachedentry->fulltemporaryfilename,
+			&distribution->signwith, !global.keeptemporaries);
 	if (RET_WAS_ERROR(r)) {
-		signedfile_free(release->signedfile, !global.keeptemporaries);
+		signedfile_free(release->signedfile);
 		release->signedfile = NULL;
 		return r;
 	}
+	omitunusedspecialreleaseentry(release, signedentry);
+	omitunusedspecialreleaseentry(release, detachedentry);
 	return RET_OK;
+}
+
+static inline void release_toouthook(struct release *release, struct distribution *distribution) {
+	struct release_entry *file;
+	char *reldir;
+
+	if (release->snapshotname != NULL) {
+		reldir = mprintf("dists/%s/snapshots/%s",
+				distribution->codename, release->snapshotname);
+		if (FAILEDTOALLOC(reldir))
+			return;
+		outhook_send("BEGIN-SNAPSHOT", distribution->codename,
+				reldir, release->snapshotname);
+	} else {
+		reldir = mprintf("dists/%s", distribution->codename);
+		if (FAILEDTOALLOC(reldir))
+			return;
+		outhook_send("BEGIN-DISTRIBUTION", distribution->codename,
+				reldir, distribution->suite);
+	}
+
+	for (file = release->files ; file != NULL ; file = file->next) {
+		/* relf chks ffn  ftfn symt
+		 * name chks NULL NULL NULL: added old filename or virtual file
+		 * name chks file NULL NULL: renamed new file and published
+		 * name NULL file NULL NULL: renamed new file
+		 * name NULL NULL NULL NULL: deleted file
+		 * name NULL NULL NULL file: created symlink */
+
+		/* should already be in place: */
+		assert (file->fulltemporaryfilename == NULL);
+		/* symlinks are special: */
+		if (file->symlinktarget != NULL) {
+			outhook_send("DISTSYMLINK",
+					reldir,
+					file->relativefilename,
+					file->symlinktarget);
+		} else if (file->fullfinalfilename != NULL) {
+			outhook_send("DISTFILE", reldir,
+					file->relativefilename,
+					file->fullfinalfilename);
+		} else if (file->checksums == NULL){
+			outhook_send("DISTDELETE", reldir,
+					file->relativefilename, NULL);
+		}
+		/* would be nice to distinguish kept and virtual files... */
+	}
+
+	if (release->snapshotname != NULL) {
+		outhook_send("END-SNAPSHOT", distribution->codename,
+				reldir, release->snapshotname);
+	} else {
+		outhook_send("END-DISTRIBUTION", distribution->codename,
+				reldir, distribution->suite);
+	}
+	free(reldir);
 }
 
 /* Generate a main "Release" file for a distribution */
@@ -1474,7 +1615,8 @@ retvalue release_finish(/*@only@*/struct release *release, struct distribution *
 	result = RET_OK;
 
 	for (file = release->files ; file != NULL ; file = file->next) {
-		if (file->relativefilename == NULL
+		assert (file->relativefilename != NULL);
+		if (file->checksums == NULL
 				&& file->fullfinalfilename != NULL
 				&& file->fulltemporaryfilename == NULL
 				&& file->symlinktarget == NULL) {
@@ -1537,12 +1679,6 @@ retvalue release_finish(/*@only@*/struct release *release, struct distribution *
 			}
 		}
 	}
-	r = signedfile_finalize(release->signedfile, &somethingwasdone);
-	if (RET_WAS_ERROR(r) && !somethingwasdone) {
-		release_free(release);
-		return r;
-	}
-	RET_UPDATE(result, r);
 	if (RET_WAS_ERROR(result) && somethingwasdone) {
 		fprintf(stderr,
 "ATTENTION: some files were already moved to place, some could not be.\n"
@@ -1565,6 +1701,7 @@ retvalue release_finish(/*@only@*/struct release *release, struct distribution *
 		release->cachedb = NULL;
 		RET_ENDUPDATE(result, r);
 	}
+	release_toouthook(release, distribution);
 	/* free everything */
 	release_free(release);
 	return result;

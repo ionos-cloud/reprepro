@@ -23,7 +23,6 @@
 #include <ctype.h>
 #include <time.h>
 #include <string.h>
-#include <malloc.h>
 #include <fcntl.h>
 #include "signature_p.h"
 #include "ignore.h"

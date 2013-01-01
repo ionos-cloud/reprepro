@@ -154,7 +154,9 @@ sha1releaseline() {
 sha2releaseline() {
  echo "$(sha2andsize dists/"$1"/"$2") $2"
 }
-
+normalizerelease() {
+ sed -e 's/^Date: .*/Date: normalized/' "$1"
+}
 
 EMPTYMD5ONLY="d41d8cd98f00b204e9800998ecf8427e"
 EMPTYMD5="d41d8cd98f00b204e9800998ecf8427e 0"

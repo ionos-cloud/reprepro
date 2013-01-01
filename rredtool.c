@@ -515,7 +515,7 @@ static retvalue read_old_index(const char *fullfilename, /*@out@*/struct old_ind
 	ssize_t bytes_read;
 	retvalue r;
 
-	memset(oldindex, 0, sizeof(struct old_index_file));
+	setzero(struct old_index_file, oldindex);
 
 	if (!isregularfile(fullfilename))
 		return RET_NOTHING;
@@ -577,12 +577,12 @@ static retvalue read_old_index(const char *fullfilename, /*@out@*/struct old_ind
 "rredtool: File '%s' does not look like created by rredtool, ignoring!\n",
 				fullfilename);
 		old_index_done(oldindex);
-		memset(oldindex, 0, sizeof(struct old_index_file));
+		setzero(struct old_index_file, oldindex);
 		return RET_NOTHING;
 	}
 	if (RET_WAS_ERROR(r)) {
 		old_index_done(oldindex);
-		memset(oldindex, 0, sizeof(struct old_index_file));
+		setzero(struct old_index_file, oldindex);
 		return r;
 	}
 	return RET_OK;

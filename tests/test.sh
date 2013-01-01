@@ -11,6 +11,7 @@ export LC_ALL=C
 SRCDIR="$(readlink -e "$(dirname $0)/..")"
 WORKDIR="`pwd`/testdir"
 USE_VALGRIND=""
+VALGRIND_LEAK=summary
 VALGRIND_SUP=""
 TESTOPTIONS=""
 VERBOSEDB="1"
@@ -42,6 +43,11 @@ while [ $# -gt 0 ] ; do
 			;;
 		--valgrind)
 			USE_VALGRIND=1
+			shift
+			;;
+		--valgrind)
+			USE_VALGRIND=1
+			VALGRIND_LEAK=full
 			shift
 			;;
 		--valgrind-supp)
@@ -98,9 +104,9 @@ if [ -z "$TESTOPTIONS" ] ; then
 		# leak-check=full is better than leak-check=summary,
 		# sadly squeeze's valgrind counts them into the error number
 		# with full, and we want to ignore them for childs....
-		TESTOPTIONS="-e -a --debug --leak-check=summary --suppressions=$TESTSDIR/valgrind.supp"
+		TESTOPTIONS="-e -a --debug --leak-check=${VALGRIND_LEAK} --suppressions=$TESTSDIR/valgrind.supp"
 	else
-		TESTOPTIONS="-e -a --debug --leak-check=summary --suppressions=$VALGRIND_SUP"
+		TESTOPTIONS="-e -a --debug --leak-check=${VALGRIND_LEAK} --suppressions=$VALGRIND_SUP"
 	fi
 fi
 case "$verbosity" in
@@ -190,6 +196,7 @@ runtest() {
 if test x"$testtorun" != x"all" ; then
 	runtest "$testtorun"
 else
+	runtest descriptions
 	runtest easyupdate
 	runtest srcfilterlist
 	runtest uploaders

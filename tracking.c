@@ -18,7 +18,6 @@
 
 #include <assert.h>
 #include <sys/types.h>
-#include <malloc.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>

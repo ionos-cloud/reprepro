@@ -21,7 +21,6 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
-#include <malloc.h>
 #include <errno.h>
 
 #include "donefile.h"
