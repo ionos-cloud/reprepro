@@ -43,6 +43,10 @@
 
 2012-10-21  Bernhard R. Link <brlink@debian.org>
 	* reject absurd large values in ValidFor header
+	* fix wrong include type in termdecide.h
+
+2012-09-03
+	* fix overlong VerifyRelease example in manual.html
 
 2012-07-12
 	* add 'deleteifunreferenced' command to safely delete
