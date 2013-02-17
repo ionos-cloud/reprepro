@@ -1,3 +1,6 @@
+2013-02-17  Bernhard R. Link <brlink@debian.org>
+	* add outsftphook.py example
+
 2012-12-31  Bernhard R. Link <brlink@debian.org>
 	* add --outhook
 
