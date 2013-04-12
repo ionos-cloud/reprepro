@@ -177,9 +177,9 @@ static retvalue gentargetcontents(struct target *target, struct release *release
 	if (onlyneeded && target->saved_wasmodified)
 		onlyneeded = false;
 
-	contentsfilename = mprintf("%s/%sContents-%s",
+	contentsfilename = mprintf("%s/Contents%s-%s",
 			atoms_components[target->component],
-			(target->packagetype == pt_udeb)?"s":"",
+			(target->packagetype == pt_udeb)?"-udeb":"",
 			atoms_architectures[target->architecture]);
 	if (FAILEDTOALLOC(contentsfilename))
 		return RET_ERROR_OOM;

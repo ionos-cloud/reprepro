@@ -1,3 +1,6 @@
+Updates after 4.13.0
+- fix percomponent udeb Contents filenames
+
 Updates between 4.12.5 and 4.13.0:
 - new commands: deleteifunreferenced repairdescriptions lsbycomponent
 - add ${$basename}, ${$filekey} and ${$fullfilename} to --listformat

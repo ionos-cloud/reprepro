@@ -1,3 +1,6 @@
+2013-04-12  Bernhard R. Link <brlink@debian.org>
+	* fix percomponent udeb Contents filenames
+
 2013-02-17  Bernhard R. Link <brlink@debian.org>
 	* add outsftphook.py example
 
