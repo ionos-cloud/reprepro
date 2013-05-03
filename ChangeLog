@@ -1,3 +1,7 @@
+2013-05-04  Bernhard R. Link <brlink@debian.org>
+	* build-needing properly handles sources with
+	  architecture wildcards (linux-any) in them.
+
 2013-04-12  Bernhard R. Link <brlink@debian.org>
 	* fix percomponent udeb Contents filenames
 

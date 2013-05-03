@@ -1,4 +1,4 @@
-.TH REPREPRO 1 "2013-03-25" "reprepro" REPREPRO
+.TH REPREPRO 1 "2013-05-04" "reprepro" REPREPRO
 .SH NAME
 reprepro \- produce, manage and sync a local repository of Debian packages
 .mso www.tmac
@@ -957,7 +957,9 @@ given architecture.
 List all source package in the given distribution without a binary package
 of the given architecture built from that version of the source,
 without a \fB.changes\fP or \fB.log\fP file for the given architecture,
-with an Architecture field including \fBany\fP or the architecture and
+with an Architecture field including \fBany\fP, \fIos\fP\fB-any\fP (with
+\fIos\fP being the part before the hyphen in the architecture or \fBlinux\fP
+if there is no hypen) or the architecture and
 at least one package in the Binary field not yet available.
 
 If instead of \fIarchitecture\fP the term \fBany\fP is used,

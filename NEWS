@@ -1,5 +1,6 @@
 Updates after 4.13.0
 - fix percomponent udeb Contents filenames
+- add support for sources listing architecture wildcards to build-needing
 
 Updates between 4.12.5 and 4.13.0:
 - new commands: deleteifunreferenced repairdescriptions lsbycomponent
