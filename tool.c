@@ -1555,9 +1555,7 @@ static retvalue verify(const char *changesfilename, struct changes *changes) {
 			// TODO: more believe file name or changes name?
 			if (changes->name != NULL) {
 				name = changes->name;
-#ifdef STUPIDCC
 				namelen = strlen(name);
-#endif
 			} else {
 				if (*p != '_') {
 					name = NULL;
