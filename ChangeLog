@@ -1,3 +1,7 @@
+2013-05-30  Bernhard R. Link <brlink@debian.org>
+	* fix bug is restore to only act if the
+	  last package looked at is restored.
+
 2013-05-04  Bernhard R. Link <brlink@debian.org>
 	* build-needing properly handles sources with
 	  architecture wildcards (linux-any) in them.

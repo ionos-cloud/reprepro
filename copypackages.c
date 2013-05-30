@@ -969,7 +969,7 @@ static retvalue restore_from_snapshot(struct distribution *into, const struct at
 			break;
 	}
 	free(basedir);
-	if (!RET_IS_OK(result))
+	if (RET_WAS_ERROR(result))
 		return result;
 	r = packagelist_add(into, &list, snapshotname);
 	packagelist_done(&list);
