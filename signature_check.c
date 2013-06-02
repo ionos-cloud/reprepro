@@ -800,7 +800,7 @@ retvalue signature_check_inline(const struct signature_requirement *requirements
 		free(plain_data);
 #endif
 		assert (len <= plain_len);
-		if (plain_len != n - plain_data) {
+		if (plain_len != (size_t)(n - plain_data)) {
 			fprintf(stderr,
 "Cannot parse '%s': extraced signed data looks malformed.\n",
 				filename);
