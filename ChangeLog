@@ -1,3 +1,22 @@
+2013-06-02  Bernhard R. Link <brlink@debian.org>
+	* as gcc got better, remove conditional workarounds for
+	  most uninitialized-false-positives and make the remaining
+	  cases unconditonal (but marked with SETBUTNOTUSED).
+
+2013-05-30  Bernhard R. Link <brlink@debian.org>
+	* fix bug is restore to only act if the
+	  last package looked at is restored.
+
+2013-05-04  Bernhard R. Link <brlink@debian.org>
+	* build-needing properly handles sources with
+	  architecture wildcards (linux-any) in them.
+
+2013-04-12  Bernhard R. Link <brlink@debian.org>
+	* fix percomponent udeb Contents filenames
+
+2013-02-17  Bernhard R. Link <brlink@debian.org>
+	* add outsftphook.py example
+
 2012-12-31  Bernhard R. Link <brlink@debian.org>
 	* add --outhook
 
@@ -1898,7 +1917,7 @@
 	* Add some #includes so that it also compiles without
 	warnings on sarge/i386
 
-	* --ignore= allows multiple options separated by comas.
+	* --ignore= allows multiple options separated by commas.
 
 	* Tell about -b if conf/distributions cannot be found
 

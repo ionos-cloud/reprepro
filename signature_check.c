@@ -523,7 +523,7 @@ retvalue signature_requirement_add(struct signature_requirement **list_p, const 
 	req->num_keys = 0;
 	do {
 		bool allow_subkeys, allow_bad;
-		char *next_key IFSTUPIDCC(=NULL);
+		char *next_key;
 
 		r = parse_condition_part(&allow_subkeys, &allow_bad,
 				full_condition, &condition, &next_key);
@@ -800,7 +800,7 @@ retvalue signature_check_inline(const struct signature_requirement *requirements
 		free(plain_data);
 #endif
 		assert (len <= plain_len);
-		if (plain_len != n - plain_data) {
+		if (plain_len != (size_t)(n - plain_data)) {
 			fprintf(stderr,
 "Cannot parse '%s': extraced signed data looks malformed.\n",
 				filename);

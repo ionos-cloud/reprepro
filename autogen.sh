@@ -20,7 +20,7 @@ if [ "x$1" = "x--configure" ] ; then
 		cd "$1" || exit 1
 		shift
 	fi
-	"$repreprodir"/configure --enable-maintainer-mode CFLAGS="-Wall -O2 -g -Wmissing-prototypes -Wstrict-prototypes -Wshadow" CPPFLAGS="-DSTUPIDCC=1" "$@"
+	"$repreprodir"/configure --enable-maintainer-mode CFLAGS="-Wall -O2 -g -Wmissing-prototypes -Wstrict-prototypes -Wshadow -Wunused-parameter -Wsign-compare" CPPFLAGS="" "$@"
 else
 	echo "unsupported option $1" >&2
 	exit 1

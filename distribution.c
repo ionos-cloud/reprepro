@@ -235,7 +235,7 @@ CFstartparse(distribution) {
 	return RET_OK;
 }
 
-static bool notpropersuperset(const struct atomlist *allowed, const char *allowedname, const struct atomlist *check, const char *checkname, const char **atoms, const struct configiterator *iter, const struct distribution *d) {
+static bool notpropersuperset(const struct atomlist *allowed, const char *allowedname, const struct atomlist *check, const char *checkname, const char **atoms, const struct distribution *d) {
 	atom_t missing;
 
 	if (!atomlist_subset(allowed, check, &missing)) {
@@ -319,22 +319,18 @@ CFfinishparse(distribution) {
 
 	if (notpropersuperset(&n->architectures, "Architectures",
 			    &n->contents_architectures, "ContentsArchitectures",
-			    atoms_architectures,
-			    iter, n) ||
+			    atoms_architectures, n) ||
 	    notpropersuperset(&n->components, "Components",
 			    &n->contents_components, "ContentsComponents",
-			    atoms_components,
-			    iter, n) ||
+			    atoms_components, n) ||
 	    notpropersuperset(&n->udebcomponents, "UDebComponents",
 			    &n->contents_ucomponents, "ContentsUComponents",
-			    atoms_components,
-			    iter, n) ||
+			    atoms_components, n) ||
 	    // TODO: instead of checking here make sure it can have more
 	    // in the rest of the code...:
 	    notpropersuperset(&n->components, "Components",
 			    &n->udebcomponents, "UDebComponents",
-			    atoms_components,
-			    iter, n)) {
+			    atoms_components, n)) {
 		(void)distribution_free(n);
 		return RET_ERROR;
 	}
@@ -521,7 +517,7 @@ retvalue distribution_readall(struct distribution **distributions) {
 retvalue distribution_foreach_package(struct distribution *distribution, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes, each_package_action action, each_target_action target_action, void *data) {
 	retvalue result, r;
 	struct target *t;
-	struct target_cursor iterator IFSTUPIDCC(=TARGET_CURSOR_ZERO);
+	struct target_cursor iterator;
 	const char *package, *control;
 
 	result = RET_NOTHING;
@@ -557,7 +553,7 @@ retvalue distribution_foreach_package_c(struct distribution *distribution, const
 	retvalue result, r;
 	struct target *t;
 	const char *package, *control;
-	struct target_cursor iterator IFSTUPIDCC(=TARGET_CURSOR_ZERO);
+	struct target_cursor iterator;
 
 	result = RET_NOTHING;
 	for (t = distribution->targets ; t != NULL ; t = t->next) {

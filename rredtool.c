@@ -1323,7 +1323,7 @@ int main(int argc, const char *argv[]) {
 	bool patchmode = false;
 	bool repreprohook = false;
 	int i, count;
-	const char *sourcename IFSTUPIDCC(=NULL);
+	const char *sourcename;
 	int debug = 0;
 
 	while ((i = getopt_long(argc, (char**)argv, "+hVDmpR", options, NULL)) != -1) {
@@ -1389,6 +1389,8 @@ int main(int argc, const char *argv[]) {
 			return EXIT_FAILURE;
 		}
 		sourcename = argv[i++];
+	} else {
+		SETBUTNOTUSED( sourcename = NULL; )
 	}
 	if (mergemode && patchmode) {
 		fprintf(stderr,

@@ -232,7 +232,7 @@ retvalue binaries_getversion(const char *control, char **version) {
 }
 
 retvalue binaries_getinstalldata(const struct target *t, const char *packagename, const char *version, architecture_t package_architecture, const char *chunk, char **control, struct strlist *filekeys, struct checksumsarray *origfiles) {
-	char *sourcename IFSTUPIDCC(=NULL), *basefilename IFSTUPIDCC(=NULL);
+	char *sourcename, *basefilename;
 	struct checksumsarray origfilekeys;
 	retvalue r;
 

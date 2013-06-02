@@ -385,7 +385,7 @@ retvalue filterlist_load(struct filterlist *list, struct configiterator *iter) {
 }
 
 static inline bool find(const char *name, /*@null@*/struct filterlistfile *list) {
-	int cmp IFSTUPIDCC(= 0);
+	int cmp;
 	/*@dependent@*/const struct filterlistitem *last = list->last;
 
 	assert (last != NULL);

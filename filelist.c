@@ -428,7 +428,7 @@ static retvalue filelist_addfiles(struct filelist_list *list, const struct filel
 }
 
 retvalue filelist_addpackage(struct filelist_list *list, const char *packagename, const char *section, const char *filekey) {
-	const struct filelist_package *package IFSTUPIDCC(=NULL);
+	const struct filelist_package *package;
 	char *debfilename, *contents = NULL;
 	retvalue r;
 	const char *c;

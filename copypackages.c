@@ -156,7 +156,7 @@ static void list_cancelpackage(struct package_list *list, /*@only@*/struct packa
 static retvalue list_prepareadd(struct package_list *list, struct target *target, const char *packagename, /*@null@*/const char *v, architecture_t package_architecture, const char *chunk) {
 	char *version;
 	char *source, *sourceversion;
-	struct package *new IFSTUPIDCC(=NULL);
+	struct package *new SETBUTNOTUSED(= NULL);
 	retvalue r;
 	int i;
 
@@ -182,6 +182,7 @@ static retvalue list_prepareadd(struct package_list *list, struct target *target
 	assert (r != RET_NOTHING);
 	if (RET_WAS_ERROR(r))
 		return r;
+	assert (new != NULL);
 
 	new->architecture = package_architecture;
 	r = target->getinstalldata(target, new->name, new->version,
@@ -480,7 +481,7 @@ retvalue copy_by_name(struct distribution *into, struct distribution *from, int 
 
 static retvalue by_source(struct package_list *list, UNUSED(struct distribution *into), UNUSED(struct distribution *from), struct target *desttarget, struct target *fromtarget, void *data) {
 	struct namelist *d = data;
-	struct target_cursor iterator IFSTUPIDCC(=TARGET_CURSOR_ZERO);
+	struct target_cursor iterator;
 	const char *packagename, *chunk;
 	retvalue result, r;
 
@@ -633,7 +634,7 @@ retvalue copy_by_source(struct distribution *into, struct distribution *from, in
 
 static retvalue by_formula(struct package_list *list, UNUSED(struct distribution *into), UNUSED(struct distribution *from), struct target *desttarget, struct target *fromtarget, void *data) {
 	term *condition = data;
-	struct target_cursor iterator IFSTUPIDCC(=TARGET_CURSOR_ZERO);
+	struct target_cursor iterator;
 	const char *packagename, *chunk;
 	architecture_t package_architecture;
 	retvalue result, r;
@@ -669,7 +670,7 @@ static retvalue by_formula(struct package_list *list, UNUSED(struct distribution
 
 static retvalue by_glob(struct package_list *list, UNUSED(struct distribution *into), UNUSED(struct distribution *from), struct target *desttarget, struct target *fromtarget, void *data) {
 	const char *glob = data;
-	struct target_cursor iterator IFSTUPIDCC(=TARGET_CURSOR_ZERO);
+	struct target_cursor iterator;
 	const char *packagename, *chunk;
 	architecture_t package_architecture;
 	retvalue result, r;
@@ -969,7 +970,7 @@ static retvalue restore_from_snapshot(struct distribution *into, const struct at
 			break;
 	}
 	free(basedir);
-	if (!RET_IS_OK(result))
+	if (RET_WAS_ERROR(result))
 		return result;
 	r = packagelist_add(into, &list, snapshotname);
 	packagelist_done(&list);
