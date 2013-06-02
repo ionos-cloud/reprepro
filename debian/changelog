@@ -1,3 +1,13 @@
+reprepro (4.13.1-1) unstable; urgency=low
+
+  * new bugfix release
+  - fix bug in restore* commands not doing anything if the
+    last package is not affected
+  - fix build-needing to support *-any architectures
+  - fix name of per-component udeb Content file names
+
+ -- Bernhard R. Link <brlink@debian.org>  Sun, 02 Jun 2013 16:49:21 +0200
+
 reprepro (4.13.0-1) experimental; urgency=low
 
   * new release
