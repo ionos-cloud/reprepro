@@ -1,3 +1,8 @@
+Updates between 4.13.0 and 4.13.1:
+- fix bug in restore
+- fix percomponent udeb Contents filenames
+- add support for sources listing architecture wildcards to build-needing
+
 Updates between 4.12.5 and 4.13.0:
 - new commands: deleteifunreferenced repairdescriptions lsbycomponent
 - add ${$basename}, ${$filekey} and ${$fullfilename} to --listformat
@@ -8,7 +13,7 @@ Updates between 4.12.5 and 4.13.0:
 
 Updates between 4.12.4 and 4.12.5:
 - various documentation improvements
-- fix bitrot on non-libarchive code
+- fix bitrot in non-libarchive code
 
 Updates between 4.12.3 and 4.12.4:
 - fix bug when only generating .bz2 indices

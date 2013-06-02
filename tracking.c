@@ -514,7 +514,7 @@ retvalue tracking_drop(const char *codename) {
 static retvalue tracking_recreatereferences(trackingdb t) {
 	struct cursor *cursor;
 	retvalue result, r;
-	struct trackedpackage *pkg IFSTUPIDCC(=NULL);
+	struct trackedpackage *pkg;
 	char *id;
 	int i;
 	const char *key, *value, *data;
@@ -577,7 +577,7 @@ retvalue tracking_remove(trackingdb t, const char *sourcename, const char *versi
 	const char *data;
 	size_t datalen;
 	char *id;
-	struct trackedpackage *pkg IFSTUPIDCC(=NULL);
+	struct trackedpackage *pkg SETBUTNOTUSED(= NULL);
 
 	r = table_newpairedcursor(t->table, sourcename, version, &cursor,
 			&data, &datalen);
@@ -592,6 +592,7 @@ retvalue tracking_remove(trackingdb t, const char *sourcename, const char *versi
 
 	result = parse_data(sourcename, version, data, datalen, &pkg);
 	if (RET_IS_OK(r)) {
+		assert (pkg != NULL);
 		r = references_delete(id, &pkg->filekeys, NULL);
 		RET_UPDATE(result, r);
 		trackedpackage_free(pkg);
@@ -632,7 +633,7 @@ static void print(const char *codename, const struct trackedpackage *pkg){
 retvalue tracking_printall(trackingdb t) {
 	struct cursor *cursor;
 	retvalue result, r;
-	struct trackedpackage *pkg IFSTUPIDCC(=NULL);
+	struct trackedpackage *pkg;
 	const char *key, *value, *data;
 	size_t datalen;
 
@@ -660,7 +661,7 @@ retvalue tracking_foreach_ro(struct distribution *d, tracking_foreach_ro_action 
 	trackingdb t;
 	struct cursor *cursor;
 	retvalue result, r;
-	struct trackedpackage *pkg IFSTUPIDCC(=NULL);
+	struct trackedpackage *pkg;
 	const char *key, *value, *data;
 	size_t datalen;
 
@@ -1060,7 +1061,7 @@ retvalue trackingdata_finish(trackingdb tracks, struct trackingdata *d) {
 retvalue tracking_tidyall(trackingdb t) {
 	struct cursor *cursor;
 	retvalue result, r;
-	struct trackedpackage *pkg IFSTUPIDCC(=NULL);
+	struct trackedpackage *pkg;
 	const char *key, *value, *data;
 	size_t datalen;
 
@@ -1091,7 +1092,7 @@ retvalue tracking_tidyall(trackingdb t) {
 retvalue tracking_reset(trackingdb t) {
 	struct cursor *cursor;
 	retvalue result, r;
-	struct trackedpackage *pkg IFSTUPIDCC(=NULL);
+	struct trackedpackage *pkg;
 	const char *key, *value, *data;
 	char *newdata;
 	size_t datalen, newdatalen;
@@ -1130,7 +1131,7 @@ retvalue tracking_reset(trackingdb t) {
 static retvalue tracking_foreachversion(trackingdb t, struct distribution *distribution,  const char *sourcename, retvalue (action)(trackingdb t, struct trackedpackage *, struct distribution *)) {
 	struct cursor *cursor;
 	retvalue result, r;
-	struct trackedpackage *pkg IFSTUPIDCC(=NULL);
+	struct trackedpackage *pkg;
 	const char *value, *data;
 	size_t datalen;
 

@@ -258,7 +258,7 @@ retvalue term_compile(term **term_p, const char *origformula, int options, const
 	/* for the global list */
 	struct term_atom *first, *last;
 	/* the atom just read */
-	struct term_atom *atom IFSTUPIDCC(=NULL);
+	struct term_atom *atom;
 	struct {
 		/*@dependent@*/struct term_atom *firstinand, *firstinor;
 	} levels[50];

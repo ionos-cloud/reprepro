@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2009,2012 Bernhard R. Link
+ *  Copyright (C) 2009,2012,2013 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -166,16 +166,40 @@ static retvalue check_source_needs_build(struct distribution *distribution, stru
 	r = chunk_getwordlist(control, "Architecture", &architectures);
 	if (RET_IS_OK(r)) {
 		bool skip = true;
+		const char *req = atoms_architectures[d->architecture];
+		const char *hyphen, *os;
+		size_t osl;
+
+		hyphen = strchr(req, '-');
+		if (hyphen == NULL) {
+			os = "linux";
+			osl = 5;
+		} else {
+			os = req;
+			osl = hyphen - req;
+		}
 
 		for (i = 0 ; i < architectures.count ; i++) {
 			const char *a = architectures.values[i];
-			if (d->architecture != architecture_all &&
-					strcmp(a, "any") == 0) {
+
+			if (strcmp(a, req) == 0) {
 				skip = false;
 				break;
 			}
-			if (strcmp(a, atoms_architectures[
-						d->architecture]) == 0) {
+			/* "all" is not part of "any" or "*-any" */
+			if (d->architecture == architecture_all)
+				continue;
+			if (strcmp(a, "any") == 0) {
+				skip = false;
+				break;
+			}
+
+			size_t al = strlen(a);
+
+			if (al < 4 || memcmp(a + al - 4, "-any", 4) != 0)
+				continue;
+
+			if (al == osl + 4 && memcmp(a, os, osl) == 0) {
 				skip = false;
 				break;
 			}

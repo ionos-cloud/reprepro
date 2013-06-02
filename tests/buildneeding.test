@@ -46,6 +46,11 @@ Tracking: all
 Codename: blub
 Components: main
 Architectures: notinbla
+
+Codename: oses
+Components: main
+Architectures: source abacus kfreebsd-abacus hurd-abacus
+Tracking: all
 EOF
 cat >> conf/options <<EOF
 export silent-never
@@ -55,6 +60,19 @@ EOF
 testrun - rereference 3<<EOF
 stdout
 $(odb)
+-v1*=Referencing oses...
+-v3*=Unlocking dependencies of oses|main|abacus...
+-v3*=Referencing oses|main|abacus...
+-v2=Rereferencing oses|main|abacus...
+-v3*=Unlocking dependencies of oses|main|kfreebsd-abacus...
+-v3*=Referencing oses|main|kfreebsd-abacus...
+-v2=Rereferencing oses|main|kfreebsd-abacus...
+-v3*=Unlocking dependencies of oses|main|hurd-abacus...
+-v3*=Referencing oses|main|hurd-abacus...
+-v2=Rereferencing oses|main|hurd-abacus...
+-v3*=Unlocking dependencies of oses|main|source...
+-v3*=Referencing oses|main|source...
+-v2=Rereferencing oses|main|source...
 -v1*=Referencing bla...
 -v3*=Unlocking dependencies of bla|main|abacus...
 -v3*=Referencing bla|main|abacus...
@@ -514,6 +532,89 @@ testrun - build-needing test any 3<<EOF
 stdout
 *=anyonly 1.0-1 pool/main/a/anyonly/anyonly_1.0-1.dsc another
 *=anyonly 1.0-1 pool/main/a/anyonly/anyonly_1.0-1.dsc abacus
+EOF
+
+mkdir linuxwildcard-1.0
+mkdir linuxwildcard-1.0/debian
+cat >linuxwildcard-1.0/debian/control <<END
+Source: linuxwildcard
+Section: something
+Priority: extra
+Maintainer: me <me@example.org>
+Standards-Version: 0.0
+
+Package: linuxwildcard
+Architecture: linux-any
+Description: some test-arch any package
+ .
+END
+cat >linuxwildcard-1.0/debian/changelog <<END
+linuxwildcard (1.0-1) test; urgency=critical
+
+  * first version
+
+ -- me <me@example.org>  Mon, 01 Jan 1980 01:02:02 +0000
+END
+dpkg-source -b linuxwildcard-1.0
+rm -r linuxwildcard-1.0
+
+mkdir kfreebsdwildcard-1.0
+mkdir kfreebsdwildcard-1.0/debian
+cat >kfreebsdwildcard-1.0/debian/control <<END
+Source: kfreebsdwildcard
+Section: something
+Priority: extra
+Maintainer: me <me@example.org>
+Standards-Version: 0.0
+
+Package: kfreebsdwildcard
+Architecture: kfreebsd-any
+Description: some test-arch any package
+ .
+END
+cat >kfreebsdwildcard-1.0/debian/changelog <<END
+kfreebsdwildcard (1.0-1) test; urgency=critical
+
+  * first version
+
+ -- me <me@example.org>  Mon, 01 Jan 1980 01:02:02 +0000
+END
+dpkg-source -b kfreebsdwildcard-1.0
+rm -r kfreebsdwildcard-1.0
+
+testrun - includedsc oses linuxwildcard_1.0-1.dsc 3<<EOF
+stderr
+-v1*=linuxwildcard_1.0-1.dsc: component guessed as 'main'
+stdout
+-v2*=Created directory "./pool/main/l"
+-v2*=Created directory "./pool/main/l/linuxwildcard"
+$(ofa 'pool/main/l/linuxwildcard/linuxwildcard_1.0-1.dsc')
+$(ofa 'pool/main/l/linuxwildcard/linuxwildcard_1.0-1.tar.gz')
+*=db: 'linuxwildcard' added to packages.db(oses|main|source).
+*=db: 'linuxwildcard' added to tracking.db(oses).
+EOF
+
+testrun - includedsc oses kfreebsdwildcard_1.0-1.dsc 3<<EOF
+stderr
+-v1*=kfreebsdwildcard_1.0-1.dsc: component guessed as 'main'
+stdout
+-v2*=Created directory "./pool/main/k"
+-v2*=Created directory "./pool/main/k/kfreebsdwildcard"
+$(ofa 'pool/main/k/kfreebsdwildcard/kfreebsdwildcard_1.0-1.dsc')
+$(ofa 'pool/main/k/kfreebsdwildcard/kfreebsdwildcard_1.0-1.tar.gz')
+*=db: 'kfreebsdwildcard' added to packages.db(oses|main|source).
+*=db: 'kfreebsdwildcard' added to tracking.db(oses).
+EOF
+
+testrun empty build-needing oses all
+testrun empty build-needing oses hurd-abacus
+testrun - build-needing oses abacus 3<<EOF
+stdout
+*=linuxwildcard 1.0-1 pool/main/l/linuxwildcard/linuxwildcard_1.0-1.dsc
+EOF
+testrun - build-needing oses kfreebsd-abacus 3<<EOF
+stdout
+*=kfreebsdwildcard 1.0-1 pool/main/k/kfreebsdwildcard/kfreebsdwildcard_1.0-1.dsc
 EOF
 
 rm -r pool conf db *.deb *.log *.changes

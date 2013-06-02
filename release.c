@@ -693,7 +693,7 @@ static const char * const ics[ic_count] = { "", ".gz"
 #endif
 };
 
-static inline retvalue setfilename(struct release *release, struct filetorelease *n, const char *relfilename, /*@null@*/const char *symlinkas, enum indexcompression ic) {
+static inline retvalue setfilename(struct filetorelease *n, const char *relfilename, /*@null@*/const char *symlinkas, enum indexcompression ic) {
 	n->f[ic].relativefilename = mprintf("%s%s", relfilename, ics[ic]);
 	if (FAILEDTOALLOC(n->f[ic].relativefilename))
 		return RET_ERROR_OOM;
@@ -756,8 +756,7 @@ static retvalue startfile(struct release *release, const char *filename, /*@null
 	if ((compressions & IC_FLAG(ic_uncompressed)) != 0) {
 		retvalue r;
 
-		r = setfilename(release, n, filename, symlinkas,
-				ic_uncompressed);
+		r = setfilename(n, filename, symlinkas, ic_uncompressed);
 		if (!RET_WAS_ERROR(r))
 			r = openfile(release->dirofdist, &n->f[ic_uncompressed]);
 		if (RET_WAS_ERROR(r)) {
@@ -776,8 +775,7 @@ static retvalue startfile(struct release *release, const char *filename, /*@null
 	if ((compressions & IC_FLAG(ic_gzip)) != 0) {
 		retvalue r;
 
-		r = setfilename(release, n, filename, symlinkas,
-				ic_gzip);
+		r = setfilename(n, filename, symlinkas, ic_gzip);
 		if (!RET_WAS_ERROR(r))
 			r = openfile(release->dirofdist, &n->f[ic_gzip]);
 		if (RET_WAS_ERROR(r)) {
@@ -794,8 +792,7 @@ static retvalue startfile(struct release *release, const char *filename, /*@null
 #ifdef HAVE_LIBBZ2
 	if ((compressions & IC_FLAG(ic_bzip2)) != 0) {
 		retvalue r;
-		r = setfilename(release, n, filename, symlinkas,
-				ic_bzip2);
+		r = setfilename(n, filename, symlinkas, ic_bzip2);
 		if (!RET_WAS_ERROR(r))
 			r = openfile(release->dirofdist, &n->f[ic_bzip2]);
 		if (RET_WAS_ERROR(r)) {

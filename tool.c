@@ -1473,7 +1473,7 @@ static retvalue verify(const char *changesfilename, struct changes *changes) {
 	printf("Checking Source packages...\n");
 	for (file = changes->files; file != NULL ; file = file->next) {
 		const char *name, *version, *p;
-		size_t namelen IFSTUPIDCC(=0), versionlen IFSTUPIDCC(=0), l;
+		size_t namelen, versionlen, l;
 		bool has_tar, has_diff, has_orig, has_format_tar;
 		int i;
 
@@ -1555,9 +1555,7 @@ static retvalue verify(const char *changesfilename, struct changes *changes) {
 			// TODO: more believe file name or changes name?
 			if (changes->name != NULL) {
 				name = changes->name;
-#ifdef STUPIDCC
 				namelen = strlen(name);
-#endif
 			} else {
 				if (*p != '_') {
 					name = NULL;
@@ -1582,9 +1580,7 @@ static retvalue verify(const char *changesfilename, struct changes *changes) {
 			} else {
 				if (*p != '_') {
 					version = NULL;
-#ifdef STUPIDCC
-					versionlen = 0;
-#endif
+					SETBUTNOTUSED( versionlen = 0; )
 					if (name != NULL)
 						fprintf(stderr,
 "ERROR: '%s' does not contain a '_' separating name and version!\n",
@@ -1669,6 +1665,7 @@ static retvalue verify(const char *changesfilename, struct changes *changes) {
 
 			if (version == NULL)
 				continue;
+			/* versionlen is now always initialized */
 
 			if (sfile->type == ft_ORIG_TAR) {
 				const char *q, *revision;
@@ -2964,7 +2961,7 @@ int main(int argc, char *argv[]) {
 	bool create_file = false;
 	bool all_fields = false;
 	struct strlist searchpath;
-	struct changes *changesdata IFSTUPIDCC(=NULL);
+	struct changes *changesdata;
 	char *gunzip = NULL, *bunzip2 = NULL, *unlzma = NULL,
 	     *unxz = NULL, *lunzip = NULL;
 	retvalue r;

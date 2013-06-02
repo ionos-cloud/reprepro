@@ -930,7 +930,7 @@ static retvalue getorigins(struct update_distribution *d) {
 	result = RET_NOTHING;
 	for (i = 0; i < distribution->updates.count ; i++) {
 		struct update_pattern *pattern = d->patterns[i];
-		struct update_origin *update IFSTUPIDCC(=NULL);
+		struct update_origin *update SETBUTNOTUSED(= NULL);
 		retvalue r;
 
 		if (pattern == NULL) {
@@ -943,6 +943,7 @@ static retvalue getorigins(struct update_distribution *d) {
 		if (RET_WAS_ERROR(r))
 			break;
 		if (RET_IS_OK(r)) {
+			assert (update != NULL);
 			update->next = updates;
 			updates = update;
 		}
@@ -1253,7 +1254,7 @@ retvalue updates_calcindices(struct update_pattern *patterns, struct distributio
 	for (distribution = distributions ; distribution != NULL ;
 			       distribution = distribution->next) {
 		struct update_distribution *u_d;
-		struct update_pattern **translated_updates IFSTUPIDCC(= NULL);
+		struct update_pattern **translated_updates;
 
 		if (!distribution->selected)
 			continue;
@@ -2117,7 +2118,7 @@ retvalue updates_update(struct update_distribution *distributions, bool nolistsd
 	retvalue result, r;
 	struct update_distribution *d;
 	struct downloadcache *cache;
-	struct aptmethodrun *run IFSTUPIDCC(=NULL);
+	struct aptmethodrun *run;
 	bool todo;
 
 	causingfile = NULL;
@@ -2354,7 +2355,7 @@ static void updates_dumplist(struct update_distribution *distribution) {
 retvalue updates_checkupdate(struct update_distribution *distributions, bool nolistsdownload, bool skipold) {
 	struct update_distribution *d;
 	retvalue result, r;
-	struct aptmethodrun *run IFSTUPIDCC(=NULL);
+	struct aptmethodrun *run;
 
 	result = updates_prepare(distributions, false, nolistsdownload, skipold,
 			&run);
@@ -2387,7 +2388,7 @@ retvalue updates_checkupdate(struct update_distribution *distributions, bool nol
 retvalue updates_dumpupdate(struct update_distribution *distributions, bool nolistsdownload, bool skipold) {
 	struct update_distribution *d;
 	retvalue result, r;
-	struct aptmethodrun *run IFSTUPIDCC(=NULL);
+	struct aptmethodrun *run;
 
 	result = updates_prepare(distributions, false, nolistsdownload, skipold,
 			&run);
@@ -2419,7 +2420,7 @@ retvalue updates_dumpupdate(struct update_distribution *distributions, bool noli
 retvalue updates_predelete(struct update_distribution *distributions, bool nolistsdownload, bool skipold) {
 	retvalue result, r;
 	struct update_distribution *d;
-	struct aptmethodrun *run IFSTUPIDCC(= NULL);
+	struct aptmethodrun *run;
 
 	causingfile = NULL;
 
@@ -2478,7 +2479,7 @@ retvalue updates_predelete(struct update_distribution *distributions, bool nolis
  * downloaded again, so that the rest can be deleted                          *
  ******************************************************************************/
 
-static void marktargetsneeded(struct cachedlistfile *files, const struct distribution *d, component_t flat, /*@null@*/const struct strlist *a_from, /*@null@*/const struct strlist *a_into, /*@null@*/const struct strlist *c_from, /*@null@*/const struct strlist *c_into, /*@null@*/const struct strlist *uc_from, /*@null@*/const struct strlist *uc_into, const char *repository, const char *suite, const struct update_pattern *p) {
+static void marktargetsneeded(struct cachedlistfile *files, const struct distribution *d, component_t flat, /*@null@*/const struct strlist *a_from, /*@null@*/const struct strlist *a_into, /*@null@*/const struct strlist *c_from, /*@null@*/const struct strlist *uc_from, const char *repository, const char *suite) {
 	struct target *t;
 	int i, ai;
 
@@ -2603,8 +2604,8 @@ retvalue updates_cleanlists(const struct distribution *distributions, const stru
 	struct cachedlistfile *files;
 	int i;
 	bool isflat;
-	const struct strlist *uc_from = NULL, *uc_into = NULL;
-	const struct strlist *c_from = NULL, *c_into = NULL;
+	const struct strlist *uc_from = NULL;
+	const struct strlist *c_from = NULL;
 	const struct strlist *a_from = NULL, *a_into = NULL;
 	const char *repository;
 	char *suite;
@@ -2652,17 +2653,13 @@ retvalue updates_cleanlists(const struct distribution *distributions, const stru
 			q = p;
 			while (q != NULL && !q->components_set)
 				q = q->pattern_from;
-			if (q != NULL) {
+			if (q != NULL)
 				c_from = &q->components_from;
-				c_into = &q->components_into;
-			}
 			q = p;
 			while (q != NULL && !q->udebcomponents_set)
 				q = q->pattern_from;
-			if (q != NULL) {
+			if (q != NULL)
 				uc_from = &q->udebcomponents_from;
-				uc_into = &q->udebcomponents_into;
-			}
 			suite = translate_suite_pattern(p, d->codename);
 			if (FAILEDTOALLOC(suite)) {
 				cachedlistfile_freelist(files);
@@ -2672,8 +2669,7 @@ retvalue updates_cleanlists(const struct distribution *distributions, const stru
 			 * Release, Release.gpg, compressed files, hook processed
 			 * files is deleted */
 			marktargetsneeded(files, d, isflat, a_from, a_into,
-					c_from, c_into, uc_from, uc_into,
-					repository, suite, p);
+					c_from, uc_from, repository, suite);
 			free(suite);
 
 		}

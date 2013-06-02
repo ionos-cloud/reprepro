@@ -1759,7 +1759,7 @@ static int paireddatacompare(UNUSED(DB *db), const DBT *a, const DBT *b) {
 }
 
 retvalue database_opentracking(const char *codename, bool readonly, struct table **table_p) {
-	struct table *table IFSTUPIDCC(=NULL);
+	struct table *table;
 	retvalue r;
 
 	if (rdb_nopackages) {
@@ -1787,7 +1787,7 @@ retvalue database_opentracking(const char *codename, bool readonly, struct table
 }
 
 retvalue database_openpackages(const char *identifier, bool readonly, struct table **table_p) {
-	struct table *table IFSTUPIDCC(=NULL);
+	struct table *table;
 	retvalue r;
 
 	if (rdb_nopackages) {

@@ -226,8 +226,8 @@ O(fast), O(x_morguedir), O(x_outdir), O(x_basedir), O(x_distdir), O(x_dbdir), O(
 			act(const struct atomlist *, packagetypes),  \
 			a(int, argc), a(const char *, argv[]))
 
-#define ACTION_RF(act, sp, u, name) static retvalue action_rf_ ## act ## _ ## sp ## _ ## name ( \
-			u(struct distribution *, alldistributions),  \
+#define ACTION_RF(act, sp, ud, u, name) static retvalue action_rf_ ## act ## _ ## sp ## _ ## name ( \
+			ud(struct distribution *, alldistributions),  \
 			sp(const char *, section),                   \
 			sp(const char *, priority),                  \
 			act(const struct atomlist *, architectures), \
@@ -542,7 +542,7 @@ static retvalue checkifreferenced(UNUSED(void *data), const char *filekey) {
 		return r;
 }
 
-ACTION_RF(n, n, n, dumpunreferenced) {
+ACTION_RF(n, n, n, n, dumpunreferenced) {
 	retvalue result;
 
 	result = files_foreach(checkifreferenced, NULL);
@@ -562,7 +562,7 @@ static retvalue deleteifunreferenced(UNUSED(void *data), const char *filekey) {
 		return r;
 }
 
-ACTION_RF(n, n, n, deleteunreferenced) {
+ACTION_RF(n, n, n, n, deleteunreferenced) {
 	retvalue result;
 
 	if (keepunreferenced) {
@@ -581,7 +581,7 @@ ACTION_RF(n, n, n, deleteunreferenced) {
 	return result;
 }
 
-ACTION_RF(n, n, y, deleteifunreferenced) {
+ACTION_RF(n, n, n, y, deleteifunreferenced) {
 	char buffer[5000], *nl;
 	int i;
 	retvalue r, ret;
@@ -1271,7 +1271,7 @@ static inline retvalue printlsparts(const char *pkgname, struct lspart *parts) {
 	versionlen = 0; codenamelen = 0; componentlen = 0;
 	for (p = parts ; p->codename != NULL ; p = p->next) {
 		struct lsversion *v;
-		size_t l;
+		int l;
 
 		l = strlen(p->codename);
 		if (l > codenamelen)
@@ -2384,7 +2384,7 @@ ACTION_B(n, n, y, dumptracks) {
 
 /***********************checking*************************/
 
-ACTION_RF(y, n, y, check) {
+ACTION_RF(y, n, y, y, check) {
 	retvalue result, r;
 	struct distribution *d;
 
@@ -2509,7 +2509,7 @@ static retvalue repair_descriptions(struct target *target, bool force) {
 			result = RET_ERROR_INTERRUPTED;
 			break;
 		}
-                r = description_complete(package, controlchunk, false,
+                r = description_complete(package, controlchunk, force,
 				&newcontrolchunk);
                 RET_UPDATE(result, r);
                 if (RET_WAS_ERROR(r))
@@ -2618,7 +2618,7 @@ ACTION_F(y, n, y, y, redochecksums) {
 
 /*******************sizes of distributions***************/
 
-ACTION_RF(n, n, y, sizes) {
+ACTION_RF(n, n, y, y, sizes) {
 	retvalue result;
 
 	result = distribution_match(alldistributions, argc-1, argv+1,
