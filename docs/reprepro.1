@@ -505,7 +505,7 @@ and the name may not start (except in the cases given before) with a \fB+\fP.
 An example script looks like: \fB
  #!/bin/sh
  
- if [ "$REPREPRO_EXIT_CODE" -ne 0 ] ; then
+ if [ "$REPREPRO_EXIT_CODE" \-ne 0 ] ; then
  	exit "$REPREPRO_EXIT_CODE"
  fi
  
