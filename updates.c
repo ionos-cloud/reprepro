@@ -930,7 +930,7 @@ static retvalue getorigins(struct update_distribution *d) {
 	result = RET_NOTHING;
 	for (i = 0; i < distribution->updates.count ; i++) {
 		struct update_pattern *pattern = d->patterns[i];
-		struct update_origin *update IFSTUPIDCC(=NULL);
+		struct update_origin *update SETBUTNOTUSED(= NULL);
 		retvalue r;
 
 		if (pattern == NULL) {
@@ -943,6 +943,7 @@ static retvalue getorigins(struct update_distribution *d) {
 		if (RET_WAS_ERROR(r))
 			break;
 		if (RET_IS_OK(r)) {
+			assert (update != NULL);
 			update->next = updates;
 			updates = update;
 		}
@@ -1253,7 +1254,7 @@ retvalue updates_calcindices(struct update_pattern *patterns, struct distributio
 	for (distribution = distributions ; distribution != NULL ;
 			       distribution = distribution->next) {
 		struct update_distribution *u_d;
-		struct update_pattern **translated_updates IFSTUPIDCC(= NULL);
+		struct update_pattern **translated_updates;
 
 		if (!distribution->selected)
 			continue;
@@ -2117,7 +2118,7 @@ retvalue updates_update(struct update_distribution *distributions, bool nolistsd
 	retvalue result, r;
 	struct update_distribution *d;
 	struct downloadcache *cache;
-	struct aptmethodrun *run IFSTUPIDCC(=NULL);
+	struct aptmethodrun *run;
 	bool todo;
 
 	causingfile = NULL;
@@ -2354,7 +2355,7 @@ static void updates_dumplist(struct update_distribution *distribution) {
 retvalue updates_checkupdate(struct update_distribution *distributions, bool nolistsdownload, bool skipold) {
 	struct update_distribution *d;
 	retvalue result, r;
-	struct aptmethodrun *run IFSTUPIDCC(=NULL);
+	struct aptmethodrun *run;
 
 	result = updates_prepare(distributions, false, nolistsdownload, skipold,
 			&run);
@@ -2387,7 +2388,7 @@ retvalue updates_checkupdate(struct update_distribution *distributions, bool nol
 retvalue updates_dumpupdate(struct update_distribution *distributions, bool nolistsdownload, bool skipold) {
 	struct update_distribution *d;
 	retvalue result, r;
-	struct aptmethodrun *run IFSTUPIDCC(=NULL);
+	struct aptmethodrun *run;
 
 	result = updates_prepare(distributions, false, nolistsdownload, skipold,
 			&run);
@@ -2419,7 +2420,7 @@ retvalue updates_dumpupdate(struct update_distribution *distributions, bool noli
 retvalue updates_predelete(struct update_distribution *distributions, bool nolistsdownload, bool skipold) {
 	retvalue result, r;
 	struct update_distribution *d;
-	struct aptmethodrun *run IFSTUPIDCC(= NULL);
+	struct aptmethodrun *run;
 
 	causingfile = NULL;
 

@@ -145,9 +145,9 @@ static retvalue remember_name(void **root_p, const char *name, char mode, char m
 
 static retvalue remember_filekey(const char *filekey, char mode, char mode_and) {
 	retvalue r;
-	component_t c IFSTUPIDCC(= atom_unknown);
-	struct source_node *node IFSTUPIDCC(= NULL), **found;
-	const char *basefilename IFSTUPIDCC(= NULL);
+	component_t c;
+	struct source_node *node, **found;
+	const char *basefilename;
 
 	r = split_filekey(filekey, &c, &node, &basefilename);
 	if (RET_WAS_ERROR(r))

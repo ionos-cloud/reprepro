@@ -521,7 +521,7 @@ retvalue distribution_readall(struct distribution **distributions) {
 retvalue distribution_foreach_package(struct distribution *distribution, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes, each_package_action action, each_target_action target_action, void *data) {
 	retvalue result, r;
 	struct target *t;
-	struct target_cursor iterator IFSTUPIDCC(=TARGET_CURSOR_ZERO);
+	struct target_cursor iterator;
 	const char *package, *control;
 
 	result = RET_NOTHING;
@@ -557,7 +557,7 @@ retvalue distribution_foreach_package_c(struct distribution *distribution, const
 	retvalue result, r;
 	struct target *t;
 	const char *package, *control;
-	struct target_cursor iterator IFSTUPIDCC(=TARGET_CURSOR_ZERO);
+	struct target_cursor iterator;
 
 	result = RET_NOTHING;
 	for (t = distribution->targets ; t != NULL ; t = t->next) {

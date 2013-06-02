@@ -1147,7 +1147,7 @@ static retvalue candidate_preparechangesfile(const struct candidate *c, struct c
 }
 
 static retvalue prepare_deb(const struct incoming *i, const struct candidate *c, struct candidate_perdistribution *per, const struct candidate_file *file) {
-	const char *section IFSTUPIDCC(=NULL), *priority IFSTUPIDCC(=NULL);
+	const char *section, *priority;
 	const char *filekey;
 	const struct overridedata *oinfo;
 	struct candidate_package *package;
@@ -1284,7 +1284,7 @@ static retvalue prepare_source_file(const struct incoming *i, const struct candi
 }
 
 static retvalue prepare_dsc(const struct incoming *i, const struct candidate *c, struct candidate_perdistribution *per, const struct candidate_file *file) {
-	const char *section IFSTUPIDCC(=NULL), *priority IFSTUPIDCC(=NULL);
+	const char *section, *priority;
 	const struct overridedata *oinfo;
 	struct candidate_package *package;
 	const struct distribution *into = per->into;
@@ -2242,7 +2242,7 @@ static retvalue candidate_add(struct incoming *i, struct candidate *c) {
 }
 
 static retvalue process_changes(struct incoming *i, int ofs) {
-	struct candidate *c IFSTUPIDCC(=NULL);
+	struct candidate *c;
 	retvalue r;
 	int j, k;
 	bool broken = false, tried = false;

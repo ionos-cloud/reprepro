@@ -1451,7 +1451,7 @@ retvalue remote_preparelists(struct aptmethodrun *run, bool nodownload) {
 	struct remote_repository *rr;
 	struct remote_distribution *rd;
 	retvalue r;
-	struct cachedlistfile *oldfiles IFSTUPIDCC(=NULL);
+	struct cachedlistfile *oldfiles;
 
 	r = cachedlists_scandir(&oldfiles);
 	if (RET_WAS_ERROR(r))

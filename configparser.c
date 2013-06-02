@@ -1507,7 +1507,7 @@ static retvalue config_getline(struct configiterator *iter, /*@out@*/char **resu
 }
 
 retvalue config_getlines(struct configiterator *iter, struct strlist *result) {
-	char *line IFSTUPIDCC(=NULL);
+	char *line;
 	struct strlist list;
 	retvalue r;
 

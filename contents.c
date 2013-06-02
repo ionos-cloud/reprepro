@@ -172,7 +172,7 @@ static retvalue gentargetcontents(struct target *target, struct release *release
 	char *contentsfilename;
 	struct filetorelease *file;
 	struct filelist_list *contents;
-	struct target_cursor iterator IFSTUPIDCC(=TARGET_CURSOR_ZERO);
+	struct target_cursor iterator;
 
 	if (onlyneeded && target->saved_wasmodified)
 		onlyneeded = false;

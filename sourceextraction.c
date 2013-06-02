@@ -633,7 +633,7 @@ static retvalue parse_tarfile(struct sourceextraction *e, const char *filename, 
 /* full file name of requested files ready to analyse */
 retvalue sourceextraction_analyse(struct sourceextraction *e, const char *fullfilename) {
 	retvalue r;
-	bool found IFSTUPIDCC(= false);
+	bool found;
 
 #ifndef HAVE_LIBARCHIVE
 	assert (e->difffile >= 0);

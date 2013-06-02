@@ -1,3 +1,8 @@
+2013-06-02  Bernhard R. Link <brlink@debian.org>
+	* as gcc got better, remove conditional workarounds for
+	  most uninitialized-false-positives and make the remaining
+	  cases unconditonal (but marked with SETBUTNOTUSED).
+
 2013-05-30  Bernhard R. Link <brlink@debian.org>
 	* fix bug is restore to only act if the
 	  last package looked at is restored.

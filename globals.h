@@ -30,11 +30,9 @@ typedef int _Bool;
 #define ISSET(a, b) ((a & b) != 0)
 #define NOTSET(a, b) ((a & b) == 0)
 
-#ifdef STUPIDCC
-#define IFSTUPIDCC(a) a
-#else
-#define IFSTUPIDCC(a)
-#endif
+/* sometimes something is initializes though the value is never used to
+ * work around some gcc uninitialized-use false-positives */
+#define SETBUTNOTUSED(a) a
 
 #ifdef SPLINT
 #define UNUSED(a) /*@unused@*/ a

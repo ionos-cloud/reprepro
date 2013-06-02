@@ -523,7 +523,7 @@ retvalue signature_requirement_add(struct signature_requirement **list_p, const 
 	req->num_keys = 0;
 	do {
 		bool allow_subkeys, allow_bad;
-		char *next_key IFSTUPIDCC(=NULL);
+		char *next_key;
 
 		r = parse_condition_part(&allow_subkeys, &allow_bad,
 				full_condition, &condition, &next_key);
