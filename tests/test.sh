@@ -12,6 +12,7 @@ SRCDIR="$(readlink -e "$(dirname $0)/..")"
 WORKDIR="`pwd`/testdir"
 USE_VALGRIND=""
 VALGRIND_LEAK=summary
+VALGRIND_EXTRA_OPTIONS=""
 VALGRIND_SUP=""
 TESTOPTIONS=""
 VERBOSEDB="1"
@@ -54,6 +55,11 @@ while [ $# -gt 0 ] ; do
 			USE_VALGRIND=1
 			shift
 			VALGRIND_SUP="$1"
+			shift
+			;;
+		--valgrind-opts)
+			shift
+			VALGRIND_EXTRA_OPTIONS="${VALGRIND_EXTRA_OPITONS} $1"
 			shift
 			;;
 		--verbosity)
@@ -104,9 +110,9 @@ if [ -z "$TESTOPTIONS" ] ; then
 		# leak-check=full is better than leak-check=summary,
 		# sadly squeeze's valgrind counts them into the error number
 		# with full, and we want to ignore them for childs....
-		TESTOPTIONS="-e -a --debug --leak-check=${VALGRIND_LEAK} --suppressions=$TESTSDIR/valgrind.supp"
+		TESTOPTIONS="-e -a --debug ${VALGRIND_EXTRA_OPTIONS} --leak-check=${VALGRIND_LEAK} --suppressions=$TESTSDIR/valgrind.supp"
 	else
-		TESTOPTIONS="-e -a --debug --leak-check=${VALGRIND_LEAK} --suppressions=$VALGRIND_SUP"
+		TESTOPTIONS="-e -a --debug ${VALGRIND_EXTRA_OPTIONS} --leak-check=${VALGRIND_LEAK} --suppressions=$VALGRIND_SUP"
 	fi
 fi
 case "$verbosity" in
