@@ -1,3 +1,6 @@
+2013-06-15  Bernhard R. Link <brlink@debian.org>
+	* make reprepro compile with libdb6.0
+
 2013-06-02  Bernhard R. Link <brlink@debian.org>
 	* as gcc got better, remove conditional workarounds for
 	  most uninitialized-false-positives and make the remaining

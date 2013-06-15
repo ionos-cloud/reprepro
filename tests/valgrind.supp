@@ -36,6 +36,14 @@
    fun:__memp_sync_int
 }
 {
+   more-careless-libdb6
+   Memcheck:Cond
+   fun:__bam_stkrel
+   obj:/usr/lib*/libdb-6*.so
+   fun:__dbc_iput
+   fun:__db_put
+}
+{
    more-careless-libdb5
    Memcheck:Cond
    fun:__bam_stkrel
