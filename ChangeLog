@@ -1,4 +1,8 @@
 2013-06-15  Bernhard R. Link <brlink@debian.org>
+	* use libarchive_read_free instead of libarchive_read_finish
+	  with newer libarchive to avoid issues with future versions.
+
+2013-06-15  Bernhard R. Link <brlink@debian.org>
 	* make reprepro compile with libdb6.0
 
 2013-06-02  Bernhard R. Link <brlink@debian.org>

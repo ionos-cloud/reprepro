@@ -35,6 +35,9 @@
 #ifndef HAVE_LIBARCHIVE
 #error Why did this file got compiled instead of extractcontrol.c?
 #endif
+#if ARCHIVE_VERSION_NUMBER < 3000000
+#define archive_read_free archive_read_finish
+#endif
 
 static retvalue read_control_file(char **control, const char *debfile, struct archive *tar, struct archive_entry *entry) {
 	int64_t size;
@@ -204,7 +207,7 @@ retvalue extractcontrol(char **control, const char *debfile) {
 				tar = archive_read_new();
 				r = read_control_tar(control, debfile, ar, tar);
 				// TODO run archive_read_close to get error messages?
-				archive_read_finish(tar);
+				archive_read_free(tar);
 				if (r != RET_NOTHING) {
 					ar_close(ar);
 					free(filename);
