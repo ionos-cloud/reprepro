@@ -85,8 +85,9 @@ static void package_data_free(/*@only@*/struct package_data *data){
 	free(data);
 }
 
-/* This is called before any package lists are read for any package we already
- * have in this target. upgrade->list points to the first in the sorted list,
+/* This is called before any package lists are read.
+ * It is called once for every package we already have in this target.
+ * upgrade->list points to the first in the sorted list,
  * upgrade->last to the last one inserted */
 static retvalue save_package_version(struct upgradelist *upgrade, const char *packagename, const char *chunk) {
 	char *version;
