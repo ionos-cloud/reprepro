@@ -1,3 +1,6 @@
+Updates between 4.13.1 and 4.13.2:
+- repairdescriptions also repairs udeb descriptions
+
 Updates between 4.13.0 and 4.13.1:
 - fix bug in restore
 - fix percomponent udeb Contents filenames

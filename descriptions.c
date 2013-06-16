@@ -52,6 +52,10 @@ static retvalue description_from_package(const char *control, char **description
 	strlist_done(&filekeys);
 	if (FAILEDTOALLOC(filename))
 		return RET_ERROR_OOM;
+	if (verbose > 7) {
+		fprintf(stderr, "Reading '%s' to extract description...\n",
+				filename);
+	}
 	r = extractcontrol(&deb_control, filename);
 	assert (r != RET_NOTHING);
 	if (RET_WAS_ERROR(r)) {
@@ -91,7 +95,7 @@ static void description_genmd5(const char *description, /*@out@*/ char *d, size_
 	*d = '\0';
 }
 
-retvalue description_complete(const char *package, const char *control, bool force, char **control_p) {
+retvalue description_complete(const char *package, const char *control, bool ignoreonlyshort, bool force, char **control_p) {
 	char *description, *description_md5, *deb_description, *newcontrol;
 	struct fieldtoadd *todo;
 	size_t dlen;
@@ -119,7 +123,12 @@ retvalue description_complete(const char *package, const char *control, bool for
 		return r;
 	}
 	if (r == RET_NOTHING) {
-		/* only short description and no -md5? try to complete anyway... */
+		/* only short description and no -md5?*/
+		if (ignoreonlyshort) {
+			free(description);
+			return RET_NOTHING;
+		}
+		/* try to complete anyway... */
 		description_md5 = NULL;
 	}
 	r = description_from_package(control, &deb_description);
@@ -145,6 +154,13 @@ retvalue description_complete(const char *package, const char *control, bool for
 			/* not fatal, only not processed */
 			return RET_NOTHING;
 		}
+	}
+	if (strlen(deb_description) == dlen) {
+		/* nothing new, only a short description in the .deb, too: */
+		free(description);
+		free(description_md5);
+		free(deb_description);
+		return RET_NOTHING;
 	}
 	free(description);
 	/* check if Description-md5 matches */

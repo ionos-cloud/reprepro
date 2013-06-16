@@ -2490,7 +2490,7 @@ static retvalue repair_descriptions(struct target *target, bool force) {
         const char *package, *controlchunk;
 
         assert(target->packages == NULL);
-	assert(target->packagetype == pt_deb);
+	assert(target->packagetype == pt_deb || target->packagetype == pt_udeb);
 
         if (verbose > 2) {
                 printf(
@@ -2509,8 +2509,9 @@ static retvalue repair_descriptions(struct target *target, bool force) {
 			result = RET_ERROR_INTERRUPTED;
 			break;
 		}
-                r = description_complete(package, controlchunk, force,
-				&newcontrolchunk);
+                r = description_complete(package, controlchunk,
+				target->packagetype == pt_udeb,
+				force, &newcontrolchunk);
                 RET_UPDATE(result, r);
                 if (RET_WAS_ERROR(r))
                         break;
@@ -2564,7 +2565,7 @@ ACTION_F(y, n, y, y, repairdescriptions) {
 			}
 			if (!target_matches(t, components, architectures, packagetypes))
 				continue;
-			if (t->packagetype != pt_deb)
+			if (t->packagetype == pt_dsc)
 				continue;
 			r = repair_descriptions(t, force);
 			RET_UPDATE(result, r);

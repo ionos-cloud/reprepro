@@ -2,6 +2,6 @@
 #define REPREPRO_DESCRIPTIONS_H
 
 
-retvalue description_complete(const char *, const char *, bool, char **);
+retvalue description_complete(const char *, const char *, bool, bool, char **);
 
 #endif
