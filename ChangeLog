@@ -1,5 +1,6 @@
 2013-10-05  Bernhard R. Link <brlink@debian.org>
 	* fix docs/outstore.py to work with newer python3 dbm behaviour
+	* more strict checking of all size information in .changes files
 
 2013-06-15  Bernhard R. Link <brlink@debian.org>
 	* use libarchive_read_free instead of libarchive_read_finish
