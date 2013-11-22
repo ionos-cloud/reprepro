@@ -1,0 +1,45 @@
+A general tour through the reprepro source tree:
+
+See also the "naming conventions" section in README.
+
+Most code returns a "retvalue". That is just a int, but a int with semantics.
+Errors are negative number (RET_WAS_ERROR is true), RET_OK means it returned
+successfully. RET_NOTHING can mean nothing has happened or nothing to do, or
+outgoing arguments were not initialized or something like that.
+
+Errors are to be checked always and immediately.
+
+Most of the code is written in some POOP (Pseudo Object Orientated
+Programming), i.e. for a struct foo there is a foo_something allocating and
+initiating it, several foo_something having a struct foo as first argument
+(think methods) and some destructor (usually foo_free if it also deallocates it
+and foo_done if you have to do the deallocation).
+
+A special case are binary and source packages. Those are (except in some
+special cases when preparing to add packages) not found as some struct but
+instead in serialized form as "char *" as 'controlchunk' (older code often
+calls it 'chunk', newer 'control'). The serialisation format is the same as
+the part of the package in the generated Packages or Sources file.
+
+Extracing data from this format is usually done via routines in chunk.c.
+For source and binary packages those chunk_* routines are usually called from
+functions in sources.c or binaries.c, which are usually called via function
+pointers in struct target (think of the function pointers in struct target as
+some externalized virtual method table for packages).
+
+Implementation (including the layout of structs) is hidden in the specific
+module (i.e. foo.c and not foo.h), unless doing so would require writing glue
+code or significant getter/setter code or error messages would not have enough
+information to be helpful.
+
+STYLE GUIDE
+-----------
+Some coding style guidelines I try to adhere to:
+
+Function prototypes in a single line.
+No other line longer than 80 characters.
+Indentation by tabs (which count as 8 spaces for the 80 characters rule).
+No appreciations unless there is really no other way.
+One or two letter names only for core variables.
+Spaces before and after binary operators ('=',...) and after ',' and
+before the '(' of flow controls (if, for, while, assert).
