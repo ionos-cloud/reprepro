@@ -422,7 +422,7 @@ static retvalue addpackages(struct target *target, const char *packagename, cons
 	return result;
 }
 
-retvalue target_addpackage(struct target *target, struct logger *logger, const char *name, const char *version, const char *control, const struct strlist *filekeys, bool downgrade, struct trackingdata *trackingdata, enum filetype filetype, const char *causingrule, const char *suitefrom) {
+retvalue target_addpackage(struct target *target, struct logger *logger, const char *name, const char *version, const char *control, const struct strlist *filekeys, bool downgrade, struct trackingdata *trackingdata, architecture_t architecture, const char *causingrule, const char *suitefrom) {
 	struct strlist oldfilekeys, *ofk;
 	char *oldcontrol, *oldsource, *oldsversion;
 	char *oldpversion;
@@ -523,7 +523,7 @@ retvalue target_addpackage(struct target *target, struct logger *logger, const c
 			version, oldpversion,
 			filekeys, ofk,
 			logger,
-			trackingdata, filetype, oldsource, oldsversion,
+			trackingdata, architecture, oldsource, oldsversion,
 			causingrule, suitefrom);
 	if (RET_IS_OK(r)) {
 		target->wasmodified = true;
