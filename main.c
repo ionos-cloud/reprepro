@@ -2636,7 +2636,7 @@ ACTION_RF(n, n, y, y, sizes) {
 ACTION_D(y, y, y, includedeb) {
 	retvalue result, r;
 	struct distribution *distribution;
-	bool isudeb;
+	packagetype_t packagetype;
 	trackingdb tracks;
 	int i = 0;
 	component_t component = atom_unknown;
@@ -2659,14 +2659,14 @@ ACTION_D(y, y, y, includedeb) {
 			return RET_ERROR;
 		}
 	if (strcmp(argv[0], "includeudeb") == 0) {
-		isudeb = true;
+		packagetype = pt_udeb;
 		if (limitations_missed(packagetypes, pt_udeb)) {
 			fprintf(stderr,
 "Calling includeudeb with a -T not containing udeb makes no sense!\n");
 			return RET_ERROR;
 		}
 	} else if (strcmp(argv[0], "includedeb") == 0) {
-		isudeb = false;
+		packagetype = pt_deb;
 		if (limitations_missed(packagetypes, pt_deb)) {
 			fprintf(stderr,
 "Calling includedeb with a -T not containing deb makes no sense!\n");
@@ -2681,7 +2681,7 @@ ACTION_D(y, y, y, includedeb) {
 	for (i = 2 ; i < argc ; i++) {
 		const char *filename = argv[i];
 
-		if (isudeb) {
+		if (packagetype == pt_udeb) {
 			if (!endswith(filename, ".udeb") && !IGNORING(extension,
 "includeudeb called with file '%s' not ending with '.udeb'\n", filename))
 				return RET_ERROR;
@@ -2703,7 +2703,7 @@ ACTION_D(y, y, y, includedeb) {
 		return RET_ERROR;
 	}
 
-	if (isudeb)
+	if (packagetype == pt_udeb)
 		result = override_read(distribution->udeb_override,
 				&distribution->overrides.udeb, false);
 	else
@@ -2745,7 +2745,7 @@ ACTION_D(y, y, y, includedeb) {
 		const char *filename = argv[i];
 
 		r = deb_add(component, architectures,
-				section, priority, isudeb?pt_udeb:pt_deb,
+				section, priority, packagetype,
 				distribution, filename,
 				delete, tracks);
 		RET_UPDATE(result, r);
