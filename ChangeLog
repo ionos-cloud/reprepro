@@ -1,3 +1,7 @@
+2013-11-21  Bernhard R. Link <brlink@debian.org>
+	* automatically add long Descriptions when updating from a source that
+	  does not have them in the Packages files.
+
 2013-10-05  Bernhard R. Link <brlink@debian.org>
 	* fix docs/outstore.py to work with newer python3 dbm behaviour
 	* more strict checking of all size information in .changes files

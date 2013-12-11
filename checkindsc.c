@@ -147,7 +147,7 @@ retvalue dsc_addprepared(const struct dsc_headers *dsc, component_t component, c
 					dsc->control, filekeys,
 					false, trackingdata,
 					architecture_source,
-					NULL, NULL);
+					NULL, NULL, NULL);
 		r2 = target_closepackagesdb(t);
 		RET_ENDUPDATE(r, r2);
 	}

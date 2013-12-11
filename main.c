@@ -2484,7 +2484,7 @@ ACTION_F(y, n, y, y, reoverride) {
 
 /*****************retrieving Description data from .deb files***************/
 
-static retvalue repair_descriptions(struct target *target, bool force) {
+static retvalue repair_descriptions(struct target *target) {
         struct target_cursor iterator;
         retvalue result, r;
         const char *package, *controlchunk;
@@ -2509,9 +2509,9 @@ static retvalue repair_descriptions(struct target *target, bool force) {
 			result = RET_ERROR_INTERRUPTED;
 			break;
 		}
-                r = description_complete(package, controlchunk,
-				target->packagetype == pt_udeb,
-				force, &newcontrolchunk);
+		/* replace it by itself to normalize the Description field */
+                r = description_addpackage(target, package, controlchunk,
+				controlchunk, NULL, &newcontrolchunk);
                 RET_UPDATE(result, r);
                 if (RET_WAS_ERROR(r))
                         break;
@@ -2538,7 +2538,6 @@ static retvalue repair_descriptions(struct target *target, bool force) {
 ACTION_F(y, n, y, y, repairdescriptions) {
 	retvalue result, r;
 	struct distribution *d;
-	bool force = strcmp(argv[0], "forcerepairdescriptions") == 0;
 
 	result = distribution_match(alldistributions, argc-1, argv+1,
 			true, READWRITE);
@@ -2567,7 +2566,7 @@ ACTION_F(y, n, y, y, repairdescriptions) {
 				continue;
 			if (t->packagetype == pt_dsc)
 				continue;
-			r = repair_descriptions(t, force);
+			r = repair_descriptions(t);
 			RET_UPDATE(result, r);
 			RET_UPDATE(d->status, r);
 			if (RET_WAS_ERROR(r))
@@ -3892,7 +3891,7 @@ static const struct action {
 	{"reoverride", 		A_Fact(reoverride),
 		0, -1, "[-T ...] [-C ...] [-A ...] reoverride [<distributions>]"},
 	{"repairdescriptions", 	A_Fact(repairdescriptions),
-		0, -1, "[-C ...] [-A ...] [force]repairdescriptions [<distributions>]"},
+		0, -1, "[-C ...] [-A ...] repairdescriptions [<distributions>]"},
 	{"forcerepairdescriptions", 	A_Fact(repairdescriptions),
 		0, -1, "[-C ...] [-A ...] [force]repairdescriptions [<distributions>]"},
 	{"redochecksums", 	A_Fact(redochecksums),

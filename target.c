@@ -40,6 +40,7 @@
 #include "tracking.h"
 #include "log.h"
 #include "files.h"
+#include "descriptions.h"
 #include "target.h"
 
 static char *calc_identifier(const char *codename, component_t component, architecture_t architecture, packagetype_t packagetype) {
@@ -422,8 +423,9 @@ static retvalue addpackages(struct target *target, const char *packagename, cons
 	return result;
 }
 
-retvalue target_addpackage(struct target *target, struct logger *logger, const char *name, const char *version, const char *control, const struct strlist *filekeys, bool downgrade, struct trackingdata *trackingdata, architecture_t architecture, const char *causingrule, const char *suitefrom) {
+retvalue target_addpackage(struct target *target, struct logger *logger, const char *name, const char *version, const char *control, const struct strlist *filekeys, bool downgrade, struct trackingdata *trackingdata, architecture_t architecture, const char *causingrule, const char *suitefrom, struct description *description) {
 	struct strlist oldfilekeys, *ofk;
+	char *newcontrol;
 	char *oldcontrol, *oldsource, *oldsversion;
 	char *oldpversion;
 	retvalue r;
@@ -519,7 +521,13 @@ retvalue target_addpackage(struct target *target, struct logger *logger, const c
 		}
 
 	}
-	r = addpackages(target, name, control, oldcontrol,
+	newcontrol = NULL;
+	r = description_addpackage(target, name, control, oldcontrol,
+			description, &newcontrol);
+	if (RET_IS_OK(r))
+		control = newcontrol;
+	if (!RET_WAS_ERROR(r))
+		r = addpackages(target, name, control, oldcontrol,
 			version, oldpversion,
 			filekeys, ofk,
 			logger,
@@ -530,6 +538,7 @@ retvalue target_addpackage(struct target *target, struct logger *logger, const c
 		if (trackingdata == NULL)
 			target->staletracking = true;
 	}
+	free(newcontrol);
 	free(oldpversion);
 	free(oldcontrol);
 

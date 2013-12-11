@@ -1648,7 +1648,7 @@ static retvalue add_dsc(struct distribution *into, struct trackingdata *tracking
 					&p->filekeys,
 					false, trackingdata,
 					architecture_source,
-					NULL, NULL);
+					NULL, NULL, NULL);
 		r2 = target_closepackagesdb(t);
 		RET_ENDUPDATE(r, r2);
 	}

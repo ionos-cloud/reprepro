@@ -95,11 +95,19 @@ static void description_genmd5(const char *description, /*@out@*/ char *d, size_
 	*d = '\0';
 }
 
-retvalue description_complete(const char *package, const char *control, bool ignoreonlyshort, bool force, char **control_p) {
+/* Currently only normalizing towards a full Description is supported,
+ * the cached description is not yet used, long descriptions are not stored elsewhere
+ * and thus also no reference counting is done. */
+
+retvalue description_addpackage(struct target *target, const char *package, const char *control, const char *oldcontrol, struct description *cached, char **control_p) {
 	char *description, *description_md5, *deb_description, *newcontrol;
 	struct fieldtoadd *todo;
 	size_t dlen;
 	retvalue r;
+
+	/* source packages have no descriptions */
+	if (target->packagetype == pt_dsc)
+		return RET_NOTHING;
 
 	r = chunk_getwholedata(control, "Description", &description);
 	if (RET_WAS_ERROR(r))
@@ -108,7 +116,7 @@ retvalue description_complete(const char *package, const char *control, bool ign
 		fprintf(stderr,
 "Strange control data for '%s': no Description at all\n",
 				package);
-		return RET_ERROR;
+		return RET_NOTHING;
 	}
 	if (strchr(description, '\n') != NULL) {
 		/* there already is a long description, nothing to do */
@@ -123,13 +131,10 @@ retvalue description_complete(const char *package, const char *control, bool ign
 		return r;
 	}
 	if (r == RET_NOTHING) {
-		/* only short description and no -md5?*/
-		if (ignoreonlyshort) {
-			free(description);
-			return RET_NOTHING;
-		}
-		/* try to complete anyway... */
-		description_md5 = NULL;
+		/* only short description and no -md5?
+		 * unusual but can happen, especially with .udeb */
+		free(description);
+		return RET_NOTHING;
 	}
 	r = description_from_package(control, &deb_description);
 	assert (r != RET_NOTHING);
@@ -147,13 +152,13 @@ retvalue description_complete(const char *package, const char *control, bool ign
 "Short Description of package '%s' does not match\n"
 "the start of the long descriptiongfound in the .deb\n",
 				package);
-		if (!force) {
+		//if (!force) {
 			free(description);
 			free(description_md5);
 			free(deb_description);
 			/* not fatal, only not processed */
 			return RET_NOTHING;
-		}
+		//}
 	}
 	if (strlen(deb_description) == dlen) {
 		/* nothing new, only a short description in the .deb, too: */
@@ -174,12 +179,12 @@ retvalue description_complete(const char *package, const char *control, bool ign
 "the md5 of the description found in the .deb\n"
 "('%s' != '%s')!\n",
 				package, description_md5, found);
-			if (!force) {
+			//if (!force) {
 				free(description_md5);
 				/* not fatal, only not processed */
 				free(deb_description);
 				return RET_NOTHING;
-			}
+			//}
 		}
 		free(description_md5);
 	}
@@ -194,4 +199,9 @@ retvalue description_complete(const char *package, const char *control, bool ign
 		return RET_ERROR_OOM;
 	*control_p = newcontrol;
 	return RET_OK;
+}
+
+retvalue description_preparepackage(UNUSED(struct target *target), UNUSED(const char *package), UNUSED(const char *control), UNUSED(struct description **description_p)) {
+	/* everything yet done in description_addpackage */
+	return RET_NOTHING;
 }
