@@ -1,3 +1,7 @@
+2014-02-11  Bernhard R. Link <brlink@debian.org>
+	* improve the errormessage of processincoming if the inclusion of a
+	package is forbidden by uploaders files.
+
 2013-11-21  Bernhard R. Link <brlink@debian.org>
 	* automatically add long Descriptions when updating from a source that
 	  does not have them in the Packages files.
