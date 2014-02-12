@@ -1092,6 +1092,11 @@ the corresponding Packages or Sources file would get)
 .BI "_addreference " filekey " " identifier
 Manually mark \fIfilekey\fP to be needed by \fIidentifier\fP
 .TP
+.BI "_addreferences " identifier " \fR[\fR " filekeys " \fR]\fR"
+Manually mark one or more \fIfilekeys\fP to be needed by \fIidentifier\fP.
+If no command line arguments are given,
+stdin is read and every line treated as one filekey.
+.TP
 .BI "_removereferences " identifier
 Remove all references what is needed by
 .I identifier.

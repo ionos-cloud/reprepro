@@ -617,6 +617,34 @@ ACTION_R(n, n, n, y, addreference) {
 	return references_increment(argv[1], argv[2]);
 }
 
+ACTION_R(n, n, n, y, addreferences) {
+	char buffer[5000], *nl;
+	int i;
+	retvalue r, ret;
+
+	ret = RET_NOTHING;
+
+	if (argc > 2) {
+		for (i = 2 ; i < argc ; i++) {
+			const char *filename = argv[i];
+			r = references_increment(filename, argv[1]);
+			RET_UPDATE(ret, r);
+		}
+	} else {
+		while (fgets(buffer, 4999, stdin) != NULL) {
+			nl = strchr(buffer, '\n');
+			if (nl == NULL) {
+				return RET_ERROR;
+			}
+			*nl = '\0';
+			r = references_increment(buffer, argv[1]);
+			RET_UPDATE(ret, r);
+		}
+	}
+
+	return ret;
+}
+
 static retvalue remove_from_target(struct distribution *distribution, struct trackingdata *trackingdata, struct target *target, int count, const char * const *names, int *todo, bool *gotremoved) {
 	retvalue result, r;
 	int i;
@@ -3856,6 +3884,8 @@ static const struct action {
 		1, 1, "_removereferences <identifier>"},
 	{"_addreference", 	A__R(addreference),
 		2, 2, "_addreference <reference> <referee>"},
+	{"_addreferences", 	A__R(addreferences),
+		1, -1, "_addreferences <referee> <references>"},
 	{"_fakeemptyfilelist",	A__F(fakeemptyfilelist),
 		1, 1, "_fakeemptyfilelist <filekey>"},
 	{"_addpackage",		A_Dact(addpackage),
