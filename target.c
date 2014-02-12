@@ -592,7 +592,7 @@ retvalue target_checkaddpackage(struct target *target, const char *name, const c
 "Error: trying to put version '%s' of '%s' in '%s',\n"
 "while there already is the stricly newer '%s' in there.\n"
 "(To ignore this error add Permit: older_version.)\n",
-						name, version,
+						version, name,
 						target->identifier,
 						oldpversion);
 					r = RET_ERROR;
@@ -600,7 +600,7 @@ retvalue target_checkaddpackage(struct target *target, const char *name, const c
 					printf(
 "Warning: trying to put version '%s' of '%s' in '%s',\n"
 "while there already is '%s' in there.\n",
-						name, version,
+						version, name,
 						target->identifier,
 						oldpversion);
 				}
