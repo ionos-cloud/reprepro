@@ -73,6 +73,7 @@
 #include "distribution.h"
 #include "tracking.h"
 #include "termdecide.h"
+#include "chunks.h"
 #include "filterlist.h"
 #include "log.h"
 #include "donefile.h"
@@ -170,7 +171,10 @@ struct update_pattern {
 	bool getinrelease;
 	/* the form in which index files are preferably downloaded */
 	struct encoding_preferences downloadlistsas;
+	/* if true ignore sources with Extra-Source-Only */
+	bool omitextrasource;
 	/* if the specific field is there (to destinguish from an empty one) */
+	bool omitextrasource_set;
 	bool ignorehashes_set;
 	bool ignorerelease_set;
 	bool getinrelease_set;
@@ -357,6 +361,7 @@ CFallSETPROC(update_pattern, shellhook)
 CFfilterlistSETPROC(update_pattern, filterlist)
 CFfilterlistSETPROC(update_pattern, filtersrclist)
 CFtermSSETPROC(update_pattern, includecondition)
+CFtruthSETPROC(update_pattern, omitextrasource)
 
 CFUSETPROC(update_pattern, downloadlistsas) {
 	CFSETPROCVAR(update_pattern, this);
@@ -533,6 +538,7 @@ static const struct configfield updateconfigfields[] = {
 	CF("ListHook", update_pattern, listhook),
 	CF("ListShellHook", update_pattern, shellhook),
 	CF("FilterFormula", update_pattern, includecondition),
+	CF("OmitExtraSourceOnly", update_pattern, omitextrasource),
 	CF("FilterList", update_pattern, filterlist),
 	CF("FilterSrcList", update_pattern, filtersrclist),
 	CF("DownloadListsAs", update_pattern, downloadlistsas)
@@ -1754,6 +1760,18 @@ static upgrade_decision ud_decide_by_pattern(void *privdata, const struct target
 		if (r == RET_NOTHING) {
 			return UD_NO;
 		}
+	}
+
+	if (target->packagetype != pt_dsc)
+		return decision;
+
+	p = pattern;
+	while (p != NULL && !p->omitextrasource_set)
+		p = p->pattern_from;
+	/* if unset or set to true, ignore source having that field */
+	if (p == NULL || p->omitextrasource == true) {
+		if (chunk_gettruth(newcontrolchunk, "Extra-Source-Only"))
+			return UD_NO;
 	}
 
 	return decision;

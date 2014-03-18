@@ -1790,6 +1790,16 @@ If there is only \fBFilterList\fP that is applied to everything.
 If there is only \fBFilterSrcList\fP that is applied to everything, too,
 but the source package name (and source version) is used to do the lookup.
 .TP
+.B OmitExtraSourceOnly
+This field controls whether source packages with Extra-Source-Only
+set are ignore when getting source packages.
+Withouth this option or if it is true, those source packages
+are ignored, while if set to no or false, those source packages
+are also condidates if no other filter excludes them.
+(The default of true will likely change once reprepro supports
+multiple versions of a package or has other means to keep the
+source packages around).
+.TP
 .B ListHook
 If this is given, it is executed for all downloaded index files
 with the downloaded list as first and a filename that will

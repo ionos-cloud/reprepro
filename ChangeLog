@@ -1,4 +1,7 @@
 2014-03-18  Bernhard R. Link <brlink@debian.org>
+	* update ignore source packages with ExtraSourceOnly by default,
+	unless the new OmitExtraSourceOnly option is set in conf/updates
+	to false.
 	* fix override mechanism of .udeb files
 
 2014-02-12 Lukas Anzinger <l.anzinger@gmail.com>
