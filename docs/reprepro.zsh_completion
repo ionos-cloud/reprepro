@@ -505,7 +505,7 @@ case "$state" in
 	  (_addreferences)
 		if [[ "$state" = "first argument" ]] ; then
 			_reprepro_identifiers
-		elif [[ "$state" = "second argument" ]] ; then
+		else
 			_reprepro_filekeys
 		fi
 		;;
