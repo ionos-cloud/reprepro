@@ -129,9 +129,10 @@ def processfile(logfile, donefile, db):
 	# Checked input to death, no actualy do something
 	outdir = os.environ['REPREPRO_OUT_DIR']
 	for p in newpoolfiles:
-		if p in db:
+		bp = bytes(p, encoding="utf-8")
+		if bp in db:
 			raise Exception("duplicate pool file %s" % p)
-		db[p] = poolfile(outdir, p)
+		db[bp] = poolfile(outdir, p)
 	for distname, distdir, distfiles, distsymlinks, distdeletes in distributions:
 		for name, orig in distfiles:
 			db[distdir + '/' + name] = distfile(outdir, orig)
@@ -140,9 +141,10 @@ def processfile(logfile, donefile, db):
 		for name in distdeletes:
 			del db[distdir + '/' + name]
 	for p in deletepoolfiles:
-		if not p in db:
+		bp = bytes(p, encoding="utf-8")
+		if not bp in db:
 			raise Exception("deleting non-existant pool file %s" % p)
-		del db[p]
+		del db[bp]
 
 def collectfiles(dir, name):
 	for l in os.listdir(dir + '/' + name):

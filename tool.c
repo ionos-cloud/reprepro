@@ -621,9 +621,25 @@ static retvalue parse_changes_files(struct changes *c, struct strlist filelines[
 			}
 			hashes[ofs].hashes[cs].start = hashstart;
 			hashes[ofs].hashes[cs].len = hashend - hashstart;
-			// TODO: compare instead:
-			// hashes[ofs].hashes[cs_length].start = sizestart;
-			// hashes[ofs].hashes[cs_length].len = sizeend - sizestart;
+
+			size_t sizelen = sizeend - sizestart;
+
+			if (hashes[ofs].hashes[cs_length].start == NULL) {
+				hashes[ofs].hashes[cs_length].start = sizestart;
+				hashes[ofs].hashes[cs_length].len = sizelen;
+
+			} else if (hashes[ofs].hashes[cs_length].len != sizelen
+			           || memcmp(sizestart,
+			                     hashes[ofs].hashes[cs_length].start,
+			                     sizelen) != 0) {
+				fprintf(stderr,
+"Error: Contradicting file size information for '%s' ('%.*s' vs '%.*s') in .changes file\n",
+					f->basename,
+					(int)sizelen, sizestart,
+					(int)hashes[ofs].hashes[cs_length].len,
+					hashes[ofs].hashes[cs_length].start);
+				return RET_ERROR;
+			}
 		}
 	}
 	ofs = 0;
@@ -1182,7 +1198,7 @@ static retvalue write_changes_file(const char *changesfilename, struct changes *
 
 	}
 	// Changed-by: line
-	if (flagset(CHANGES_WRITE_MAINTAINER)) {
+	if (flagset(CHANGES_WRITE_MAINTAINER) && c->maintainer != NULL) {
 		cef = cef_newfield("Maintainer", CEF_ADD, CEF_EARLY, 0, cef);
 		if (FAILEDTOALLOC(cef))
 			return RET_ERROR_OOM;

@@ -617,6 +617,34 @@ ACTION_R(n, n, n, y, addreference) {
 	return references_increment(argv[1], argv[2]);
 }
 
+ACTION_R(n, n, n, y, addreferences) {
+	char buffer[5000], *nl;
+	int i;
+	retvalue r, ret;
+
+	ret = RET_NOTHING;
+
+	if (argc > 2) {
+		for (i = 2 ; i < argc ; i++) {
+			const char *filename = argv[i];
+			r = references_increment(filename, argv[1]);
+			RET_UPDATE(ret, r);
+		}
+	} else {
+		while (fgets(buffer, 4999, stdin) != NULL) {
+			nl = strchr(buffer, '\n');
+			if (nl == NULL) {
+				return RET_ERROR;
+			}
+			*nl = '\0';
+			r = references_increment(buffer, argv[1]);
+			RET_UPDATE(ret, r);
+		}
+	}
+
+	return ret;
+}
+
 static retvalue remove_from_target(struct distribution *distribution, struct trackingdata *trackingdata, struct target *target, int count, const char * const *names, int *todo, bool *gotremoved) {
 	retvalue result, r;
 	int i;
@@ -2484,13 +2512,13 @@ ACTION_F(y, n, y, y, reoverride) {
 
 /*****************retrieving Description data from .deb files***************/
 
-static retvalue repair_descriptions(struct target *target, bool force) {
+static retvalue repair_descriptions(struct target *target) {
         struct target_cursor iterator;
         retvalue result, r;
         const char *package, *controlchunk;
 
         assert(target->packages == NULL);
-	assert(target->packagetype == pt_deb);
+	assert(target->packagetype == pt_deb || target->packagetype == pt_udeb);
 
         if (verbose > 2) {
                 printf(
@@ -2509,8 +2537,9 @@ static retvalue repair_descriptions(struct target *target, bool force) {
 			result = RET_ERROR_INTERRUPTED;
 			break;
 		}
-                r = description_complete(package, controlchunk, force,
-				&newcontrolchunk);
+		/* replace it by itself to normalize the Description field */
+                r = description_addpackage(target, package, controlchunk,
+				controlchunk, NULL, &newcontrolchunk);
                 RET_UPDATE(result, r);
                 if (RET_WAS_ERROR(r))
                         break;
@@ -2537,7 +2566,6 @@ static retvalue repair_descriptions(struct target *target, bool force) {
 ACTION_F(y, n, y, y, repairdescriptions) {
 	retvalue result, r;
 	struct distribution *d;
-	bool force = strcmp(argv[0], "forcerepairdescriptions") == 0;
 
 	result = distribution_match(alldistributions, argc-1, argv+1,
 			true, READWRITE);
@@ -2564,9 +2592,9 @@ ACTION_F(y, n, y, y, repairdescriptions) {
 			}
 			if (!target_matches(t, components, architectures, packagetypes))
 				continue;
-			if (t->packagetype != pt_deb)
+			if (t->packagetype == pt_dsc)
 				continue;
-			r = repair_descriptions(t, force);
+			r = repair_descriptions(t);
 			RET_UPDATE(result, r);
 			RET_UPDATE(d->status, r);
 			if (RET_WAS_ERROR(r))
@@ -2635,7 +2663,7 @@ ACTION_RF(n, n, y, y, sizes) {
 ACTION_D(y, y, y, includedeb) {
 	retvalue result, r;
 	struct distribution *distribution;
-	bool isudeb;
+	packagetype_t packagetype;
 	trackingdb tracks;
 	int i = 0;
 	component_t component = atom_unknown;
@@ -2658,14 +2686,14 @@ ACTION_D(y, y, y, includedeb) {
 			return RET_ERROR;
 		}
 	if (strcmp(argv[0], "includeudeb") == 0) {
-		isudeb = true;
+		packagetype = pt_udeb;
 		if (limitations_missed(packagetypes, pt_udeb)) {
 			fprintf(stderr,
 "Calling includeudeb with a -T not containing udeb makes no sense!\n");
 			return RET_ERROR;
 		}
 	} else if (strcmp(argv[0], "includedeb") == 0) {
-		isudeb = false;
+		packagetype = pt_deb;
 		if (limitations_missed(packagetypes, pt_deb)) {
 			fprintf(stderr,
 "Calling includedeb with a -T not containing deb makes no sense!\n");
@@ -2680,7 +2708,7 @@ ACTION_D(y, y, y, includedeb) {
 	for (i = 2 ; i < argc ; i++) {
 		const char *filename = argv[i];
 
-		if (isudeb) {
+		if (packagetype == pt_udeb) {
 			if (!endswith(filename, ".udeb") && !IGNORING(extension,
 "includeudeb called with file '%s' not ending with '.udeb'\n", filename))
 				return RET_ERROR;
@@ -2702,7 +2730,7 @@ ACTION_D(y, y, y, includedeb) {
 		return RET_ERROR;
 	}
 
-	if (isudeb)
+	if (packagetype == pt_udeb)
 		result = override_read(distribution->udeb_override,
 				&distribution->overrides.udeb, false);
 	else
@@ -2744,7 +2772,7 @@ ACTION_D(y, y, y, includedeb) {
 		const char *filename = argv[i];
 
 		r = deb_add(component, architectures,
-				section, priority, isudeb?pt_udeb:pt_deb,
+				section, priority, packagetype,
 				distribution, filename,
 				delete, tracks);
 		RET_UPDATE(result, r);
@@ -3856,6 +3884,8 @@ static const struct action {
 		1, 1, "_removereferences <identifier>"},
 	{"_addreference", 	A__R(addreference),
 		2, 2, "_addreference <reference> <referee>"},
+	{"_addreferences", 	A__R(addreferences),
+		1, -1, "_addreferences <referee> <references>"},
 	{"_fakeemptyfilelist",	A__F(fakeemptyfilelist),
 		1, 1, "_fakeemptyfilelist <filekey>"},
 	{"_addpackage",		A_Dact(addpackage),
@@ -3891,7 +3921,7 @@ static const struct action {
 	{"reoverride", 		A_Fact(reoverride),
 		0, -1, "[-T ...] [-C ...] [-A ...] reoverride [<distributions>]"},
 	{"repairdescriptions", 	A_Fact(repairdescriptions),
-		0, -1, "[-C ...] [-A ...] [force]repairdescriptions [<distributions>]"},
+		0, -1, "[-C ...] [-A ...] repairdescriptions [<distributions>]"},
 	{"forcerepairdescriptions", 	A_Fact(repairdescriptions),
 		0, -1, "[-C ...] [-A ...] [force]repairdescriptions [<distributions>]"},
 	{"redochecksums", 	A_Fact(redochecksums),

@@ -226,6 +226,7 @@ EOF
 
 testrun - -b . -T deb -A abacus -C dog _addpackage B importindex bar foo 3<<EOF
 stderr
+*=Strange control data for 'foo': no Description at all
 stdout
 -v1*=Adding 'foo' '0' to 'B|dog|abacus'.
 -d1*=db: 'foo' added to packages.db(B|dog|abacus).
@@ -424,6 +425,7 @@ EOF
 
 testrun - -b . restore B now foo 3<<EOF
 stderr
+*=Strange control data for 'foo': no Description at all
 *=Warning: replacing 'foo' version '0' with equal version '0' in 'B|dog|abacus'!
 *=Warning: replacing 'foo' version '1' with equal version '1' in 'B|dog|source'!
 stdout
@@ -456,6 +458,7 @@ EOF
 
 testrun - -b . restoresrc B now foo 0 1 3<<EOF
 stderr
+*=Strange control data for 'foo': no Description at all
 *=Warning: replacing 'foo' version '0' with equal version '0' in 'B|dog|abacus'!
 *=Warning: replacing 'foo' version '1' with equal version '1' in 'B|dog|source'!
 stdout
@@ -477,6 +480,7 @@ EOF
 
 testrun - -b . restoresrc B now foo 0 3<<EOF
 stderr
+*=Strange control data for 'foo': no Description at all
 *=Warning: replacing 'foo' version '0' with equal version '0' in 'B|dog|abacus'!
 stdout
 -v1*=Adding 'foo' '0' to 'B|dog|abacus'.
@@ -551,6 +555,7 @@ dodo test -f pool/dog/f/foo/foo_1.dsc
 
 testrun - -b . restore B now bar foo 3<<EOF
 stderr
+*=Strange control data for 'foo': no Description at all
 stdout
 -v1*=Adding 'foo' '0' to 'B|dog|abacus'.
 -d1*=db: 'foo' added to packages.db(B|dog|abacus).

@@ -315,6 +315,7 @@ _reprepro()
 		       	_addchecksums\
 			_addpackage\
 		       	_addreference\
+			_addreferences\
 		       	_detect\
 		       	_dumpcontents\
 		       	_fakeemptyfilelist\

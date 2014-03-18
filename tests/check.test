@@ -35,6 +35,8 @@ Architecture: all
 Filename: pool/c/p/pseudo/fake_0_all.deb
 Section: base
 Priority: extra
+Description: test
+ test
 Size: $fakesize
 MD5Sum: $fakedeb1md
 EOF
@@ -202,6 +204,8 @@ Architecture: all
 Filename: pool/c/p/pseudo/fake_0_all.deb
 Section: base
 Priority: extra
+Description: test
+ test
 Size: $fakesize
 MD5Sum: $fakedeb1md
 '

@@ -1,7 +1,7 @@
 #!/bin/dash
 
 # This needs installed:
-# apt, dpkg-dev, ed, python-apt, lzma
+# apt, dpkg-dev, ed, python-apt, lzma, python3, dbX.Y-util
 # it will fail if run over a changing hour
 
 set -e -u
@@ -12,6 +12,7 @@ SRCDIR="$(readlink -e "$(dirname $0)/..")"
 WORKDIR="`pwd`/testdir"
 USE_VALGRIND=""
 VALGRIND_LEAK=summary
+VALGRIND_EXTRA_OPTIONS=""
 VALGRIND_SUP=""
 TESTOPTIONS=""
 VERBOSEDB="1"
@@ -54,6 +55,11 @@ while [ $# -gt 0 ] ; do
 			USE_VALGRIND=1
 			shift
 			VALGRIND_SUP="$1"
+			shift
+			;;
+		--valgrind-opts)
+			shift
+			VALGRIND_EXTRA_OPTIONS="${VALGRIND_EXTRA_OPITONS} $1"
 			shift
 			;;
 		--verbosity)
@@ -104,9 +110,9 @@ if [ -z "$TESTOPTIONS" ] ; then
 		# leak-check=full is better than leak-check=summary,
 		# sadly squeeze's valgrind counts them into the error number
 		# with full, and we want to ignore them for childs....
-		TESTOPTIONS="-e -a --debug --leak-check=${VALGRIND_LEAK} --suppressions=$TESTSDIR/valgrind.supp"
+		TESTOPTIONS="-e -a --debug ${VALGRIND_EXTRA_OPTIONS} --leak-check=${VALGRIND_LEAK} --suppressions=$TESTSDIR/valgrind.supp"
 	else
-		TESTOPTIONS="-e -a --debug --leak-check=${VALGRIND_LEAK} --suppressions=$VALGRIND_SUP"
+		TESTOPTIONS="-e -a --debug ${VALGRIND_EXTRA_OPTIONS} --leak-check=${VALGRIND_LEAK} --suppressions=$VALGRIND_SUP"
 	fi
 fi
 case "$verbosity" in
@@ -146,6 +152,25 @@ esac
 
 if test -d "$WORKDIR" && test -f "$WORKDIR/ThisDirectoryWillBeDeleted" && $deleteifmarked ; then
 	rm -r "$WORKDIR" || exit 3
+fi
+
+if ! which fakeroot >/dev/null 2>&1 ; then
+	echo "WARNING: fakeroot not installed, some tests might fail!"
+fi
+if ! which python3 >/dev/null 2>&1 ; then
+	echo "WARNING: python3 not installed, some tests might fail!"
+fi
+if ! which lzma >/dev/null 2>&1 ; then
+	echo "WARNING: lzma not installed, some tests might fail!"
+fi
+if ! which ed >/dev/null 2>&1 ; then
+	echo "WARNING: ed not installed, some tests might fail!"
+fi
+if ! dpkg -s python-apt | grep -q -s "Status: .* ok installed" ; then
+	echo "WARNING: python-apt not installed, some tests might fail!"
+fi
+if ! dpkg -s dpkg-dev | grep -q -s "Status: .* ok installed" ; then
+	echo "WARNING: dpkg-dev not installed, most tests might fail!"
 fi
 
 mkdir "$WORKDIR" || exit 1
