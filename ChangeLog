@@ -1,3 +1,6 @@
+2014-03-18  Bernhard R. Link <brlink@debian.org>
+	* fix override mechanism of .udeb files
+
 2014-02-11  Bernhard R. Link <brlink@debian.org>
 	* improve the errormessage of processincoming if the inclusion of a
 	package is forbidden by uploaders files.
