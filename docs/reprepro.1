@@ -442,6 +442,11 @@ using dollars not escaped outside specified constructs,
 or any field names not listed as special and not consisting entirely out of
 letters, digits and minus signs have undefined behaviour
 and might change meaning without any further notice.
+
+If you give this option on the command line,
+don't forget that $ is also interpreted by your shell.
+So you have to properly escape it.
+For example by putting the whole argument to \-\-list\-format in single quotes.
 .TP
 .B \-\-show\-percent
 When downloading packages, show each completed percent of completed package
