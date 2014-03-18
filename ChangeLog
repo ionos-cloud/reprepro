@@ -1,3 +1,32 @@
+2014-03-18  Bernhard R. Link <brlink@debian.org>
+	* update ignore source packages with ExtraSourceOnly by default,
+	unless the new OmitExtraSourceOnly option is set in conf/updates
+	to false.
+	* fix override mechanism of .udeb files
+
+2014-02-12 Lukas Anzinger <l.anzinger@gmail.com>
+	* add _addreferences to add multiple references at once
+
+2014-02-11  Bernhard R. Link <brlink@debian.org>
+	* improve the errormessage of processincoming if the inclusion of a
+	package is forbidden by uploaders files.
+
+2013-11-21  Bernhard R. Link <brlink@debian.org>
+	* automatically add long Descriptions when updating from a source that
+	  does not have them in the Packages files.
+
+2013-10-05  Bernhard R. Link <brlink@debian.org>
+	* fix docs/outstore.py to work with newer python3 dbm behaviour
+	* more strict checking of all size information in .changes files
+
+2013-06-15  Bernhard R. Link <brlink@debian.org>
+	* use libarchive_read_free instead of libarchive_read_finish
+	  with newer libarchive to avoid issues with future versions.
+	* repairdescriptions also repairs udeb descriptions
+
+2013-06-15  Bernhard R. Link <brlink@debian.org>
+	* make reprepro compile with libdb6.0
+
 2013-06-02  Bernhard R. Link <brlink@debian.org>
 	* as gcc got better, remove conditional workarounds for
 	  most uninitialized-false-positives and make the remaining

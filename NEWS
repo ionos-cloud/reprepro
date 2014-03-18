@@ -1,3 +1,10 @@
+Updates between 4.13.1 and 4.14.0:
+- repairdescriptions also repairs udeb descriptions
+- automatically add long descriptions when updating
+  packages from a source that does not have them
+- ignore Extra-Source-Only source packages by default
+- some small bugfixes and improvements
+
 Updates between 4.13.0 and 4.13.1:
 - fix bug in restore
 - fix percomponent udeb Contents filenames

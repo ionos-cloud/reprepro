@@ -29,6 +29,7 @@
 #include "target.h"
 #include "files.h"
 #include "upgradelist.h"
+#include "descriptions.h"
 
 struct package_data {
 	struct package_data *next;
@@ -58,6 +59,8 @@ struct package_data {
 	/* the list of files that will belong to this:
 	 * same validity */
 	struct strlist new_filekeys;
+	/* cache/info what description is needed for this */
+	struct description *description;
 	struct checksumsarray new_origfiles;
 	/* to destinguish arch all from not arch all */
 	architecture_t architecture;
@@ -85,8 +88,9 @@ static void package_data_free(/*@only@*/struct package_data *data){
 	free(data);
 }
 
-/* This is called before any package lists are read for any package we already
- * have in this target. upgrade->list points to the first in the sorted list,
+/* This is called before any package lists are read.
+ * It is called once for every package we already have in this target.
+ * upgrade->list points to the first in the sorted list,
  * upgrade->last to the last one inserted */
 static retvalue save_package_version(struct upgradelist *upgrade, const char *packagename, const char *chunk) {
 	char *version;
@@ -727,6 +731,7 @@ retvalue upgradelist_install(struct upgradelist *upgrade, struct logger *logger,
 						&pkg->new_filekeys,
 						pkg->new_origfiles.checksums,
 						&newcontrol);
+				assert (r != RET_NOTHING);
 			}
 			if (! RET_WAS_ERROR(r)) {
 				/* upgrade (or possibly downgrade) */
@@ -735,6 +740,7 @@ retvalue upgradelist_install(struct upgradelist *upgrade, struct logger *logger,
 
 				free(pkg->new_control);
 				pkg->new_control = newcontrol;
+				newcontrol = NULL;
 				callback(pkg->privdata,
 						&causingrule, &suitefrom);
 // TODO: trackingdata?
@@ -747,7 +753,8 @@ retvalue upgradelist_install(struct upgradelist *upgrade, struct logger *logger,
 						pkg->new_control,
 						&pkg->new_filekeys, true,
 						NULL, pkg->architecture,
-						causingrule, suitefrom);
+						causingrule, suitefrom,
+						pkg->description);
 			}
 			RET_UPDATE(result, r);
 			if (RET_WAS_ERROR(r))

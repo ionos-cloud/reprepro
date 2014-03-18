@@ -214,7 +214,7 @@ cp test.changes i/
 testrun - -b . processincoming ab 3<<EOF
 return 243
 stderr
-*=No distribution accepting 'test.changes'!
+*=No distribution accepting 'test.changes' (i.e. none of the candidate distributions allowed inclusion)!
 -v0*=There have been errors!
 stdout
 EOF
@@ -236,7 +236,7 @@ cp testrevsigned.changes i/
 testrun - -b . processincoming ab 3<<EOF
 return 243
 stderr
-*=No distribution accepting 'testrevsigned.changes'!
+*=No distribution accepting 'testrevsigned.changes' (i.e. none of the candidate distributions allowed inclusion)!
 -v0*=There have been errors!
 -v1*=Ignoring signature with '12D6C95C8C737389EAAF535972F1D61F685AF714' on 'testrevsigned.changes', as the key is revoked.
 #-v0*='testrevsigned.changes' would have been accepted into 'BTest' if signature with '12D6C95C8C737389EAAF535972F1D61F685AF714' was checkable and valid.
@@ -263,7 +263,7 @@ cp testbadsigned.changes i/
 testrun - -b . processincoming ab 3<<EOF
 return 243
 stderr
-*=No distribution accepting 'testbadsigned.changes'!
+*=No distribution accepting 'testbadsigned.changes'  (i.e. some distribution found but the package is not allowed there)!
 -v0*=There have been errors!
 stdout
 EOF

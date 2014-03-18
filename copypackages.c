@@ -278,7 +278,7 @@ static retvalue package_add(struct distribution *into, /*@null@*/trackingdb trac
 			(tracks != NULL)?
 			&trackingdata:NULL,
 			package->architecture,
-			NULL, suitefrom);
+			NULL, suitefrom, NULL);
 	RET_UPDATE(into->status, r);
 	if (tracks != NULL) {
 		retvalue r2;

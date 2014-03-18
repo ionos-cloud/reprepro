@@ -245,6 +245,8 @@ Architecture: all
 Version: 0
 Filename: flatsource/test.deb
 Size: 0
+Description: test
+ test
 MD5Sum: $EMPTYMD5ONLY
 EOF
 pkgmd="$(mdandsize flatsource/Packages)"
@@ -335,6 +337,8 @@ cat > flatsource/Packages <<EOF
 Package: test
 Architecture: yyyyyyyyyy
 Version: 1
+Description: test
+ test
 Filename: flatsource/test.deb
 Size: 0
 MD5Sum: $EMPTYMD5ONLY
@@ -395,6 +399,8 @@ touch fake.dsc
 cat > flatsource/Sources <<EOF
 Package: test
 Version: 0
+Description: test
+ test
 Files:
  $EMPTYMD5 fake.dsc
 EOF

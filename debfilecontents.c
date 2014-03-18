@@ -34,6 +34,9 @@
 #ifndef HAVE_LIBARCHIVE
 #error Why did this file got compiled?
 #endif
+#if ARCHIVE_VERSION_NUMBER < 3000000
+#define archive_read_free archive_read_finish
+#endif
 
 static retvalue read_data_tar(/*@out@*/char **list, /*@out@*/size_t *size, const char *debfile, struct ar_archive *ar, struct archive *tar) {
 	struct archive_entry *entry;
@@ -168,7 +171,7 @@ retvalue getfilelist(/*@out@*/char **filelist, size_t *size, const char *debfile
 				r = read_data_tar(filelist, size,
 						debfile, ar, tar);
 				// TODO: check how to get an error message here..
-				archive_read_finish(tar);
+				archive_read_free(tar);
 				if (r != RET_NOTHING) {
 					ar_close(ar);
 					free(filename);

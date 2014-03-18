@@ -316,6 +316,7 @@ retvalue ubinaries_doreoverride(const struct target *target, const char *package
 	const struct overridedata *o;
 	struct fieldtoadd *fields;
 	char *newchunk;
+	retvalue r;
 
 	if (interrupted())
 		return RET_ERROR_INTERRUPTED;
@@ -324,11 +325,10 @@ retvalue ubinaries_doreoverride(const struct target *target, const char *package
 	if (o == NULL)
 		return RET_NOTHING;
 
-	fields = override_addreplacefields(o, NULL);
-	if (FAILEDTOALLOC(fields))
-		return RET_ERROR_OOM;
-	newchunk = chunk_replacefields(controlchunk, fields, "Description",
-			true);
+	r = override_allreplacefields(o, &fields);
+	if (!RET_IS_OK(r))
+		return r;
+	newchunk = chunk_replacefields(controlchunk, fields, "Filename", true);
 	addfield_free(fields);
 	if (FAILEDTOALLOC(newchunk))
 		return RET_ERROR_OOM;
@@ -676,7 +676,7 @@ retvalue binaries_adddeb(const struct deb_headers *deb, const struct atomlist *f
 						false,
 						trackingdata,
 						deb->architecture,
-						NULL, NULL);
+						NULL, NULL, NULL);
 			r2 = target_closepackagesdb(t);
 			RET_ENDUPDATE(r, r2);
 		}
@@ -718,7 +718,7 @@ retvalue binaries_adddeb(const struct deb_headers *deb, const struct atomlist *f
 						false,
 						trackingdata,
 						deb->architecture,
-						NULL, NULL);
+						NULL, NULL, NULL);
 			r2 = target_closepackagesdb(t);
 			RET_ENDUPDATE(r, r2);
 		}

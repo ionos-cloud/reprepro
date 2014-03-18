@@ -221,7 +221,11 @@ static const uint32_t types[dbt_COUNT] = {
 	DB_HASH
 };
 
+#if DB_VERSION_MAJOR >= 6
+static int paireddatacompare(UNUSED(DB *db), const DBT *a, const DBT *b, size_t *locp);
+#else
 static int paireddatacompare(UNUSED(DB *db), const DBT *a, const DBT *b);
+#endif
 
 static retvalue database_opentable(const char *filename, /*@null@*/const char *subtable, enum database_type type, uint32_t flags, /*@out@*/DB **result) {
 	char *fullfilename;
@@ -257,7 +261,7 @@ static retvalue database_opentable(const char *filename, /*@null@*/const char *s
 		}
 	}
 
-#if DB_VERSION_MAJOR == 5
+#if DB_VERSION_MAJOR == 5 || DB_VERSION_MAJOR == 6
 #define DB_OPEN(database, filename, name, type, flags) \
 	database->open(database, NULL, filename, name, type, flags, 0664)
 #else
@@ -1751,7 +1755,14 @@ retvalue database_openreferences(void) {
 }
 
 /* only compare the first 0-terminated part of the data */
-static int paireddatacompare(UNUSED(DB *db), const DBT *a, const DBT *b) {
+static int paireddatacompare(UNUSED(DB *db), const DBT *a, const DBT *b
+#if DB_VERSION_MAJOR >= 6
+#warning Berkeley DB >= 6.0 is not yet tested and highly experimental
+	, UNUSED(size_t *locp)
+	/* "The locp parameter is currently unused, and must be set to NULL or corruption can occur."
+	 * What the ...! How am I supposed to handle that? */
+#endif
+) {
 	if (a->size < b->size)
 		return strncmp(a->data, b->data, a->size);
 	else

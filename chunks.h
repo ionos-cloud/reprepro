@@ -20,7 +20,7 @@ retvalue chunk_getwholedata(const char *, const char *, /*@out@*/char **value);
 retvalue chunk_getname(const char *, const char *, /*@out@*/char **, bool /*allowversion*/);
 retvalue chunk_getnameandversion(const char *, const char *, /*@out@*/char **, /*@out@*/char **);
 
-/* return RET_OK, if field is found, RET_NOTHING, if not (or value indicates false in future variants) */
+/* return RET_OK, if field is found, RET_NOTHING, if not (or value indicates false) */
 retvalue chunk_gettruth(const char *, const char *);
 /* return RET_OK, if field is found, RET_NOTHING, if not */
 retvalue chunk_checkfield(const char *, const char *);

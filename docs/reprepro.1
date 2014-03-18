@@ -442,6 +442,11 @@ using dollars not escaped outside specified constructs,
 or any field names not listed as special and not consisting entirely out of
 letters, digits and minus signs have undefined behaviour
 and might change meaning without any further notice.
+
+If you give this option on the command line,
+don't forget that $ is also interpreted by your shell.
+So you have to properly escape it.
+For example by putting the whole argument to \-\-list\-format in single quotes.
 .TP
 .B \-\-show\-percent
 When downloading packages, show each completed percent of completed package
@@ -505,7 +510,7 @@ and the name may not start (except in the cases given before) with a \fB+\fP.
 An example script looks like: \fB
  #!/bin/sh
  
- if [ "$REPREPRO_EXIT_CODE" -ne 0 ] ; then
+ if [ "$REPREPRO_EXIT_CODE" \-ne 0 ] ; then
  	exit "$REPREPRO_EXIT_CODE"
  fi
  
@@ -1044,11 +1049,6 @@ one of the selected ones).
 Look for binary packages only having a short description
 and try to get the long description from the .deb file
 (and also remove a possible Description-md5 in this case).
-
-The variant \fBforcerepairdescriptions\fP also replaces
-descriptions that do not match the previous short Description
-or the Description-md5 header.
-
 .SS internal commands
 These are hopefully never needed, but allow manual intervention.
 .B WARNING:
@@ -1091,6 +1091,11 @@ the corresponding Packages or Sources file would get)
 .TP
 .BI "_addreference " filekey " " identifier
 Manually mark \fIfilekey\fP to be needed by \fIidentifier\fP
+.TP
+.BI "_addreferences " identifier " \fR[\fR " filekeys " \fR]\fR"
+Manually mark one or more \fIfilekeys\fP to be needed by \fIidentifier\fP.
+If no command line arguments are given,
+stdin is read and every line treated as one filekey.
 .TP
 .BI "_removereferences " identifier
 Remove all references what is needed by
@@ -1785,6 +1790,16 @@ If there is only \fBFilterList\fP that is applied to everything.
 If there is only \fBFilterSrcList\fP that is applied to everything, too,
 but the source package name (and source version) is used to do the lookup.
 .TP
+.B OmitExtraSourceOnly
+This field controls whether source packages with Extra-Source-Only
+set are ignore when getting source packages.
+Withouth this option or if it is true, those source packages
+are ignored, while if set to no or false, those source packages
+are also condidates if no other filter excludes them.
+(The default of true will likely change once reprepro supports
+multiple versions of a package or has other means to keep the
+source packages around).
+.TP
 .B ListHook
 If this is given, it is executed for all downloaded index files
 with the downloaded list as first and a filename that will
@@ -1946,7 +1961,8 @@ Special fields are:
 will put the package in the component given as value
 (unless itself overridden with \fB\-C\fP).
 Note that the proper way to specify the component is by setting the
-section field and using this extension will most likely confuse people.
+section field and using this extension will most likely confuse people
+and/or tools.
 
  \fB$Delete\fP: the value is treated a fieldname and fields of that
 name are removed.

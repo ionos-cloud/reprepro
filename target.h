@@ -145,7 +145,8 @@ static inline retvalue target_closeiterator(struct target_cursor *tc) {
 
 /* The following calls can only be called if target_initpackagesdb was called before: */
 struct logger;
-retvalue target_addpackage(struct target *, /*@null@*/struct logger *, const char *name, const char *version, const char *control, const struct strlist *filekeys, bool downgrade, /*@null@*/struct trackingdata *, enum filetype, /*@null@*/const char *causingrule, /*@null@*/const char *suitefrom);
+struct description;
+retvalue target_addpackage(struct target *, /*@null@*/struct logger *, const char *name, const char *version, const char *control, const struct strlist *filekeys, bool downgrade, /*@null@*/struct trackingdata *, architecture_t, /*@null@*/const char *causingrule, /*@null@*/const char *suitefrom, /*@null@*/struct description *);
 retvalue target_checkaddpackage(struct target *, const char *name, const char *version, bool tracking, bool permitnewerold);
 retvalue target_removepackage(struct target *, /*@null@*/struct logger *, const char *name, struct trackingdata *);
 /* like target_removepackage, but do not read control data yourself but use available */

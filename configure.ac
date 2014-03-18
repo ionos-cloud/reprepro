@@ -2,7 +2,7 @@ dnl
 dnl Process this file with autoconf to produce a configure script
 dnl
 
-AC_INIT(reprepro, 4.13.1, brlink@debian.org)
+AC_INIT(reprepro, 4.14.0, brlink@debian.org)
 AC_CONFIG_SRCDIR(main.c)
 AC_CONFIG_AUX_DIR(ac)
 AM_INIT_AUTOMAKE([-Wall -Werror -Wno-portability])

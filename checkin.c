@@ -130,7 +130,7 @@ static void freeentries(/*@only@*/struct fileentry *entry) {
 		free(entry->section);
 		free(entry->priority);
 		free(entry->name);
-		if (entry->type == fe_DEB || entry->type == fe_UDEB)
+		if (FE_BINARY(entry->type))
 			deb_free(entry->pkg.deb);
 		 else if (entry->type == fe_DSC) {
 			 strlist_done(&entry->needed_filekeys);
@@ -1153,8 +1153,7 @@ static retvalue changes_checkpkgs(struct distribution *distribution, struct chan
 	e = changes->files;
 	while (e != NULL) {
 		char *fullfilename;
-		if (e->type != fe_DEB && e->type != fe_DSC
-				&& e->type != fe_UDEB) {
+		if (!FE_PACKAGE(e->type)) {
 			e = e->next;
 			continue;
 		}
@@ -1216,12 +1215,6 @@ static retvalue changes_includepkgs(struct distribution *distribution, struct ch
 
 	e = changes->files;
 	while (e != NULL) {
-		if (e->type != fe_DEB && e->type != fe_DSC
-				&& e->type != fe_UDEB && e->type != fe_LOG
-				&& e->type != fe_BYHAND) {
-			e = e->next;
-			continue;
-		}
 		if (interrupted())
 			return RET_ERROR_INTERRUPTED;
 		if (e->type == fe_DEB) {
@@ -1259,7 +1252,8 @@ static retvalue changes_includepkgs(struct distribution *distribution, struct ch
 					trackingdata->pkg,
 					ft_XTRA_DATA, e->filekey, false);
 			e->filekey = NULL;
-		}
+		} else
+			r = RET_NOTHING;
 		RET_UPDATE(result, r);
 
 		if (RET_WAS_ERROR(r))

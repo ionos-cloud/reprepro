@@ -266,6 +266,7 @@ hiddencommands=(
 	_addchecksums:"add checksums to database"
 	_addmd5sums:"add checksums to database"
 	_addreference:"mark a filekey needed by an identifier"
+	_addreferences:"mark multiple filekeys needed by an identifier"
 	_detect:"look if the file belonging to a filekey exists and add to the database."
 	_dumpcontents:"output contents of a part of the repository"
 	_fakeemptyfilelist:"create an empty fake filelist cache item for a filekey"
@@ -499,6 +500,13 @@ case "$state" in
 			_reprepro_filekeys
 		elif [[ "$state" = "second argument" ]] ; then
 			_reprepro_identifiers
+		fi
+		;;
+	  (_addreferences)
+		if [[ "$state" = "first argument" ]] ; then
+			_reprepro_identifiers
+		else
+			_reprepro_filekeys
 		fi
 		;;
 	  (__uncompress)

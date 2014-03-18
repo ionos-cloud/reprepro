@@ -1648,7 +1648,7 @@ static retvalue add_dsc(struct distribution *into, struct trackingdata *tracking
 					&p->filekeys,
 					false, trackingdata,
 					architecture_source,
-					NULL, NULL);
+					NULL, NULL, NULL);
 		r2 = target_closepackagesdb(t);
 		RET_ENDUPDATE(r, r2);
 	}
@@ -2307,7 +2307,7 @@ static retvalue process_changes(struct incoming *i, int ofs) {
 		}
 	}
 	if (c->perdistribution == NULL) {
-		fprintf(stderr, tried?"No distribution accepting '%s'!\n":
+		fprintf(stderr, tried?"No distribution accepting '%s' (i.e. none of the candidate distributions allowed inclusion)!\n":
 				      "No distribution found for '%s'!\n",
 			i->files.values[ofs]);
 		if (i->cleanup[cuf_on_deny]) {

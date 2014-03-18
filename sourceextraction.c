@@ -24,6 +24,9 @@
 #ifdef HAVE_LIBARCHIVE
 #include <archive.h>
 #include <archive_entry.h>
+#if ARCHIVE_VERSION_NUMBER < 3000000
+#define archive_read_free archive_read_finish
+#endif
 #endif
 
 #include "error.h"
@@ -547,7 +550,7 @@ static retvalue parse_tarfile(struct sourceextraction *e, const char *filename, 
 
 	r = uncompress_open(&file, filename, c);
 	if (!RET_IS_OK(r)) {
-		archive_read_finish(tar);
+		archive_read_free(tar);
 		return r;
 	}
 
@@ -563,7 +566,7 @@ static retvalue parse_tarfile(struct sourceextraction *e, const char *filename, 
 			fprintf(stderr,
 "Error trying to extract control information from %s:\n" "%s\n",
 				filename, archive_error_string(tar));
-		archive_read_finish(tar);
+		archive_read_free(tar);
 		uncompress_abort(file);
 		return RET_ERROR;
 	}
@@ -584,7 +587,7 @@ static retvalue parse_tarfile(struct sourceextraction *e, const char *filename, 
 
 		if (iscontrol) {
 			r = read_source_control_file(e, tar, entry);
-			archive_read_finish(tar);
+			archive_read_free(tar);
 			r2 = uncompress_error(file);
 			RET_UPDATE(r, r2);
 			uncompress_abort(file);
@@ -597,7 +600,7 @@ static retvalue parse_tarfile(struct sourceextraction *e, const char *filename, 
 			printf("Error %d skipping %s within %s: %s\n",
 					err, name, filename,
 					archive_error_string(tar));
-			archive_read_finish(tar);
+			archive_read_free(tar);
 			if (err == 0 || err == -EINVAL)
 				r = RET_ERROR;
 			else
@@ -614,7 +617,7 @@ static retvalue parse_tarfile(struct sourceextraction *e, const char *filename, 
 		int err = archive_errno(tar);
 		fprintf(stderr, "Error %d reading %s: %s\n",
 				err, filename, archive_error_string(tar));
-		archive_read_finish(tar);
+		archive_read_free(tar);
 		if (err == 0 || err == -EINVAL)
 			r = RET_ERROR;
 		else
@@ -624,7 +627,7 @@ static retvalue parse_tarfile(struct sourceextraction *e, const char *filename, 
 		uncompress_abort(file);
 		return r;
 	}
-	archive_read_finish(tar);
+	archive_read_free(tar);
 	*found_p = false;
 	return uncompress_close(file);
 }
