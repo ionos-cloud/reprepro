@@ -1,3 +1,15 @@
+reprepro (4.14.0-1) unstable; urgency=medium
+
+  * new release
+  - update omits sources with Extra-Source-Only by default (Closes: #714418)
+  - improve documentation of --list-format (Closes: #731966)
+  - fix udeb overrides (Closes: #741507)
+  - improve some glitches in error messages (Closes: #738558)
+  - add _addreferences command (Closes: #739174, #739175)
+  * increase Standards-Version to 3.9.5
+
+ -- Bernhard R. Link <brlink@debian.org>  Tue, 18 Mar 2014 15:12:58 +0100
+
 reprepro (4.13.1-1) unstable; urgency=low
 
   * new bugfix release
