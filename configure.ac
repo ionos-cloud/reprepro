@@ -84,6 +84,26 @@ AC_ARG_WITH(libbz2,
 	AC_CHECK_LIB(bz2,BZ2_bzCompressInit,,[AC_MSG_WARN(["no libbz2 found, compiling without"])],)
 ])
 
+AC_ARG_WITH(liblzma,
+[  --with-liblzma=path|yes|no	Give path to prefix liblzma was installed with],[dnl
+	case "$withval" in
+	no)
+	;;
+	yes)
+	AC_CHECK_LIB(lzma,lzma_easy_encoder,,[AC_MSG_ERROR(["no liblzma found, despite being told to use it"])],)
+	;;
+	*)
+	AC_CHECK_LIB(lzma,lzma_easy_encoder,[dnl
+		AC_DEFINE_UNQUOTED(AS_TR_CPP(HAVE_LIBLZMA))
+		LIBS="$LIBS -L$withval/lib -llzma"
+		CPPFLAGS="$CPPFLAGS -I$withval/include"
+	],[AC_MSG_ERROR(["no liblzma found, despite being told to use it"])],[-L$withval/lib])
+	;;
+	esac
+],[dnl without --with-liblzma we look for it but not finding it is no error:
+	AC_CHECK_LIB(lzma,lzma_easy_encoder,,[AC_MSG_WARN(["no liblzma found, compiling without"])],)
+])
+
 ARCHIVELIBS=""
 ARCHIVECPP=""
 AH_TEMPLATE([HAVE_LIBARCHIVE],[Defined if libarchive is available])

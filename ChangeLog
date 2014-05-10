@@ -1,3 +1,9 @@
+2014-05-10  Bernhard R. Link <brlink@debian.org>
+	* add support for linking against liblzma
+	  and generating .xz Indices.
+	  (no changes to decompressing code yet, that still
+	   needs xzcat available)
+
 2014-03-18  Bernhard R. Link <brlink@debian.org>
 	* update ignore source packages with ExtraSourceOnly by default,
 	unless the new OmitExtraSourceOnly option is set in conf/updates
