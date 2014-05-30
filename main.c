@@ -2521,54 +2521,54 @@ ACTION_F(y, n, y, y, reoverride) {
 /*****************retrieving Description data from .deb files***************/
 
 static retvalue repair_descriptions(struct target *target) {
-        struct target_cursor iterator;
-        retvalue result, r;
-        const char *package, *controlchunk;
+	struct target_cursor iterator;
+	retvalue result, r;
+	const char *package, *controlchunk;
 
-        assert(target->packages == NULL);
+	assert(target->packages == NULL);
 	assert(target->packagetype == pt_deb || target->packagetype == pt_udeb);
 
-        if (verbose > 2) {
-                printf(
+	if (verbose > 2) {
+		printf(
 "Redoing checksum information for packages in '%s'...\n",
-                                target->identifier);
-        }
+				target->identifier);
+	}
 
-        r = target_openiterator(target, READWRITE, &iterator);
-        if (!RET_IS_OK(r))
-                return r;
-        result = RET_NOTHING;
-        while (target_nextpackage(&iterator, &package, &controlchunk)) {
-                char *newcontrolchunk = NULL;
+	r = target_openiterator(target, READWRITE, &iterator);
+	if (!RET_IS_OK(r))
+		return r;
+	result = RET_NOTHING;
+	while (target_nextpackage(&iterator, &package, &controlchunk)) {
+		char *newcontrolchunk = NULL;
 
 		if (interrupted()) {
 			result = RET_ERROR_INTERRUPTED;
 			break;
 		}
 		/* replace it by itself to normalize the Description field */
-                r = description_addpackage(target, package, controlchunk,
+		r = description_addpackage(target, package, controlchunk,
 				controlchunk, NULL, &newcontrolchunk);
-                RET_UPDATE(result, r);
-                if (RET_WAS_ERROR(r))
-                        break;
-                if (RET_IS_OK(r)) {
+		RET_UPDATE(result, r);
+		if (RET_WAS_ERROR(r))
+			break;
+		if (RET_IS_OK(r)) {
 			if (verbose >= 0) {
 				printf(
 "Fixing description for '%s'...\n", package);
 			}
-                        r = cursor_replace(target->packages, iterator.cursor,
-                                newcontrolchunk, strlen(newcontrolchunk));
-                        free(newcontrolchunk);
-                        if (RET_WAS_ERROR(r)) {
-                                result = r;
-                                break;
-                        }
-                        target->wasmodified = true;
-                }
-        }
-        r = target_closeiterator(&iterator);
-        RET_ENDUPDATE(result, r);
-        return result;
+			r = cursor_replace(target->packages, iterator.cursor,
+				newcontrolchunk, strlen(newcontrolchunk));
+			free(newcontrolchunk);
+			if (RET_WAS_ERROR(r)) {
+				result = r;
+				break;
+			}
+			target->wasmodified = true;
+		}
+	}
+	r = target_closeiterator(&iterator);
+	RET_ENDUPDATE(result, r);
+	return result;
 }
 
 ACTION_F(y, n, y, y, repairdescriptions) {
