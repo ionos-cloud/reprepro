@@ -1,6 +1,7 @@
 reprepro (4.14.0-2) UNRELEASED; urgency=medium
 
   * add pinentry-curses to build-depends to reduce install size
+  * ship more of the example scripts
 
  -- Bernhard R. Link <brlink@debian.org>  Sat, 10 May 2014 19:23:14 +0200
 
