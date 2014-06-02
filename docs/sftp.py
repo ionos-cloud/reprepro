@@ -633,7 +633,8 @@ class Connection:
 		self.connection = subprocess.Popen(commandline,
 		                                   close_fds = True,
 		                                   stdin = subprocess.PIPE,
-		                                   stdout = subprocess.PIPE)
+		                                   stdout = subprocess.PIPE,
+		                                   bufsize = 0)
 		self.poll = select.poll()
 		self.poll.register(self.connection.stdout, select.POLLIN)
 		self.inbuffer = bytes()
