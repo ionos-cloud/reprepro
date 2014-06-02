@@ -284,7 +284,7 @@ class LogFile:
 		for f in self.deletepoolfiles:
 			self.enqueue(todo, f, Round.DELETES, f, None, self.doneone)
 		for f in self.newpoolfiles:
-			self.enqueue(todo, f, Round.POOLFILES, f, f, self.doneone)
+			self.enqueue(todo, f, Round.POOLFILES, f, options.outdir + "/" + f, self.doneone)
 		for d in self.dists.values():
 			d.queue(todo, distdirs, self)
 		if not self.todocount:
@@ -333,7 +333,7 @@ def doround(s, r, todo):
 		if source is None:
 			s.start(sftp.TaskFromGenerator(deletefile(filename, donefunc)))
 		else:
-			s.start(sftp.TaskFromGenerator(writefile(filename, options.outdir + "/" + source, donefunc)))
+			s.start(sftp.TaskFromGenerator(writefile(filename, source, donefunc)))
 	s.dispatch()
 
 
