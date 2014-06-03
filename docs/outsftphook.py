@@ -102,7 +102,7 @@ def writefile(fname, filetocopy, donefunc):
 	a = yield [('lock', sftp.Semaphore, 'openfile')]
 	if a != "unlock":
 		raise SftpUnexpectedAnswer(a, "waiting for unlock event")
-	a = yield [sftp.OPEN(filename, "CREAT|WRITE", permissions=0o0700)]
+	a = yield [sftp.OPEN(filename, "CREAT|WRITE")]
 	if mode == "tryandtell" and isinstance(a, sftp.STATUS) and a.status == a.status.NO_SUCH_FILE:
 		a.forr.done()
 		a = yield [('missing', sftp.Dirlock, dirname),
