@@ -780,7 +780,7 @@ class Dirlock(Collector):
 		self.queue = []
 	def start(self, connection):
 		super().start(connection)
-		if self.dirname:
+		if self.dirname and (self.name != self.dirname):
 			self.mode = "wait-for-parent"
 			self.connection.collect(self, 'waitingfor',
 			                        Dirlock, self.dirname)
