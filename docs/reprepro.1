@@ -2024,18 +2024,23 @@ of an Allow argument is put into \fIdistribution\fP if that
 accepts it.
 .TP
 .B Multiple
-Allow putting an upload in multiple distributions if it lists more
-than one. (Without this field, procession stops after the first
-success).
+Old form of Options: multiple_distributions.
 .TP
 .B Options
 A list of options
 .br
 .B multiple_distributions
 .br
-Allow putting an upload in multiple distributions if it lists more
-than one. (Without this field, procession stops after the first
-success).
+Allow including a upload in multiple distributions.
+
+If a .changes file lists multiple distributions,
+then reprepro will start with the first name given,
+check all Accept and Default options till it finds
+a distribution this upload can go into.
+
+If this found no distribution or if this option was given,
+reprepro will then do the same with the second distribution name
+given in the .changes file and so on.
 .br
 .B limit_arch_all
 .br
