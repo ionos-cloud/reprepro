@@ -1,4 +1,4 @@
-reprepro (4.15.0-1) UNRELEASED; urgency=medium
+reprepro (4.15.0-1) unstable; urgency=medium
 
   * new release
   - fixes to outsftphook example
@@ -7,7 +7,7 @@ reprepro (4.15.0-1) UNRELEASED; urgency=medium
   * ship more of the example scripts
   * add pinentry-curses to Depends to avoid pulling pinentry-gtk in
 
- -- Bernhard R. Link <brlink@debian.org>  Sat, 28 Jun 2014 12:57:33 +0200
+ -- Bernhard R. Link <brlink@debian.org>  Sat, 28 Jun 2014 13:46:06 +0200
 
 reprepro (4.14.0-1) unstable; urgency=medium
 
