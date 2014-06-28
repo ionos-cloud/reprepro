@@ -102,7 +102,7 @@ def writefile(fname, filetocopy, donefunc):
 	a = yield [('lock', sftp.Semaphore, 'openfile')]
 	if a != "unlock":
 		raise SftpUnexpectedAnswer(a, "waiting for unlock event")
-	a = yield [sftp.OPEN(filename, "CREAT|WRITE", permissions=0o0700)]
+	a = yield [sftp.OPEN(filename, "CREAT|WRITE")]
 	if mode == "tryandtell" and isinstance(a, sftp.STATUS) and a.status == a.status.NO_SUCH_FILE:
 		a.forr.done()
 		a = yield [('missing', sftp.Dirlock, dirname),
@@ -284,7 +284,7 @@ class LogFile:
 		for f in self.deletepoolfiles:
 			self.enqueue(todo, f, Round.DELETES, f, None, self.doneone)
 		for f in self.newpoolfiles:
-			self.enqueue(todo, f, Round.POOLFILES, f, f, self.doneone)
+			self.enqueue(todo, f, Round.POOLFILES, f, options.outdir + "/" + f, self.doneone)
 		for d in self.dists.values():
 			d.queue(todo, distdirs, self)
 		if not self.todocount:
@@ -333,7 +333,7 @@ def doround(s, r, todo):
 		if source is None:
 			s.start(sftp.TaskFromGenerator(deletefile(filename, donefunc)))
 		else:
-			s.start(sftp.TaskFromGenerator(writefile(filename, options.outdir + "/" + source, donefunc)))
+			s.start(sftp.TaskFromGenerator(writefile(filename, source, donefunc)))
 	s.dispatch()
 
 
@@ -348,8 +348,7 @@ class Options:
 		self.basedir = None
 		self.outdir = None
 		self.logdir = None
-		self.confdir = None
-		self.debugsftp = 0
+		self.debugsftp = None
 
 options = Options()
 
@@ -475,6 +474,14 @@ def main(args):
 				username = line[1]
 			elif line[0] == "targetdir":
 				targetdir = line[1]
+			elif line[0] == "debug":
+				if options.debugsftp is None:
+					try:
+						options.debugsftp = int(line[1])
+					except Exception:
+						raise CriticalError(("Cannot parse %s: " +
+						      "unparseable number %s") %
+							    (repr(conffilename), repr(line[1])))
 			elif line[0] == "verbose":
 				if line[1].lower() in {'yes', 'on', '1', 'true'}:
 					if options.verbose is None:
@@ -483,8 +490,8 @@ def main(args):
 					if options.verbose is None:
 						options.verbose = False
 				else:
-					raise CriticalError("Cannot parse %s: " +
-					      "unparseable truth value %s" %
+					raise CriticalError(("Cannot parse %s: " +
+					      "unparseable truth value %s") %
 						    (repr(conffilename), repr(line[1])))
 			elif line[0] == "autoretry":
 				if line[1].lower() in {'yes', 'on', '1', 'true'}:
@@ -494,13 +501,15 @@ def main(args):
 					if options.autoretry is None:
 						options.autoretry = False
 				else:
-					raise CriticalError("Cannot parse %s: " +
-					      "unparseable truth value %s" %
+					raise CriticalError(("Cannot parse %s: " +
+					      "unparseable truth value %s") %
 						    (repr(conffilename), repr(line[1])))
 			else:
 				raise CriticalError("Cannot parse %s: unknown option %s" %
 						    (repr(conffilename), repr(line[0])))
 		conffile.close()
+	if options.debugsftp is None:
+		options.debugsftp = 0
 	if targetdir and not targetdir.endswith("/"):
 		targetdir = targetdir + "/"
 	if not servername:
@@ -537,7 +546,7 @@ def main(args):
 	else:
 		pendinglogs = sorted(filter(lambda bn: bn < maxbasename, pendinglogs))
 		if pendinglogs and not options.autoretry:
-			raise CriticalError("Unprocessed earlier outlogs found: %s\nYou need to process them first (or use --autoretry or autoretry true in outsftphook.conf to automatically process them)")
+			raise CriticalError("Unprocessed earlier outlogs found: %s\nYou need to process them first (or use --autoretry or autoretry true in outsftphook.conf to automatically process them)" % repr(pendinglogs))
 		if pendinglogs and len(args) > 1:
 			raise CriticalError("autoretry does not work with multiple log files given (yet).")
 	args = list(map(lambda bn: options.logdir + "/" + bn, pendinglogs)) + args

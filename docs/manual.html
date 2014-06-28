@@ -1185,18 +1185,33 @@ ByhandHooks:
 </pre>
 This will call the hook script <tt class="constant">handle-byhand.sh</tt> for every byhand file with section <tt class="constant">byhand</tt>, any priority and filename <tt class="constant">manifesto.txt</tt>. (The first three fields allow glob characters for matching).
 
-The script will then be alled with 5 arguments: the codename of the distribution, the section, the priority, the filename as found in the changes file and the filename of where the script can find the actual file.
+The script will then be called with 5 arguments:
+the codename of the distribution,
+the section,
+the priority,
+the filename as found in the changes file and
+the filename of where the script can find the actual file.
+
 <h3>Scripts to be run when creating index files (Packages.gz, Sources.gz)</h3>
 this hook is described in the section <a href="#exporthook">&quot;Additional index files&quot;</a>.
+
 <h3><a name="signhook">Scripts to be run when signing releases</a></h3>
 Instead of creating <tt class="filename">InRelease</tt> and
 <tt class="filename">Release.gpg</tt> files using libgpgme,
 the <tt class="option">SignWith</tt> option can also contain
 a exclamation mark followed by a space and the name of a hook script to call.
 
-The script gets three arguments: The filename to sign, the filename of the InRelease
-file to create and the filename of the Release.gpg to create (a Release.gpg does not
-need to be created. reprepro will assume you do not care about that legacy file if it
+The script gets three arguments:
+The filename to sign,
+the filename of the InRelease file to create and
+the filename of the Release.gpg to create
+(a Release.gpg does not need to be created. reprepro will assume you do not care about that legacy file if it is not created).
+
+Reprepro will wait for the script to continue and only do the renaming
+and deleting of old files after that, so the script might wait for example
+for someone to copy files from the system, signing and copying them it,
+for example.
+
 <h3><a name="outhook">Scripts to be run after changing the visible files of the repository managed</a></h3>
 When using the <tt class="option">--outhook</tt> command line option (or the corresponding
 <tt class="constant">outhook</tt> in the <tt class="filename">options</tt> file),

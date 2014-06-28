@@ -19,6 +19,9 @@ enum indexcompression {ic_uncompressed=0, ic_gzip,
 #ifdef HAVE_LIBBZ2
 			ic_bzip2,
 #endif
+#ifdef HAVE_LIBLZMA
+			ic_xz,
+#endif
 			ic_count /* fake item to get count */
 };
 typedef unsigned int compressionset; /* 1 << indexcompression */
