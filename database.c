@@ -942,7 +942,7 @@ static const char databaseerror[] = "Internal error of the underlying BerkeleyDB
 /****************************************************************************
  * Stuff to handle data in tables                                           *
  ****************************************************************************
- There is nothing that connot be solved by another layer of indirection, except
+ There is nothing that cannot be solved by another layer of indirection, except
  too many levels of indirection. (Source forgotten) */
 
 struct table {

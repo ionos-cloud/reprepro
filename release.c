@@ -32,6 +32,9 @@
 #ifdef HAVE_LIBBZ2
 #include <bzlib.h>
 #endif
+#ifdef HAVE_LIBLZMA
+#include <lzma.h>
+#endif
 #define CHECKSUMS_CONTEXT visible
 #include "error.h"
 #include "ignore.h"
@@ -50,6 +53,8 @@
 #define INPUT_BUFFER_SIZE 1024
 #define GZBUFSIZE 40960
 #define BZBUFSIZE 40960
+// TODO: what is the correct value here:
+#define XZBUFSIZE 40960
 
 struct release {
 	/* The base-directory of the distribution we are exporting */
@@ -364,6 +369,10 @@ static char *calc_compressedname(const char *name, enum indexcompression ic) {
 		case ic_bzip2:
 			return calc_addsuffix(name, "bz2");
 #endif
+#ifdef HAVE_LIBLZMA
+		case ic_xz:
+			return calc_addsuffix(name, "xz");
+#endif
 		default:
 			assert ("Huh?" == NULL);
 			return NULL;
@@ -517,6 +526,11 @@ struct filetorelease {
 	char *bzoutputbuffer; size_t bz_waiting_bytes;
 	bz_stream bzstream;
 #endif
+#ifdef HAVE_LIBLZMA
+	/* output buffer for bzip2 compression */
+	unsigned char *xzoutputbuffer; size_t xz_waiting_bytes;
+	lzma_stream xzstream;
+#endif
 };
 
 void release_abortfile(struct filetorelease *file) {
@@ -542,6 +556,12 @@ void release_abortfile(struct filetorelease *file) {
 	free(file->bzoutputbuffer);
 	if (file->bzstream.next_out != NULL) {
 		(void)BZ2_bzCompressEnd(&file->bzstream);
+	}
+#endif
+#ifdef HAVE_LIBLZMA
+	if (file->xzoutputbuffer != NULL) {
+		free(file->xzoutputbuffer);
+		lzma_end(&file->xzstream);
 	}
 #endif
 }
@@ -687,9 +707,34 @@ static retvalue initbzcompression(struct filetorelease *f) {
 }
 #endif
 
+#ifdef HAVE_LIBLZMA
+
+static retvalue initxzcompression(struct filetorelease *f) {
+	lzma_ret lret;
+
+	f->xzoutputbuffer = malloc(XZBUFSIZE);
+	if (FAILEDTOALLOC(f->xzoutputbuffer))
+		return RET_ERROR_OOM;
+	memset(&f->xzstream, 0, sizeof(f->xzstream));
+	lret = lzma_easy_encoder(&f->xzstream, 9, LZMA_CHECK_CRC64);
+	if (lret == LZMA_MEM_ERROR)
+		return RET_ERROR_OOM;
+	if (lret != LZMA_OK) {
+		fprintf(stderr, "Error from liblzma's lzma_easy_encoder: "
+				"%d\n", lret);
+		return RET_ERROR;
+	}
+	return RET_OK;
+}
+#endif
+
+
 static const char * const ics[ic_count] = { "", ".gz"
 #ifdef HAVE_LIBBZ2
        	, ".bz2"
+#endif
+#ifdef HAVE_LIBLZMA
+       	, ".xz"
 #endif
 };
 
@@ -801,6 +846,24 @@ static retvalue startfile(struct release *release, const char *filename, /*@null
 		}
 		checksumscontext_init(&n->f[ic_bzip2].context);
 		r = initbzcompression(n);
+		if (RET_WAS_ERROR(r)) {
+			release_abortfile(n);
+			return r;
+		}
+	}
+#endif
+#ifdef HAVE_LIBLZMA
+	if ((compressions & IC_FLAG(ic_xz)) != 0) {
+		retvalue r;
+		r = setfilename(n, filename, symlinkas, ic_xz);
+		if (!RET_WAS_ERROR(r))
+			r = openfile(release->dirofdist, &n->f[ic_xz]);
+		if (RET_WAS_ERROR(r)) {
+			release_abortfile(n);
+			return r;
+		}
+		checksumscontext_init(&n->f[ic_xz].context);
+		r = initxzcompression(n);
 		if (RET_WAS_ERROR(r)) {
 			release_abortfile(n);
 			return r;
@@ -1116,6 +1179,91 @@ static retvalue finishbz(struct filetorelease *f) {
 }
 #endif
 
+#ifdef HAVE_LIBLZMA
+
+static retvalue writexz(struct filetorelease *f) {
+	lzma_ret xzret;
+
+	assert (f->f[ic_xz].fd >= 0);
+
+	f->xzstream.next_in = f->buffer;
+	f->xzstream.avail_in = INPUT_BUFFER_SIZE;
+
+	do {
+		f->xzstream.next_out = f->xzoutputbuffer + f->xz_waiting_bytes;
+		f->xzstream.avail_out = XZBUFSIZE - f->xz_waiting_bytes;
+
+		xzret = lzma_code(&f->xzstream, LZMA_RUN);
+		f->xz_waiting_bytes = XZBUFSIZE - f->xzstream.avail_out;
+
+		if (xzret == LZMA_OK &&
+				f->xz_waiting_bytes >= XZBUFSIZE / 2) {
+			retvalue r;
+			assert (f->xz_waiting_bytes > 0);
+			r = writetofile(&f->f[ic_xz],
+					(const unsigned char *)f->xzoutputbuffer,
+					f->xz_waiting_bytes);
+			assert (r != RET_NOTHING);
+			if (RET_WAS_ERROR(r))
+				return r;
+			f->xz_waiting_bytes = 0;
+		}
+	} while (xzret == LZMA_OK && f->xzstream.avail_in != 0);
+
+	f->xzstream.next_in = NULL;
+	f->xzstream.avail_in = 0;
+
+	if (xzret != LZMA_OK) {
+		fprintf(stderr, "Error from liblzma's lzma_code: "
+					"%d\n", xzret);
+		return RET_ERROR;
+	}
+	return RET_OK;
+}
+
+static retvalue finishxz(struct filetorelease *f) {
+	lzma_ret xzret;
+
+	assert (f->f[ic_xz].fd >= 0);
+
+	f->xzstream.next_in = f->buffer;
+	f->xzstream.avail_in = f->waiting_bytes;
+
+	do {
+		f->xzstream.next_out = f->xzoutputbuffer + f->xz_waiting_bytes;
+		f->xzstream.avail_out = XZBUFSIZE - f->xz_waiting_bytes;
+
+		xzret = lzma_code(&f->xzstream, LZMA_FINISH);
+		f->xz_waiting_bytes = XZBUFSIZE - f->xzstream.avail_out;
+
+		if ((xzret == LZMA_OK || xzret == LZMA_STREAM_END)
+		    && f->xz_waiting_bytes > 0) {
+			retvalue r;
+			r = writetofile(&f->f[ic_xz],
+					(const unsigned char*)f->xzoutputbuffer,
+					f->xz_waiting_bytes);
+			assert (r != RET_NOTHING);
+			if (RET_WAS_ERROR(r))
+				return r;
+			f->xz_waiting_bytes = 0;
+		}
+	} while (xzret == LZMA_OK);
+
+	if (xzret != LZMA_STREAM_END) {
+		fprintf(stderr, "Error from liblzma's lzma_code: "
+				"%d\n", xzret);
+		return RET_ERROR;
+	}
+	assert (f->xz_waiting_bytes == 0);
+
+	lzma_end(&f->xzstream);
+	free(f->xzoutputbuffer);
+	f->xzoutputbuffer = NULL;
+
+	return RET_OK;
+}
+#endif
+
 retvalue release_finishfile(struct release *release, struct filetorelease *file) {
 	retvalue result, r;
 	enum indexcompression i;
@@ -1171,6 +1319,22 @@ retvalue release_finishfile(struct release *release, struct filetorelease *file)
 		file->f[ic_bzip2].fd = -1;
 	}
 #endif
+#ifdef HAVE_LIBLZMA
+	if (file->f[ic_xz].fd >= 0) {
+		r = finishxz(file);
+		if (RET_WAS_ERROR(r)) {
+			release_abortfile(file);
+			return r;
+		}
+		if (close(file->f[ic_xz].fd) != 0) {
+			int e = errno;
+			file->f[ic_xz].fd = -1;
+			release_abortfile(file);
+			return RET_ERRNO(e);
+		}
+		file->f[ic_xz].fd = -1;
+	}
+#endif
 	release->new = true;
 	result = RET_OK;
 
@@ -1186,6 +1350,9 @@ retvalue release_finishfile(struct release *release, struct filetorelease *file)
 	free(file->gzoutputbuffer);
 #ifdef HAVE_LIBBZ2
 	free(file->bzoutputbuffer);
+#endif
+#ifdef HAVE_LIBLZMA
+	assert(file->xzoutputbuffer == NULL);
 #endif
 	free(file);
 	return result;
@@ -1211,6 +1378,13 @@ static retvalue release_processbuffer(struct filetorelease *file) {
 #ifdef HAVE_LIBBZ2
 	if (file->f[ic_bzip2].relativefilename != NULL) {
 		r = writebz(file);
+		RET_UPDATE(result, r);
+	}
+	RET_UPDATE(file->state, result);
+#endif
+#ifdef HAVE_LIBLZMA
+	if (file->f[ic_xz].relativefilename != NULL) {
+		r = writexz(file);
 		RET_UPDATE(result, r);
 	}
 	RET_UPDATE(file->state, result);

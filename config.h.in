@@ -24,6 +24,9 @@
 /* Define to 1 if you have the `gpg-error' library (-lgpg-error). */
 #undef HAVE_LIBGPG_ERROR
 
+/* Define to 1 if you have the `lzma' library (-llzma). */
+#undef HAVE_LIBLZMA
+
 /* Define to 1 if you have the `z' library (-lz). */
 #undef HAVE_LIBZ
 

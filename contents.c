@@ -39,7 +39,7 @@
 retvalue contentsoptions_parse(struct distribution *distribution, struct configiterator *iter) {
 	enum contentsflags {
 		cf_disable, cf_dummy, cf_udebs, cf_nodebs,
-		cf_uncompressed, cf_gz, cf_bz2,
+		cf_uncompressed, cf_gz, cf_bz2, cf_xz,
 		cf_percomponent, cf_allcomponents,
 		cf_compatsymlink, cf_nocompatsymlink,
 		cf_COUNT
@@ -55,6 +55,7 @@ retvalue contentsoptions_parse(struct distribution *distribution, struct configi
 		{"allcomponents", cf_allcomponents},
 		{"compatsymlink", cf_compatsymlink},
 		{"nocompatsymlink", cf_nocompatsymlink},
+		{".xz", cf_xz},
 		{".bz2", cf_bz2},
 		{".gz", cf_gz},
 		{".", cf_uncompressed},
@@ -104,6 +105,16 @@ retvalue contentsoptions_parse(struct distribution *distribution, struct configi
 		flags[cf_bz2] = false;
 	}
 #endif
+#ifndef HAVE_LIBLZMA
+	if (flags[cf_xz]) {
+		fprintf(stderr,
+"Warning: Ignoring request to generate .xz'ed Contents files.\n"
+"(xz support disabled at build time.)\n"
+"Request was in %s in the Contents header ending in line %u\n",
+			config_filename(iter), config_line(iter));
+		flags[cf_xz] = false;
+	}
+#endif
 	distribution->contents.compressions = 0;
 	if (flags[cf_uncompressed])
 		distribution->contents.compressions |= IC_FLAG(ic_uncompressed);
@@ -112,6 +123,10 @@ retvalue contentsoptions_parse(struct distribution *distribution, struct configi
 #ifdef HAVE_LIBBZ2
 	if (flags[cf_bz2])
 		distribution->contents.compressions |= IC_FLAG(ic_bzip2);
+#endif
+#ifdef HAVE_LIBLZMA
+	if (flags[cf_xz])
+		distribution->contents.compressions |= IC_FLAG(ic_xz);
 #endif
 	distribution->contents.flags.udebs = flags[cf_udebs];
 	distribution->contents.flags.nodebs = flags[cf_nodebs];

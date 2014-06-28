@@ -209,6 +209,10 @@ retvalue exportmode_set(struct exportmode *mode, struct configiterator *iter) {
 				word[4] == '\0')
 			mode->compressions |= IC_FLAG(ic_bzip2);
 #endif
+#ifdef HAVE_LIBLZMA
+		else if (word[1] == 'x' && word[2] == 'z' &&word[3] == '\0')
+			mode->compressions |= IC_FLAG(ic_xz);
+#endif
 		else {
 			fprintf(stderr,
 "Error parsing %s, line %u, column %u:\n"

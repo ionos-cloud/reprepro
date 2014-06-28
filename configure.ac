@@ -2,7 +2,7 @@ dnl
 dnl Process this file with autoconf to produce a configure script
 dnl
 
-AC_INIT(reprepro, 4.14.0, brlink@debian.org)
+AC_INIT(reprepro, 4.15.0, brlink@debian.org)
 AC_CONFIG_SRCDIR(main.c)
 AC_CONFIG_AUX_DIR(ac)
 AM_INIT_AUTOMAKE([-Wall -Werror -Wno-portability])
@@ -82,6 +82,28 @@ AC_ARG_WITH(libbz2,
 	esac
 ],[dnl without --with-libbz2 we look for it but not finding it is no error:
 	AC_CHECK_LIB(bz2,BZ2_bzCompressInit,,[AC_MSG_WARN(["no libbz2 found, compiling without"])],)
+])
+
+AC_ARG_WITH(liblzma,
+[  --with-liblzma=path|yes|no	Give path to prefix liblzma was installed with],[dnl
+	case "$withval" in
+	no)
+	;;
+	yes)
+	AC_CHECK_LIB(lzma,lzma_easy_encoder,,[AC_MSG_ERROR(["no liblzma found, despite being told to use it"])],)
+	;;
+	*)
+	AC_CHECK_LIB(lzma,lzma_easy_encoder,[dnl
+		AC_DEFINE_UNQUOTED(AS_TR_CPP(HAVE_LIBLZMA))
+		LIBS="$LIBS -L$withval/lib -llzma"
+		CPPFLAGS="$CPPFLAGS -I$withval/include"
+	],[AC_MSG_ERROR(["no liblzma found, despite being told to use it"])],[-L$withval/lib])
+	;;
+	esac
+],[
+:
+dnl     until xz uncompression is implemented using lzma, disable it by default.
+dnl	AC_CHECK_LIB(lzma,lzma_easy_encoder,,[AC_MSG_WARN(["no liblzma found, compiling without"])],)
 ])
 
 ARCHIVELIBS=""

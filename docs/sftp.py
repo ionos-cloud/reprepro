@@ -569,6 +569,9 @@ class TaskFromGenerator(Task):
 				self.connection.enqueueTask(self)
 			elif (isinstance(job, tuple) and len(job) == 2 and
 			     isinstance(job[0], Task)):
+				if DebugMode.LOCKS in self.debug:
+					print("parentinfo", job,
+					       **self.debugopts)
 				job[0].parentinfo(job[1])
 			elif (isinstance(job, tuple) and len(job) >= 2 and
 			     issubclass(job[1], Collector)):
@@ -633,7 +636,8 @@ class Connection:
 		self.connection = subprocess.Popen(commandline,
 		                                   close_fds = True,
 		                                   stdin = subprocess.PIPE,
-		                                   stdout = subprocess.PIPE)
+		                                   stdout = subprocess.PIPE,
+		                                   bufsize = 0)
 		self.poll = select.poll()
 		self.poll.register(self.connection.stdout, select.POLLIN)
 		self.inbuffer = bytes()
@@ -697,6 +701,9 @@ class Connection:
 					   select.POLLOUT)
 		self.wantwrite.append(task)
 	def collect(self, who, command, collectortype, *collectorargs):
+		if DebugMode.LOCKS in self.debug:
+			print("collector", command, collectortype.__name__,
+				*collectorargs, **self.debugopts)
 		"""Tell the (possibly to be generated) """
 		collectorid = (collectortype, collectorargs)
 		if not collectorid in self.collectors:
@@ -773,7 +780,7 @@ class Dirlock(Collector):
 		self.queue = []
 	def start(self, connection):
 		super().start(connection)
-		if self.dirname:
+		if self.dirname and (self.name != self.dirname):
 			self.mode = "wait-for-parent"
 			self.connection.collect(self, 'waitingfor',
 			                        Dirlock, self.dirname)

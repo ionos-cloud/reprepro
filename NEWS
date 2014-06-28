@@ -1,3 +1,7 @@
+Updates between 4.14.1 and 4.15.0:
+- fixes to outsftphook example, new xz example, manpage improvements
+- support for native Packages.xz generation using liblzma (disabled by default)
+
 Updates between 4.13.1 and 4.14.0:
 - repairdescriptions also repairs udeb descriptions
 - automatically add long descriptions when updating
