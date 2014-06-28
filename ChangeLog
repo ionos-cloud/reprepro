@@ -7,6 +7,9 @@
 	* add xz.example to script to generate Packages.gz
 	* improve multiple_distributions description in manpage
 
+2014-06-03  Bernhard R. Link <brlink@debian.org>
+        * multiple fixes to the outsftphook example
+
 2014-05-10  Bernhard R. Link <brlink@debian.org>
 	* add support for linking against liblzma
 	  and generating .xz Indices.
