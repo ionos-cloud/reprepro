@@ -100,8 +100,10 @@ AC_ARG_WITH(liblzma,
 	],[AC_MSG_ERROR(["no liblzma found, despite being told to use it"])],[-L$withval/lib])
 	;;
 	esac
-],[dnl without --with-liblzma we look for it but not finding it is no error:
-	AC_CHECK_LIB(lzma,lzma_easy_encoder,,[AC_MSG_WARN(["no liblzma found, compiling without"])],)
+],[
+:
+dnl     until xz uncompression is implemented using lzma, disable it by default.
+dnl	AC_CHECK_LIB(lzma,lzma_easy_encoder,,[AC_MSG_WARN(["no liblzma found, compiling without"])],)
 ])
 
 ARCHIVELIBS=""

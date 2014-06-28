@@ -1,3 +1,8 @@
+2014-06-28  Bernhard R. Link <brlink@debian.org>
+        * fix compiling without liblzma.
+	* disable liblzma usage unless explicitely requested
+	  (to avoid the double-dependency to liblzma un lzma-utils).
+
 2014-06-14  Bernhard R. Link <brlink@debian.org>
 	* add xz.example to script to generate Packages.gz
 	* improve multiple_distributions description in manpage

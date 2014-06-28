@@ -32,7 +32,7 @@
 #ifdef HAVE_LIBBZ2
 #include <bzlib.h>
 #endif
-#ifdef HAVE_LIBBZ2
+#ifdef HAVE_LIBLZMA
 #include <lzma.h>
 #endif
 #define CHECKSUMS_CONTEXT visible
@@ -1351,7 +1351,9 @@ retvalue release_finishfile(struct release *release, struct filetorelease *file)
 #ifdef HAVE_LIBBZ2
 	free(file->bzoutputbuffer);
 #endif
+#ifdef HAVE_LIBLZMA
 	assert(file->xzoutputbuffer == NULL);
+#endif
 	free(file);
 	return result;
 }
