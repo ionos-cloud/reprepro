@@ -140,11 +140,11 @@ Distribution: test
 Source: documentation
 Version: 9876AD
 Files:
+ pool/main/d/documentation/documentation_9876AD.dsc s 1
+ pool/main/d/documentation/documentation_9876AD.tar.gz s 1
  pool/main/d/documentation/documentation_9876AD_byhand/history.txt x 0
  pool/main/d/documentation/documentation_9876AD_byhand/manifesto.txt x 0
  pool/main/d/documentation/documentation_9876AD_all.deb a 1
- pool/main/d/documentation/documentation_9876AD.dsc s 1
- pool/main/d/documentation/documentation_9876AD.tar.gz s 1
 
 EOF
 testout - dumptracks test 3<<EOF
@@ -235,11 +235,11 @@ Distribution: test
 Source: documentation
 Version: 9876AD
 Files:
+ pool/main/d/documentation/documentation_9876AD.dsc s 1
+ pool/main/d/documentation/documentation_9876AD.tar.gz s 1
  pool/main/d/documentation/documentation_9876AD_byhand/history.txt x 0
  pool/main/d/documentation/documentation_9876AD_byhand/manifesto.txt x 0
  pool/main/d/documentation/documentation_9876AD_all.deb a 1
- pool/main/d/documentation/documentation_9876AD.dsc s 1
- pool/main/d/documentation/documentation_9876AD.tar.gz s 1
  pool/main/d/documentation/documentation_9876AD_coal+all.log l 0
 
 EOF
@@ -292,11 +292,11 @@ Distribution: test
 Source: documentation
 Version: 9876AD
 Files:
+ pool/main/d/documentation/documentation_9876AD.dsc s 1
+ pool/main/d/documentation/documentation_9876AD.tar.gz s 1
  pool/main/d/documentation/documentation_9876AD_byhand/history.txt x 0
  pool/main/d/documentation/documentation_9876AD_byhand/manifesto.txt x 0
  pool/main/d/documentation/documentation_9876AD_all.deb a 1
- pool/main/d/documentation/documentation_9876AD.dsc s 1
- pool/main/d/documentation/documentation_9876AD.tar.gz s 1
  pool/main/d/documentation/documentation_9876AD_coal+all.log l 0
  pool/main/d/documentation/documentation_9876AD_source+all.changes c 0
 
@@ -396,9 +396,9 @@ Distribution: test
 Source: documentation
 Version: 9876AD
 Files:
+ pool/main/d/documentation/documentation_9876AD_all.deb a 1
  pool/main/d/documentation/documentation_9876AD.dsc s 1
  pool/main/d/documentation/documentation_9876AD.tar.gz s 1
- pool/main/d/documentation/documentation_9876AD_all.deb a 1
  pool/main/d/documentation/documentation_9876AD_byhand/manifesto.txt x 0
  pool/main/d/documentation/documentation_9876AD_byhand/history.txt x 0
  pool/main/d/documentation/documentation_9876AD_coal+all.log l 0
