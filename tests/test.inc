@@ -110,7 +110,7 @@ cat "$FILENAME".control
 rm "$FILENAME".control
 }
 withoutchecksums() {
-awk 'BEGIN{inheader=0} /^Checksums-.*: / || (inheader && /^ /)  {inheader = 1; next} {inheader = 0 ; print}' "$@"
+awk 'BEGIN{inheader=0} /^Checksums-.*:/ || (inheader && /^ /)  {inheader = 1; next} {inheader = 0 ; print}' "$@"
 }
 mdandsize() {
 cat <<EOF

@@ -54,7 +54,7 @@ cd ..
 rm -r documentation-9876AD
 
 ed -s test.changes <<EOF
-/^Files: /a
+/^Files:/a
  $(mdandsize documentation_9876AD_coal+all.log) - - documentation_9876AD_coal+all.log
 .
 w
