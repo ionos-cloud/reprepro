@@ -49,7 +49,14 @@ dpkg-source -b documentation-9876AD ""
 cd documentation-9876AD
 
 fakeroot make -f debian/rules binary-indep > ../documentation_9876AD_coal+all.log
-dpkg-genchanges > ../test.changes
+OUTPUT=test.changes
+dpkg-genchanges > "$OUTPUT".pre
+# simulate dpkg-genchanges behaviour currently in sid so the testsuite runs for backports, too
+awk 'BEGIN{inheader=0} /^Files:/ || (inheader && /^ /)  {inheader = 1; next} {inheader = 0 ; print}' "$OUTPUT".pre | sed -e 's/ \+$//' >../"$OUTPUT"
+echo "Files:" >> ../"$OUTPUT"
+awk 'BEGIN{inheader=0} (inheader && /^ .*\.deb$/)  {print ; next} /^Files:/ || (inheader && /^ /)  {inheader = 1; next} {inheader = 0 ;next}' "$OUTPUT".pre >>../"$OUTPUT"
+awk 'BEGIN{inheader=0} (inheader && /^ .*\.txt$/)  {print ; next} /^Files:/ || (inheader && /^ /)  {inheader = 1; next} {inheader = 0 ;next}' "$OUTPUT".pre >>../"$OUTPUT"
+awk 'BEGIN{inheader=0} /^Files:/ || (inheader && /^ .*\.(deb|txt)$/) {inheader = 1 ; next } (inheader && /^ /)  {print ; next} {inheader = 0 ;next}' "$OUTPUT".pre >>../"$OUTPUT"
 cd ..
 rm -r documentation-9876AD
 

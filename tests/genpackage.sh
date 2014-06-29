@@ -58,7 +58,11 @@ for pkg in `grep '^Package: ' debian/control | sed -e 's/^Package: //'` ; do
 	fi
 	dpkg --build debian/tmp ..
 done
-#dpkg-genchanges > ../"${PACKAGE}_$VERSION$REVISION"_abbacus.changes
-dpkg-genchanges "$@" > ../"$OUTPUT"
+dpkg-genchanges "$@" > "$OUTPUT".pre
+# simulate dpkg-genchanges behaviour currently in sid so the testsuite runs for backports, too
+awk 'BEGIN{inheader=0} /^Files:/ || (inheader && /^ /)  {inheader = 1; next} {inheader = 0 ; print}' "$OUTPUT".pre | sed -e 's/ \+$//' >../"$OUTPUT"
+echo "Files:" >> ../"$OUTPUT"
+awk 'BEGIN{inheader=0} (inheader && /^ .*\.deb$/)  {print ; next} /^Files:/ || (inheader && /^ /)  {inheader = 1; next} {inheader = 0 ;next}' "$OUTPUT".pre >>../"$OUTPUT"
+awk 'BEGIN{inheader=0} /^Files:/ || (inheader && /^ .*\.deb$/) {inheader = 1 ; next } (inheader && /^ /)  {print ; next} {inheader = 0 ;next}' "$OUTPUT".pre >>../"$OUTPUT"
 cd ..
 rm -r "$DIR"
