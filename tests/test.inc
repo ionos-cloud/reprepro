@@ -69,12 +69,12 @@ checknolog() {
 	dodo test ! -f logs/"$1"
 }
 checklog() {
-	cat > results.log.expected
+	sort > results.log.expected
 	LOGDATE="$(date +'%Y-%m-%d %H:')"
 	echo normalizing "$1": DATESTR is "$LOGDATE??:??"
-	sed -i -e 's/^'"$LOGDATE"'[0-9][0-9]:[0-9][0-9] /DATESTR /g' logs/"$1"
-	dodiff results.log.expected logs/"$1"
-	rm logs/"$1"
+	sed -e 's/^'"$LOGDATE"'[0-9][0-9]:[0-9][0-9] /DATESTR /g' logs/"$1" | sort > results.log
+	dodiff results.log.expected results.log
+	rm logs/"$1" results.log
 }
 md5() {
 md5sum "$1" | cut -d' ' -f1

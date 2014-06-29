@@ -386,15 +386,11 @@ $(ofa 'pool/dog/b/bird/bird-addons_1_all.deb')
 -v4*=Reading filelist for pool/dog/b/bird/bird-addons_1_all.deb
 -d1*=db: 'pool/dog/b/bird/bird-addons_1_all.deb' added to contents.cache.db(compressedfilelists).
 EOF
-LOGDATE="$(date +'%Y-%m-%d %H:')"
-echo normalizing logfile: DATESTR is "$LOGDATE??:??"
-sed -i -e 's/^'"$LOGDATE"'[0-9][0-9]:[0-9][0-9] /DATESTR /g' logs/logfile
-cat > results.log.expected <<EOF
+checklog logfile <<EOF
 DATESTR add B dsc dog source bird 1
 DATESTR add B deb dog abacus bird 1
 DATESTR add B deb dog abacus bird-addons 1
 EOF
-dodiff results.log.expected logs/logfile
 find temp -type f > results
 dodiff /dev/null results
 find i -type f > results
@@ -500,9 +496,6 @@ $(ofa 'pool/cat/b/bird/bird-addons_1_all.deb')
 -d1*=db: 'pool/cat/b/bird/bird-addons_1_all.deb' added to contents.cache.db(compressedfilelists).
 EOF
 checklog logfile <<EOF
-DATESTR add B dsc dog source bird 1
-DATESTR add B deb dog abacus bird 1
-DATESTR add B deb dog abacus bird-addons 1
 DATESTR add B dsc cat source bird 1
 DATESTR add B deb cat abacus bird 1
 DATESTR add B deb cat abacus bird-addons 1
