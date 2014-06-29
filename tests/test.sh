@@ -16,6 +16,7 @@ VALGRIND_EXTRA_OPTIONS=""
 VALGRIND_SUP=""
 TESTOPTIONS=""
 VERBOSEDB="1"
+TESTSHELLOPTS=
 testtorun="all"
 verbosity=6
 deleteifmarked=true
@@ -35,6 +36,10 @@ while [ $# -gt 0 ] ; do
 			shift
 			testtorun="$1"
 			shift
+			;;
+		--trace)
+			shift
+			TESTSHELLOPTS=-x
 			;;
 		--delete)
 			if ! $deleteifmarked ; then
@@ -202,7 +207,7 @@ runtest() {
 	  export SRCDIR TESTSDIR
 	  export TESTTOOL RREDTOOL REPREPRO
 	  export TRACKINGTESTOPTIONS TESTOPTIONS REPREPROOPTIONS verbosity
-  	  WORKDIR="$WORKDIR/dir_$1" CALLEDFROMTESTSUITE=true dash "$SRCDIR/tests/$1.test"
+  	  WORKDIR="$WORKDIR/dir_$1" CALLEDFROMTESTSUITE=true dash $TESTSHELLOPTS "$SRCDIR/tests/$1.test"
 	) > "log_$1" 2>&1 || rc=$?
 	if test "$rc" -ne 0 ; then
 		number_failed="$(( $number_failed + 1 ))"
