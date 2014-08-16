@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 #############################################################################
 # generates partial package updates list as reprepro hook
@@ -13,7 +13,7 @@
 # it to use another sha1 calculation method.
 
 # HOW TO USE:
-# - install python-apt
+# - install python3-apt
 # - make sure your paths contain no ' characters.
 # - be aware this is still quite experimental and might not
 #   report some errors properly
@@ -63,12 +63,12 @@ import apt_pkg
 ################################################################################
 
 def usage (exit_code=0):
-    print """Usage: tiffani directory newfile oldfile mode 3>releaselog
+    print("""Usage: tiffani directory newfile oldfile mode 3>releaselog
 Write out ed-style diffs to Packages/Source lists
 This file is intended to be called by reprepro as hook
 given to DebIndices, UDebIndices or DscIndices.
 
-    """
+    """)
     sys.exit(exit_code);
 
 
@@ -76,7 +76,7 @@ def tryunlink(file):
     try:
         os.unlink(file)
     except OSError:
-        print "warning: removing of %s denied" % (file)
+        print("warning: removing of %s denied" % (file))
 
 class Updates:
     def __init__(self, readpath = None):
@@ -96,7 +96,7 @@ class Updates:
                     x = f.readline()
                     if not x or x[0] != " ": break
                     l = x.split()
-                    if not self.history.has_key(l[2]):
+                    if l[2] not in self.history:
                         self.history[l[2]] = [None,None]
                     self.history[l[2]][ind] = (l[0], int(l[1]))
                 return x
@@ -135,7 +135,7 @@ class Updates:
             out.write("SHA1-Current: %s %7d\n" % (self.filesizesha1))
 
         hs = self.history
-        l = self.history.keys()
+        l = list(self.history.keys())
         l.sort()
 
         cnt = len(l)
@@ -193,7 +193,7 @@ def main():
     	# TODO: delete possible existing Index and patch files?
     	sys.exit(0);
 
-    print "making diffs between %s and %s: " % (oldfile, newfile)
+    print("making diffs between %s and %s: " % (oldfile, newfile))
 
     o = os.popen("date +%Y-%m-%d-%H%M.%S")
     patchname = o.readline()[:-1]
@@ -209,20 +209,20 @@ def main():
 
     if upd.filesizesha1:
         if upd.filesizesha1 != oldsizesha1:
-            print "old file seems to have changed! %s %s => %s %s" % (upd.filesizesha1 + oldsizesha1)
+            print("old file seems to have changed! %s %s => %s %s" % (upd.filesizesha1 + oldsizesha1))
     	    sys.exit(1);
 
     newsizesha1 = getsizesha1(newfile)
 
     if newsizesha1 == oldsizesha1:
-        print "file unchanged, not generating diff"
+        print("file unchanged, not generating diff")
     	if os.path.isfile(outdir + "/Index"):
 		os.write(3,oldrelfile + ".diff/Index\n")
     else:
         if not os.path.isdir(outdir): os.mkdir(outdir)
-        print "generating diff"
+        print("generating diff")
 	while os.path.isfile(difffile + ".gz"):
-		print "This was too fast, diffile already there, waiting a bit..."
+		print("This was too fast, diffile already there, waiting a bit...")
 		time.sleep(2)
 		o = os.popen("date +%Y-%m-%d-%H%M.%S")
 		patchname = o.readline()[:-1]
