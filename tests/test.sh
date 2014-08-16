@@ -1,7 +1,7 @@
 #!/bin/dash
 
 # This needs installed:
-# apt, dpkg-dev, ed, python-apt, lzma, python3, dbX.Y-util
+# apt, dpkg-dev, ed, python3-apt, lzma, python3, dbX.Y-util
 # it will fail if run over a changing hour
 
 set -e -u
@@ -171,8 +171,8 @@ fi
 if ! which ed >/dev/null 2>&1 ; then
 	echo "WARNING: ed not installed, some tests might fail!"
 fi
-if ! dpkg -s python-apt | grep -q -s "Status: .* ok installed" ; then
-	echo "WARNING: python-apt not installed, some tests might fail!"
+if ! dpkg -s python3-apt | grep -q -s "Status: .* ok installed" ; then
+	echo "WARNING: python3-apt not installed, some tests might fail!"
 fi
 if ! dpkg -s dpkg-dev | grep -q -s "Status: .* ok installed" ; then
 	echo "WARNING: dpkg-dev not installed, most tests might fail!"

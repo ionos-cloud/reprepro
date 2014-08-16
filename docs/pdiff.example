@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 
+# Note that rrdtool can also generate .diff files and
+# is usually more efficient at it than this script
+
 #############################################################################
 # generates partial package updates list as reprepro hook
 # (to be used by apt-get >= 0.6.44, apt-qupdate or things compatible with that)
@@ -9,7 +12,7 @@
 # Configuration or Handling of architectures and components.
 # Also reprepro will present old and new file, so it does not
 # need to store a permanent copy of the last version.
-# This needs either python-apt installed or you have to change
+# This needs either python3-apt installed or you have to change
 # it to use another sha1 calculation method.
 
 # HOW TO USE:
@@ -17,15 +20,15 @@
 # - make sure your paths contain no ' characters.
 # - be aware this is still quite experimental and might not
 #   report some errors properly
-# - copy this file to your conf/ directory
 # - uncompress this file if it is compressed
+# - copy this file to your conf/ directory as "pdiff"
 # - make it executeable
 # - add something like the following to the every distribution
 #   in conf/distributions you want to have diffs for:
 #
-# DscIndices: Sources Release . .gz tiffany
-# DebIndices: Packages Release . .gz tiffany
-# 
+# DscIndices: Sources Release . .gz pdiff
+# DebIndices: Packages Release . .gz pdiff
+#
 # The first line is for source indices, the second for binary indices.
 # Make sure uncompressed index files are generated (the single dot in those
 # lines), as this version only diffs the uncompressed files.
@@ -63,7 +66,7 @@ import apt_pkg
 ################################################################################
 
 def usage (exit_code=0):
-    print("""Usage: tiffani directory newfile oldfile mode 3>releaselog
+    print("""Usage: pdiff.example directory newfile oldfile mode 3>releaselog
 Write out ed-style diffs to Packages/Source lists
 This file is intended to be called by reprepro as hook
 given to DebIndices, UDebIndices or DscIndices.
