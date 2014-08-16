@@ -130,7 +130,7 @@ class Updates:
     def dump(self, out=sys.stdout):
         if self.can_path:
             out.write("Canonical-Path: %s\n" % (self.can_path))
-        
+
         if self.filesizesha1:
             out.write("SHA1-Current: %s %7d\n" % (self.filesizesha1))
 
@@ -159,14 +159,14 @@ def sizesha1(f):
     return (sha1sum, size)
 
 def getsizesha1(name):
-	f = open(name, "r")
-	r = sizesha1(f)
-	f.close()
-	return r
+    f = open(name, "r")
+    r = sizesha1(f)
+    f.close()
+    return r
 
 def main():
     if len(sys.argv) != 5:
-    	usage(1)
+        usage(1)
 
     directory = sys.argv[1]
     newrelfile = sys.argv[2]
@@ -175,7 +175,7 @@ def main():
 
     # this is only needed with reprepro <= 0.7
     if oldrelfile.endswith(".gz"):
-    	sys.exit(0);
+        sys.exit(0);
 
 
     oldfile = "%s/%s" % (directory,oldrelfile)
@@ -184,14 +184,14 @@ def main():
     outdir = oldfile + ".diff"
 
     if mode == "old":
-    	# Nothing to do...
-    	if os.path.isfile(outdir + "/Index"):
-		os.write(3,oldrelfile + ".diff/Index")
-    	sys.exit(0);
+        # Nothing to do...
+        if os.path.isfile(outdir + "/Index"):
+            os.write(3,(oldrelfile + ".diff/Index").encode("utf-8"))
+        sys.exit(0);
 
     if mode == "new":
-    	# TODO: delete possible existing Index and patch files?
-    	sys.exit(0);
+        # TODO: delete possible existing Index and patch files?
+        sys.exit(0);
 
     print("making diffs between %s and %s: " % (oldfile, newfile))
 
@@ -210,31 +210,31 @@ def main():
     if upd.filesizesha1:
         if upd.filesizesha1 != oldsizesha1:
             print("old file seems to have changed! %s %s => %s %s" % (upd.filesizesha1 + oldsizesha1))
-    	    sys.exit(1);
+            sys.exit(1);
 
     newsizesha1 = getsizesha1(newfile)
 
     if newsizesha1 == oldsizesha1:
         print("file unchanged, not generating diff")
-    	if os.path.isfile(outdir + "/Index"):
-		os.write(3,oldrelfile + ".diff/Index\n")
+        if os.path.isfile(outdir + "/Index"):
+            os.write(3,(oldrelfile + ".diff/Index\n").encode("utf-8"))
     else:
         if not os.path.isdir(outdir): os.mkdir(outdir)
         print("generating diff")
-	while os.path.isfile(difffile + ".gz"):
-		print("This was too fast, diffile already there, waiting a bit...")
-		time.sleep(2)
-		o = os.popen("date +%Y-%m-%d-%H%M.%S")
-		patchname = o.readline()[:-1]
-		o.close()
-		difffile = "%s/%s" % (outdir, patchname)
+        while os.path.isfile(difffile + ".gz"):
+            print("This was too fast, diffile already there, waiting a bit...")
+            time.sleep(2)
+            o = os.popen("date +%Y-%m-%d-%H%M.%S")
+            patchname = o.readline()[:-1]
+            o.close()
+            difffile = "%s/%s" % (outdir, patchname)
 
-	# TODO make this without shell...
-	os.system("diff --ed '%s' '%s' > '%s'" % 
+        # TODO make this without shell...
+        os.system("diff --ed '%s' '%s' > '%s'" %
                          (oldfile,newfile, difffile))
         difsizesha1 = getsizesha1(difffile)
-	# TODO dito
-	os.system("gzip -9 '%s'" %difffile)
+        # TODO dito
+        os.system("gzip -9 '%s'" %difffile)
 
 
         upd.history[patchname] = (oldsizesha1, difsizesha1)
@@ -244,7 +244,7 @@ def main():
         upd.dump(f)
         f.close()
 # Specifing the index should be enough, it contains checksums for the diffs
-	os.write(3,oldrelfile + ".diff/Index.new\n")
+        os.write(3,(oldrelfile + ".diff/Index.new\n").encode("utf-8"))
 
 ################################################################################
 
