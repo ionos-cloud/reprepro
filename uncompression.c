@@ -527,18 +527,130 @@ struct compressedfile {
 	pid_t pid;
 	int fd, infd, pipeinfd;
 	off_t len;
-	struct intermediate_buffer {
-		char *buffer;
-		int ofs;
-		int ready;
-	} intermediate;
 	union {
-		gzFile gz;
+		/* used with an external decompressor if the input fd cannot
+		 * be used as that programs stdin directly: */
+		struct intermediate_buffer {
+			char *buffer;
+			int ofs;
+			int ready;
+		} intermediate;
+		/* used if an internal decompression != c_none is used: */
+		struct uncompression {
+			unsigned char *buffer;
+			unsigned int available;
+			union {
+				z_stream gz;
 #ifdef HAVE_LIBBZ2
-		BZFILE *bz;
+				BZFILE *bz;
 #endif
+			};
+			enum uncompression_error {
+				ue_NO_ERROR = 0,
+				ue_TRAILING_GARBAGE,
+				ue_UNCOMPRESSION_ERROR,
+			} error;
+		} uncompress;
 	};
 };
+
+/* This function is called to refill the internal buffer in uncompress.buffer
+ * with data initially or one everything of the previous run was consumed.
+ * It will set uncompress.available to a value >0, unless there is a EOF
+ * condition, then it can also be set to 0.
+ */
+#define UNCOMPRESSION_BUFSIZE 16*1024
+static retvalue uncompression_read_internal_buffer(struct compressedfile *f) {
+	size_t len;
+	ssize_t r;
+	assert (f->uncompress.available == 0);
+
+	if (f->len == 0) {
+		f->uncompress.available = 0;
+		return RET_OK;
+	}
+
+	if (f->uncompress.buffer == NULL) {
+		f->uncompress.buffer = malloc(UNCOMPRESSION_BUFSIZE);
+		if (FAILEDTOALLOC(f->uncompress.buffer)) {
+			f->error = ENOMEM;
+			return RET_ERROR_OOM;
+		}
+	}
+
+	len = UNCOMPRESSION_BUFSIZE;
+	if (f->len >= 0 && len > (size_t)f->len)
+		len = f->len;
+
+	if (len == 0)
+		return RET_OK;
+
+	do {
+		if (interrupted()) {
+			f->error = EINTR;
+			return RET_ERROR_INTERRUPTED;
+		}
+		r = read(f->fd, f->uncompress.buffer, len);
+	} while (r < 0 && errno == EINTR);
+	if (r < 0) {
+		f->error = errno;
+		return RET_ERRNO(errno);
+	}
+	assert ((size_t)r <= len);
+	if (f->len >= 0) {
+		assert (r <= f->len);
+		f->len -= r;
+	} else {
+		if (r == 0) {
+			/* remember EOF
+			 * (so it can be checked for to detect
+			 * checksum circumventing trailing garbage) */
+			f->len = 0;
+		}
+	}
+	f->uncompress.available = r;
+	return RET_OK;
+}
+
+static inline retvalue start_gz(struct compressedfile *f, int *errno_p, const char **msg_p) {
+	retvalue r;
+	int ret;
+
+	memset(&f->uncompress.gz, 0, sizeof(f->uncompress.gz));
+	f->uncompress.gz.zalloc = Z_NULL; /* use default */
+	f->uncompress.gz.zfree = Z_NULL; /* use default */
+	r = uncompression_read_internal_buffer(f);
+	if (RET_WAS_ERROR(r)) {
+		free(f->uncompress.buffer);
+		f->uncompress.buffer = NULL;
+		*errno_p = f->error;
+		*msg_p = strerror(f->error);
+		return r;
+	}
+	if (f->uncompress.available == 0) {
+		*errno_p = -EINVAL;
+		*msg_p = "File supposed to be .gz file is empty instead";
+		return RET_ERROR;
+	}
+	f->uncompress.gz.next_in = f->uncompress.buffer;
+	f->uncompress.gz.avail_in = f->uncompress.available;
+	/* 32 means accept zlib and gz header
+	 * 15 means accept any windowSize */
+	ret = inflateInit2(&f->uncompress.gz, 32 + 15);
+	if (ret != Z_OK) {
+		if (ret == Z_MEM_ERROR) {
+			*errno_p = ENOMEM;
+			*msg_p = "Out of Memory";
+			return RET_ERROR_OOM;
+		}
+		*errno_p = -1;
+		/* f->uncompress.gz.msg will be free'd soon */
+		fprintf(stderr, "zlib error %d: %s", ret, f->uncompress.gz.msg);
+		*msg_p = "Error starting internal gz uncompression using zlib";
+		return RET_ERROR;
+	}
+	return RET_OK;
+}
 
 static retvalue start_builtin(struct compressedfile *f, int *errno_p, const char **msg_p) {
 	int fd;
@@ -548,23 +660,7 @@ static retvalue start_builtin(struct compressedfile *f, int *errno_p, const char
 
 	switch (f->compression) {
 		case c_gzip:
-			// TODO: perhaps rather implement your own reading and
-			// uncompression, this way length read cannot be controlled
-			if (f->closefd) {
-				fd = f->fd;
-				f->fd = -1;
-			} else
-				fd = dup(f->fd);
-			f->gz = gzdopen(dup(fd), "r");
-			if (f->gz == NULL) {
-				*errno_p = errno;
-				*msg_p = strerror(errno);
-				// TODO: better error message...
-				fprintf(stderr,
-"Error opening internal gz uncompression using zlib...\n");
-				return RET_ERROR;
-			}
-			break;
+			return start_gz(f, errno_p, msg_p);
 #ifdef HAVE_LIBBZ2
 		case c_bzip2:
 			if (f->closefd) {
@@ -572,8 +668,8 @@ static retvalue start_builtin(struct compressedfile *f, int *errno_p, const char
 				f->fd = -1;
 			} else
 				fd = dup(f->fd);
-			f->bz = BZ2_bzdopen(dup(fd), "r");
-			if (f->bz == NULL) {
+			f->uncompress.bz = BZ2_bzdopen(dup(fd), "r");
+			if (f->uncompress.bz == NULL) {
 				*errno_p = errno;
 				*msg_p = strerror(errno);
 				// TODO: better error message...
@@ -585,6 +681,7 @@ static retvalue start_builtin(struct compressedfile *f, int *errno_p, const char
 #endif
 		default:
 			assert (false);
+			return RET_ERROR_INTERNAL;
 	}
 	return RET_OK;
 }
@@ -829,6 +926,75 @@ static inline int pipebackforth(struct compressedfile *file, void *buffer, int s
 	} while (true);
 }
 
+static inline int read_gz(struct compressedfile *f, void *buffer, int size) {
+	int ret;
+	int flush = Z_SYNC_FLUSH;
+	retvalue r;
+
+	assert (f->compression == c_gzip);
+	assert (size >= 0);
+
+	if (size == 0)
+		return 0;
+
+	f->uncompress.gz.next_out = buffer;
+	f->uncompress.gz.avail_out = size;
+	do {
+
+		if (f->uncompress.gz.avail_in == 0) {
+			f->uncompress.available = 0;
+			r = uncompression_read_internal_buffer(f);
+			if (RET_WAS_ERROR(r)) {
+				f->error = errno;
+				return -1;
+			}
+			f->uncompress.gz.next_in = f->uncompress.buffer;
+			f->uncompress.gz.avail_in = f->uncompress.available;
+		}
+
+		/* as long as there is new data, never do Z_FINISH */
+		if (f->uncompress.gz.avail_in != 0)
+			flush = Z_SYNC_FLUSH;
+
+		ret = inflate(&f->uncompress.gz, flush);
+
+		/* use Z_FINISH on second try, unless there is new data */
+		flush = Z_FINISH;
+
+		/* repeat if no output was produced,
+		 * assuming zlib will consume all input otherwise,
+		 * as the documentation says: */
+	} while (ret == Z_OK && f->uncompress.gz.avail_out == (size_t)size);
+	if (ret == Z_STREAM_END) {
+		if (f->uncompress.gz.avail_in > 0 || f->len > 0) {
+			f->uncompress.error = ue_TRAILING_GARBAGE;
+		} else {
+			/* check if this is the end of the file: */
+			f->uncompress.available = 0;
+			r = uncompression_read_internal_buffer(f);
+			if (RET_WAS_ERROR(r)) {
+				assert (f->error != 0);
+			} else if (f->len != 0)
+				f->uncompress.error = ue_TRAILING_GARBAGE;
+		}
+		return size - f->uncompress.gz.avail_out;
+	} else if (ret == Z_OK ||
+  	    (ret == Z_BUF_ERROR && f->uncompress.gz.avail_out != (size_t)size)) {
+		return size - f->uncompress.gz.avail_out;
+	} else if (ret == Z_MEM_ERROR) {
+		fputs("Out of memory!", stderr);
+		f->error = ENOMEM;
+		return -1;
+	} else {
+		// TODO: more information about what is decompressed?
+		fprintf(stderr, "Error decompressing gz data: %s %d\n",
+				f->uncompress.gz.msg, ret);
+		f->uncompress.error = ue_UNCOMPRESSION_ERROR;
+		return -1;
+	}
+	/* not reached */
+}
+
 int uncompress_read(struct compressedfile *file, void *buffer, int size) {
 	ssize_t s;
 	int i;
@@ -859,13 +1025,10 @@ int uncompress_read(struct compressedfile *file, void *buffer, int size) {
 			file->len -= s;
 			return s;
 		case c_gzip:
-			i = gzread(file->gz, buffer, size);
-			if (i < 0)
-				file->error = errno;
-			return i;
+			return read_gz(file, buffer, size);
 #ifdef HAVE_LIBBZ2
 		case c_bzip2:
-			i = BZ2_bzread(file->bz, buffer, size);
+			i = BZ2_bzread(file->uncompress.bz, buffer, size);
 			if (i < 0)
 				file->error = errno;
 			return i;
@@ -878,6 +1041,7 @@ int uncompress_read(struct compressedfile *file, void *buffer, int size) {
 
 static retvalue uncompress_commonclose(struct compressedfile *file, int *errno_p, const char **msg_p) {
 	retvalue result;
+	int ret;
 	const char *msg;
 	int zerror, e;
 	pid_t pid;
@@ -945,60 +1109,59 @@ static retvalue uncompress_commonclose(struct compressedfile *file, int *errno_p
 	}
 	assert (!file->external);
 
+	if (file->error != 0) {
+		*errno_p = file->error;
+		*msg_p = strerror(file->error);
+		result = RET_ERRNO(file->error);
+	} else if (file->uncompress.error != ue_NO_ERROR) {
+		*errno_p = -EINVAL;
+		if (file->uncompress.error == ue_TRAILING_GARBAGE)
+			*msg_p = "Trailing garbage after compressed data";
+		else
+			*msg_p = "Uncompression error";
+		result = RET_ERROR;
+	} else
+		result = RET_OK;
+
+	free(file->uncompress.buffer);
+	file->uncompress.buffer = NULL;
+
 	switch (file->compression) {
 		case c_none:
-			if (file->error != 0) {
-				*errno_p = file->error;
-				*msg_p = strerror(file->error);
-				return RET_ERRNO(file->error);
-			} else
-				return RET_OK;
+			return result;
 		case c_gzip:
-			file->fd = -1;
-			msg = gzerror(file->gz, &zerror);
-			if (zerror == Z_ERRNO) {
-				*errno_p = file->error;
-				(void)gzclose(file->gz);
-				*msg_p = strerror(file->error);
-				return RET_ERRNO(file->error);
-			} else if (zerror < 0) {
+			ret = inflateEnd(&file->uncompress.gz);
+
+			if (RET_WAS_ERROR(result))
+				return result;
+			if (ret != Z_OK) {
 				*errno_p = -EINVAL;
-				snprintf(errorbuffer, ERRORBUFFERSIZE,
-						"Zlib error %d: %s",
-						zerror, msg);
-				*msg_p = errorbuffer;
-				(void)gzclose(file->gz);
+				if (file->uncompress.gz.msg) {
+					/* static string if set: */
+					*msg_p = file->uncompress.gz.msg;
+				} else {
+					*msg_p =
+"zlib status in inconsistent state at inflateEnd";
+				}
 				return RET_ERROR_Z;
 			}
-			zerror = gzclose(file->gz);
-			if (zerror == Z_ERRNO) {
-				*errno_p = file->error;
-				*msg_p = strerror(file->error);
-				return RET_ERRNO(file->error);
-			} if (zerror < 0) {
-				*errno_p = -EINVAL;
-				snprintf(errorbuffer, ERRORBUFFERSIZE,
-						"Zlib error %d", zerror);
-				*msg_p = errorbuffer;
-				return RET_ERROR_Z;
-			} else
-				return RET_OK;
+			return RET_OK;
 #ifdef HAVE_LIBBZ2
 		case c_bzip2:
 			file->fd = -1;
-			msg = BZ2_bzerror(file->bz, &zerror);
+			msg = BZ2_bzerror(file->uncompress.bz, &zerror);
 			if (zerror < 0) {
 				*errno_p = -EINVAL;
 				snprintf(errorbuffer, ERRORBUFFERSIZE,
 						"libbz2 error %d: %s",
 						zerror, msg);
 				*msg_p = errorbuffer;
-				BZ2_bzclose(file->bz);
+				BZ2_bzclose(file->uncompress.bz);
 				return RET_ERROR_BZ2;
 			}
 			/* no return value? does this mean no checksums? */
-			BZ2_bzclose(file->bz);
-			return RET_OK;
+			BZ2_bzclose(file->uncompress.bz);
+			return result;
 #endif
 		default:
 			assert (file->external);
@@ -1032,7 +1195,7 @@ retvalue uncompress_error(struct compressedfile *file) {
 		if (pid < 0) {
 			e = errno;
 			fprintf(stderr,
-"Error looking for child %lu (a '%s'): %s\n",
+"Error %d looking for child %lu (a '%s'): %s\n", e,
 					(long unsigned)file->pid,
 					extern_uncompressors[file->compression],
 					strerror(e));
@@ -1067,26 +1230,22 @@ retvalue uncompress_error(struct compressedfile *file) {
 		}
 	}
 	assert (!file->external);
-
+	if (file->uncompress.error != ue_NO_ERROR) {
+		if (file->uncompress.error == ue_TRAILING_GARBAGE)
+			fprintf(stderr,
+"Trailing garbage after compressed data in %s",
+					file->filename);
+		return RET_ERROR;
+	}
 	switch (file->compression) {
 		case c_none:
+			/* file->error != 0 is the only error state */
 			return RET_OK;
 		case c_gzip:
-			msg = gzerror(file->gz, &zerror);
-			if (zerror >= 0)
-				return RET_OK;
-			if (zerror != Z_ERRNO) {
-				fprintf(stderr,
-"Zlib error %d uncompressing file '%s': %s\n",
-						zerror,
-						file->filename,
-						msg);
-				return RET_ERROR_Z;
-			}
-			return RET_ERROR;
+			return RET_OK;
 #ifdef HAVE_LIBBZ2
 		case c_bzip2:
-			msg = BZ2_bzerror(file->bz, &zerror);
+			msg = BZ2_bzerror(file->uncompress.bz, &zerror);
 			if (zerror < 0) {
 				fprintf(stderr,
 "libbz2 error %d uncompressing file '%s': %s\n",
@@ -1138,22 +1297,30 @@ void uncompress_abort(struct compressedfile *file) {
 					extern_uncompressors[file->compression],
 					(int)(WTERMSIG(status)));
 		}
-	} else switch (file->compression) {
-		case c_none:
-			if (file->closefd && file->fd >= 0)
-				(void)close(file->fd);
-			break;
-		case c_gzip:
-			(void)gzclose(file->gz);
-			break;
+	} else {
+		switch (file->compression) {
+			case c_none:
+				if (file->closefd && file->fd >= 0)
+					(void)close(file->fd);
+				break;
+			case c_gzip:
+				if (file->closefd && file->fd >= 0)
+					(void)close(file->fd);
+				(void)inflateEnd(&file->uncompress.gz);
+				memset(&file->uncompress.gz, 0,
+						sizeof(file->uncompress.gz));
+				break;
 #ifdef HAVE_LIBBZ2
-		case c_bzip2:
-			BZ2_bzclose(file->bz);
-			break;
+			case c_bzip2:
+				BZ2_bzclose(file->uncompress.bz);
+				break;
 #endif
-		default:
-			assert (file->external);
-			break;
+			default:
+				assert (file->external);
+				break;
+		}
+		free(file->uncompress.buffer);
+		file->uncompress.buffer = NULL;
 	}
 	free(file->filename);
 	free(file);
