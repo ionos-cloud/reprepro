@@ -1,3 +1,11 @@
+reprepro (5.2.0-1.1) UNRELEASED; urgency=medium
+
+  * Non-maintainer upload.
+  * Switch to dh 9
+  * Support multiple versions. (Closes: #570623)
+
+ -- Benjamin Drung <benjamin.drung@profitbricks.com>  Mon, 27 Aug 2018 11:17:20 +0200
+
 reprepro (5.2.0-1) unstable; urgency=medium
 
   * update Standards-Version
