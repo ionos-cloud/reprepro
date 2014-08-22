@@ -1,3 +1,11 @@
+reprepro (5.1.1-2.1) UNRELEASED; urgency=medium
+
+  * Non-maintainer upload.
+  * Switch to dh 9
+  * Support multiple versions. (Closes: #570623)
+
+ -- Benjamin Drung <benjamin.drung@profitbricks.com>  Wed, 18 Jan 2017 11:11:30 +0100
+
 reprepro (5.1.1-2) UNRELEASED; urgency=medium
 
   * add .gpg verification to debian/watch (as uscan supports alioth now)
