@@ -542,7 +542,7 @@ struct compressedfile {
 			union {
 				z_stream gz;
 #ifdef HAVE_LIBBZ2
-				BZFILE *bz;
+				bz_stream bz2;
 #endif
 			};
 			enum uncompression_error {
@@ -550,6 +550,8 @@ struct compressedfile {
 				ue_TRAILING_GARBAGE,
 				ue_UNCOMPRESSION_ERROR,
 			} error;
+			/* compression stream ended */
+			bool hadeos;
 		} uncompress;
 	};
 };
@@ -652,9 +654,48 @@ static inline retvalue start_gz(struct compressedfile *f, int *errno_p, const ch
 	return RET_OK;
 }
 
-static retvalue start_builtin(struct compressedfile *f, int *errno_p, const char **msg_p) {
-	int fd;
+#ifdef HAVE_LIBBZ2
+static inline retvalue start_bz2(struct compressedfile *f, int *errno_p, const char **msg_p) {
+	retvalue r;
+	int ret;
 
+	memset(&f->uncompress.bz2, 0, sizeof(f->uncompress.bz2));
+	/* libbz2 does not look at the header before the first
+	 * uncompress. But this way we get errors earlier: */
+	r = uncompression_read_internal_buffer(f);
+	if (RET_WAS_ERROR(r)) {
+		free(f->uncompress.buffer);
+		f->uncompress.buffer = NULL;
+		*errno_p = f->error;
+		*msg_p = strerror(f->error);
+		return r;
+	}
+	if (f->uncompress.available == 0) {
+		errno_p = -EINVAL;
+		*msg_p = "File supposed to be .bz2 file is empty instead";
+		return RET_ERROR;
+	}
+
+	/* not used by bzDecompressInit, but not set before next call: */
+	f->uncompress.bz2.next_in = (char*)f->uncompress.buffer;
+	f->uncompress.bz2.avail_in = f->uncompress.available;
+
+	ret = BZ2_bzDecompressInit(&f->uncompress.bz2, 0, 0);
+	if (ret != BZ_OK) {
+		if (ret == BZ_MEM_ERROR) {
+			*errno_p = ENOMEM;
+			*msg_p = "Out of Memory";
+			return RET_ERROR_OOM;
+		}
+		*errno_p = -EINVAL;
+		*msg_p = "libbz2 not working";
+		return RET_ERROR;
+	}
+	return RET_OK;
+}
+#endif
+
+static retvalue start_builtin(struct compressedfile *f, int *errno_p, const char **msg_p) {
 	assert (f->compression != c_none);
 	assert (uncompression_builtin(f->compression));
 
@@ -663,27 +704,13 @@ static retvalue start_builtin(struct compressedfile *f, int *errno_p, const char
 			return start_gz(f, errno_p, msg_p);
 #ifdef HAVE_LIBBZ2
 		case c_bzip2:
-			if (f->closefd) {
-				fd = f->fd;
-				f->fd = -1;
-			} else
-				fd = dup(f->fd);
-			f->uncompress.bz = BZ2_bzdopen(dup(fd), "r");
-			if (f->uncompress.bz == NULL) {
-				*errno_p = errno;
-				*msg_p = strerror(errno);
-				// TODO: better error message...
-				fprintf(stderr,
-"Error opening internal bz2 uncompression using libbz2\n");
-				return RET_ERROR;
-			}
-			break;
+			return start_bz2(f, errno_p, msg_p);
 #endif
 		default:
 			assert (false);
 			return RET_ERROR_INTERNAL;
 	}
-	return RET_OK;
+	/* not reached */
 }
 
 retvalue uncompress_open(/*@out@*/struct compressedfile **file_p, const char *filename, enum compression compression) {
@@ -977,6 +1004,7 @@ static inline int read_gz(struct compressedfile *f, void *buffer, int size) {
 			} else if (f->len != 0)
 				f->uncompress.error = ue_TRAILING_GARBAGE;
 		}
+		f->uncompress.hadeos = true;
 		return size - f->uncompress.gz.avail_out;
 	} else if (ret == Z_OK ||
   	    (ret == Z_BUF_ERROR && f->uncompress.gz.avail_out != (size_t)size)) {
@@ -995,9 +1023,76 @@ static inline int read_gz(struct compressedfile *f, void *buffer, int size) {
 	/* not reached */
 }
 
+#ifdef HAVE_LIBBZ2
+static inline int read_bz2(struct compressedfile *f, void *buffer, int size) {
+	int ret;
+	retvalue r;
+	bool eoi;
+
+	assert (f->compression == c_bzip2);
+	assert (size >= 0);
+
+	if (size == 0)
+		return 0;
+
+	f->uncompress.bz2.next_out = buffer;
+	f->uncompress.bz2.avail_out = size;
+	do {
+
+		if (f->uncompress.bz2.avail_in == 0) {
+			f->uncompress.available = 0;
+			r = uncompression_read_internal_buffer(f);
+			if (RET_WAS_ERROR(r)) {
+				f->error = errno;
+				return -1;
+			}
+			f->uncompress.bz2.next_in = (char*)f->uncompress.buffer;
+			f->uncompress.bz2.avail_in = f->uncompress.available;
+		}
+		eoi = f->uncompress.bz2.avail_in == 0;
+
+		ret = BZ2_bzDecompress(&f->uncompress.bz2);
+
+		if (eoi && ret == BZ_OK &&
+				f->uncompress.bz2.avail_out == (size_t)size) {
+			/* if libbz2 does not detect an EndOfStream at the
+			 * end of the file, let's fake an error: */
+			ret = BZ_UNEXPECTED_EOF;
+		}
+
+		/* repeat if no output was produced: */
+	} while (ret == BZ_OK && f->uncompress.bz2.avail_out == (size_t)size);
+	if (ret == BZ_STREAM_END) {
+		if (f->uncompress.bz2.avail_in > 0 || f->len > 0) {
+			f->uncompress.error = ue_TRAILING_GARBAGE;
+		} else {
+			/* check if this is the end of the file: */
+			f->uncompress.available = 0;
+			r = uncompression_read_internal_buffer(f);
+			if (RET_WAS_ERROR(r)) {
+				assert (f->error != 0);
+			} else if (f->len != 0)
+				f->uncompress.error = ue_TRAILING_GARBAGE;
+		}
+		f->uncompress.hadeos = true;
+		return size - f->uncompress.bz2.avail_out;
+	} else if (ret == BZ_OK) {
+		return size - f->uncompress.bz2.avail_out;
+	} else if (ret == BZ_MEM_ERROR) {
+		fputs("Out of memory!", stderr);
+		f->error = ENOMEM;
+		return -1;
+	} else {
+		fprintf(stderr, "Error %d decompressing bz2 data\n", ret);
+		f->uncompress.error = ue_UNCOMPRESSION_ERROR;
+		return -1;
+	}
+	/* not reached */
+}
+#endif
+
 int uncompress_read(struct compressedfile *file, void *buffer, int size) {
 	ssize_t s;
-	int i;
 
 	if (file->external) {
 		if (file->pipeinfd != -1) {
@@ -1012,6 +1107,11 @@ int uncompress_read(struct compressedfile *file, void *buffer, int size) {
 	}
 
 	assert (!file->external);
+
+	/* libbz2 does not like being called after returning end of stream,
+	 * so cache that: */
+	if (file->uncompress.hadeos)
+		return 0;
 
 	switch (file->compression) {
 		case c_none:
@@ -1028,10 +1128,7 @@ int uncompress_read(struct compressedfile *file, void *buffer, int size) {
 			return read_gz(file, buffer, size);
 #ifdef HAVE_LIBBZ2
 		case c_bzip2:
-			i = BZ2_bzread(file->uncompress.bz, buffer, size);
-			if (i < 0)
-				file->error = errno;
-			return i;
+			return read_bz2(file, buffer, size);
 #endif
 		default:
 			assert (false);
@@ -1042,8 +1139,7 @@ int uncompress_read(struct compressedfile *file, void *buffer, int size) {
 static retvalue uncompress_commonclose(struct compressedfile *file, int *errno_p, const char **msg_p) {
 	retvalue result;
 	int ret;
-	const char *msg;
-	int zerror, e;
+	int e;
 	pid_t pid;
 	int status;
 #define ERRORBUFFERSIZE 100
@@ -1131,7 +1227,6 @@ static retvalue uncompress_commonclose(struct compressedfile *file, int *errno_p
 			return result;
 		case c_gzip:
 			ret = inflateEnd(&file->uncompress.gz);
-
 			if (RET_WAS_ERROR(result))
 				return result;
 			if (ret != Z_OK) {
@@ -1148,20 +1243,15 @@ static retvalue uncompress_commonclose(struct compressedfile *file, int *errno_p
 			return RET_OK;
 #ifdef HAVE_LIBBZ2
 		case c_bzip2:
-			file->fd = -1;
-			msg = BZ2_bzerror(file->uncompress.bz, &zerror);
-			if (zerror < 0) {
+			ret = BZ2_bzDecompressEnd(&file->uncompress.bz2);
+			if (RET_WAS_ERROR(result))
+				return result;
+			if (ret != BZ_OK) {
 				*errno_p = -EINVAL;
-				snprintf(errorbuffer, ERRORBUFFERSIZE,
-						"libbz2 error %d: %s",
-						zerror, msg);
-				*msg_p = errorbuffer;
-				BZ2_bzclose(file->uncompress.bz);
+				*msg_p = "Uncompression error";
 				return RET_ERROR_BZ2;
 			}
-			/* no return value? does this mean no checksums? */
-			BZ2_bzclose(file->uncompress.bz);
-			return result;
+			return RET_OK;
 #endif
 		default:
 			assert (file->external);
@@ -1173,8 +1263,7 @@ static retvalue uncompress_commonclose(struct compressedfile *file, int *errno_p
 
 /* check if there has been an error yet for this stream */
 retvalue uncompress_error(struct compressedfile *file) {
-	int e, zerror, status;
-	const char *msg;
+	int e, status;
 	pid_t pid;
 
 	if (file == NULL)
@@ -1237,30 +1326,7 @@ retvalue uncompress_error(struct compressedfile *file) {
 					file->filename);
 		return RET_ERROR;
 	}
-	switch (file->compression) {
-		case c_none:
-			/* file->error != 0 is the only error state */
-			return RET_OK;
-		case c_gzip:
-			return RET_OK;
-#ifdef HAVE_LIBBZ2
-		case c_bzip2:
-			msg = BZ2_bzerror(file->uncompress.bz, &zerror);
-			if (zerror < 0) {
-				fprintf(stderr,
-"libbz2 error %d uncompressing file '%s': %s\n",
-						zerror,
-						file->filename,
-						msg);
-				return RET_ERROR_BZ2;
-			} else
-				return RET_OK;
-#endif
-		default:
-			assert (file->external);
-			return RET_ERROR_INTERNAL;
-	}
-	/* not reached */
+	return RET_OK;
 }
 
 
@@ -1298,21 +1364,21 @@ void uncompress_abort(struct compressedfile *file) {
 					(int)(WTERMSIG(status)));
 		}
 	} else {
+		if (file->closefd && file->fd >= 0)
+			(void)close(file->fd);
 		switch (file->compression) {
 			case c_none:
-				if (file->closefd && file->fd >= 0)
-					(void)close(file->fd);
 				break;
 			case c_gzip:
-				if (file->closefd && file->fd >= 0)
-					(void)close(file->fd);
 				(void)inflateEnd(&file->uncompress.gz);
 				memset(&file->uncompress.gz, 0,
 						sizeof(file->uncompress.gz));
 				break;
 #ifdef HAVE_LIBBZ2
 			case c_bzip2:
-				BZ2_bzclose(file->uncompress.bz);
+				(void)BZ2_bzDecompressEnd(&file->uncompress.bz2);
+				memset(&file->uncompress.bz2, 0,
+						sizeof(file->uncompress.bz2));
 				break;
 #endif
 			default:
