@@ -1,5 +1,8 @@
 2014-08-24  Bernhard R. Link <brlink@debian.org>
 	* fix DownloadListsAs not accepting .lz
+	* add support for unpacking .xz and .lzma files with liblzma
+	  instead of calling unxz and unlzma.
+	* default to linking with liblzma if no --with or --without is given
 
 2014-08-16  Bernhard R. Link <brlink@debian.org>
 	* rename the old python pdiff implementation example script

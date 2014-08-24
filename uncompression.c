@@ -31,6 +31,9 @@
 #ifdef HAVE_LIBBZ2
 #include <bzlib.h>
 #endif
+#ifdef HAVE_LIBLZMA
+#include <lzma.h>
+#endif
 
 #include "globals.h"
 #include "error.h"
@@ -544,6 +547,9 @@ struct compressedfile {
 #ifdef HAVE_LIBBZ2
 				bz_stream bz2;
 #endif
+#ifdef HAVE_LIBLZMA
+				lzma_stream lzma;
+#endif
 			};
 			enum uncompression_error {
 				ue_NO_ERROR = 0,
@@ -665,6 +671,61 @@ static inline retvalue start_bz2(struct compressedfile *f, int *errno_p, const c
 }
 #endif
 
+#ifdef HAVE_LIBLZMA
+static inline retvalue start_lzma(struct compressedfile *f, int *errno_p, const char **msg_p) {
+	int ret;
+	/* as the API requests: */
+	lzma_stream tmpstream = LZMA_STREAM_INIT;
+
+	memset(&f->uncompress.lzma, 0, sizeof(f->uncompress.lzma));
+	f->uncompress.lzma = tmpstream;
+
+	/* not used here, but needed by uncompression_read_* logic */
+	f->uncompress.lzma.next_in = f->uncompress.buffer;
+	f->uncompress.lzma.avail_in = f->uncompress.available;
+
+	ret = lzma_alone_decoder(&f->uncompress.lzma, UINT64_MAX);
+	if (ret != LZMA_OK) {
+		if (ret == LZMA_MEM_ERROR) {
+			*errno_p = ENOMEM;
+			*msg_p = "Out of Memory";
+			return RET_ERROR_OOM;
+		}
+		*errno_p = -EINVAL;
+		*msg_p = "liblzma not working";
+		return RET_ERROR;
+	}
+	return RET_OK;
+}
+
+static inline retvalue start_xz(struct compressedfile *f, int *errno_p, const char **msg_p) {
+	int ret;
+	/* as the API requests: */
+	lzma_stream tmpstream = LZMA_STREAM_INIT;
+
+	memset(&f->uncompress.lzma, 0, sizeof(f->uncompress.lzma));
+	f->uncompress.lzma = tmpstream;
+
+	/* not used here, but needed by uncompression_read_* logic */
+	f->uncompress.lzma.next_in = f->uncompress.buffer;
+	f->uncompress.lzma.avail_in = f->uncompress.available;
+
+	// TODO: some logic to allow LZMA_CONCATENATED in flags?
+	ret = lzma_stream_decoder(&f->uncompress.lzma, UINT64_MAX, 0);
+	if (ret != LZMA_OK) {
+		if (ret == LZMA_MEM_ERROR) {
+			*errno_p = ENOMEM;
+			*msg_p = "Out of Memory";
+			return RET_ERROR_OOM;
+		}
+		*errno_p = -EINVAL;
+		*msg_p = "liblzma not working";
+		return RET_ERROR;
+	}
+	return RET_OK;
+}
+#endif
+
 static retvalue start_builtin(struct compressedfile *f, int *errno_p, const char **msg_p) {
 	retvalue r;
 
@@ -691,6 +752,12 @@ static retvalue start_builtin(struct compressedfile *f, int *errno_p, const char
 #ifdef HAVE_LIBBZ2
 		case c_bzip2:
 			return start_bz2(f, errno_p, msg_p);
+#endif
+#ifdef HAVE_LIBLZMA
+		case c_lzma:
+			return start_lzma(f, errno_p, msg_p);
+		case c_xz:
+			return start_xz(f, errno_p, msg_p);
 #endif
 		default:
 			assert (false);
@@ -1077,6 +1144,75 @@ static inline int read_bz2(struct compressedfile *f, void *buffer, int size) {
 }
 #endif
 
+#ifdef HAVE_LIBLZMA
+static inline int read_lzma(struct compressedfile *f, void *buffer, int size) {
+	int ret;
+	retvalue r;
+	bool eoi;
+
+	assert (f->compression == c_lzma || f->compression == c_xz);
+	assert (size >= 0);
+
+	if (size == 0)
+		return 0;
+
+	f->uncompress.lzma.next_out = buffer;
+	f->uncompress.lzma.avail_out = size;
+	do {
+
+		if (f->uncompress.lzma.avail_in == 0) {
+			f->uncompress.available = 0;
+			r = uncompression_read_internal_buffer(f);
+			if (RET_WAS_ERROR(r)) {
+				f->error = errno;
+				return -1;
+			}
+			f->uncompress.lzma.next_in = f->uncompress.buffer;
+			f->uncompress.lzma.avail_in = f->uncompress.available;
+		}
+		eoi = f->uncompress.lzma.avail_in == 0;
+
+		ret = lzma_code(&f->uncompress.lzma, eoi?LZMA_FINISH:LZMA_RUN);
+
+		if (eoi && ret == LZMA_OK &&
+				f->uncompress.lzma.avail_out == (size_t)size) {
+			/* not seen with liblzma, but still make sure this
+			 * is treated as error (as with libbz2): */
+			ret = LZMA_BUF_ERROR;
+		}
+
+		/* repeat if no output was produced: */
+	} while (ret == LZMA_OK && f->uncompress.lzma.avail_out == (size_t)size);
+	if (ret == LZMA_STREAM_END) {
+		if (f->uncompress.lzma.avail_in > 0 || f->len > 0) {
+			f->uncompress.error = ue_TRAILING_GARBAGE;
+		} else {
+			/* check if this is the end of the file: */
+			f->uncompress.available = 0;
+			r = uncompression_read_internal_buffer(f);
+			if (RET_WAS_ERROR(r)) {
+				assert (f->error != 0);
+			} else if (f->len != 0)
+				f->uncompress.error = ue_TRAILING_GARBAGE;
+		}
+		f->uncompress.hadeos = true;
+		return size - f->uncompress.lzma.avail_out;
+	} else if (ret == LZMA_OK) {
+		assert (size - f->uncompress.lzma.avail_out > 0);
+		return size - f->uncompress.lzma.avail_out;
+	} else if (ret == LZMA_MEM_ERROR) {
+		fputs("Out of memory!", stderr);
+		f->error = ENOMEM;
+		return -1;
+	} else {
+		fprintf(stderr, "Error %d decompressing lzma data\n", ret);
+		f->uncompress.error = ue_UNCOMPRESSION_ERROR;
+		return -1;
+	}
+	/* not reached */
+}
+#endif
+
 int uncompress_read(struct compressedfile *file, void *buffer, int size) {
 	ssize_t s;
 
@@ -1115,6 +1251,11 @@ int uncompress_read(struct compressedfile *file, void *buffer, int size) {
 #ifdef HAVE_LIBBZ2
 		case c_bzip2:
 			return read_bz2(file, buffer, size);
+#endif
+#ifdef HAVE_LIBLZMA
+		case c_xz:
+		case c_lzma:
+			return read_lzma(file, buffer, size);
 #endif
 		default:
 			assert (false);
@@ -1237,6 +1378,12 @@ static retvalue uncompress_commonclose(struct compressedfile *file, int *errno_p
 				*msg_p = "Uncompression error";
 				return RET_ERROR_BZ2;
 			}
+			return RET_OK;
+#endif
+#ifdef HAVE_LIBLZMA
+		case c_lzma:
+		case c_xz:
+			lzma_end(&file->uncompress.lzma);
 			return RET_OK;
 #endif
 		default:
@@ -1365,6 +1512,14 @@ void uncompress_abort(struct compressedfile *file) {
 				(void)BZ2_bzDecompressEnd(&file->uncompress.bz2);
 				memset(&file->uncompress.bz2, 0,
 						sizeof(file->uncompress.bz2));
+				break;
+#endif
+#ifdef HAVE_LIBLZMA
+			case c_xz:
+			case c_lzma:
+				lzma_end(&file->uncompress.lzma);
+				memset(&file->uncompress.lzma, 0,
+						sizeof(file->uncompress.lzma));
 				break;
 #endif
 			default:

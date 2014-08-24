@@ -101,9 +101,7 @@ AC_ARG_WITH(liblzma,
 	;;
 	esac
 ],[
-:
-dnl     until xz uncompression is implemented using lzma, disable it by default.
-dnl	AC_CHECK_LIB(lzma,lzma_easy_encoder,,[AC_MSG_WARN(["no liblzma found, compiling without"])],)
+	AC_CHECK_LIB(lzma,lzma_easy_encoder,,[AC_MSG_WARN(["no liblzma found, compiling without"])],)
 ])
 
 ARCHIVELIBS=""
