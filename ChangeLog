@@ -1,3 +1,6 @@
+2014-08-24  Bernhard R. Link <brlink@debian.org>
+	* fix DownloadListsAs not accepting .lz
+
 2014-08-16  Bernhard R. Link <brlink@debian.org>
 	* rename the old python pdiff implementation example script
 	  from tiffany.example to pdiff.example and make it use python3.
