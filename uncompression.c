@@ -127,6 +127,7 @@ static retvalue startpipeoutchild(enum compression c, int fd, /*@out@*/int *pipe
 	markcloseonexec(filedes[0]);
 	r = startchild(c, fd, filedes[1], pid_p);
 	if (RET_WAS_ERROR(r))
+		/* fd and filedes[1] are closed by startchild on error */
 		(void)close(filedes[0]);
 	else
 		*pipefd = filedes[0];
@@ -146,6 +147,7 @@ static retvalue startpipeinoutchild(enum compression c, /*@out@*/int *infd, /*@o
 	markcloseonexec(infiledes[1]);
 	r = startpipeoutchild(c, infiledes[0], outfd, pid_p);
 	if (RET_WAS_ERROR(r))
+		/* infiledes[0] is closed by startpipeoutchild on error */
 		(void)close(infiledes[1]);
 	else
 		*infd = infiledes[1];
@@ -601,11 +603,16 @@ retvalue uncompress_open(/*@out@*/struct compressedfile **file_p, const char *fi
 		e = errno;
 		fprintf(stderr, "Error %d opening '%s': %s\n", e,
 				f->filename, strerror(e));
+		free(f->filename);
+		free(f);
 		return RET_ERRNO(e);
 	}
 	r = startpipeoutchild(compression, fd, &f->fd, &f->pid);
-	if (RET_WAS_ERROR(r))
+	if (RET_WAS_ERROR(r)) {
+		free(f->filename);
+		free(f);
 		return r;
+	}
 	*file_p = f;
 	return RET_OK;
 }
