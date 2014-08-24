@@ -898,14 +898,15 @@ static retvalue uncompress_commonclose(struct compressedfile *file, int *errno_p
 		result = RET_OK;
 		if (file->pid <= 0)
 			return RET_OK;
+		pid = -1;
 		do {
-			pid = waitpid(file->pid, &status, 0);
-			e = errno;
 			if (interrupted()) {
 				*errno_p = EINTR;
 				*msg_p = "Interrupted";
 				result = RET_ERROR_INTERRUPTED;
 			}
+			pid = waitpid(file->pid, &status, 0);
+			e = errno;
 		} while (pid == -1 && (e == EINTR || e == EAGAIN));
 		if (pid == -1) {
 			*errno_p = e;
@@ -1121,12 +1122,12 @@ void uncompress_abort(struct compressedfile *file) {
 			(void)close(file->infd);
 		if (file->pipeinfd != -1)
 			(void)close(file->pipeinfd);
+		pid = -1;
 		do {
+			if (interrupted())
+				break;
 			pid = waitpid(file->pid, &status, 0);
 			e = errno;
-			if (interrupted()) {
-				break;
-			}
 		} while (pid == -1 && (e == EINTR || e == EAGAIN));
 		if (file->fd >= 0)
 			(void)close(file->fd);
