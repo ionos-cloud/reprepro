@@ -615,25 +615,11 @@ static retvalue uncompression_read_internal_buffer(struct compressedfile *f) {
 }
 
 static inline retvalue start_gz(struct compressedfile *f, int *errno_p, const char **msg_p) {
-	retvalue r;
 	int ret;
 
 	memset(&f->uncompress.gz, 0, sizeof(f->uncompress.gz));
 	f->uncompress.gz.zalloc = Z_NULL; /* use default */
 	f->uncompress.gz.zfree = Z_NULL; /* use default */
-	r = uncompression_read_internal_buffer(f);
-	if (RET_WAS_ERROR(r)) {
-		free(f->uncompress.buffer);
-		f->uncompress.buffer = NULL;
-		*errno_p = f->error;
-		*msg_p = strerror(f->error);
-		return r;
-	}
-	if (f->uncompress.available == 0) {
-		*errno_p = -EINVAL;
-		*msg_p = "File supposed to be .gz file is empty instead";
-		return RET_ERROR;
-	}
 	f->uncompress.gz.next_in = f->uncompress.buffer;
 	f->uncompress.gz.avail_in = f->uncompress.available;
 	/* 32 means accept zlib and gz header
@@ -656,25 +642,9 @@ static inline retvalue start_gz(struct compressedfile *f, int *errno_p, const ch
 
 #ifdef HAVE_LIBBZ2
 static inline retvalue start_bz2(struct compressedfile *f, int *errno_p, const char **msg_p) {
-	retvalue r;
 	int ret;
 
 	memset(&f->uncompress.bz2, 0, sizeof(f->uncompress.bz2));
-	/* libbz2 does not look at the header before the first
-	 * uncompress. But this way we get errors earlier: */
-	r = uncompression_read_internal_buffer(f);
-	if (RET_WAS_ERROR(r)) {
-		free(f->uncompress.buffer);
-		f->uncompress.buffer = NULL;
-		*errno_p = f->error;
-		*msg_p = strerror(f->error);
-		return r;
-	}
-	if (f->uncompress.available == 0) {
-		errno_p = -EINVAL;
-		*msg_p = "File supposed to be .bz2 file is empty instead";
-		return RET_ERROR;
-	}
 
 	/* not used by bzDecompressInit, but not set before next call: */
 	f->uncompress.bz2.next_in = (char*)f->uncompress.buffer;
@@ -696,8 +666,24 @@ static inline retvalue start_bz2(struct compressedfile *f, int *errno_p, const c
 #endif
 
 static retvalue start_builtin(struct compressedfile *f, int *errno_p, const char **msg_p) {
+	retvalue r;
+
 	assert (f->compression != c_none);
 	assert (uncompression_builtin(f->compression));
+
+	r = uncompression_read_internal_buffer(f);
+	if (RET_WAS_ERROR(r)) {
+		free(f->uncompress.buffer);
+		f->uncompress.buffer = NULL;
+		*errno_p = f->error;
+		*msg_p = strerror(f->error);
+		return r;
+	}
+	if (f->uncompress.available == 0) {
+		*errno_p = -EINVAL;
+		*msg_p = "File supposed to be compressed file is empty instead";
+		return RET_ERROR;
+	}
 
 	switch (f->compression) {
 		case c_gzip:
