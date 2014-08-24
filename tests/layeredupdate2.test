@@ -164,13 +164,13 @@ Codename: hohoho
 Suite: suitename
 Architectures: coal abacus
 MD5Sum:
- 00000000000000000000000000000000 0 main/binary-abacus/Packages.lzma
+ 00000000000000000000000000000000 0 main/binary-abacus/Packages.lz
  00000000000000000000000000000000 0 main/binary-abacus/Packages.gz
- 00000000000000000000000000000000 0 main/binary-coal/Packages.lzma
- 00000000000000000000000000000000 0 main/source/Sources.lzma
- 00000000000000000000000000000000 0 firmware/binary-abacus/Packages.lzma
- 00000000000000000000000000000000 0 firmware/binary-coal/Packages.lzma
- 00000000000000000000000000000000 0 firmware/source/Sources.lzma
+ 00000000000000000000000000000000 0 main/binary-coal/Packages.lz
+ 00000000000000000000000000000000 0 main/source/Sources.lz
+ 00000000000000000000000000000000 0 firmware/binary-abacus/Packages.lz
+ 00000000000000000000000000000000 0 firmware/binary-coal/Packages.lz
+ 00000000000000000000000000000000 0 firmware/source/Sources.lz
  00000000000000000000000000000000 0 main/binary-coal/Packages.gz
  00000000000000000000000000000000 0 main/source/Sources.gz
  00000000000000000000000000000000 0 firmware/binary-abacus/Packages.gz
@@ -178,12 +178,14 @@ MD5Sum:
  00000000000000000000000000000000 0 firmware/source/Sources.gz
 EOF
 
-testrun - --unlzma=NONE update boring 3<<EOF
+sed -e 's/\.lzma/.lz/' -i  conf/updates
+
+testrun - --lunzip=NONE update boring 3<<EOF
 stdout
 $(odb)
 -v2*=Created directory "./lists"
 stderr
-*=./conf/updates:5:126: Ignoring all but first 18 entries...
+*=./conf/updates:5:124: Ignoring all but first 18 entries...
 -v6*=aptmethod start 'copy:$WORKDIR/source2/x/InRelease'
 -v6*=aptmethod start 'copy:$WORKDIR/source1/dists/suitename/InRelease'
 -v1*=aptmethod got 'copy:$WORKDIR/source2/x/InRelease'
@@ -191,7 +193,7 @@ stderr
 *=WARNING: No signature found in ./lists/a_suitename_InRelease, assuming it is unsigned!
 *=WARNING: No signature found in ./lists/b_x_flat_InRelease, assuming it is unsigned!
 *=Error: './lists/a_suitename_InRelease' only lists unusable or unrequested compressions of 'main/binary-abacus/Packages'.
-*=Try e.g the '--unlzma' option (or check what it is set to) to make more useable.
+*=Try e.g the '--lunzip' option (or check what it is set to) to make more useable.
 *=Or change your DownloadListsAs to request e.g. '.gz'.
 -v0*=There have been errors!
 returns 255
@@ -202,17 +204,17 @@ Codename: hohoho
 Suite: suitename
 Architectures: coal abacus
 MD5Sum:
- 00000000000000000000000000000000 0 main/binary-abacus/Packages.lzma
- 00000000000000000000000000000000 0 main/binary-coal/Packages.lzma
- 00000000000000000000000000000000 0 main/source/Sources.lzma
- 00000000000000000000000000000000 0 firmware/binary-abacus/Packages.lzma
- 00000000000000000000000000000000 0 firmware/binary-coal/Packages.lzma
- 00000000000000000000000000000000 0 firmware/source/Sources.lzma
+ 00000000000000000000000000000000 0 main/binary-abacus/Packages.lz
+ 00000000000000000000000000000000 0 main/binary-coal/Packages.lz
+ 00000000000000000000000000000000 0 main/source/Sources.lz
+ 00000000000000000000000000000000 0 firmware/binary-abacus/Packages.lz
+ 00000000000000000000000000000000 0 firmware/binary-coal/Packages.lz
+ 00000000000000000000000000000000 0 firmware/source/Sources.lz
 EOF
 
-testrun - --unlzma=NONE update boring 3<<EOF
+testrun - --lunzip=NONE update boring 3<<EOF
 stderr
-*=./conf/updates:5:126: Ignoring all but first 18 entries...
+*=./conf/updates:5:124: Ignoring all but first 18 entries...
 -v6*=aptmethod start 'copy:$WORKDIR/source2/x/InRelease'
 -v6*=aptmethod start 'copy:$WORKDIR/source1/dists/suitename/InRelease'
 -v1*=aptmethod got 'copy:$WORKDIR/source2/x/InRelease'
@@ -220,10 +222,12 @@ stderr
 *=WARNING: No signature found in ./lists/a_suitename_InRelease, assuming it is unsigned!
 *=WARNING: No signature found in ./lists/b_x_flat_InRelease, assuming it is unsigned!
 *=Error: './lists/a_suitename_InRelease' only lists unusable compressions of 'main/binary-abacus/Packages'.
-*=Try e.g the '--unlzma' option (or check what it is set to) to make more useable.
+*=Try e.g the '--lunzip' option (or check what it is set to) to make more useable.
 -v0*=There have been errors!
 returns 255
 EOF
+
+sed -e 's/\.lz\>/.lzma/' -i  conf/updates
 
 cat > source1/dists/suitename/InRelease <<EOF
 Codename: hohoho

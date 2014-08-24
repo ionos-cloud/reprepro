@@ -171,6 +171,13 @@ fi
 if ! which ed >/dev/null 2>&1 ; then
 	echo "WARNING: ed not installed, some tests might fail!"
 fi
+if ! which lunzip >/dev/null 2>&1 ; then
+	echo "WARNING: lunzip not installed, some tests might be incomplete!"
+else
+if ! which lzip >/dev/null 2>&1 ; then
+	echo "WARNING: lunzip installed but lunzip not, some tests might fail!"
+fi
+fi
 if ! dpkg -s python3-apt | grep -q -s "Status: .* ok installed" ; then
 	echo "WARNING: python3-apt not installed, some tests might fail!"
 fi
