@@ -154,7 +154,7 @@ static retvalue startpipeinoutchild(enum compression c, /*@out@*/int *infd, /*@o
 	return r;
 }
 
-static void uncompress_start_queued(void) {
+static retvalue uncompress_start_queued(void) {
 	struct uncompress_task *t;
 	int running_count = 0;
 	int e, stdinfd, stdoutfd;
@@ -166,13 +166,13 @@ static void uncompress_start_queued(void) {
 	// TODO: make the maximum number configurable,
 	// until that 1 is the best guess...
 	if (running_count >= 1)
-		return;
+		return RET_OK;
 	t = tasks;
 	while (t != NULL && t->pid > 0)
 		t = t->next;
 	if (t == NULL)
 		/* nothing to do... */
-		return;
+		return RET_NOTHING;
 	if (verbose > 1) {
 		fprintf(stderr, "Uncompress '%s' into '%s' using '%s'...\n",
 				t->compressedfilename,
@@ -185,7 +185,8 @@ static void uncompress_start_queued(void) {
 		fprintf(stderr, "Error %d opening %s: %s\n",
 				e, t->compressedfilename,
 				strerror(e));
-		return ; // RET_ERRNO(e);
+		// TODO: call callback
+		return RET_ERRNO(e);
 	}
 	stdoutfd = open(t->uncompressedfilename,
 			O_WRONLY|O_CREAT|O_EXCL|O_NOFOLLOW, 0666);
@@ -195,10 +196,10 @@ static void uncompress_start_queued(void) {
 		fprintf(stderr, "Error %d creating %s: %s\n",
 				e, t->uncompressedfilename,
 				strerror(e));
-		return ; // RET_ERRNO(e);
+		// TODO: call callback
+		return RET_ERRNO(e);
 	}
-	// return
-	startchild(t->compression, stdinfd, stdoutfd, &t->pid);
+	return startchild(t->compression, stdinfd, stdoutfd, &t->pid);
 }
 
 static inline retvalue builtin_uncompress(const char *compressed, const char *destination, enum compression compression);
@@ -206,7 +207,7 @@ static inline retvalue builtin_uncompress(const char *compressed, const char *de
 /* we got an pid, check if it is a uncompressor we care for */
 retvalue uncompress_checkpid(pid_t pid, int status) {
 	struct uncompress_task *t, **t_p;
-	retvalue r;
+	retvalue r, r2;
 	bool error = false;
 
 	if (pid <= 0)
@@ -274,7 +275,8 @@ retvalue uncompress_checkpid(pid_t pid, int status) {
 	/* take out of the chain and free */
 	*t_p = t->next;
 	uncompress_task_free(t);
-	uncompress_start_queued();
+	r2 = uncompress_start_queued();
+	RET_ENDUPDATE(r, r2);
 	return r;
 }
 
@@ -407,6 +409,7 @@ static inline retvalue builtin_uncompress(const char *compressed, const char *de
 
 static retvalue uncompress_queue_external(enum compression compression, const char *compressed, const char *uncompressed, /*@null@*/finishaction *action, /*@null@*/void *privdata) {
 	struct uncompress_task *t, **t_p;
+	retvalue r;
 
 	t_p = &tasks;
 	while ((t = (*t_p)) != NULL)
@@ -427,8 +430,10 @@ static retvalue uncompress_queue_external(enum compression compression, const ch
 	t->callback = action;
 	t->privdata = privdata;
 	*t_p = t;
-	uncompress_start_queued();
-	return RET_OK;
+	r = uncompress_start_queued();
+	if (r == RET_NOTHING)
+		r = RET_ERROR_INTERNAL;
+	return r;
 }
 
 retvalue uncompress_queue_file(const char *compressed, const char *destination, enum compression compression, finishaction *action, void *privdata) {
@@ -495,9 +500,8 @@ retvalue uncompress_file(const char *compressed, const char *destination, enum c
 					if (e == EINTR)
 						continue;
 					fprintf(stderr,
-"Error %d waiting for uncompression child %lu: %s\n",
-						e, (unsigned long)pid,
-						strerror(e));
+"Error %d waiting for uncompression child: %s\n",
+						e, strerror(e));
 					r = RET_ERRNO(e);
 				} else
 					r = uncompress_checkpid(pid, status);
