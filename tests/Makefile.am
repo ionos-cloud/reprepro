@@ -1,5 +1,5 @@
 EXTRA_DIST = \
-brokenunlzma.sh \
+brokenuncompressor.sh \
 genpackage.sh \
 test.inc \
 test.sh \
