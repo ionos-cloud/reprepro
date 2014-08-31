@@ -1,4 +1,4 @@
-reprepro (4.16.0-1) UNRELEASED; urgency=medium
+reprepro (4.16.0-1) unstable; urgency=medium
 
   * new release
   - don't use python2 in examples
@@ -6,7 +6,7 @@ reprepro (4.16.0-1) UNRELEASED; urgency=medium
   * build-depend on liblzma-dev
   * switch Vcs-Browser to cgi URL.
 
- -- Bernhard R. Link <brlink@debian.org>  Sun, 31 Aug 2014 17:55:59 +0200
+ -- Bernhard R. Link <brlink@debian.org>  Sun, 31 Aug 2014 18:49:44 +0200
 
 reprepro (4.15.0-1) unstable; urgency=medium
 
