@@ -199,7 +199,7 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 EXTRA_DIST = \
-brokenunlzma.sh \
+brokenuncompressor.sh \
 genpackage.sh \
 test.inc \
 test.sh \

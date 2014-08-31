@@ -1,3 +1,11 @@
+reprepro (4.16.0-1) UNRELEASED; urgency=medium
+
+  * new release
+  - don't use python2 in examples
+  - support for using liblzma for decompressing .xz and .lzma
+
+ -- Bernhard R. Link <brlink@debian.org>  Sun, 31 Aug 2014 17:55:59 +0200
+
 reprepro (4.15.0-1) unstable; urgency=medium
 
   * new release

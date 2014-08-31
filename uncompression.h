@@ -12,10 +12,18 @@ extern const char * const uncompression_config[c_COUNT];
  * or uncompress (possibly multiple files) on the filesystem,
  * controled by aptmethods */
 
-#ifdef HAVE_LIBBZ2
-#define uncompression_builtin(c) ((c) == c_bzip2 || (c) == c_gzip)
+#ifdef HAVE_LIBLZMA
+# ifdef HAVE_LIBBZ2
+#define uncompression_builtin(c) ((c) == c_xz || (c) == c_lzma || (c) == c_bzip2 || (c) == c_gzip)
+# else
+#define uncompression_builtin(c) ((c) == c_xz || (c) == c_lzma || (c) == c_gzip)
+# endif
 #else
+# ifdef HAVE_LIBBZ2
+#define uncompression_builtin(c) ((c) == c_bzip2 || (c) == c_gzip)
+# else
 #define uncompression_builtin(c) ((c) == c_gzip)
+# endif
 #endif
 #define uncompression_supported(c) ((c) == c_none || \
 		uncompression_builtin(c) || \

@@ -1,7 +1,7 @@
 #!/bin/dash
 
 # This needs installed:
-# apt, dpkg-dev, ed, python-apt, lzma, python3, dbX.Y-util
+# apt, dpkg-dev, ed, python3-apt, lzma, python3, dbX.Y-util
 # it will fail if run over a changing hour
 
 set -e -u
@@ -16,6 +16,7 @@ VALGRIND_EXTRA_OPTIONS=""
 VALGRIND_SUP=""
 TESTOPTIONS=""
 VERBOSEDB="1"
+TESTSHELLOPTS=
 testtorun="all"
 verbosity=6
 deleteifmarked=true
@@ -35,6 +36,10 @@ while [ $# -gt 0 ] ; do
 			shift
 			testtorun="$1"
 			shift
+			;;
+		--trace)
+			shift
+			TESTSHELLOPTS=-x
 			;;
 		--delete)
 			if ! $deleteifmarked ; then
@@ -166,8 +171,15 @@ fi
 if ! which ed >/dev/null 2>&1 ; then
 	echo "WARNING: ed not installed, some tests might fail!"
 fi
-if ! dpkg -s python-apt | grep -q -s "Status: .* ok installed" ; then
-	echo "WARNING: python-apt not installed, some tests might fail!"
+if ! which lunzip >/dev/null 2>&1 ; then
+	echo "WARNING: lunzip not installed, some tests might be incomplete!"
+else
+if ! which lzip >/dev/null 2>&1 ; then
+	echo "WARNING: lunzip installed but lunzip not, some tests might fail!"
+fi
+fi
+if ! dpkg -s python3-apt | grep -q -s "Status: .* ok installed" ; then
+	echo "WARNING: python3-apt not installed, some tests might fail!"
 fi
 if ! dpkg -s dpkg-dev | grep -q -s "Status: .* ok installed" ; then
 	echo "WARNING: dpkg-dev not installed, most tests might fail!"
@@ -202,7 +214,7 @@ runtest() {
 	  export SRCDIR TESTSDIR
 	  export TESTTOOL RREDTOOL REPREPRO
 	  export TRACKINGTESTOPTIONS TESTOPTIONS REPREPROOPTIONS verbosity
-  	  WORKDIR="$WORKDIR/dir_$1" CALLEDFROMTESTSUITE=true dash "$SRCDIR/tests/$1.test"
+  	  WORKDIR="$WORKDIR/dir_$1" CALLEDFROMTESTSUITE=true dash $TESTSHELLOPTS "$SRCDIR/tests/$1.test"
 	) > "log_$1" 2>&1 || rc=$?
 	if test "$rc" -ne 0 ; then
 		number_failed="$(( $number_failed + 1 ))"

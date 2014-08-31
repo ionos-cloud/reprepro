@@ -386,15 +386,11 @@ $(ofa 'pool/dog/b/bird/bird-addons_1_all.deb')
 -v4*=Reading filelist for pool/dog/b/bird/bird-addons_1_all.deb
 -d1*=db: 'pool/dog/b/bird/bird-addons_1_all.deb' added to contents.cache.db(compressedfilelists).
 EOF
-LOGDATE="$(date +'%Y-%m-%d %H:')"
-echo normalizing logfile: DATESTR is "$LOGDATE??:??"
-sed -i -e 's/^'"$LOGDATE"'[0-9][0-9]:[0-9][0-9] /DATESTR /g' logs/logfile
-cat > results.log.expected <<EOF
+checklog logfile <<EOF
 DATESTR add B dsc dog source bird 1
 DATESTR add B deb dog abacus bird 1
 DATESTR add B deb dog abacus bird-addons 1
 EOF
-dodiff results.log.expected logs/logfile
 find temp -type f > results
 dodiff /dev/null results
 find i -type f > results
@@ -427,12 +423,12 @@ dodiff results.expected results
 printindexpart pool/dog/b/bird/bird_1_abacus.deb > results.expected
 printindexpart pool/dog/b/bird/bird-addons_1_all.deb >> results.expected
 dodiff results.expected dists/B/dog/binary-abacus/Packages
-withoutchecksums pool/dog/b/bird/bird_1.dsc > results.expected
+withoutchecksums pool/dog/b/bird/bird_1.dsc | sed -e 's/ \+$//' > results.expected
 ed -s results.expected <<EOF
 H
-/^Source: / m 0
+/^Source:/ m 0
 s/^Source: /Package: /
-/^Files: / kf
+/^Files:/ kf
 'f i
 Priority: superfluous
 Section: tasty
@@ -442,10 +438,10 @@ Directory: pool/dog/b/bird
  $DSCMD5S bird_1.dsc
 .
 $ a
-Checksums-Sha1: 
+Checksums-Sha1:
  $DSCSHA1S bird_1.dsc
  $TARSHA1S bird_1.tar.gz
-Checksums-Sha256: 
+Checksums-Sha256:
  $DSCSHA2S bird_1.dsc
  $TARSHA2S bird_1.tar.gz
 
@@ -453,7 +449,7 @@ Checksums-Sha256:
 w
 q
 EOF
-gunzip -c dists/B/dog/source/Sources.gz > results
+gunzip -c dists/B/dog/source/Sources.gz | sed -e 's/ \+$//' > results
 dodiff results.expected results
 
 echo "DebOverride: debo" >> conf/distributions
@@ -500,9 +496,6 @@ $(ofa 'pool/cat/b/bird/bird-addons_1_all.deb')
 -d1*=db: 'pool/cat/b/bird/bird-addons_1_all.deb' added to contents.cache.db(compressedfilelists).
 EOF
 checklog logfile <<EOF
-DATESTR add B dsc dog source bird 1
-DATESTR add B deb dog abacus bird 1
-DATESTR add B deb dog abacus bird-addons 1
 DATESTR add B dsc cat source bird 1
 DATESTR add B deb cat abacus bird 1
 DATESTR add B deb cat abacus bird-addons 1
@@ -555,12 +548,12 @@ w
 q
 EOF
 dodiff results.expected dists/B/cat/binary-abacus/Packages
-withoutchecksums pool/cat/b/bird/bird_1.dsc > results.expected
+withoutchecksums pool/cat/b/bird/bird_1.dsc | sed -e 's/ \+$//' > results.expected
 ed -s results.expected <<EOF
 H
-/^Source: / m 0
+/^Source:/ m 0
 s/^Source: /Package: /
-/^Files: / kf
+/^Files:/ kf
 'f i
 Homepage: gopher://tree
 Priority: hurry
@@ -571,10 +564,10 @@ Directory: pool/cat/b/bird
  $DSCMD5S bird_1.dsc
 .
 $ a
-Checksums-Sha1: 
+Checksums-Sha1:
  $DSCSHA1S bird_1.dsc
  $TARSHA1S bird_1.tar.gz
-Checksums-Sha256: 
+Checksums-Sha256:
  $DSCSHA2S bird_1.dsc
  $TARSHA2S bird_1.tar.gz
 
@@ -588,7 +581,7 @@ BIRDDSCSHA1S="$DSCSHA1S"
 BIRDTARSHA1S="$TARSHA1S"
 BIRDDSCSHA2S="$DSCSHA2S"
 BIRDTARSHA2S="$TARSHA2S"
-gunzip -c dists/B/cat/source/Sources.gz > results
+gunzip -c dists/B/cat/source/Sources.gz | sed -e 's/ \+$//' > results
 dodiff results.expected results
 
 # now missing: checking what all can go wrong in a .changes or .dsc file...
@@ -1294,13 +1287,13 @@ dists/B/dog/source/Sources.gz
 dists/B/Release
 EOF
 dodiff results.expected results
-gunzip -c dists/B/dog/source/Sources.gz > results
-withoutchecksums pool/dog/b/bird/bird_1.dsc >bird.preprocessed
+gunzip -c dists/B/dog/source/Sources.gz | sed -e 's/ \+$//' > results
+withoutchecksums pool/dog/b/bird/bird_1.dsc | sed -e 's/ \+$//' >bird.preprocessed
 ed -s bird.preprocessed <<EOF
 H
-/^Source: / m 0
+/^Source:/ m 0
 s/^Source: /Package: /
-/^Files: / kf
+/^Files:/ kf
 'f i
 Priority: superfluous
 Section: tasty
@@ -1310,10 +1303,10 @@ Directory: pool/dog/b/bird
  $BIRDDSCMD5S bird_1.dsc
 .
 $ a
-Checksums-Sha1: 
+Checksums-Sha1:
  $BIRDDSCSHA1S bird_1.dsc
  $BIRDTARSHA1S bird_1.tar.gz
-Checksums-Sha256: 
+Checksums-Sha256:
  $BIRDDSCSHA2S bird_1.dsc
  $BIRDTARSHA2S bird_1.tar.gz
 
@@ -1330,11 +1323,11 @@ Version: 0versionindsc
 Priority: can't-live-without
 Section: dummy
 Directory: pool/dog/d/dscfilename
-Files: 
+Files:
  $OLDDSCFILENAMEMD5S dscfilename_0versionindsc.dsc
-Checksums-Sha1: 
+Checksums-Sha1:
  $OLDDSCFILENAMESHA1S dscfilename_0versionindsc.dsc
-Checksums-Sha256: 
+Checksums-Sha256:
  $OLDDSCFILENAMESHA2S dscfilename_0versionindsc.dsc
 
 EOF
@@ -1416,7 +1409,7 @@ dists/B/dog/source/Sources.gz
 dists/B/Release
 EOF
 dodiff results.expected results
-gunzip -c dists/B/dog/source/Sources.gz > results
+gunzip -c dists/B/dog/source/Sources.gz | sed -e 's/ \+$//' > results
 cat bird.preprocessed - > results.expected <<EOF
 Package: dscfilename
 Format: 1.0
@@ -1426,13 +1419,13 @@ Version: 1:newversion~
 Priority: unneeded
 Section: dummy
 Directory: pool/dog/d/dscfilename
-Files: 
+Files:
  $DSCFILENAMEMD5S dscfilename_newversion~.dsc
  31a1096ff883d52f0c1f39e652d6336f 33 strangefile_xyz
-Checksums-Sha1: 
+Checksums-Sha1:
  $DSCFILENAMESHA1S dscfilename_newversion~.dsc
  4453da6ca46859b207c5b55af6213ff8369cd383 33 strangefile_xyz
-Checksums-Sha256: 
+Checksums-Sha256:
  $DSCFILENAMESHA2S dscfilename_newversion~.dsc
  c40fcf711220c0ce210159d43b22f1f59274819bf3575e11cc0057ed1988a575 33 strangefile_xyz
 

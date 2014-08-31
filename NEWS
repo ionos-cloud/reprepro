@@ -1,3 +1,8 @@
+Updates between 4.15.0 and 4.16.0:
+- add support for xz uncompression using liblzma instead of unxz
+- enable using liblzma by default (if found and not --without-liblzma is given)
+- all example scripts in python now use python3
+
 Updates between 4.14.1 and 4.15.0:
 - fixes to outsftphook example, new xz example, manpage improvements
 - support for native Packages.xz generation using liblzma (disabled by default)

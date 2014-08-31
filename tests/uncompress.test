@@ -7,8 +7,8 @@ testrun - --lunzip=NONE --unxz=NONE __dumpuncompressors 3<<EOF
 stdout
 *=.gz: built-in + '/bin/gunzip'
 *=.bz2: built-in + '/bin/bunzip2'
-*=.lzma: '/usr/bin/unlzma'
-*=.xz: not supported (install xz-utils or use --unxz to tell where unxz is).
+*=.lzma: built-in + '/usr/bin/unlzma'
+*=.xz: built-in
 *=.lz: not supported (install lzip or use --lunzip to tell where lunzip is).
 EOF
 
@@ -16,8 +16,8 @@ testrun - --lunzip=NONE --gunzip=NONE --bunzip2=NONE --unlzma=NONE --unxz=NONE _
 stdout
 *=.gz: built-in
 *=.bz2: built-in
-*=.lzma: not supported (install lzma or use --unlzma to tell where unlzma is).
-*=.xz: not supported (install xz-utils or use --unxz to tell where unxz is).
+*=.lzma: built-in
+*=.xz: built-in
 *=.lz: not supported (install lzip or use --lunzip to tell where lunzip is).
 EOF
 
@@ -25,8 +25,8 @@ testrun - --lunzip=NONE --gunzip=false --bunzip2=false --unlzma=false --unxz=NON
 stdout
 *=.gz: built-in + '/bin/false'
 *=.bz2: built-in + '/bin/false'
-*=.lzma: '/bin/false'
-*=.xz: not supported (install xz-utils or use --unxz to tell where unxz is).
+*=.lzma: built-in + '/bin/false'
+*=.xz: built-in
 *=.lz: not supported (install lzip or use --lunzip to tell where lunzip is).
 EOF
 
@@ -36,8 +36,8 @@ testrun - --lunzip=./fakelz --gunzip=./fakeg --bunzip2=./fakeb --unlzma=./fakel 
 stdout
 *=.gz: built-in
 *=.bz2: built-in
-*=.lzma: not supported (install lzma or use --unlzma to tell where unlzma is).
-*=.xz: not supported (install xz-utils or use --unxz to tell where unxz is).
+*=.lzma: built-in
+*=.xz: built-in
 *=.lz: not supported (install lzip or use --lunzip to tell where lunzip is).
 EOF
 
@@ -47,8 +47,8 @@ testrun - --lunzip=./fakelz --gunzip=./fakeg --bunzip2=./fakeb --unlzma=./fakel 
 stdout
 *=.gz: built-in + './fakeg'
 *=.bz2: built-in + './fakeb'
-*=.lzma: './fakel'
-*=.xz: './fakexz'
+*=.lzma: built-in + './fakel'
+*=.xz: built-in + './fakexz'
 *=.lz: './fakelz'
 EOF
 
@@ -83,16 +83,40 @@ bzip2 -c smallfile > smallfile.bz2
 echo lzma -c smallfile \> smallfile.lzma
 lzma -c smallfile > smallfile.lzma
 
+testrun - __uncompress .lz notexists.lz notexists.lz.uncompressed 3<<EOF
+-v2*=Uncompress 'notexists.lz' into 'notexists.lz.uncompressed' using '/usr/bin/lunzip'...
+*=Error 2 opening notexists.lz: No such file or directory
+-v0*=There have been errors!
+returns 254
+EOF
+
+if test -x /usr/bin/lzip ; then
+echo lzip -c testfile \> testfile.lz
+lzip -c testfile > testfile.lz
+echo lzip -c smallfile \> smallfile.lz
+lzip -c smallfile > smallfile.lz
+testrun - __uncompress .lz testfile.lz testfile.lz.uncompressed 3<<EOF
+-v2*=Uncompress 'testfile.lz' into 'testfile.lz.uncompressed' using '/usr/bin/lunzip'...
+EOF
+dodiff testfile testfile.lz.uncompressed
+rm *.uncompressed
+testrun - __uncompress .lz smallfile.lz smallfile.lz.uncompressed 3<<EOF
+-v2*=Uncompress 'smallfile.lz' into 'smallfile.lz.uncompressed' using '/usr/bin/lunzip'...
+EOF
+dodiff smallfile smallfile.lz.uncompressed
+rm *.uncompressed
+fi
+
 if test -x /usr/bin/xz ; then
 echo xz -c smallfile \> smallfile.xz
 xz -c smallfile > smallfile.xz
 testrun - __uncompress .xz testfile.xz testfile.xz.uncompressed 3<<EOF
--v2*=Uncompress 'testfile.xz' into 'testfile.xz.uncompressed' using '/usr/bin/unxz'...
+-v2*=Uncompress 'testfile.xz' into 'testfile.xz.uncompressed'...
 EOF
 dodiff testfile testfile.xz.uncompressed
 rm *.uncompressed
 testrun - __uncompress .xz smallfile.xz smallfile.xz.uncompressed 3<<EOF
--v2*=Uncompress 'smallfile.xz' into 'smallfile.xz.uncompressed' using '/usr/bin/unxz'...
+-v2*=Uncompress 'smallfile.xz' into 'smallfile.xz.uncompressed'...
 EOF
 dodiff smallfile smallfile.xz.uncompressed
 rm *.uncompressed
@@ -109,7 +133,7 @@ EOF
 dodiff testfile testfile.bz2.uncompressed
 rm *.uncompressed
 testrun - __uncompress .lzma testfile.lzma testfile.lzma.uncompressed 3<<EOF
--v2*=Uncompress 'testfile.lzma' into 'testfile.lzma.uncompressed' using '/usr/bin/unlzma'...
+-v2*=Uncompress 'testfile.lzma' into 'testfile.lzma.uncompressed'...
 EOF
 dodiff testfile testfile.lzma.uncompressed
 rm *.uncompressed
@@ -124,18 +148,19 @@ EOF
 dodiff smallfile smallfile.bz2.uncompressed
 rm *.uncompressed
 testrun - __uncompress .lzma smallfile.lzma smallfile.lzma.uncompressed 3<<EOF
--v2*=Uncompress 'smallfile.lzma' into 'smallfile.lzma.uncompressed' using '/usr/bin/unlzma'...
+-v2*=Uncompress 'smallfile.lzma' into 'smallfile.lzma.uncompressed'...
 EOF
 dodiff smallfile smallfile.lzma.uncompressed
 rm *.uncompressed
 
-testrun - --unlzma=false __uncompress .lzma smallfile.lzma smallfile.lzma.uncompressed 3<<EOF
--v2*=Uncompress 'smallfile.lzma' into 'smallfile.lzma.uncompressed' using '/bin/false'...
-*='/bin/false' < smallfile.lzma > smallfile.lzma.uncompressed exited with errorcode 1!
+touch fake.lz
+testrun - --lunzip=false __uncompress .lz fake.lz fake.lz.uncompressed 3<<EOF
+-v2*=Uncompress 'fake.lz' into 'fake.lz.uncompressed' using '/bin/false'...
+*='/bin/false' < fake.lz > fake.lz.uncompressed exited with errorcode 1!
 -v0*=There have been errors!
 returns 255
 EOF
-dodo test ! -e smallfile.lzma.uncompressed
+dodo test ! -e fake.lz.uncompressed
 
 
 # Now check for compressed parts of an .a file:
@@ -175,9 +200,27 @@ stdout
 *=/testfile.gz
 *=/testfile.lzma
 =/testfile.xz
+=/testfile.lz
 EOF
 
 rm fake.deb
+
+for compressor in lz lzma ; do
+case $compressor in
+	lz)
+		compressor_program=lzip
+		uncompressor=lunzip
+	;;
+	lzma)
+		compressor_program=lzma
+		uncompressor=""
+	;;
+esac
+export uncompressor
+if ! test -x /usr/bin/$compressor_program ; then
+	echo "SKIPPING $compressor because /usr/bin/$compressor_program is missing!"
+	continue
+fi
 
 # Now check extracting Section/Priority from an .dsc
 mkdir debian
@@ -193,14 +236,14 @@ EOF
 echo generating fake dirs
 for n in $(seq 100000) ; do echo "/$n"  ; done > debian/dirs
 dd if=/dev/zero of=debian/zzz bs=1024 count=4096
-tar -cf - debian | lzma > fake_1-1.debian.tar.lzma
+tar -cf - debian | $compressor_program > fake_1-1.debian.tar.$compressor
 mkdir fake-1
 mkdir fake-1.orig
 cp -al debian fake-1/debian
 cp -al debian fake-1.orig/debian
 sed -e 's/1/2/' fake-1/debian/dirs > fake-1/debian.dirs.new
 mv fake-1/debian.dirs.new fake-1/debian/dirs
-diff -ruN fake-1.orig fake-1 | lzma > fake_1-1.diff.lzma
+diff -ruN fake-1.orig fake-1 | $compressor_program > fake_1-1.diff.$compressor
 rm -r debian
 
 # .debian.tar and .diff usually do not happen at the same time, but easier testing...
@@ -212,9 +255,9 @@ Architecture: all
 Version: 17
 Maintainer: Me
 Files:
- $(mdandsize fake_1-1.diff.lzma) fake_1-1.diff.lzma
- $(mdandsize fake_1-1.debian.tar.lzma) fake_1-1.debian.tar.lzma
- 00000000000000000000000000000000 0 fake_1.orig.tar.lzma
+ $(mdandsize fake_1-1.diff.${compressor}) fake_1-1.diff.${compressor}
+ $(mdandsize fake_1-1.debian.tar.${compressor}) fake_1-1.debian.tar.${compressor}
+ 00000000000000000000000000000000 0 fake_1.orig.tar.${compressor}
 EOF
 
 testrun - __extractsourcesection fake_1-1.dsc 3<<EOF
@@ -238,22 +281,24 @@ EOF
 #
 # Thus we can only fake a damaged file by replacing the uncompressor:
 
-testrun - --unlzma=brokenunlzma.sh __extractsourcesection fake_1-1.dsc 3<<EOF
+if test -n "${uncompressor}" ; then
+testrun - --${uncompressor}=brokenuncompressor.sh __extractsourcesection fake_1-1.dsc 3<<EOF
 returns 255
-*=brokenunlzma.sh: claiming broken archive
-*=Error reading from ./fake_1-1.diff.lzma: $TESTSDIR/brokenunlzma.sh exited with code 1!
+*=brokenuncompressor.sh: claiming broken archive
+*=Error reading from ./fake_1-1.diff.${compressor}: $TESTSDIR/brokenuncompressor.sh exited with code 1!
 -v0*=There have been errors!
 stdout
 EOF
+fi
 
-mv fake_1-1.debian.tar.lzma save.tar.lzma
+mv fake_1-1.debian.tar.${compressor} save.tar.${compressor}
 
 # a missing file is no error, but no success either...
 testrun - __extractsourcesection fake_1-1.dsc 3<<EOF
 stdout
 EOF
 
-cp save.tar.lzma fake_1.orig.tar.lzma
+cp save.tar.${compressor} fake_1.orig.tar.${compressor}
 # a missing file is no error, but no success either (and not reading further files)
 testrun - __extractsourcesection fake_1-1.dsc 3<<EOF
 stdout
@@ -261,8 +306,8 @@ EOF
 
 dodo mkdir debian
 dodo touch debian/test
-echo tar -cf - debian \| lzma \> fake_1-1.debian.tar.lzma
-tar -cf - debian | lzma > fake_1-1.debian.tar.lzma
+echo tar -cf - debian \| ${compressor_program} \> fake_1-1.debian.tar.${compressor}
+tar -cf - debian | ${compressor_program} > fake_1-1.debian.tar.${compressor}
 rm -r debian
 
 testrun - __extractsourcesection fake_1-1.dsc 3<<EOF
@@ -271,22 +316,24 @@ stdout
 *=Priority: extra
 EOF
 
+if test -n "${uncompressor}" ; then
 touch breakon2nd
-testrun - --unlzma=brokenunlzma.sh __extractsourcesection fake_1-1.dsc 3<<EOF
+testrun - --${uncompressor}=brokenuncompressor.sh __extractsourcesection fake_1-1.dsc 3<<EOF
 returns 255
-*=brokenunlzma.sh: claiming broken archive
-*=Error reading from ./fake_1-1.debian.tar.lzma: $TESTSDIR/brokenunlzma.sh exited with code 1!
+*=brokenuncompressor.sh: claiming broken archive
+*=Error reading from ./fake_1-1.debian.tar.${compressor}: $TESTSDIR/brokenuncompressor.sh exited with code 1!
 -v0*=There have been errors!
 stdout
 EOF
 
-testrun - --unlzma=brokenunlzma.sh __extractsourcesection fake_1-1.dsc 3<<EOF
+testrun - --${uncompressor}=brokenuncompressor.sh __extractsourcesection fake_1-1.dsc 3<<EOF
 returns 255
-*=brokenunlzma.sh: claiming broken archive
-*=Error reading from ./fake_1-1.diff.lzma: $TESTSDIR/brokenunlzma.sh exited with code 1!
+*=brokenuncompressor.sh: claiming broken archive
+*=Error reading from ./fake_1-1.diff.${compressor}: $TESTSDIR/brokenuncompressor.sh exited with code 1!
 -v0*=There have been errors!
 stdout
 EOF
+fi
 
 
 # sadly different output depending on libarchive version....
@@ -295,14 +342,14 @@ EOF
 # testrun - __extractsourcesection fake_1-1.dsc 3<<EOF
 # returns 255
 # *=/usr/bin/unlzma: Read error
-# *=Error 84 trying to extract control information from ./fake_1-1.debian.tar.lzma:
+# *=Error 84 trying to extract control information from ./fake_1-1.debian.tar.${compressor}:
 # *=Empty input file: Invalid or incomplete multibyte or wide character
 # -v0*=There have been errors!
 # stdout
 # EOF
 
-mv save.tar.lzma fake_1-1.debian.tar.lzma
-rm fake_1.orig.tar.lzma
+mv save.tar.${compressor} fake_1-1.debian.tar.${compressor}
+rm fake_1.orig.tar.${compressor}
 
 # now check only partial reading of the .diff
 # (i.e. diff containing a control):
@@ -319,7 +366,7 @@ EOF
 cat > fake-1/debian/aaaaa <<EOF
 also test debian/control not being the first file...
 EOF
-diff -ruN fake-1.orig fake-1 | lzma > fake_1-1.diff.lzma
+diff -ruN fake-1.orig fake-1 | ${compressor_program} > fake_1-1.diff.${compressor}
 rm -r fake-1 fake-1.orig
 
 
@@ -331,9 +378,9 @@ Architecture: all
 Version: 17
 Maintainer: Me
 Files:
- $(mdandsize fake_1-1.diff.lzma) fake_1-1.diff.lzma
- $(mdandsize fake_1-1.debian.tar.lzma) fake_1-1.debian.tar.lzma
- 00000000000000000000000000000000 0 fake_1.orig.tar.lzma
+ $(mdandsize fake_1-1.diff.${compressor}) fake_1-1.diff.${compressor}
+ $(mdandsize fake_1-1.debian.tar.${compressor}) fake_1-1.debian.tar.${compressor}
+ 00000000000000000000000000000000 0 fake_1.orig.tar.${compressor}
 EOF
 
 testrun - __extractsourcesection fake_1-1.dsc 3<<EOF
@@ -342,14 +389,18 @@ stdout
 *=Priority: required
 EOF
 
-rm testfile* smallfile*
-
-testrun - --unlzma=false __extractsourcesection fake_1-1.dsc 3<<EOF
+if test -n "$uncompressor" ; then
+testrun - --${uncompressor}=false __extractsourcesection fake_1-1.dsc 3<<EOF
 returns 255
-*=Error reading from ./fake_1-1.diff.lzma: /bin/false exited with code 1!
+*=Error reading from ./fake_1-1.diff.${compressor}: /bin/false exited with code 1!
 -v0*=There have been errors!
 stdout
 EOF
+fi
+
+done
+
+rm testfile* smallfile*
 
 cat > fake_1-2.diff <<EOF
 --- bla/Makefile
