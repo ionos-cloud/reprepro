@@ -247,6 +247,7 @@ ssize_t ar_archivemember_read(struct archive *a, void *d, const void **p) {
 		const char *msg;
 		int e;
 
+		// TODO: why _fdclose instead of _abort?
 		(void)uncompress_fdclose(ar->member, &e, &msg);
 		ar->member = NULL;
 		archive_set_error(a, e, "%s", msg);

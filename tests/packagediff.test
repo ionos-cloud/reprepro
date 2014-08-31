@@ -4,7 +4,7 @@ set -u
 mkdir conf db pool fakes old
 mkdir -p dists/sourcedistribution/main/binary-coal
 
-cp "$SRCDIR/docs/tiffany.example" conf/pdiff.py
+cp "$SRCDIR/docs/pdiff.example" conf/pdiff.py
 cat > conf/distributions <<EOF
 Codename: sourcedistribution
 Architectures: coal

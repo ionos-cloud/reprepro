@@ -604,7 +604,7 @@ it to call a script.
 Starting with version 4.1.0, the <tt>rredtool</tt> coming with reprepro
 can be used as hook to create and update <tt>Packages.diff/Index</tt> files.
 <br>
-Unlike dak (which created the official Debian repositories) or the tiffany.py
+Unlike dak (which created the official Debian repositories) or the pdiff.py
 script (see below) derived from dak, an user will only need to download
 one of those patches, as new changes are merged into the old files.
 <br>
@@ -618,26 +618,26 @@ that should use this in <tt class="file">conf/distributions</tt>:
  DscIndices: Sources Release . .gz /usr/bin/rredtool
  DebIndices: Packages Release . .gz /usr/bin/rredtool
 </pre>
-<h5>the tiffany example hook script (generates pdiff files)</h5>
+<h5>the pdiff example hook script (generates pdiff files)</h5>
 This example generates <tt class="file">Packages.diff</tt> and/or
 <tt class="file">Sources.diff</tt> directories containing a set of
 ed-style patches, so that people do not redownload the whole index
 for just some small changes.
 <br>
-To use it, copy <tt class="file">tiffany.example</tt> from the examples directory
+To use it, copy <tt class="file">pdiff.example</tt> from the examples directory
 into your <tt class="dir">conf</tt> directory.
 (or any other directory, then you will need to give an absolute path later).
-Unpack, if needed. Rename it to tiffany.py and make it executeable.
+Unpack, if needed. Rename it to pdiff.py and make it executeable.
 Make sure you have
-<a href="http://packages.debian.org/python-apt">python-apt</a>,
+<a href="http://packages.debian.org/python3-apt">python3-apt</a>,
 <a href="http://packages.debian.org/diff">diff</a> and
 <a href="http://packages.debian.org/gzip">gzip</a>
 installed.
 Then add something like the following to the headers of the distributions
 that should use this in <tt class="file">conf/distributions</tt>:
 <pre class="config">
- DscIndices: Sources Release . .gz tiffany.py
- DebIndices: Packages Release . .gz tiffany.py
+ DscIndices: Sources Release . .gz pdiff.py
+ DebIndices: Packages Release . .gz pdiff.py
 </pre>
 More information can be found in the file itself. You should read it.
 <h5>the bzip2 example hook script</h5>

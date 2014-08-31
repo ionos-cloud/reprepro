@@ -1,4 +1,7 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
+
+# Note that rrdtool can also generate .diff files and
+# is usually more efficient at it than this script
 
 #############################################################################
 # generates partial package updates list as reprepro hook
@@ -9,23 +12,23 @@
 # Configuration or Handling of architectures and components.
 # Also reprepro will present old and new file, so it does not
 # need to store a permanent copy of the last version.
-# This needs either python-apt installed or you have to change
+# This needs either python3-apt installed or you have to change
 # it to use another sha1 calculation method.
 
 # HOW TO USE:
-# - install python-apt
+# - install python3-apt
 # - make sure your paths contain no ' characters.
 # - be aware this is still quite experimental and might not
 #   report some errors properly
-# - copy this file to your conf/ directory
 # - uncompress this file if it is compressed
+# - copy this file to your conf/ directory as "pdiff"
 # - make it executeable
 # - add something like the following to the every distribution
 #   in conf/distributions you want to have diffs for:
 #
-# DscIndices: Sources Release . .gz tiffany
-# DebIndices: Packages Release . .gz tiffany
-# 
+# DscIndices: Sources Release . .gz pdiff
+# DebIndices: Packages Release . .gz pdiff
+#
 # The first line is for source indices, the second for binary indices.
 # Make sure uncompressed index files are generated (the single dot in those
 # lines), as this version only diffs the uncompressed files.
@@ -63,12 +66,12 @@ import apt_pkg
 ################################################################################
 
 def usage (exit_code=0):
-    print """Usage: tiffani directory newfile oldfile mode 3>releaselog
+    print("""Usage: pdiff.example directory newfile oldfile mode 3>releaselog
 Write out ed-style diffs to Packages/Source lists
 This file is intended to be called by reprepro as hook
 given to DebIndices, UDebIndices or DscIndices.
 
-    """
+    """)
     sys.exit(exit_code);
 
 
@@ -76,7 +79,7 @@ def tryunlink(file):
     try:
         os.unlink(file)
     except OSError:
-        print "warning: removing of %s denied" % (file)
+        print("warning: removing of %s denied" % (file))
 
 class Updates:
     def __init__(self, readpath = None):
@@ -96,7 +99,7 @@ class Updates:
                     x = f.readline()
                     if not x or x[0] != " ": break
                     l = x.split()
-                    if not self.history.has_key(l[2]):
+                    if l[2] not in self.history:
                         self.history[l[2]] = [None,None]
                     self.history[l[2]][ind] = (l[0], int(l[1]))
                 return x
@@ -130,12 +133,12 @@ class Updates:
     def dump(self, out=sys.stdout):
         if self.can_path:
             out.write("Canonical-Path: %s\n" % (self.can_path))
-        
+
         if self.filesizesha1:
             out.write("SHA1-Current: %s %7d\n" % (self.filesizesha1))
 
         hs = self.history
-        l = self.history.keys()
+        l = list(self.history.keys())
         l.sort()
 
         cnt = len(l)
@@ -159,14 +162,14 @@ def sizesha1(f):
     return (sha1sum, size)
 
 def getsizesha1(name):
-	f = open(name, "r")
-	r = sizesha1(f)
-	f.close()
-	return r
+    f = open(name, "r")
+    r = sizesha1(f)
+    f.close()
+    return r
 
 def main():
     if len(sys.argv) != 5:
-    	usage(1)
+        usage(1)
 
     directory = sys.argv[1]
     newrelfile = sys.argv[2]
@@ -175,7 +178,7 @@ def main():
 
     # this is only needed with reprepro <= 0.7
     if oldrelfile.endswith(".gz"):
-    	sys.exit(0);
+        sys.exit(0);
 
 
     oldfile = "%s/%s" % (directory,oldrelfile)
@@ -184,16 +187,16 @@ def main():
     outdir = oldfile + ".diff"
 
     if mode == "old":
-    	# Nothing to do...
-    	if os.path.isfile(outdir + "/Index"):
-		os.write(3,oldrelfile + ".diff/Index")
-    	sys.exit(0);
+        # Nothing to do...
+        if os.path.isfile(outdir + "/Index"):
+            os.write(3,(oldrelfile + ".diff/Index").encode("utf-8"))
+        sys.exit(0);
 
     if mode == "new":
-    	# TODO: delete possible existing Index and patch files?
-    	sys.exit(0);
+        # TODO: delete possible existing Index and patch files?
+        sys.exit(0);
 
-    print "making diffs between %s and %s: " % (oldfile, newfile)
+    print("making diffs between %s and %s: " % (oldfile, newfile))
 
     o = os.popen("date +%Y-%m-%d-%H%M.%S")
     patchname = o.readline()[:-1]
@@ -209,32 +212,32 @@ def main():
 
     if upd.filesizesha1:
         if upd.filesizesha1 != oldsizesha1:
-            print "old file seems to have changed! %s %s => %s %s" % (upd.filesizesha1 + oldsizesha1)
-    	    sys.exit(1);
+            print("old file seems to have changed! %s %s => %s %s" % (upd.filesizesha1 + oldsizesha1))
+            sys.exit(1);
 
     newsizesha1 = getsizesha1(newfile)
 
     if newsizesha1 == oldsizesha1:
-        print "file unchanged, not generating diff"
-    	if os.path.isfile(outdir + "/Index"):
-		os.write(3,oldrelfile + ".diff/Index\n")
+        print("file unchanged, not generating diff")
+        if os.path.isfile(outdir + "/Index"):
+            os.write(3,(oldrelfile + ".diff/Index\n").encode("utf-8"))
     else:
         if not os.path.isdir(outdir): os.mkdir(outdir)
-        print "generating diff"
-	while os.path.isfile(difffile + ".gz"):
-		print "This was too fast, diffile already there, waiting a bit..."
-		time.sleep(2)
-		o = os.popen("date +%Y-%m-%d-%H%M.%S")
-		patchname = o.readline()[:-1]
-		o.close()
-		difffile = "%s/%s" % (outdir, patchname)
+        print("generating diff")
+        while os.path.isfile(difffile + ".gz"):
+            print("This was too fast, diffile already there, waiting a bit...")
+            time.sleep(2)
+            o = os.popen("date +%Y-%m-%d-%H%M.%S")
+            patchname = o.readline()[:-1]
+            o.close()
+            difffile = "%s/%s" % (outdir, patchname)
 
-	# TODO make this without shell...
-	os.system("diff --ed '%s' '%s' > '%s'" % 
+        # TODO make this without shell...
+        os.system("diff --ed '%s' '%s' > '%s'" %
                          (oldfile,newfile, difffile))
         difsizesha1 = getsizesha1(difffile)
-	# TODO dito
-	os.system("gzip -9 '%s'" %difffile)
+        # TODO dito
+        os.system("gzip -9 '%s'" %difffile)
 
 
         upd.history[patchname] = (oldsizesha1, difsizesha1)
@@ -244,7 +247,7 @@ def main():
         upd.dump(f)
         f.close()
 # Specifing the index should be enough, it contains checksums for the diffs
-	os.write(3,oldrelfile + ".diff/Index.new\n")
+        os.write(3,(oldrelfile + ".diff/Index.new\n").encode("utf-8"))
 
 ################################################################################
 

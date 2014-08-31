@@ -49,12 +49,19 @@ dpkg-source -b documentation-9876AD ""
 cd documentation-9876AD
 
 fakeroot make -f debian/rules binary-indep > ../documentation_9876AD_coal+all.log
-dpkg-genchanges > ../test.changes
+OUTPUT=test.changes
+dpkg-genchanges > "$OUTPUT".pre
+# simulate dpkg-genchanges behaviour currently in sid so the testsuite runs for backports, too
+awk 'BEGIN{inheader=0} /^Files:/ || (inheader && /^ /)  {inheader = 1; next} {inheader = 0 ; print}' "$OUTPUT".pre | sed -e 's/ \+$//' >../"$OUTPUT"
+echo "Files:" >> ../"$OUTPUT"
+awk 'BEGIN{inheader=0} (inheader && /^ .*\.deb$/)  {print ; next} /^Files:/ || (inheader && /^ /)  {inheader = 1; next} {inheader = 0 ;next}' "$OUTPUT".pre >>../"$OUTPUT"
+awk 'BEGIN{inheader=0} (inheader && /^ .*\.txt$/)  {print ; next} /^Files:/ || (inheader && /^ /)  {inheader = 1; next} {inheader = 0 ;next}' "$OUTPUT".pre >>../"$OUTPUT"
+awk 'BEGIN{inheader=0} /^Files:/ || (inheader && /^ .*\.(deb|txt)$/) {inheader = 1 ; next } (inheader && /^ /)  {print ; next} {inheader = 0 ;next}' "$OUTPUT".pre >>../"$OUTPUT"
 cd ..
 rm -r documentation-9876AD
 
 ed -s test.changes <<EOF
-/^Files: /a
+/^Files:/a
  $(mdandsize documentation_9876AD_coal+all.log) - - documentation_9876AD_coal+all.log
 .
 w
@@ -140,11 +147,11 @@ Distribution: test
 Source: documentation
 Version: 9876AD
 Files:
+ pool/main/d/documentation/documentation_9876AD.dsc s 1
+ pool/main/d/documentation/documentation_9876AD.tar.gz s 1
  pool/main/d/documentation/documentation_9876AD_byhand/history.txt x 0
  pool/main/d/documentation/documentation_9876AD_byhand/manifesto.txt x 0
  pool/main/d/documentation/documentation_9876AD_all.deb a 1
- pool/main/d/documentation/documentation_9876AD.dsc s 1
- pool/main/d/documentation/documentation_9876AD.tar.gz s 1
 
 EOF
 testout - dumptracks test 3<<EOF
@@ -235,11 +242,11 @@ Distribution: test
 Source: documentation
 Version: 9876AD
 Files:
+ pool/main/d/documentation/documentation_9876AD.dsc s 1
+ pool/main/d/documentation/documentation_9876AD.tar.gz s 1
  pool/main/d/documentation/documentation_9876AD_byhand/history.txt x 0
  pool/main/d/documentation/documentation_9876AD_byhand/manifesto.txt x 0
  pool/main/d/documentation/documentation_9876AD_all.deb a 1
- pool/main/d/documentation/documentation_9876AD.dsc s 1
- pool/main/d/documentation/documentation_9876AD.tar.gz s 1
  pool/main/d/documentation/documentation_9876AD_coal+all.log l 0
 
 EOF
@@ -292,11 +299,11 @@ Distribution: test
 Source: documentation
 Version: 9876AD
 Files:
+ pool/main/d/documentation/documentation_9876AD.dsc s 1
+ pool/main/d/documentation/documentation_9876AD.tar.gz s 1
  pool/main/d/documentation/documentation_9876AD_byhand/history.txt x 0
  pool/main/d/documentation/documentation_9876AD_byhand/manifesto.txt x 0
  pool/main/d/documentation/documentation_9876AD_all.deb a 1
- pool/main/d/documentation/documentation_9876AD.dsc s 1
- pool/main/d/documentation/documentation_9876AD.tar.gz s 1
  pool/main/d/documentation/documentation_9876AD_coal+all.log l 0
  pool/main/d/documentation/documentation_9876AD_source+all.changes c 0
 
@@ -396,9 +403,9 @@ Distribution: test
 Source: documentation
 Version: 9876AD
 Files:
+ pool/main/d/documentation/documentation_9876AD_all.deb a 1
  pool/main/d/documentation/documentation_9876AD.dsc s 1
  pool/main/d/documentation/documentation_9876AD.tar.gz s 1
- pool/main/d/documentation/documentation_9876AD_all.deb a 1
  pool/main/d/documentation/documentation_9876AD_byhand/manifesto.txt x 0
  pool/main/d/documentation/documentation_9876AD_byhand/history.txt x 0
  pool/main/d/documentation/documentation_9876AD_coal+all.log l 0
