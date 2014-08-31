@@ -37,9 +37,9 @@ config.status: configure
 	dh_testdir
 	./configure --host=$(DEB_HOST_GNU_TYPE) --build=$(DEB_BUILD_GNU_TYPE) \
 		    --prefix=/usr --mandir=\$${prefix}/share/man \
+		    --with-liblzma --with-libgpgme \
 		    --with-libbz2 $(ARCHIVEFLAGS) \
 		    --disable-dependency-tracking \
-		    --disable-liblzma \
 		    CFLAGS='$(CFLAGS)' CPPFLAGS='$(CPPFLAGS)' LDFLAGS='$(LDFLAGS)' \
 	|| ( echo configure failed with $$? ; echo BEGIN config.log: ; \
 	     cat config.log ; echo "END config.log" ; exit 1 )

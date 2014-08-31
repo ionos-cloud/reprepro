@@ -2,7 +2,7 @@ Source: reprepro
 Section: utils
 Priority: extra
 Maintainer: Bernhard R. Link <brlink@debian.org>
-Build-Depends: debhelper (>= 7), pinentry-curses, libgpgme11-dev, libdb-dev, libz-dev, libbz2-dev, libarchive-dev
+Build-Depends: debhelper (>= 7), pinentry-curses, libgpgme11-dev, libdb-dev, libz-dev, libbz2-dev, liblzma-dev, libarchive-dev
 Standards-Version: 3.9.5
 Vcs-Browser: http://anonscm.debian.org/gitweb/?p=mirrorer/reprepro.git;a=summary
 Vcs-Git: git://anonscm.debian.org/mirrorer/reprepro.git -b debian
@@ -12,7 +12,7 @@ Package: reprepro
 Architecture: any
 Depends: pinentry-curses, ${shlibs:Depends}, ${reprepro:Depends}, ${misc:Depends}
 Recommends: apt (>= 0.9.4)
-Suggests: gnupg-agent, inoticoming, lzip (>= 1.11-2), xz-utils (>= 5.1.1alpha+20120614-1~) | xz-lzma | lzma, xz-utils
+Suggests: gnupg-agent, inoticoming, lzip (>= 1.11-2)
 Description: Debian package repository producer
  reprepro is a tool to manage a repository of Debian packages
  (.deb, .udeb, .dsc, ...). It stores files either being
