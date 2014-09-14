@@ -1198,7 +1198,7 @@ static retvalue write_changes_file(const char *changesfilename, struct changes *
 
 	}
 	// Changed-by: line
-	if (flagset(CHANGES_WRITE_MAINTAINER)) {
+	if (flagset(CHANGES_WRITE_MAINTAINER) && c->maintainer != NULL) {
 		cef = cef_newfield("Maintainer", CEF_ADD, CEF_EARLY, 0, cef);
 		if (FAILEDTOALLOC(cef))
 			return RET_ERROR_OOM;
