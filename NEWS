@@ -1,3 +1,6 @@
+Updates between 4.16.0 and 4.16.1:
+- fix segfault in verbose exporting of xzed indices
+
 Updates between 4.15.0 and 4.16.0:
 - add support for xz uncompression using liblzma instead of unxz
 - enable using liblzma by default (if found and not --without-liblzma is given)
