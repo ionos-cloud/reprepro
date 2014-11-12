@@ -1,3 +1,6 @@
+2014-11-12  Bernhard R. Link <brlink@debian.org>
+	* fix segfault when verbose exporting with .xz indices
+
 2014-08-24  Bernhard R. Link <brlink@debian.org>
 	* fix DownloadListsAs not accepting .lz
 	* add support for unpacking .xz and .lzma files with liblzma
