@@ -1,3 +1,6 @@
+2014-05-09  Bernhard R. Link <brlink@debian.org>
+	* ignores lines starting with '#' in filterlists
+
 2014-11-12  Bernhard R. Link <brlink@debian.org>
 	* fix segfault when verbose exporting with .xz indices
 
