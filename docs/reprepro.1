@@ -1404,6 +1404,17 @@ UDebIndices: Packages . .gz
 .br
 DscIndices: Sources Release .gz
 .TP
+.B ExportOptions
+Options to modify how and if exporting is done:
+.br
+.B noexport
+Never export this distribution.
+That means there will be no directory below \fBdists/\fP generated and the distribution is only useful to copy packages to other distributions.
+.br
+.B keepunknown
+Ignore unknown files and directories in the exported directory.
+This is currently the only available option and the default, but might change in the future, so it can already be requested explicitely.
+.TP
 .B Contents
 Enable the creation of Contents files listing all the files
 within the binary packages of a distribution.

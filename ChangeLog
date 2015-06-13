@@ -1,3 +1,7 @@
+2015-06-13  Bernhard R. Link <brlink@debian.org>
+	* add Exportoptions: to conf/distributions,
+	  allowing to give "noexport" to never export a distribution.
+
 2014-08-24  Bernhard R. Link <brlink@debian.org>
 	* fix DownloadListsAs not accepting .lz
 	* add support for unpacking .xz and .lzma files with liblzma

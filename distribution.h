@@ -25,6 +25,12 @@ struct distribution;
 struct overridefile;
 struct uploaders;
 
+enum exportoptions {
+	deo_noexport = 0,
+	deo_keepunknown,
+	deo_COUNT,
+};
+
 struct distribution {
 	struct distribution *next;
 	/* the primary name to access this distribution: */
@@ -59,8 +65,8 @@ struct distribution {
 	struct atomlist udebcomponents;
 	/* what kind of index files to generate */
 	struct exportmode dsc, deb, udeb;
-	/* is tracking enabled for this distribution?
-	 * (NONE must be 0 so it is the default) */
+	bool exportoptions[deo_COUNT];
+	/* (NONE must be 0 so it is the default) */
 	enum trackingtype { dt_NONE=0, dt_KEEP, dt_ALL, dt_MINIMAL } tracking;
 	struct trackingoptions { bool includechanges;
 		bool includebyhand;

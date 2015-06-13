@@ -149,6 +149,7 @@ static retvalue createtargets(struct distribution *distribution) {
 					c, a,
 					&distribution->deb,
 					distribution->readonly,
+					distribution->exportoptions[deo_noexport],
 					distribution->fakecomponentprefix,
 					&t);
 			if (RET_IS_OK(r)) {
@@ -167,6 +168,8 @@ static retvalue createtargets(struct distribution *distribution) {
 						c, a,
 						&distribution->udeb,
 						distribution->readonly,
+						distribution->exportoptions
+							[deo_noexport],
 						distribution->fakecomponentprefix,
 						&t);
 				if (RET_IS_OK(r)) {
@@ -189,6 +192,8 @@ static retvalue createtargets(struct distribution *distribution) {
 			r = target_initialize_source(distribution,
 					c, &distribution->dsc,
 					distribution->readonly,
+					distribution->exportoptions
+							[deo_noexport],
 					distribution->fakecomponentprefix, &t);
 			if (last != NULL) {
 				last->next = t;
@@ -432,6 +437,18 @@ CFUSETPROC(distribution, byhandhooks) {
 	return byhandhooks_parse(iter, &d->byhandhooks);
 }
 
+static const struct constant exportnames[deo_COUNT+1] = {
+	{"noexport", deo_noexport},
+	{"keepunknown", deo_keepunknown},
+	{NULL, 0}
+};
+
+CFUSETPROC(distribution, exportoptions) {
+	CFSETPROCVAR(distribution, d);
+	return config_getflags(iter, name, exportnames, d->exportoptions,
+			IGNORABLE(unknownfield),
+			"(allowed values: noexport, keepunknown)");
+}
 
 static const struct configfield distributionconfigfields[] = {
 	CF("AlsoAcceptFor",	distribution,	alsoaccept),
@@ -456,6 +473,7 @@ static const struct configfield distributionconfigfields[] = {
 	CF("Origin",		distribution,	origin),
 	CF("Pull",		distribution,	pulls),
 	CF("ReadOnly",		distribution,	readonly),
+	CF("ExportOptions",	distribution,	exportoptions),
 	CF("SignWith",		distribution,	signwith),
 	CF("Suite",		distribution,	suite),
 	CF("Tracking",		distribution,	Tracking),
@@ -791,6 +809,9 @@ static retvalue export(struct distribution *distribution, bool onlyneeded) {
 
 	assert (distribution != NULL);
 
+	if (distribution->exportoptions[deo_noexport])
+		return RET_NOTHING;
+
 	if (distribution->readonly) {
 		fprintf(stderr,
 "Error: trying to re-export read-only distribution %s\n",
@@ -914,6 +935,8 @@ retvalue distribution_exportlist(enum exportwhen when, struct distribution *dist
 
 	result = RET_NOTHING;
 	for (d=distributions; d != NULL; d = d->next) {
+		if (d->exportoptions[deo_noexport])
+			continue;
 		if (d->omitted || !d->selected)
 			continue;
 		if (!d->lookedat) {
