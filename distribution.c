@@ -921,7 +921,7 @@ retvalue distribution_exportlist(enum exportwhen when, struct distribution *dist
 	}
 
 	for (d=distributions; d != NULL; d = d->next) {
-		if (d->omitted || !d->selected)
+		if (d->omitted || !d->selected || d->exportoptions[deo_noexport])
 			continue;
 		if (d->lookedat && (RET_IS_OK(d->status) ||
 			(d->status == RET_NOTHING && when != EXPORT_CHANGED) ||
