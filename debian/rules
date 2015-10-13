@@ -3,80 +3,29 @@
 # Uncomment this to turn on verbose mode.
 #export DH_VERBOSE=1
 
-# These are used for cross-compiling and for saving the configure script
-# from having to guess our platform (since we know it already)
-DEB_HOST_GNU_TYPE   ?= $(shell dpkg-architecture -qDEB_HOST_GNU_TYPE)
-DEB_BUILD_GNU_TYPE  ?= $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
 
-CFLAGS := $(shell DEB_BUILD_MAINT_OPTIONS=hardening=+all dpkg-buildflags --get CFLAGS)
-CPPFLAGS := $(shell DEB_BUILD_MAINT_OPTIONS=hardening=+all dpkg-buildflags --get CPPFLAGS)
-LDFLAGS := $(shell DEB_BUILD_MAINT_OPTIONS=hardening=+all dpkg-buildflags --get LDFLAGS)
-
-CFLAGS += -Wall -Wextra -Wmissing-prototypes -Wstrict-prototypes -Wlogical-op -Wshadow
-LDFLAGS += -Wl,-z,defs
 ifneq (,$(filter reprepro-nolibarchive,$(DEB_BUILD_OPTIONS)))
 	ARCHIVEFLAGS= --without-libarchive
 else
 	ARCHIVEFLAGS= --with-libarchive
 endif
-ifneq (,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
-	MAKEFLAGS += -j$(patsubst parallel=%,%,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
-endif
 
-config.status: configure
-	dh_testdir
-	./configure --host=$(DEB_HOST_GNU_TYPE) --build=$(DEB_BUILD_GNU_TYPE) \
-		    --prefix=/usr --mandir=\$${prefix}/share/man \
-		    --with-liblzma --with-libgpgme \
-		    --with-libbz2 $(ARCHIVEFLAGS) \
-		    --disable-dependency-tracking \
-		    CFLAGS='$(CFLAGS)' CPPFLAGS='$(CPPFLAGS)' LDFLAGS='$(LDFLAGS)' \
-	|| ( echo configure failed with $$? ; echo BEGIN config.log: ; \
-	     cat config.log ; echo "END config.log" ; exit 1 )
+%:
+	dh $@ --parallel --with autoreconf
 
-build-indep: build-indep-stamp
-build-arch: build-arch-stamp
-build: build-arch-stamp build-indep-stamp
+override_dh_auto_configure:
+	dh_auto_configure -- --with-libbz2 --with-liblzma --with-libgpgme $(ARCHIVEFLAGS)
 
-build-indep-stamp:
-	touch build-indep-stamp
-build-arch-stamp:  config.status
-	dh_testdir
-	$(MAKE)
-	touch build-arch-stamp
-
-clean:
-	dh_testdir
-	dh_testroot
-	rm -f build-arch-stamp build-indep-stamp
-
-	# clean up after the build process.
-	if [ -e config.status ] ; then $(MAKE) distclean ; fi
-	! test -f config.log
-	dh_clean
-
-# Build architecture-independent files here.
-binary-indep: build-indep
-# We have nothing to do.
-
-# Build architecture-dependent files here.
-binary-arch: build-arch
-	dh_testdir
-	dh_testroot
-	dh_prep
-	dh_installdirs
+override_dh_auto_install:
 	$(MAKE) install DESTDIR=$(CURDIR)/debian/reprepro
 	install -D -m 644 docs/reprepro.bash_completion debian/reprepro/usr/share/bash-completion/completions/reprepro
 	install -D -m 644 docs/reprepro.zsh_completion debian/reprepro/usr/share/zsh/vendor-completions/_reprepro
+
+override_dh_installchangelogs:
 	dh_installchangelogs ChangeLog
-	dh_installdocs
-	dh_installexamples
-	dh_link
-	dh_strip
-	dh_compress
-	dh_fixperms
-	dh_installdeb
-	dh_shlibdeps
+
+override_dh_gencontrol:
 	grep -v '^reprepro:.*=' debian/reprepro.substvars > debian/reprepro.substvars.new
 	mv debian/reprepro.substvars.new debian/reprepro.substvars
 #	# if compile without libarchive, we need the program ar from binutils available
@@ -93,8 +42,3 @@ binary-arch: build-arch
 		echo "misc:Depends=" >> debian/reprepro.substvars ; \
 	fi
 	dh_gencontrol
-	dh_md5sums
-	dh_builddeb
-
-binary: binary-indep binary-arch
-.PHONY: build build-arch build-indep clean binary-indep binary-arch binary
