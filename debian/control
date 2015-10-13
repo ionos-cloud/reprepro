@@ -2,7 +2,7 @@ Source: reprepro
 Section: utils
 Priority: extra
 Maintainer: Bernhard R. Link <brlink@debian.org>
-Build-Depends: debhelper (>= 9), libgpgme-dev, libdb-dev, libz-dev, libbz2-dev, liblzma-dev, libarchive-dev
+Build-Depends: debhelper (>= 9), dh-autoreconf, libgpgme-dev, libdb-dev, libz-dev, libbz2-dev, liblzma-dev, libarchive-dev
 Standards-Version: 3.9.7
 Vcs-Browser: http://anonscm.debian.org/cgit/mirrorer/reprepro.git/log/?h=debian
 Vcs-Git: https://anonscm.debian.org/git/mirrorer/reprepro.git -b debian
