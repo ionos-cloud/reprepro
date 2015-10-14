@@ -32,14 +32,14 @@
 #include "printlistformat.h"
 #include "dirs.h"
 
-retvalue listformat_print(const char *listformat, const struct target *target, const char *package, const char *control) {
+retvalue listformat_print(const char *listformat, const struct target *target, const char *package, const struct packagedata *packagedata) {
 	retvalue r;
 	const char *p, *q;
 
 	if (listformat == NULL) {
 		char *version;
 
-		r = target->getversion(control, &version);
+		r = target->getversion(packagedata->chunk, &version);
 		if (RET_IS_OK(r)) {
 			printf( "%s: %s %s\n",
 					target->identifier, package, version);
@@ -101,7 +101,7 @@ retvalue listformat_print(const char *listformat, const struct target *target, c
 		           || (q - p == 14 && strncasecmp(p, "{$fullfilename", 14) == 0)
 		           || (q - p ==  9 && strncasecmp(p, "{$filekey", 9) == 0)) {
 			struct strlist filekeys;
-			r = target->getfilekeys(control, &filekeys);
+			r = target->getfilekeys(packagedata->chunk, &filekeys);
 			if (RET_WAS_ERROR(r))
 				return r;
 			if (RET_IS_OK(r) && filekeys.count > 0) {
@@ -142,7 +142,7 @@ retvalue listformat_print(const char *listformat, const struct target *target, c
 			v = atoms_components[target->component];
 		} else if (q - p == 8 && strncasecmp(p, "{$source", 8) == 0) {
 			char *dummy = NULL;
-			r = target->getsourceandversion(control, package,
+			r = target->getsourceandversion(packagedata->chunk, package,
 					&value, &dummy);
 			if (RET_WAS_ERROR(r))
 				return r;
@@ -155,7 +155,7 @@ retvalue listformat_print(const char *listformat, const struct target *target, c
 			}
 		} else if (q - p == 15 && strncasecmp(p, "{$sourceversion", 15) == 0) {
 			char *dummy = NULL;
-			r = target->getsourceandversion(control, package,
+			r = target->getsourceandversion(packagedata->chunk, package,
 					&dummy, &value);
 			if (RET_WAS_ERROR(r))
 				return r;
@@ -173,7 +173,7 @@ retvalue listformat_print(const char *listformat, const struct target *target, c
 			char *variable = strndup(p + 1, q - (p + 1));
 			if (FAILEDTOALLOC(variable))
 				return RET_ERROR_OOM;
-			r = chunk_getwholedata(control, variable, &value);
+			r = chunk_getwholedata(packagedata->chunk, variable, &value);
 			free(variable);
 			if (RET_WAS_ERROR(r))
 				return r;

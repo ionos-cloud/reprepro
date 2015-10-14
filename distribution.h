@@ -22,6 +22,8 @@ struct distribution;
 #ifndef REPREPRO_CONTENTS_H
 #include "contents.h"
 #endif
+#include "packagedata.h"
+
 struct overridefile;
 struct uploaders;
 
@@ -122,7 +124,7 @@ retvalue distribution_get(struct distribution * /*all*/, const char *, bool /*lo
 retvalue distribution_prepareforwriting(struct distribution *);
 
 typedef retvalue each_target_action(struct distribution *, struct target *, void *);
-typedef retvalue each_package_action(struct distribution *, struct target *, const char *, const char *, void *);
+typedef retvalue each_package_action(struct distribution *, struct target *, const char *, const struct packagedata *, void *);
 
 /* call <action> for each package of <distribution> */
 retvalue distribution_foreach_package(struct distribution *, /*@null@*/const struct atomlist *, /*@null@*/const struct atomlist *, /*@null@*/const struct atomlist *, each_package_action, /*@null@*/each_target_action, void *);

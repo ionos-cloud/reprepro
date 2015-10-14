@@ -149,7 +149,7 @@ struct needbuild_data { architecture_t architecture;
 	bool printarch;
 };
 
-static retvalue check_source_needs_build(struct distribution *distribution, struct target *target, const char *sourcename, const char *control, void *data) {
+static retvalue check_source_needs_build(struct distribution *distribution, struct target *target, const char *sourcename, const struct packagedata *packagedata, void *data) {
 	struct needbuild_data *d = data;
 	char *sourceversion;
 	struct strlist binary, architectures, filekeys;
@@ -160,10 +160,10 @@ static retvalue check_source_needs_build(struct distribution *distribution, stru
 	if (d->glob != NULL && !globmatch(sourcename, d->glob))
 		return RET_NOTHING;
 
-	r = target->getversion(control, &sourceversion);
+	r = target->getversion(packagedata->chunk, &sourceversion);
 	if (!RET_IS_OK(r))
 		return r;
-	r = chunk_getwordlist(control, "Architecture", &architectures);
+	r = chunk_getwordlist(packagedata->chunk, "Architecture", &architectures);
 	if (RET_IS_OK(r)) {
 		bool skip = true;
 		const char *req = atoms_architectures[d->architecture];
@@ -210,12 +210,12 @@ static retvalue check_source_needs_build(struct distribution *distribution, stru
 			return RET_NOTHING;
 		}
 	}
-	r = chunk_getwordlist(control, "Binary", &binary);
+	r = chunk_getwordlist(packagedata->chunk, "Binary", &binary);
 	if (!RET_IS_OK(r)) {
 		free(sourceversion);
 		return r;
 	}
-	r = target->getfilekeys(control, &filekeys);
+	r = target->getfilekeys(packagedata->chunk, &filekeys);
 	if (!RET_IS_OK(r)) {
 		strlist_done(&binary);
 		free(sourceversion);

@@ -70,7 +70,8 @@ static retvalue collect_source_versions(struct distribution *d, struct info_sour
 	struct info_source *root = NULL, *last = NULL;
 	struct target *t;
 	struct target_cursor target_cursor = TARGET_CURSOR_ZERO;
-	const char *name, *chunk;
+	const char *name;
+	struct packagedata packagedata;
 	retvalue result = RET_NOTHING, r;
 
 	for (t = d->targets ; t != NULL ; t = t->next) {
@@ -81,12 +82,12 @@ static retvalue collect_source_versions(struct distribution *d, struct info_sour
 			RET_UPDATE(result, r);
 			break;
 		}
-		while (target_nextpackage(&target_cursor, &name, &chunk)) {
+		while (target_nextpackage(&target_cursor, &name, &packagedata)) {
 			char *version;
 			struct info_source **into = NULL;
 			struct info_source_version *v;
 
-			r = t->getversion(chunk, &version);
+			r = t->getversion(packagedata.chunk, &version);
 			if (!RET_IS_OK(r)) {
 				RET_UPDATE(result, r);
 				continue;
@@ -185,7 +186,8 @@ static retvalue collect_source_versions(struct distribution *d, struct info_sour
 static retvalue process_binaries(struct distribution *d, struct info_source *sources, retvalue (*action)(struct distribution *, struct target *, const char *, const char *, const char *, const char *, void *), void *privdata) {
 	struct target *t;
 	struct target_cursor target_cursor = TARGET_CURSOR_ZERO;
-	const char *name, *chunk;
+	const char *name = NULL;
+	struct packagedata packagedata;
 	retvalue result = RET_NOTHING, r;
 
 	for (t = d->targets ; t != NULL ; t = t->next) {
@@ -196,12 +198,12 @@ static retvalue process_binaries(struct distribution *d, struct info_source *sou
 			RET_UPDATE(result, r);
 			break;
 		}
-		while (target_nextpackage(&target_cursor, &name, &chunk)) {
+		while (target_nextpackage(&target_cursor, &name, &packagedata)) {
 			char *source, *version;
 			struct info_source *s;
 			struct info_source_version *v;
 
-			r = t->getsourceandversion(chunk, name,
+			r = t->getsourceandversion(packagedata.chunk, name,
 					&source, &version);
 			if (!RET_IS_OK(r)) {
 				RET_UPDATE(result, r);
@@ -221,7 +223,7 @@ static retvalue process_binaries(struct distribution *d, struct info_source *sou
 				v->used = true;
 			} else if (action != NULL) {
 				r = action(d, t,
-						name, source, version, chunk,
+						name, source, version, packagedata.chunk,
 						privdata);
 				RET_UPDATE(result, r);
 			}

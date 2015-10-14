@@ -378,6 +378,7 @@ static retvalue by_name(struct package_list *list, UNUSED(struct distribution *i
 	for (i = 0 ; i < d->argc ; i++) {
 		const char *name = d->argv[i];
 		char *chunk;
+		struct packagedata packagedata;
 		architecture_t package_architecture;
 
 		for (j = 0 ; j < i ; j++)
@@ -395,18 +396,19 @@ static retvalue by_name(struct package_list *list, UNUSED(struct distribution *i
 		}
 
 		r = table_getrecord(fromtarget->packages, name, &chunk);
+		parse_packagedata(chunk, &packagedata);
 		if (r == RET_NOTHING)
 			continue;
 		RET_ENDUPDATE(result, r);
 		if (RET_WAS_ERROR(r))
 			break;
-		r = fromtarget->getarchitecture(chunk, &package_architecture);
+		r = fromtarget->getarchitecture(packagedata.chunk, &package_architecture);
 		RET_ENDUPDATE(result, r);
 		if (RET_WAS_ERROR(r))
 			break;
 		r = list_prepareadd(list, desttarget,
-				name, NULL, package_architecture, chunk);
-		free(chunk);
+				name, NULL, package_architecture, packagedata.chunk);
+		packagedata_free(&packagedata);
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(r))
 			break;
@@ -482,7 +484,8 @@ retvalue copy_by_name(struct distribution *into, struct distribution *from, int 
 static retvalue by_source(struct package_list *list, UNUSED(struct distribution *into), UNUSED(struct distribution *from), struct target *desttarget, struct target *fromtarget, void *data) {
 	struct namelist *d = data;
 	struct target_cursor iterator;
-	const char *packagename, *chunk;
+	const char *packagename;
+	struct packagedata packagedata;
 	retvalue result, r;
 
 	assert (d->argc > 0);
@@ -492,12 +495,12 @@ static retvalue by_source(struct package_list *list, UNUSED(struct distribution 
 	if (!RET_IS_OK(r))
 		return r;
 	result = RET_NOTHING;
-	while (target_nextpackage(&iterator, &packagename, &chunk)) {
+	while (target_nextpackage(&iterator, &packagename, &packagedata)) {
 		int i;
 		char *source, *sourceversion;
 		architecture_t package_architecture;
 
-		r = fromtarget->getsourceandversion(chunk, packagename,
+		r = fromtarget->getsourceandversion(packagedata.chunk, packagename,
 				&source, &sourceversion);
 		if (r == RET_NOTHING)
 			continue;
@@ -535,13 +538,13 @@ static retvalue by_source(struct package_list *list, UNUSED(struct distribution 
 			}
 		}
 		free(source); free(sourceversion);
-		r = fromtarget->getarchitecture(chunk, &package_architecture);
+		r = fromtarget->getarchitecture(packagedata.chunk, &package_architecture);
 		if (RET_WAS_ERROR(r)) {
 			result = r;
 			break;
 		}
 		r = list_prepareadd(list, desttarget,
-				packagename, NULL, package_architecture, chunk);
+				packagename, NULL, package_architecture, packagedata.chunk);
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(r))
 			break;
@@ -635,7 +638,8 @@ retvalue copy_by_source(struct distribution *into, struct distribution *from, in
 static retvalue by_formula(struct package_list *list, UNUSED(struct distribution *into), UNUSED(struct distribution *from), struct target *desttarget, struct target *fromtarget, void *data) {
 	term *condition = data;
 	struct target_cursor iterator;
-	const char *packagename, *chunk;
+	const char *packagename;
+	struct packagedata packagedata;
 	architecture_t package_architecture;
 	retvalue result, r;
 
@@ -644,21 +648,21 @@ static retvalue by_formula(struct package_list *list, UNUSED(struct distribution
 	if (!RET_IS_OK(r))
 		return r;
 	result = RET_NOTHING;
-	while (target_nextpackage(&iterator, &packagename, &chunk)) {
-		r = term_decidechunktarget(condition, chunk, desttarget);
+	while (target_nextpackage(&iterator, &packagename, &packagedata)) {
+		r = term_decidechunktarget(condition, packagedata.chunk, desttarget);
 		if (r == RET_NOTHING)
 			continue;
 		if (RET_WAS_ERROR(r)) {
 			result = r;
 			break;
 		}
-		r = fromtarget->getarchitecture(chunk, &package_architecture);
+		r = fromtarget->getarchitecture(packagedata.chunk, &package_architecture);
 		if (RET_WAS_ERROR(r)) {
 			result = r;
 			break;
 		}
 		r = list_prepareadd(list, desttarget,
-				packagename, NULL, package_architecture, chunk);
+				packagename, NULL, package_architecture, packagedata.chunk);
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(r))
 			break;
@@ -671,7 +675,8 @@ static retvalue by_formula(struct package_list *list, UNUSED(struct distribution
 static retvalue by_glob(struct package_list *list, UNUSED(struct distribution *into), UNUSED(struct distribution *from), struct target *desttarget, struct target *fromtarget, void *data) {
 	const char *glob = data;
 	struct target_cursor iterator;
-	const char *packagename, *chunk;
+	const char *packagename;
+	struct packagedata packagedata;
 	architecture_t package_architecture;
 	retvalue result, r;
 
@@ -680,16 +685,16 @@ static retvalue by_glob(struct package_list *list, UNUSED(struct distribution *i
 	if (!RET_IS_OK(r))
 		return r;
 	result = RET_NOTHING;
-	while (target_nextpackage(&iterator, &packagename, &chunk)) {
+	while (target_nextpackage(&iterator, &packagename, &packagedata)) {
 		if (!globmatch(packagename, glob))
 			continue;
-		r = fromtarget->getarchitecture(chunk, &package_architecture);
+		r = fromtarget->getarchitecture(packagedata.chunk, &package_architecture);
 		if (RET_WAS_ERROR(r)) {
 			result = r;
 			break;
 		}
 		r = list_prepareadd(list, desttarget,
-				packagename, NULL, package_architecture, chunk);
+				packagename, NULL, package_architecture, packagedata.chunk);
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(r))
 			break;

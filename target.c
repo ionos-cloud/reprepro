@@ -42,6 +42,7 @@
 #include "files.h"
 #include "descriptions.h"
 #include "target.h"
+#include "packagedata.h"
 
 static char *calc_identifier(const char *codename, component_t component, architecture_t architecture, packagetype_t packagetype) {
 	assert (strchr(codename, '|') == NULL);
@@ -223,28 +224,28 @@ retvalue target_closepackagesdb(struct target *target) {
 }
 
 /* Remove a package from the given target. */
-retvalue target_removereadpackage(struct target *target, struct logger *logger, const char *name, const char *oldcontrol, struct trackingdata *trackingdata) {
+retvalue target_removereadpackage(struct target *target, struct logger *logger, const char *name, const struct packagedata *olddata, struct trackingdata *trackingdata) {
 	char *oldpversion = NULL;
 	struct strlist files;
 	retvalue result, r;
 	char *oldsource, *oldsversion;
 
 	assert (target != NULL && target->packages != NULL);
-	assert (oldcontrol != NULL && name != NULL);
+	assert (olddata != NULL && olddata->chunk != NULL && name != NULL);
 
 	if (logger != NULL) {
 		/* need to get the version for logging, if not available */
-		r = target->getversion(oldcontrol, &oldpversion);
+		r = target->getversion(olddata->chunk, &oldpversion);
 		if (!RET_IS_OK(r))
 			oldpversion = NULL;
 	}
-	r = target->getfilekeys(oldcontrol, &files);
+	r = target->getfilekeys(olddata->chunk, &files);
 	if (RET_WAS_ERROR(r)) {
 		free(oldpversion);
 		return r;
 	}
 	if (trackingdata != NULL) {
-		r = target->getsourceandversion(oldcontrol,
+		r = target->getsourceandversion(olddata->chunk,
 				name, &oldsource, &oldsversion);
 		if (!RET_IS_OK(r)) {
 			oldsource = oldsversion = NULL;
@@ -268,7 +269,7 @@ retvalue target_removereadpackage(struct target *target, struct logger *logger, 
 		if (logger != NULL)
 			logger_log(logger, target, name,
 					NULL, oldpversion,
-					NULL, oldcontrol,
+					NULL, olddata->chunk,
 					NULL, &files,
 					NULL, NULL);
 		r = references_delete(target->identifier, &files, NULL);
@@ -282,11 +283,13 @@ retvalue target_removereadpackage(struct target *target, struct logger *logger, 
 /* Remove a package from the given target. */
 retvalue target_removepackage(struct target *target, struct logger *logger, const char *name, struct trackingdata *trackingdata) {
 	char *oldchunk;
+	struct packagedata olddata;
 	retvalue r;
 
 	assert(target != NULL && target->packages != NULL && name != NULL);
 
 	r = table_getrecord(target->packages, name, &oldchunk);
+	parse_packagedata(oldchunk, &olddata);
 	if (RET_WAS_ERROR(r)) {
 		return r;
 	}
@@ -297,8 +300,8 @@ retvalue target_removepackage(struct target *target, struct logger *logger, cons
 		return RET_NOTHING;
 	}
 	r = target_removereadpackage(target, logger,
-			name, oldchunk, trackingdata);
-	free(oldchunk);
+			name, &olddata, trackingdata);
+	packagedata_free(&olddata);
 	return r;
 }
 
@@ -307,28 +310,31 @@ retvalue target_removepackage(struct target *target, struct logger *logger, cons
 retvalue target_removepackage_by_cursor(struct target_cursor *tc, struct logger *logger, struct trackingdata *trackingdata) {
 	struct target * const target = tc->target;
 	const char * const name = tc->lastname;
-	const char * const control = tc->lastcontrol;
+	struct packagedata packagedata;
 	char *oldpversion = NULL;
 	struct strlist files;
 	retvalue result, r;
 	char *oldsource, *oldsversion;
 
+	parse_packagedata(tc->lastcontrol, &packagedata);
+
 	assert (target != NULL && target->packages != NULL);
-	assert (name != NULL && control != NULL);
+	assert (name != NULL);
+	// TODO: assert (packagedata.data != NULL);
 
 	if (logger != NULL) {
 		/* need to get the version for logging, if not available */
-		r = target->getversion(control, &oldpversion);
+		r = target->getversion(packagedata.chunk, &oldpversion);
 		if (!RET_IS_OK(r))
 			oldpversion = NULL;
 	}
-	r = target->getfilekeys(control, &files);
+	r = target->getfilekeys(packagedata.chunk, &files);
 	if (RET_WAS_ERROR(r)) {
 		free(oldpversion);
 		return r;
 	}
 	if (trackingdata != NULL) {
-		r = target->getsourceandversion(control,
+		r = target->getsourceandversion(packagedata.chunk,
 				name, &oldsource, &oldsversion);
 		if (!RET_IS_OK(r)) {
 			oldsource = oldsversion = NULL;
@@ -352,7 +358,7 @@ retvalue target_removepackage_by_cursor(struct target_cursor *tc, struct logger 
 		if (logger != NULL)
 			logger_log(logger, target, name,
 					NULL, oldpversion,
-					NULL, control,
+					NULL, packagedata.chunk,
 					NULL, &files,
 					NULL, NULL);
 		r = references_delete(target->identifier, &files, NULL);
@@ -363,7 +369,7 @@ retvalue target_removepackage_by_cursor(struct target_cursor *tc, struct logger 
 	return result;
 }
 
-static retvalue addpackages(struct target *target, const char *packagename, const char *controlchunk, /*@null@*/const char *oldcontrolchunk, const char *version, /*@null@*/const char *oldversion, const struct strlist *files, /*@only@*//*@null@*/struct strlist *oldfiles, /*@null@*/struct logger *logger, /*@null@*/struct trackingdata *trackingdata, architecture_t architecture, /*@null@*//*@only@*/char *oldsource, /*@null@*//*@only@*/char *oldsversion, /*@null@*/const char *causingrule, /*@null@*/const char *suitefrom) {
+static retvalue addpackages(struct target *target, const char *packagename, const char *controlchunk, const char *version, /*@null@*/const struct packagedata *oldpackage, /*@null@*/const char *oldversion, const struct strlist *files, /*@only@*//*@null@*/struct strlist *oldfiles, /*@null@*/struct logger *logger, /*@null@*/struct trackingdata *trackingdata, architecture_t architecture, /*@null@*//*@only@*/char *oldsource, /*@null@*//*@only@*/char *oldsversion, /*@null@*/const char *causingrule, /*@null@*/const char *suitefrom) {
 
 	retvalue result, r;
 	struct table *table = target->packages;
@@ -390,7 +396,7 @@ static retvalue addpackages(struct target *target, const char *packagename, cons
 
 	/* Add package to the distribution's database */
 
-	if (oldcontrolchunk != NULL) {
+	if (oldpackage != NULL) {
 		result = table_replacerecord(table, packagename, controlchunk);
 
 	} else {
@@ -403,11 +409,15 @@ static retvalue addpackages(struct target *target, const char *packagename, cons
 		return result;
 	}
 
-	if (logger != NULL)
+	if (logger != NULL) {
+		char *oldcontrolchunk = NULL;
+		if (oldpackage != NULL)
+			oldcontrolchunk = oldpackage->chunk;
 		logger_log(logger, target, packagename,
 				version, oldversion,
 				controlchunk, oldcontrolchunk,
 				files, oldfiles, causingrule, suitefrom);
+	}
 
 	r = trackingdata_insert(trackingdata, filetype, files,
 			oldsource, oldsversion, oldfiles);
@@ -426,6 +436,7 @@ static retvalue addpackages(struct target *target, const char *packagename, cons
 
 retvalue target_addpackage(struct target *target, struct logger *logger, const char *name, const char *version, const char *control, const struct strlist *filekeys, bool downgrade, struct trackingdata *trackingdata, architecture_t architecture, const char *causingrule, const char *suitefrom, struct description *description) {
 	struct strlist oldfilekeys, *ofk;
+	struct packagedata oldpackage;
 	char *newcontrol;
 	char *oldcontrol, *oldsource, *oldsversion;
 	char *oldpversion;
@@ -434,6 +445,7 @@ retvalue target_addpackage(struct target *target, struct logger *logger, const c
 	assert(target->packages!=NULL);
 
 	r = table_getrecord(target->packages, name, &oldcontrol);
+	parse_packagedata(oldcontrol, &oldpackage);
 	if (RET_WAS_ERROR(r))
 		return r;
 	if (r == RET_NOTHING) {
@@ -528,8 +540,8 @@ retvalue target_addpackage(struct target *target, struct logger *logger, const c
 	if (RET_IS_OK(r))
 		control = newcontrol;
 	if (!RET_WAS_ERROR(r))
-		r = addpackages(target, name, control, oldcontrol,
-			version, oldpversion,
+		r = addpackages(target, name, control,
+			version, &oldpackage, oldpversion,
 			filekeys, ofk,
 			logger,
 			trackingdata, architecture, oldsource, oldsversion,
@@ -652,7 +664,8 @@ retvalue target_checkaddpackage(struct target *target, const char *name, const c
 retvalue target_rereference(struct target *target) {
 	retvalue result, r;
 	struct target_cursor iterator;
-	const char *package, *control;
+	const char *package;
+	struct packagedata packagedata;
 
 	if (verbose > 1) {
 		if (verbose > 2)
@@ -671,10 +684,10 @@ retvalue target_rereference(struct target *target) {
 	assert (r != RET_NOTHING);
 	if (RET_WAS_ERROR(r))
 		return r;
-	while (target_nextpackage(&iterator, &package, &control)) {
+	while (target_nextpackage(&iterator, &package, &packagedata)) {
 		struct strlist filekeys;
 
-		r = target->getfilekeys(control, &filekeys);
+		r = target->getfilekeys(packagedata.chunk, &filekeys);
 		RET_UPDATE(result, r);
 		if (!RET_IS_OK(r))
 			continue;
@@ -693,12 +706,12 @@ retvalue target_rereference(struct target *target) {
 	return result;
 }
 
-retvalue package_referenceforsnapshot(UNUSED(struct distribution *di), struct target *target, const char *package, const char *chunk, void *data) {
+retvalue package_referenceforsnapshot(UNUSED(struct distribution *di), struct target *target, const char *package, const struct packagedata *packagedata, void *data) {
 	const char *identifier = data;
 	struct strlist filekeys;
 	retvalue r;
 
-	r = target->getfilekeys(chunk, &filekeys);
+	r = target->getfilekeys(packagedata->chunk, &filekeys);
 	if (RET_WAS_ERROR(r))
 		return r;
 	if (verbose > 15) {
@@ -712,14 +725,14 @@ retvalue package_referenceforsnapshot(UNUSED(struct distribution *di), struct ta
 	return r;
 }
 
-retvalue package_check(UNUSED(struct distribution *di), struct target *target, const char *package, const char *chunk, UNUSED(void *pd)) {
+retvalue package_check(UNUSED(struct distribution *di), struct target *target, const char *package, const struct packagedata *packagedata, UNUSED(void *pd)) {
 	struct checksumsarray files;
 	struct strlist expectedfilekeys;
 	char *dummy, *version;
 	retvalue result = RET_OK, r;
 	architecture_t package_architecture;
 
-	r = target->getversion(chunk, &version);
+	r = target->getversion(packagedata->chunk, &version);
 	if (!RET_IS_OK(r)) {
 		fprintf(stderr,
 "Error extraction version number from package control info of '%s'!\n",
@@ -728,7 +741,7 @@ retvalue package_check(UNUSED(struct distribution *di), struct target *target, c
 			r = RET_ERROR_MISSING;
 		return r;
 	}
-	r = target->getarchitecture(chunk, &package_architecture);
+	r = target->getarchitecture(packagedata->chunk, &package_architecture);
 	if (!RET_IS_OK(r)) {
 		fprintf(stderr,
 "Error extraction architecture from package control info of '%s'!\n",
@@ -748,7 +761,7 @@ retvalue package_check(UNUSED(struct distribution *di), struct target *target, c
 		result = RET_ERROR;
 	}
 	r = target->getinstalldata(target, package, version,
-			package_architecture, chunk, &dummy,
+			package_architecture, packagedata->chunk, &dummy,
 			&expectedfilekeys, &files);
 	if (RET_WAS_ERROR(r)) {
 		fprintf(stderr,
@@ -772,7 +785,7 @@ retvalue package_check(UNUSED(struct distribution *di), struct target *target, c
 		}
 		strlist_done(&expectedfilekeys);
 	} else {
-		r = target->getchecksums(chunk, &files);
+		r = target->getchecksums(packagedata->chunk, &files);
 		if (r == RET_NOTHING)
 			r = RET_ERROR;
 		if (RET_WAS_ERROR(r)) {
@@ -808,7 +821,8 @@ retvalue package_check(UNUSED(struct distribution *di), struct target *target, c
 retvalue target_reoverride(struct target *target, struct distribution *distribution) {
 	struct target_cursor iterator;
 	retvalue result, r;
-	const char *package, *controlchunk;
+	const char *package;
+	struct packagedata packagedata;
 
 	assert(target->packages == NULL);
 	assert(distribution != NULL);
@@ -823,10 +837,10 @@ retvalue target_reoverride(struct target *target, struct distribution *distribut
 	if (!RET_IS_OK(r))
 		return r;
 	result = RET_NOTHING;
-	while (target_nextpackage(&iterator, &package, &controlchunk)) {
+	while (target_nextpackage(&iterator, &package, &packagedata)) {
 		char *newcontrolchunk = NULL;
 
-		r = target->doreoverride(target, package, controlchunk,
+		r = target->doreoverride(target, package, packagedata.chunk,
 				&newcontrolchunk);
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(r)) {
@@ -876,7 +890,8 @@ static retvalue complete_package_checksums(struct target *target, const char *co
 retvalue target_redochecksums(struct target *target, struct distribution *distribution) {
 	struct target_cursor iterator;
 	retvalue result, r;
-	const char *package, *controlchunk;
+	const char *package;
+	struct packagedata packagedata;
 
 	assert(target->packages == NULL);
 	assert(distribution != NULL);
@@ -891,10 +906,10 @@ retvalue target_redochecksums(struct target *target, struct distribution *distri
 	if (!RET_IS_OK(r))
 		return r;
 	result = RET_NOTHING;
-	while (target_nextpackage(&iterator, &package, &controlchunk)) {
+	while (target_nextpackage(&iterator, &package, &packagedata)) {
 		char *newcontrolchunk = NULL;
 
-		r = complete_package_checksums(target, controlchunk,
+		r = complete_package_checksums(target, packagedata.chunk,
 				&newcontrolchunk);
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(r))
@@ -945,13 +960,13 @@ retvalue target_export(struct target *target, bool onlyneeded, bool snapshot, st
 	return result;
 }
 
-retvalue package_rerunnotifiers(struct distribution *distribution, struct target *target, const char *package, const char *chunk, UNUSED(void *data)) {
+retvalue package_rerunnotifiers(struct distribution *distribution, struct target *target, const char *package, const struct packagedata *packagedata, UNUSED(void *data)) {
 	struct logger *logger = distribution->logger;
 	struct strlist filekeys;
 	char *version;
 	retvalue r;
 
-	r = target->getversion(chunk, &version);
+	r = target->getversion(packagedata->chunk, &version);
 	if (!RET_IS_OK(r)) {
 		fprintf(stderr,
 "Error extraction version number from package control info of '%s'!\n",
@@ -960,7 +975,7 @@ retvalue package_rerunnotifiers(struct distribution *distribution, struct target
 			r = RET_ERROR_MISSING;
 		return r;
 	}
-	r = target->getfilekeys(chunk, &filekeys);
+	r = target->getfilekeys(packagedata->chunk, &filekeys);
 	if (RET_WAS_ERROR(r)) {
 		fprintf(stderr,
 "Error extracting information about used files from package '%s'!\n",
@@ -968,7 +983,7 @@ retvalue package_rerunnotifiers(struct distribution *distribution, struct target
 		free(version);
 		return r;
 	}
-	r = logger_reruninfo(logger, target, package, version, chunk, &filekeys);
+	r = logger_reruninfo(logger, target, package, version, packagedata->chunk, &filekeys);
 	strlist_done(&filekeys);
 	free(version);
 	return r;

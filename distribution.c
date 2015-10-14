@@ -536,7 +536,8 @@ retvalue distribution_foreach_package(struct distribution *distribution, const s
 	retvalue result, r;
 	struct target *t;
 	struct target_cursor iterator;
-	const char *package, *control;
+	const char *package;
+	struct packagedata packagedata;
 
 	result = RET_NOTHING;
 	for (t = distribution->targets ; t != NULL ; t = t->next) {
@@ -553,8 +554,8 @@ retvalue distribution_foreach_package(struct distribution *distribution, const s
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(r))
 			return result;
-		while (target_nextpackage(&iterator, &package, &control)) {
-			r = action(distribution, t, package, control, data);
+		while (target_nextpackage(&iterator, &package, &packagedata)) {
+			r = action(distribution, t, package, &packagedata, data);
 			RET_UPDATE(result, r);
 			if (RET_WAS_ERROR(r))
 				break;
@@ -570,7 +571,8 @@ retvalue distribution_foreach_package(struct distribution *distribution, const s
 retvalue distribution_foreach_package_c(struct distribution *distribution, const struct atomlist *components, architecture_t architecture, packagetype_t packagetype, each_package_action action, void *data) {
 	retvalue result, r;
 	struct target *t;
-	const char *package, *control;
+	const char *package;
+	struct packagedata packagedata;
 	struct target_cursor iterator;
 
 	result = RET_NOTHING;
@@ -586,8 +588,8 @@ retvalue distribution_foreach_package_c(struct distribution *distribution, const
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(r))
 			return result;
-		while (target_nextpackage(&iterator, &package, &control)) {
-			r = action(distribution, t, package, control, data);
+		while (target_nextpackage(&iterator, &package, &packagedata)) {
+			r = action(distribution, t, package, &packagedata, data);
 			RET_UPDATE(result, r);
 			if (RET_WAS_ERROR(r))
 				break;
@@ -1106,7 +1108,8 @@ retvalue distribution_remove_packages(struct distribution *distribution, const s
 	retvalue result, r;
 	struct target *t;
 	struct target_cursor iterator;
-	const char *package, *control;
+	const char *package;
+	struct packagedata packagedata;
 
 	if (distribution->readonly) {
 		fprintf(stderr,
@@ -1123,9 +1126,9 @@ retvalue distribution_remove_packages(struct distribution *distribution, const s
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(r))
 			return result;
-		while (target_nextpackage(&iterator, &package, &control)) {
+		while (target_nextpackage(&iterator, &package, &packagedata)) {
 			r = decider(distribution, t,
-					package, control, data);
+					package, &packagedata, data);
 			RET_UPDATE(result, r);
 			if (RET_WAS_ERROR(r))
 				break;

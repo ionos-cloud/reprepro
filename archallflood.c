@@ -315,7 +315,8 @@ static retvalue save_package_version(struct floodlist *list, const char *package
 static retvalue floodlist_initialize(struct floodlist **fl, struct target *t) {
 	struct floodlist *list;
 	retvalue r, r2;
-	const char *packagename, *controlchunk;
+	const char *packagename;
+	struct packagedata packagedata;
 	struct target_cursor iterator;
 
 	list = zNEW(struct floodlist);
@@ -331,8 +332,8 @@ static retvalue floodlist_initialize(struct floodlist **fl, struct target *t) {
 		floodlist_free(list);
 		return r;
 	}
-	while (target_nextpackage(&iterator, &packagename, &controlchunk)) {
-		r2 = save_package_version(list, packagename, controlchunk);
+	while (target_nextpackage(&iterator, &packagename, &packagedata)) {
+		r2 = save_package_version(list, packagename, packagedata.chunk);
 		RET_UPDATE(r, r2);
 		if (RET_WAS_ERROR(r2))
 			break;
@@ -558,7 +559,8 @@ static retvalue floodlist_trypackage(struct floodlist *list, const char *package
 
 static retvalue floodlist_pull(struct floodlist *list, struct target *source) {
 	retvalue result, r;
-	const char *package, *control;
+	const char *package;
+	struct packagedata packagedata;
 	struct target_cursor iterator;
 
 	list->last = NULL;
@@ -566,11 +568,11 @@ static retvalue floodlist_pull(struct floodlist *list, struct target *source) {
 	if (RET_WAS_ERROR(r))
 		return r;
 	result = RET_NOTHING;
-	while (target_nextpackage(&iterator, &package, &control)) {
+	while (target_nextpackage(&iterator, &package, &packagedata)) {
 		char *version;
 		architecture_t package_architecture;
 
-		r = list->target->getarchitecture(control,
+		r = list->target->getarchitecture(packagedata.chunk,
 				&package_architecture);
 		if (r == RET_NOTHING)
 			continue;
@@ -581,14 +583,14 @@ static retvalue floodlist_pull(struct floodlist *list, struct target *source) {
 		if (package_architecture != architecture_all)
 			continue;
 
-		r = list->target->getversion(control, &version);
+		r = list->target->getversion(packagedata.chunk, &version);
 		if (r == RET_NOTHING)
 			continue;
 		if (!RET_IS_OK(r)) {
 			RET_UPDATE(result, r);
 			break;
 		}
-		r = floodlist_trypackage(list, package, version, control);
+		r = floodlist_trypackage(list, package, version, packagedata.chunk);
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(r))
 			break;

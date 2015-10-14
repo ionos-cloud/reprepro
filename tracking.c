@@ -1186,6 +1186,7 @@ static retvalue targetremovesourcepackage(trackingdb t, struct trackedpackage *p
 	for (i = 0 ; i < pkg->filekeys.count ; i++) {
 		const char *s, *basefilename, *filekey = pkg->filekeys.values[i];
 		char *package, *control, *source, *version;
+		struct packagedata packagedata;
 		struct strlist filekeys;
 		bool savedstaletracking;
 
@@ -1240,6 +1241,7 @@ static retvalue targetremovesourcepackage(trackingdb t, struct trackedpackage *p
 		if (FAILEDTOALLOC(package))
 			return RET_ERROR_OOM;
 		r = table_getrecord(target->packages, package, &control);
+		parse_packagedata(control, &packagedata);
 		if (RET_WAS_ERROR(r)) {
 			free(package);
 			return r;
@@ -1256,12 +1258,12 @@ static retvalue targetremovesourcepackage(trackingdb t, struct trackedpackage *p
 			free(package);
 			continue;
 		}
-		r = target->getsourceandversion(control, package,
+		r = target->getsourceandversion(packagedata.chunk, package,
 				&source, &version);
 		assert (r != RET_NOTHING);
 		if (RET_WAS_ERROR(r)) {
 			free(package);
-			free(control);
+			packagedata_free(&packagedata);
 			return r;
 		}
 		if (strcmp(source, pkg->sourcename) != 0) {
@@ -1277,7 +1279,7 @@ static retvalue targetremovesourcepackage(trackingdb t, struct trackedpackage *p
 			free(source);
 			free(version);
 			free(package);
-			free(control);
+			packagedata_free(&packagedata);
 			continue;
 		}
 		free(source);
@@ -1293,15 +1295,15 @@ static retvalue targetremovesourcepackage(trackingdb t, struct trackedpackage *p
 			}
 			free(package);
 			free(version);
-			free(control);
+			packagedata_free(&packagedata);
 			continue;
 		}
 		free(version);
-		r = target->getfilekeys(control, &filekeys);
+		r = target->getfilekeys(packagedata.chunk, &filekeys);
 		assert (r != RET_NOTHING);
 		if (RET_WAS_ERROR(r)) {
 			free(package);
-			free(control);
+			packagedata_free(&packagedata);
 			return r;
 		}
 
@@ -1313,9 +1315,9 @@ static retvalue targetremovesourcepackage(trackingdb t, struct trackedpackage *p
 		/* that is a bit wasteful, as it parses some stuff again, but
 		 * but that is better than reimplementing logger here */
 		r = target_removereadpackage(target, distribution->logger,
-				package, control, NULL);
+				package, &packagedata, NULL);
 		target->staletracking = savedstaletracking;
-		free(control);
+		packagedata_free(&packagedata);
 		free(package);
 		assert (r != RET_NOTHING);
 		if (RET_WAS_ERROR(r)) {
@@ -1392,10 +1394,10 @@ retvalue tracking_removepackages(trackingdb t, struct distribution *distribution
 	return result;
 }
 
-static retvalue package_retrack(UNUSED(struct distribution *di), struct target *target, const char *packagename, const char *controlchunk, void *data) {
+static retvalue package_retrack(UNUSED(struct distribution *di), struct target *target, const char *packagename, const struct packagedata *packagedata, void *data) {
 	trackingdb tracks = data;
 
-	return target->doretrack(packagename, controlchunk, tracks);
+	return target->doretrack(packagename, packagedata->chunk, tracks);
 }
 
 retvalue tracking_retrack(struct distribution *d, bool needsretrack) {

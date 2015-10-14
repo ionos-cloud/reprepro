@@ -160,16 +160,16 @@ retvalue contentsoptions_parse(struct distribution *distribution, struct configi
 	return RET_OK;
 }
 
-static retvalue addpackagetocontents(UNUSED(struct distribution *di), UNUSED(struct target *ta), const char *packagename, const char *chunk, void *data) {
+static retvalue addpackagetocontents(UNUSED(struct distribution *di), UNUSED(struct target *ta), const char *packagename, const struct packagedata *packagedata, void *data) {
 	struct filelist_list *contents = data;
 	retvalue r;
 	char *section, *filekey;
 
-	r = chunk_getvalue(chunk, "Section", &section);
+	r = chunk_getvalue(packagedata->chunk, "Section", &section);
 	/* Ignoring packages without section, as they should not exist anyway */
 	if (!RET_IS_OK(r))
 		return r;
-	r = chunk_getvalue(chunk, "Filename", &filekey);
+	r = chunk_getvalue(packagedata->chunk, "Filename", &filekey);
 	/* dito with filekey */
 	if (!RET_IS_OK(r)) {
 		free(section);
@@ -232,11 +232,12 @@ static retvalue gentargetcontents(struct target *target, struct release *release
 	}
 	result = target_openiterator(target, READONLY, &iterator);
 	if (RET_IS_OK(result)) {
-		const char *package, *control;
+		const char *package;
+		struct packagedata packagedata;
 
-		while (target_nextpackage(&iterator, &package, &control)) {
+		while (target_nextpackage(&iterator, &package, &packagedata)) {
 			r = addpackagetocontents(target->distribution,
-					target, package, control, contents);
+					target, package, &packagedata, contents);
 			RET_UPDATE(result, r);
 			if (RET_WAS_ERROR(r))
 				break;

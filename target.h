@@ -22,6 +22,7 @@
 #ifndef REPREPRO_EXPORTS_H
 #include "exports.h"
 #endif
+#include "packagedata.h"
 
 struct target;
 struct alloverrides;
@@ -114,17 +115,21 @@ static inline retvalue target_openiterator(struct target *t, bool readonly, /*@o
 	tc->cursor = c;
 	return RET_OK;
 }
+
 /* wrapper around cursor_nexttemp */
-static inline bool target_nextpackage(struct target_cursor *tc, /*@out@*/const char **packagename_p, /*@out@*/const char **chunk_p) {
+static inline bool target_nextpackage(struct target_cursor *tc, /*@out@*/const char **packagename_p, /*@out@*/struct packagedata *packagedata) {
 	bool success;
+
 	success = cursor_nexttemp(tc->target->packages, tc->cursor,
 			&tc->lastname, &tc->lastcontrol);
 	if (success) {
 		*packagename_p = tc->lastname;
-		*chunk_p = tc->lastcontrol;
+		parse_packagedata(tc->lastcontrol, packagedata);
 	} else {
 		tc->lastname = NULL;
 		tc->lastcontrol = NULL;
+		if (packagename_p != NULL)
+			*packagename_p = NULL;
 	}
 	return success;
 }
@@ -150,19 +155,20 @@ struct logger;
 struct description;
 retvalue target_addpackage(struct target *, /*@null@*/struct logger *, const char *name, const char *version, const char *control, const struct strlist *filekeys, bool downgrade, /*@null@*/struct trackingdata *, architecture_t, /*@null@*/const char *causingrule, /*@null@*/const char *suitefrom, /*@null@*/struct description *);
 retvalue target_checkaddpackage(struct target *, const char *name, const char *version, bool tracking, bool permitnewerold);
+retvalue target_getpackage(struct target *, const char *name, const char *version, /*@out*/struct packagedata *);
 retvalue target_removepackage(struct target *, /*@null@*/struct logger *, const char *name, struct trackingdata *);
 /* like target_removepackage, but do not read control data yourself but use available */
-retvalue target_removereadpackage(struct target *, /*@null@*/struct logger *, const char *name, const char *oldcontrol, /*@null@*/struct trackingdata *);
+retvalue target_removereadpackage(struct target *, /*@null@*/struct logger *, const char *name, const struct packagedata *olddata, /*@null@*/struct trackingdata *);
 /* Like target_removepackage, but delete the package record by cursor */
 retvalue target_removepackage_by_cursor(struct target_cursor *, /*@null@*/struct logger *, /*@null@*/struct trackingdata *);
 
-retvalue package_check(struct distribution *, struct target *, const char *, const char *, void *);
+retvalue package_check(struct distribution *, struct target *, const char *, const struct packagedata *, void *);
 retvalue target_rereference(struct target *);
-retvalue package_referenceforsnapshot(struct distribution *, struct target *, const char *, const char *, void *);
+retvalue package_referenceforsnapshot(struct distribution *, struct target *, const char *, const struct packagedata *, void *);
 retvalue target_reoverride(struct target *, struct distribution *);
 retvalue target_redochecksums(struct target *, struct distribution *);
 
-retvalue package_rerunnotifiers(struct distribution *, struct target *, const char *, const char *, void *);
+retvalue package_rerunnotifiers(struct distribution *, struct target *, const char *, const struct packagedata *, void *);
 
 static inline bool target_matches(const struct target *t, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes) {
 	if (limitations_missed(components, t->component))

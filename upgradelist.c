@@ -142,7 +142,8 @@ static retvalue save_package_version(struct upgradelist *upgrade, const char *pa
 retvalue upgradelist_initialize(struct upgradelist **ul, struct target *t) {
 	struct upgradelist *upgrade;
 	retvalue r, r2;
-	const char *packagename, *controlchunk;
+	const char *packagename;
+	struct packagedata packagedata;
 	struct target_cursor iterator;
 
 	upgrade = zNEW(struct upgradelist);
@@ -158,8 +159,8 @@ retvalue upgradelist_initialize(struct upgradelist **ul, struct target *t) {
 		upgradelist_free(upgrade);
 		return r;
 	}
-	while (target_nextpackage(&iterator, &packagename, &controlchunk)) {
-		r2 = save_package_version(upgrade, packagename, controlchunk);
+	while (target_nextpackage(&iterator, &packagename, &packagedata)) {
+		r2 = save_package_version(upgrade, packagename, packagedata.chunk);
 		RET_UPDATE(r, r2);
 		if (RET_WAS_ERROR(r2))
 			break;
@@ -538,7 +539,8 @@ retvalue upgradelist_update(struct upgradelist *upgrade, void *privdata, const c
 
 retvalue upgradelist_pull(struct upgradelist *upgrade, struct target *source, upgrade_decide_function *predecide, void *decide_data, void *privdata) {
 	retvalue result, r;
-	const char *package, *control;
+	const char *package;
+	struct packagedata packagedata;
 	struct target_cursor iterator;
 
 	upgrade->last = NULL;
@@ -546,20 +548,20 @@ retvalue upgradelist_pull(struct upgradelist *upgrade, struct target *source, up
 	if (RET_WAS_ERROR(r))
 		return r;
 	result = RET_NOTHING;
-	while (target_nextpackage(&iterator, &package, &control)) {
+	while (target_nextpackage(&iterator, &package, &packagedata)) {
 		char *version;
 		architecture_t package_architecture;
 		char *sourcename, *sourceversion;
 
 		assert (source->packagetype == upgrade->target->packagetype);
 
-		r = source->getversion(control, &version);
+		r = source->getversion(packagedata.chunk, &version);
 		assert (r != RET_NOTHING);
 		if (!RET_IS_OK(r)) {
 			RET_UPDATE(result, r);
 			break;
 		}
-		r = source->getarchitecture(control, &package_architecture);
+		r = source->getarchitecture(packagedata.chunk, &package_architecture);
 		if (!RET_IS_OK(r)) {
 			RET_UPDATE(result, r);
 			break;
@@ -590,14 +592,14 @@ retvalue upgradelist_pull(struct upgradelist *upgrade, struct target *source, up
 			continue;
 		}
 
-		r = upgrade->target->getsourceandversion(control, package,
+		r = upgrade->target->getsourceandversion(packagedata.chunk, package,
 				&sourcename, &sourceversion);
 		if (RET_IS_OK(r)) {
 			r = upgradelist_trypackage(upgrade, privdata,
 					predecide, decide_data,
 					package, NULL, sourcename,
 					version, sourceversion,
-					package_architecture, control);
+					package_architecture, packagedata.chunk);
 			RET_UPDATE(result, r);
 			free(sourcename);
 			free(sourceversion);

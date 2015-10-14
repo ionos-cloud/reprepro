@@ -762,12 +762,12 @@ struct removesrcdata {
 	bool found;
 };
 
-static retvalue package_source_fits(UNUSED(struct distribution *di), struct target *target, const char *packagename, const char *control, void *data) {
+static retvalue package_source_fits(UNUSED(struct distribution *di), struct target *target, const char *packagename, const struct packagedata *packagedata, void *data) {
 	struct removesrcdata *d = data;
 	char *sourcename, *sourceversion;
 	retvalue r;
 
-	r = target->getsourceandversion(control, packagename,
+	r = target->getsourceandversion(packagedata->chunk, packagename,
 			&sourcename, &sourceversion);
 	if (!RET_IS_OK(r))
 		return r;
@@ -959,10 +959,10 @@ ACTION_D(n, n, y, removesrcs) {
 	return r;
 }
 
-static retvalue package_matches_condition(UNUSED(struct distribution *di), struct target *target, UNUSED(const char *pa), const char *control, void *data) {
+static retvalue package_matches_condition(UNUSED(struct distribution *di), struct target *target, UNUSED(const char *pa), const struct packagedata *packagedata, void *data) {
 	term *condition = data;
 
-	return term_decidechunktarget(condition, control, target);
+	return term_decidechunktarget(condition, packagedata->chunk, target);
 }
 
 ACTION_D(y, n, y, removefilter) {
@@ -1029,7 +1029,7 @@ ACTION_D(y, n, y, removefilter) {
 	return result;
 }
 
-static retvalue package_matches_glob(UNUSED(struct distribution *di), UNUSED(struct target *ta), const char *packagename, UNUSED(const char *control), void *data) {
+static retvalue package_matches_glob(UNUSED(struct distribution *di), UNUSED(struct target *ta), const char *packagename, UNUSED(const struct packagedata *packagedata), void *data) {
 	if (globmatch(packagename, data))
 		return RET_OK;
 	else
@@ -1174,6 +1174,7 @@ ACTION_B(y, n, y, buildneeded) {
 static retvalue list_in_target(struct target *target, const char *packagename) {
 	retvalue r, result;
 	char *control;
+	struct packagedata packagedata;
 
 	if (listmax == 0)
 		return RET_NOTHING;
@@ -1183,10 +1184,11 @@ static retvalue list_in_target(struct target *target, const char *packagename) {
 		return r;
 
 	result = table_getrecord(target->packages, packagename, &control);
+	parse_packagedata(control, &packagedata);
 	if (RET_IS_OK(result)) {
 		if (listskip <= 0) {
 			r = listformat_print(listformat, target,
-					packagename, control);
+					packagename, &packagedata);
 			RET_UPDATE(result, r);
 			if (listmax > 0)
 				listmax--;
@@ -1199,14 +1201,14 @@ static retvalue list_in_target(struct target *target, const char *packagename) {
 	return result;
 }
 
-static retvalue list_package(UNUSED(struct distribution *dummy2), struct target *target, const char *package, const char *control, UNUSED(void *dummy3)) {
+static retvalue list_package(UNUSED(struct distribution *dummy2), struct target *target, const char *package, const struct packagedata *packagedata, UNUSED(void *dummy3)) {
 	if (listmax == 0)
 		return RET_NOTHING;
 
 	if (listskip <= 0) {
 		if (listmax > 0)
 			listmax--;
-		return listformat_print(listformat, target, package, control);
+		return listformat_print(listformat, target, package, packagedata);
 	} else {
 		listskip--;
 		return RET_NOTHING;
@@ -1419,20 +1421,20 @@ ACTION_B(y, n, y, lsbycomponent) {
 	return printlsparts(argv[1], first);
 }
 
-static retvalue listfilterprint(UNUSED(struct distribution *di), struct target *target, const char *packagename, const char *control, void *data) {
+static retvalue listfilterprint(UNUSED(struct distribution *di), struct target *target, const char *packagename, const struct packagedata *packagedata, void *data) {
 	term *condition = data;
 	retvalue r;
 
 	if (listmax == 0)
 		return RET_NOTHING;
 
-	r = term_decidechunktarget(condition, control, target);
+	r = term_decidechunktarget(condition, packagedata->chunk, target);
 	if (RET_IS_OK(r)) {
 		if (listskip <= 0) {
 			if (listmax > 0)
 				listmax--;
 			r = listformat_print(listformat, target,
-					packagename, control);
+					packagename, packagedata);
 		} else {
 			listskip--;
 			r = RET_NOTHING;
@@ -1465,7 +1467,7 @@ ACTION_B(y, n, y, listfilter) {
 	return result;
 }
 
-static retvalue listmatchprint(UNUSED(struct distribution *di), struct target *target, const char *packagename, const char *control, void *data) {
+static retvalue listmatchprint(UNUSED(struct distribution *di), struct target *target, const char *packagename, const struct packagedata *packagedata, void *data) {
 	const char *glob = data;
 
 	if (listmax == 0)
@@ -1476,7 +1478,7 @@ static retvalue listmatchprint(UNUSED(struct distribution *di), struct target *t
 			if (listmax > 0)
 				listmax--;
 			return listformat_print(listformat, target,
-					packagename, control);
+					packagename, packagedata);
 		} else {
 			listskip--;
 			return RET_NOTHING;
@@ -1565,6 +1567,7 @@ ACTION_B(n, n, n, dumpcontents) {
 	struct table *packages;
 	const char *package, *chunk;
 	struct cursor *cursor;
+	struct packagedata packagedata;
 
 	assert (argc == 2);
 
@@ -1579,7 +1582,8 @@ ACTION_B(n, n, n, dumpcontents) {
 	}
 	result = RET_NOTHING;
 	while (cursor_nexttemp(packages, cursor, &package, &chunk)) {
-		printf("'%s' -> '%s'\n", package, chunk);
+		parse_packagedata(chunk, &packagedata);
+		printf("'%s' -> '%s'\n", package, packagedata.chunk);
 		result = RET_OK;
 	}
 	r = cursor_close(packages, cursor);
@@ -2523,7 +2527,8 @@ ACTION_F(y, n, y, y, reoverride) {
 static retvalue repair_descriptions(struct target *target) {
 	struct target_cursor iterator;
 	retvalue result, r;
-	const char *package, *controlchunk;
+	const char *package;
+	struct packagedata packagedata;
 
 	assert(target->packages == NULL);
 	assert(target->packagetype == pt_deb || target->packagetype == pt_udeb);
@@ -2538,7 +2543,7 @@ static retvalue repair_descriptions(struct target *target) {
 	if (!RET_IS_OK(r))
 		return r;
 	result = RET_NOTHING;
-	while (target_nextpackage(&iterator, &package, &controlchunk)) {
+	while (target_nextpackage(&iterator, &package, &packagedata)) {
 		char *newcontrolchunk = NULL;
 
 		if (interrupted()) {
@@ -2546,8 +2551,8 @@ static retvalue repair_descriptions(struct target *target) {
 			break;
 		}
 		/* replace it by itself to normalize the Description field */
-		r = description_addpackage(target, package, controlchunk,
-				controlchunk, NULL, &newcontrolchunk);
+		r = description_addpackage(target, package, packagedata.chunk,
+				packagedata.chunk, NULL, &newcontrolchunk);
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(r))
 			break;
