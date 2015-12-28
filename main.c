@@ -1609,7 +1609,7 @@ ACTION_F(n, n, y, y, export) {
 			continue;
 
 		if (d->exportoptions[deo_noexport]) {
-			/* if explicitely selected, warn if not used: */
+			/* if explicitly selected, warn if not used: */
 			if (argc > 1 && verbose >= 0 ) {
 				printf("No exporting %s (as it has the noexport option set).\n", d->codename);
 			}

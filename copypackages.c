@@ -81,7 +81,7 @@ static retvalue list_newpackage(struct package_list *list, struct target *target
 		p_p = &(*p_p)->next;
 	if (*p_p != NULL && c == 0) {
 		// TODO: improve this message..., or some context elsewhere
-		fprintf(stderr, "Multiple occurences of package '%s'!\n",
+		fprintf(stderr, "Multiple occurrences of package '%s'!\n",
 				packagename);
 		return RET_ERROR_EXIST;
 	}

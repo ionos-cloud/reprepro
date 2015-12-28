@@ -132,7 +132,7 @@ retvalue chunk_getextralinelist(const char *chunk, const char *name, struct strl
 	/* walk over the first line */
 	while (*f != '\0' && *f != '\n')
 		f++;
-	/* nothing there is an emtpy list */
+	/* nothing there is an empty list */
 	if (*f == '\0')
 		return RET_OK;
 	f++;

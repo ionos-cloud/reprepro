@@ -216,7 +216,7 @@ const char *dirs_basename(const char *filename) {
 	if (bn == NULL)
 		return filename;
 	// not really suited for the basename of directories,
-	// things like /bla/blub/ will give emtpy string...
+	// things like /bla/blub/ will give empty string...
 	return bn+1;
 }
 

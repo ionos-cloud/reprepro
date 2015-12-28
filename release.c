@@ -472,7 +472,7 @@ static retvalue release_usecached(struct release *release,
 			if (r == RET_ERROR_WRONG_MD5) {
 				fprintf(stderr,
 "WARNING: '%s' is different from recorded checksums.\n"
-"(This was only catched because some new checksum type was not yet available.)\n"
+"(This was only caught because some new checksum type was not yet available.)\n"
 "Triggering recreation of that file.\n", fullfilename);
 				r = RET_NOTHING;
 			}

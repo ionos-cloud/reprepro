@@ -221,7 +221,7 @@ void atomlist_done(struct atomlist *list) {
 		assert (list->atoms != 0);
 		free(list->atoms);
 	}
-	/* reset atoms but not size, so reuse can be catched */
+	/* reset atoms but not size, so reuse can be caught */
 	list->atoms = NULL;
 }
 
@@ -268,7 +268,7 @@ void atomlist_move(struct atomlist *dest, struct atomlist *orig) {
 	dest->atoms = orig->atoms;
 	dest->count = orig->count;
 	dest->size = orig->size;
-	/* reset atoms but not size, so reuse can be catched */
+	/* reset atoms but not size, so reuse can be caught */
 	orig->atoms = NULL;
 }
 
