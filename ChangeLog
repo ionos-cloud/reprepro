@@ -1,4 +1,8 @@
-2014-05-09  Bernhard R. Link <brlink@debian.org>
+2015-12-28  Bernhard R. Link <brlink@debian.org>
+	* fix duplicated --keeptemporaries description in manpage
+	* add Permit: unlisted_binary for conf/incoming
+
+2015-05-09  Bernhard R. Link <brlink@debian.org>
 	* ignores lines starting with '#' in filterlists
 	* fix error parsing control files with multiple spaces/tabs after a colon
 

@@ -2057,6 +2057,11 @@ file if it lists files not belonging to any package in it.
 .br
 Ignore a package not added because there already is a strictly newer
 version available instead of treating this as an error.
+.br
+.B unlisted_binaries
+.br
+Do not abort with an error if a .changes file contains .deb files that
+are not listed in the Binaries header.
 .TP
 .B Cleanup \fIoptions
 A list of options to cause more files in the incoming directory to be
