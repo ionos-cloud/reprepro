@@ -104,9 +104,13 @@ returns 255
 stderr
 *=Warning parsing ./conf/updates, line 2: unknown component 'comonent' will be ignored!
 *=Warning parsing ./conf/updates, line 3: unknown architecture 'achitecture' will be ignored!
+-v6=aptmethod start 'file:///notexistant/dists/codename1/InRelease'
 *=aptmethod error receiving 'file:///notexistant/dists/codename1/InRelease':
+-v6=aptmethod start 'file:///notexistant/dists/codename1/Release'
 *=aptmethod error receiving 'file:///notexistant/dists/codename1/Release':
-*='File not found'
+='File not found'
+='File not found - /notexistant/dists/codename1/Release (2: No such file or directory)'
+='File not found - /notexistant/dists/codename1/InRelease (2: No such file or directory)'
 -v0*=There have been errors!
 stdout
 EOF
@@ -179,11 +183,19 @@ EOF
 testrun - -b . update codename2 3<<EOF
 returns 255
 stderr
+-v6=aptmethod start 'file:$WORKDIR/testsource/dists/codename1/InRelease'
+-v6=aptmethod start 'file:$WORKDIR/testsource/dists/codename1/Release'
+-v6=aptmethod start 'file:$WORKDIR/testsource/dists/codename2/InRelease'
+-v6=aptmethod start 'file:$WORKDIR/testsource/dists/codename2/Release'
 *=aptmethod error receiving 'file:$WORKDIR/testsource/dists/codename1/InRelease':
 *=aptmethod error receiving 'file:$WORKDIR/testsource/dists/codename1/Release':
 *=aptmethod error receiving 'file:$WORKDIR/testsource/dists/codename2/InRelease':
 *=aptmethod error receiving 'file:$WORKDIR/testsource/dists/codename2/Release':
-*='File not found'
+='File not found'
+='File not found - $WORKDIR/testsource/dists/codename1/InRelease (2: No such file or directory)'
+='File not found - $WORKDIR/testsource/dists/codename2/InRelease (2: No such file or directory)'
+='File not found - $WORKDIR/testsource/dists/codename1/Release (2: No such file or directory)'
+='File not found - $WORKDIR/testsource/dists/codename2/Release (2: No such file or directory)'
 -v0*=There have been errors!
 stdout
 EOF
@@ -194,8 +206,10 @@ touch testsource/dists/codename1/InRelease testsource/dists/codename2/InRelease
 testrun - -b . update codename2 3<<EOF
 returns 255
 stderr
+-v6*=aptmethod start 'file:$WORKDIR/testsource/dists/codename1/InRelease'
 -v1*=aptmethod got 'file:$WORKDIR/testsource/dists/codename1/InRelease'
 -v2*=Copy file '$WORKDIR/testsource/dists/codename2/InRelease' to './lists/base_codename2_InRelease'...
+-v6*=aptmethod start 'file:$WORKDIR/testsource/dists/codename2/InRelease'
 -v1*=aptmethod got 'file:$WORKDIR/testsource/dists/codename2/InRelease'
 -v2*=Copy file '$WORKDIR/testsource/dists/codename1/InRelease' to './lists/base_codename1_InRelease'...
 *=WARNING: No signature found in ./lists/base_codename2_InRelease, assuming it is unsigned!
@@ -220,8 +234,10 @@ EOF
 testrun - -b . update codename2 3<<EOF
 returns 254
 stderr
+-v6*=aptmethod start 'file:$WORKDIR/testsource/dists/codename1/InRelease'
 -v1*=aptmethod got 'file:$WORKDIR/testsource/dists/codename1/InRelease'
 -v2*=Copy file '$WORKDIR/testsource/dists/codename2/InRelease' to './lists/base_codename2_InRelease'...
+-v6*=aptmethod start 'file:$WORKDIR/testsource/dists/codename2/InRelease'
 -v1*=aptmethod got 'file:$WORKDIR/testsource/dists/codename2/InRelease'
 -v2*=Copy file '$WORKDIR/testsource/dists/codename1/InRelease' to './lists/base_codename1_InRelease'...
 *=WARNING: No signature found in ./lists/base_codename2_InRelease, assuming it is unsigned!
@@ -319,26 +335,36 @@ EOF
 
 testout - -b . update codename2 3<<EOF
 stderr
+-v6=aptmethod start 'file:$WORKDIR/testsource/dists/codename1/InRelease'
 -v1*=aptmethod got 'file:$WORKDIR/testsource/dists/codename1/InRelease'
 -v2*=Copy file '$WORKDIR/testsource/dists/codename2/InRelease' to './lists/base_codename2_InRelease'...
+-v6=aptmethod start 'file:$WORKDIR/testsource/dists/codename2/InRelease'
 -v1*=aptmethod got 'file:$WORKDIR/testsource/dists/codename2/InRelease'
 -v2*=Copy file '$WORKDIR/testsource/dists/codename1/InRelease' to './lists/base_codename1_InRelease'...
 *=WARNING: No signature found in ./lists/base_codename1_InRelease, assuming it is unsigned!
 *=WARNING: No signature found in ./lists/base_codename2_InRelease, assuming it is unsigned!
+-v6=aptmethod start 'file:$WORKDIR/testsource/dists/codename1/a/binary-x/Packages'
 -v1*=aptmethod got 'file:$WORKDIR/testsource/dists/codename1/a/binary-x/Packages'
 -v2*=Copy file '$WORKDIR/testsource/dists/codename1/a/binary-x/Packages' to './lists/base_codename1_a_x_Packages'...
+-v1=aptmethod start 'file:$WORKDIR/testsource/dists/codename1/bb/binary-x/Packages'
 -v1*=aptmethod got 'file:$WORKDIR/testsource/dists/codename1/bb/binary-x/Packages'
 -v2*=Copy file '$WORKDIR/testsource/dists/codename1/bb/binary-x/Packages' to './lists/base_codename1_bb_x_Packages'...
+-v6=aptmethod start 'file:$WORKDIR/testsource/dists/codename1/a/binary-yyyyyyyyyy/Packages'
 -v1*=aptmethod got 'file:$WORKDIR/testsource/dists/codename1/a/binary-yyyyyyyyyy/Packages'
 -v2*=Copy file '$WORKDIR/testsource/dists/codename1/a/binary-yyyyyyyyyy/Packages' to './lists/base_codename1_a_yyyyyyyyyy_Packages'...
+-v6=aptmethod start 'file:$WORKDIR/testsource/dists/codename1/bb/binary-yyyyyyyyyy/Packages'
 -v1*=aptmethod got 'file:$WORKDIR/testsource/dists/codename1/bb/binary-yyyyyyyyyy/Packages'
 -v2*=Copy file '$WORKDIR/testsource/dists/codename1/bb/binary-yyyyyyyyyy/Packages' to './lists/base_codename1_bb_yyyyyyyyyy_Packages'...
+-v6=aptmethod start 'file:$WORKDIR/testsource/dists/codename2/a/binary-x/Packages.lzma'
 -v1*=aptmethod got 'file:$WORKDIR/testsource/dists/codename2/a/binary-x/Packages.lzma'
 -v2*=Uncompress '$WORKDIR/testsource/dists/codename2/a/binary-x/Packages.lzma' into './lists/base_codename2_a_x_Packages' using '/usr/bin/unlzma'...
+-v6=aptmethod start 'file:$WORKDIR/testsource/dists/codename2/bb/binary-x/Packages.lzma'
 -v1*=aptmethod got 'file:$WORKDIR/testsource/dists/codename2/bb/binary-x/Packages.lzma'
 -v2*=Uncompress '$WORKDIR/testsource/dists/codename2/bb/binary-x/Packages.lzma' into './lists/base_codename2_bb_x_Packages' using '/usr/bin/unlzma'...
+-v6=aptmethod start 'file:$WORKDIR/testsource/dists/codename2/a/binary-yyyyyyyyyy/Packages.lzma'
 -v1*=aptmethod got 'file:$WORKDIR/testsource/dists/codename2/a/binary-yyyyyyyyyy/Packages.lzma'
 -v2*=Uncompress '$WORKDIR/testsource/dists/codename2/a/binary-yyyyyyyyyy/Packages.lzma' into './lists/base_codename2_a_yyyyyyyyyy_Packages' using '/usr/bin/unlzma'...
+-v6=aptmethod start 'file:$WORKDIR/testsource/dists/codename2/bb/binary-yyyyyyyyyy/Packages.lzma'
 -v1*=aptmethod got 'file:$WORKDIR/testsource/dists/codename2/bb/binary-yyyyyyyyyy/Packages.lzma'
 -v2*=Uncompress '$WORKDIR/testsource/dists/codename2/bb/binary-yyyyyyyyyy/Packages.lzma' into './lists/base_codename2_bb_yyyyyyyyyy_Packages' using '/usr/bin/unlzma'...
 EOF
@@ -375,28 +401,40 @@ mv results.expected results2.expected
 
 testout - -b . update codename1 3<<EOF
 stderr
+-v6=aptmethod start 'file:$WORKDIR/testsource/dists/codename1/InRelease'
 -v1*=aptmethod got 'file:$WORKDIR/testsource/dists/codename1/InRelease'
 -v2*=Copy file '$WORKDIR/testsource/dists/codename2/InRelease' to './lists/base_codename2_InRelease'...
+-v6=aptmethod start 'file:$WORKDIR/testsource/dists/codename2/InRelease'
 -v1*=aptmethod got 'file:$WORKDIR/testsource/dists/codename2/InRelease'
 -v2*=Copy file '$WORKDIR/testsource/dists/codename1/InRelease' to './lists/base_codename1_InRelease'...
 *=WARNING: No signature found in ./lists/base_codename1_InRelease, assuming it is unsigned!
 *=WARNING: No signature found in ./lists/base_codename2_InRelease, assuming it is unsigned!
+-v6=aptmethod start 'file:$WORKDIR/testsource/dists/codename1/a/debian-installer/binary-x/Packages'
 -v1*=aptmethod got 'file:$WORKDIR/testsource/dists/codename1/a/debian-installer/binary-x/Packages'
 -v2*=Copy file '$WORKDIR/testsource/dists/codename1/a/debian-installer/binary-x/Packages' to './lists/base_codename1_a_x_uPackages'...
+-v6=aptmethod start 'file:$WORKDIR/testsource/dists/codename1/a/debian-installer/binary-yyyyyyyyyy/Packages'
 -v1*=aptmethod got 'file:$WORKDIR/testsource/dists/codename1/a/debian-installer/binary-yyyyyyyyyy/Packages'
 -v2*=Copy file '$WORKDIR/testsource/dists/codename1/a/debian-installer/binary-yyyyyyyyyy/Packages' to './lists/base_codename1_a_yyyyyyyyyy_uPackages'...
+-v6=aptmethod start 'file:$WORKDIR/testsource/dists/codename2/a/debian-installer/binary-x/Packages.lzma'
 -v1*=aptmethod got 'file:$WORKDIR/testsource/dists/codename2/a/debian-installer/binary-x/Packages.lzma'
 -v2*=Uncompress '$WORKDIR/testsource/dists/codename2/a/debian-installer/binary-x/Packages.lzma' into './lists/base_codename2_a_x_uPackages' using '/usr/bin/unlzma'...
+-v6=aptmethod start 'file:$WORKDIR/testsource/dists/codename2/a/debian-installer/binary-yyyyyyyyyy/Packages.lzma'
 -v1*=aptmethod got 'file:$WORKDIR/testsource/dists/codename2/a/debian-installer/binary-yyyyyyyyyy/Packages.lzma'
 -v2*=Uncompress '$WORKDIR/testsource/dists/codename2/a/debian-installer/binary-yyyyyyyyyy/Packages.lzma' into './lists/base_codename2_a_yyyyyyyyyy_uPackages' using '/usr/bin/unlzma'...
+-v6=aptmethod start 'file:$WORKDIR/testsource/dists/codename1/a/source/Sources'
 -v1*=aptmethod got 'file:$WORKDIR/testsource/dists/codename1/a/source/Sources'
 -v2*=Copy file '$WORKDIR/testsource/dists/codename1/a/source/Sources' to './lists/base_codename1_a_Sources'...
+-v6=aptmethod start 'file:$WORKDIR/testsource/dists/codename1/bb/source/Sources.lzma'
 -v1*=aptmethod error receiving 'file:$WORKDIR/testsource/dists/codename1/bb/source/Sources.lzma':
--v1*='File not found'
+-v1='File not found'
+-v1='File not found - $WORKDIR/testsource/dists/codename1/bb/source/Sources.lzma (2: No such file or directory)'
+-v6=aptmethod start 'file:$WORKDIR/testsource/dists/codename1/bb/source/Sources'
 -v1*=aptmethod got 'file:$WORKDIR/testsource/dists/codename1/bb/source/Sources'
 -v2*=Copy file '$WORKDIR/testsource/dists/codename1/bb/source/Sources' to './lists/base_codename1_bb_Sources'...
+-v6=aptmethod start 'file:$WORKDIR/testsource/dists/codename2/a/source/Sources.lzma'
 -v1*=aptmethod got 'file:$WORKDIR/testsource/dists/codename2/a/source/Sources.lzma'
 -v2*=Uncompress '$WORKDIR/testsource/dists/codename2/a/source/Sources.lzma' into './lists/base_codename2_a_Sources' using '/usr/bin/unlzma'...
+-v6=aptmethod start 'file:$WORKDIR/testsource/dists/codename2/bb/source/Sources.lzma'
 -v1*=aptmethod got 'file:$WORKDIR/testsource/dists/codename2/bb/source/Sources.lzma'
 -v2*=Uncompress '$WORKDIR/testsource/dists/codename2/bb/source/Sources.lzma' into './lists/base_codename2_bb_Sources' using '/usr/bin/unlzma'...
 EOF
@@ -486,8 +524,10 @@ dodiff results.expected results
 
 testrun - -b . update codename2 codename1 3<<EOF
 stderr
+-v6=aptmethod start 'file:$WORKDIR/testsource/dists/codename1/InRelease'
 -v1*=aptmethod got 'file:$WORKDIR/testsource/dists/codename1/InRelease'
 -v2*=Copy file '$WORKDIR/testsource/dists/codename2/InRelease' to './lists/base_codename2_InRelease'...
+-v6=aptmethod start 'file:$WORKDIR/testsource/dists/codename2/InRelease'
 -v1*=aptmethod got 'file:$WORKDIR/testsource/dists/codename2/InRelease'
 -v2*=Copy file '$WORKDIR/testsource/dists/codename1/InRelease' to './lists/base_codename1_InRelease'...
 *=WARNING: No signature found in ./lists/base_codename1_InRelease, assuming it is unsigned!
@@ -498,8 +538,10 @@ EOF
 dodo rm lists/_codename*
 testout - -b . update codename2 codename1 3<<EOF
 stderr
+-v6=aptmethod start 'file:$WORKDIR/testsource/dists/codename1/InRelease'
 -v1*=aptmethod got 'file:$WORKDIR/testsource/dists/codename1/InRelease'
 -v2*=Copy file '$WORKDIR/testsource/dists/codename2/InRelease' to './lists/base_codename2_InRelease'...
+-v6=aptmethod start 'file:$WORKDIR/testsource/dists/codename2/InRelease'
 -v1*=aptmethod got 'file:$WORKDIR/testsource/dists/codename2/InRelease'
 -v2*=Copy file '$WORKDIR/testsource/dists/codename1/InRelease' to './lists/base_codename1_InRelease'...
 *=WARNING: No signature found in ./lists/base_codename1_InRelease, assuming it is unsigned!

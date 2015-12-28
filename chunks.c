@@ -101,7 +101,7 @@ retvalue chunk_getvalue(const char *chunk, const char *name, char **value) {
 
 	b = field;
 	/* jump over spaces at the beginning */
-	if (xisspace(*b))
+	while (*b != '\0' && (*b == ' ' || *b == '\t'))
 		b++;
 	/* search for the end */
 	e = b;

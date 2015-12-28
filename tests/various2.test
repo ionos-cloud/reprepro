@@ -328,7 +328,7 @@ $(ofa 'pool/stupid/s/simple/simple-addons_1_all.deb')
 $(ofa 'pool/stupid/s/simple/simple_1_abacus.deb')
 $(ofa 'pool/stupid/s/simple/simple_1.tar.gz')
 $(ofa 'pool/stupid/s/simple/simple_1.dsc')
-$(ofa 'pool/stupid/s/simple/simple_1_source+abacus+all.changes')
+$(ofa 'pool/stupid/s/simple/simple_1_source+all+abacus.changes')
 -d1*=db: 'simple-addons' added to packages.db(test1|stupid|abacus).
 -d1*=db: 'simple' added to packages.db(test1|stupid|abacus).
 -d1*=db: 'simple' added to packages.db(test1|stupid|source).
@@ -359,7 +359,7 @@ $(ofa 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_a
 $(ofa 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_abacus.deb')
 $(ofa 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.tar.gz')
 $(ofa 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc')
-$(ofa 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:0.9-A:Z+a:z-0+aA.9zZ_source+abacus+all.changes')
+$(ofa 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:0.9-A:Z+a:z-0+aA.9zZ_source+all+abacus.changes')
 -d1*=db: 'bloat+-0a9z.app-addons' added to packages.db(test1|ugly|abacus).
 -d1*=db: 'bloat+-0a9z.app' added to packages.db(test1|ugly|abacus).
 -d1*=db: 'bloat+-0a9z.app' added to packages.db(test1|ugly|source).
@@ -1049,9 +1049,9 @@ Version: 99:0.9-A:Z+a:z-0+aA.9zZ
 Files:
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc s 0
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.tar.gz s 0
- pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb a 0
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_abacus.deb b 0
- pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:0.9-A:Z+a:z-0+aA.9zZ_source+abacus+all.changes c 0
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb a 0
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:0.9-A:Z+a:z-0+aA.9zZ_source+all+abacus.changes c 0
  pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_abacus.deb b 1
  pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb a 1
  pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc s 1
@@ -1063,9 +1063,9 @@ Version: 1
 Files:
  pool/stupid/s/simple/simple_1.dsc s 0
  pool/stupid/s/simple/simple_1.tar.gz s 0
- pool/stupid/s/simple/simple-addons_1_all.deb a 0
  pool/stupid/s/simple/simple_1_abacus.deb b 0
- pool/stupid/s/simple/simple_1_source+abacus+all.changes c 0
+ pool/stupid/s/simple/simple-addons_1_all.deb a 0
+ pool/stupid/s/simple/simple_1_source+all+abacus.changes c 0
  pool/ugly/s/simple/simple_1_abacus.deb b 1
  pool/ugly/s/simple/simple-addons_1_all.deb a 1
  pool/ugly/s/simple/simple_1.dsc s 1
@@ -1093,14 +1093,14 @@ $(ofd 'pool/stupid/s/simple/simple-addons_1_all.deb')
 $(ofd 'pool/stupid/s/simple/simple_1.dsc')
 $(ofd 'pool/stupid/s/simple/simple_1.tar.gz')
 $(ofd 'pool/stupid/s/simple/simple_1_abacus.deb')
-$(ofd 'pool/stupid/s/simple/simple_1_source+abacus+all.changes')
+$(ofd 'pool/stupid/s/simple/simple_1_source+all+abacus.changes')
 -v2*=removed now empty directory ./pool/stupid/s/simple
 -v2*=removed now empty directory ./pool/stupid/s
 $(ofd 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb')
 $(ofd 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc')
 $(ofd 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.tar.gz')
 $(ofd 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_abacus.deb')
-$(ofd 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:0.9-A:Z+a:z-0+aA.9zZ_source+abacus+all.changes')
+$(ofd 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:0.9-A:Z+a:z-0+aA.9zZ_source+all+abacus.changes')
 -v2*=removed now empty directory ./pool/ugly/b/bloat+-0a9z.app
 -v2*=removed now empty directory ./pool/ugly/b
 EOF
@@ -1114,7 +1114,7 @@ $(ofa 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_a
 $(ofa 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_abacus.deb')
 $(ofa 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.tar.gz')
 $(ofa 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc')
-$(ofa 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:0.9-A:Z+a:z-0+aA.9zZ_source+abacus+all.changes')
+$(ofa 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:0.9-A:Z+a:z-0+aA.9zZ_source+all+abacus.changes')
 -d1*=db: 'bloat+-0a9z.app-addons' added to packages.db(test1|ugly|abacus).
 -d1*=db: 'bloat+-0a9z.app' added to packages.db(test1|ugly|abacus).
 -d1*=db: 'bloat+-0a9z.app' added to packages.db(test1|ugly|source).
@@ -1141,7 +1141,7 @@ $(ofa 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_9.0-A:Z+a:z-0+aA.9zZ_a
 $(ofa 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ_abacus.deb')
 $(ofa 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.tar.gz')
 $(ofa 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.dsc')
-$(ofa 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:9.0-A:Z+a:z-0+aA.9zZ_source+abacus+all.changes')
+$(ofa 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:9.0-A:Z+a:z-0+aA.9zZ_source+all+abacus.changes')
 -d1*=db: 'bloat+-0a9z.app-addons' removed from packages.db(test1|ugly|abacus).
 -d1*=db: 'bloat+-0a9z.app-addons' added to packages.db(test1|ugly|abacus).
 -d1*=db: 'bloat+-0a9z.app' removed from packages.db(test1|ugly|abacus).
@@ -1217,9 +1217,9 @@ Version: 99:0.9-A:Z+a:z-0+aA.9zZ
 Files:
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc s 0
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.tar.gz s 0
- pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb a 0
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_abacus.deb b 0
- pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:0.9-A:Z+a:z-0+aA.9zZ_source+abacus+all.changes c 0
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb a 0
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:0.9-A:Z+a:z-0+aA.9zZ_source+all+abacus.changes c 0
 
 Distribution: test1
 Source: bloat+-0a9z.app
@@ -1227,9 +1227,9 @@ Version: 99:9.0-A:Z+a:z-0+aA.9zZ
 Files:
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.dsc s 1
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.tar.gz s 1
- pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_9.0-A:Z+a:z-0+aA.9zZ_all.deb a 1
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ_abacus.deb b 1
- pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:9.0-A:Z+a:z-0+aA.9zZ_source+abacus+all.changes c 0
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_9.0-A:Z+a:z-0+aA.9zZ_all.deb a 1
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:9.0-A:Z+a:z-0+aA.9zZ_source+all+abacus.changes c 0
 
 Distribution: test1
 Source: simple
@@ -1286,7 +1286,7 @@ $(ofa 'pool/stupid/t/test/test_1-2_abacus.deb')
 $(ofa 'pool/stupid/t/test/test_1-2.diff.gz')
 $(ofa 'pool/stupid/t/test/test_1-2.dsc')
 $(ofa 'pool/stupid/t/test/test_1.orig.tar.gz')
-$(ofa 'pool/stupid/t/test/test_1-2_source+abacus+all.changes')
+$(ofa 'pool/stupid/t/test/test_1-2_source+all+abacus.changes')
 -d1*=db: 'test-addons' added to packages.db(test1|stupid|abacus).
 -d1*=db: 'test' added to packages.db(test1|stupid|abacus).
 -d1*=db: 'test' added to packages.db(test1|stupid|source).
@@ -1317,7 +1317,7 @@ $(ofa 'pool/stupid/t/testb/testb_2-2_abacus.deb')
 $(ofa 'pool/stupid/t/testb/testb_2-2.diff.gz')
 $(ofa 'pool/stupid/t/testb/testb_2-2.dsc')
 $(ofa 'pool/stupid/t/testb/testb_2.orig.tar.gz')
-$(ofa 'pool/stupid/t/testb/testb_1:2-2_source+abacus+all.changes')
+$(ofa 'pool/stupid/t/testb/testb_1:2-2_source+all+abacus.changes')
 -d1*=db: 'testb-addons' added to packages.db(test1|stupid|abacus).
 -d1*=db: 'testb' added to packages.db(test1|stupid|abacus).
 -d1*=db: 'testb' added to packages.db(test1|stupid|source).
@@ -1345,7 +1345,7 @@ $(ofa 'pool/stupid/t/testb/testb-addons_2-3_all.deb')
 $(ofa 'pool/stupid/t/testb/testb_2-3_abacus.deb')
 $(ofa 'pool/stupid/t/testb/testb_2-3.diff.gz')
 $(ofa 'pool/stupid/t/testb/testb_2-3.dsc')
-$(ofa 'pool/stupid/t/testb/testb_1:2-3_source+abacus+all.changes')
+$(ofa 'pool/stupid/t/testb/testb_1:2-3_source+all+abacus.changes')
 -d1*=db: 'testb-addons' removed from packages.db(test1|stupid|abacus).
 -d1*=db: 'testb-addons' added to packages.db(test1|stupid|abacus).
 -d1*=db: 'testb' removed from packages.db(test1|stupid|abacus).
@@ -1382,7 +1382,7 @@ $(ofa 'pool/stupid/4/4test/4test-addons_0b.1-1_all.deb')
 $(ofa 'pool/stupid/4/4test/4test_0b.1-1_abacus.deb')
 $(ofa 'pool/stupid/4/4test/4test_0b.1-1.tar.gz')
 $(ofa 'pool/stupid/4/4test/4test_0b.1-1.dsc')
-$(ofa 'pool/stupid/4/4test/4test_1:0b.1-1_source+abacus+all.changes')
+$(ofa 'pool/stupid/4/4test/4test_1:0b.1-1_source+all+abacus.changes')
 -d1*=db: '4test-addons' added to packages.db(test1|stupid|abacus).
 -d1*=db: '4test' added to packages.db(test1|stupid|abacus).
 -d1*=db: '4test' added to packages.db(test1|stupid|source).
@@ -1429,9 +1429,9 @@ Version: 1:0b.1-1
 Files:
  pool/stupid/4/4test/4test_0b.1-1.dsc s 1
  pool/stupid/4/4test/4test_0b.1-1.tar.gz s 1
- pool/stupid/4/4test/4test-addons_0b.1-1_all.deb a 1
  pool/stupid/4/4test/4test_0b.1-1_abacus.deb b 1
- pool/stupid/4/4test/4test_1:0b.1-1_source+abacus+all.changes c 0
+ pool/stupid/4/4test/4test-addons_0b.1-1_all.deb a 1
+ pool/stupid/4/4test/4test_1:0b.1-1_source+all+abacus.changes c 0
 
 Distribution: test1
 Source: bloat+-0a9z.app
@@ -1439,9 +1439,9 @@ Version: 99:0.9-A:Z+a:z-0+aA.9zZ
 Files:
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc s 0
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.tar.gz s 0
- pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb a 0
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_abacus.deb b 0
- pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:0.9-A:Z+a:z-0+aA.9zZ_source+abacus+all.changes c 0
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb a 0
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:0.9-A:Z+a:z-0+aA.9zZ_source+all+abacus.changes c 0
 
 Distribution: test1
 Source: bloat+-0a9z.app
@@ -1449,9 +1449,9 @@ Version: 99:9.0-A:Z+a:z-0+aA.9zZ
 Files:
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.dsc s 1
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.tar.gz s 1
- pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_9.0-A:Z+a:z-0+aA.9zZ_all.deb a 1
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ_abacus.deb b 1
- pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:9.0-A:Z+a:z-0+aA.9zZ_source+abacus+all.changes c 0
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_9.0-A:Z+a:z-0+aA.9zZ_all.deb a 1
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:9.0-A:Z+a:z-0+aA.9zZ_source+all+abacus.changes c 0
 
 Distribution: test1
 Source: simple
@@ -1468,9 +1468,9 @@ Files:
  pool/stupid/t/test/test_1-2.dsc s 1
  pool/stupid/t/test/test_1.orig.tar.gz s 1
  pool/stupid/t/test/test_1-2.diff.gz s 1
- pool/stupid/t/test/test-addons_1-2_all.deb a 1
  pool/stupid/t/test/test_1-2_abacus.deb b 1
- pool/stupid/t/test/test_1-2_source+abacus+all.changes c 0
+ pool/stupid/t/test/test-addons_1-2_all.deb a 1
+ pool/stupid/t/test/test_1-2_source+all+abacus.changes c 0
 
 Distribution: test1
 Source: testb
@@ -1479,9 +1479,9 @@ Files:
  pool/stupid/t/testb/testb_2-2.dsc s 0
  pool/stupid/t/testb/testb_2.orig.tar.gz s 0
  pool/stupid/t/testb/testb_2-2.diff.gz s 0
- pool/stupid/t/testb/testb-addons_2-2_all.deb a 0
  pool/stupid/t/testb/testb_2-2_abacus.deb b 0
- pool/stupid/t/testb/testb_1:2-2_source+abacus+all.changes c 0
+ pool/stupid/t/testb/testb-addons_2-2_all.deb a 0
+ pool/stupid/t/testb/testb_1:2-2_source+all+abacus.changes c 0
 
 Distribution: test1
 Source: testb
@@ -1490,9 +1490,9 @@ Files:
  pool/stupid/t/testb/testb_2-3.dsc s 1
  pool/stupid/t/testb/testb_2.orig.tar.gz s 1
  pool/stupid/t/testb/testb_2-3.diff.gz s 1
- pool/stupid/t/testb/testb-addons_2-3_all.deb a 1
  pool/stupid/t/testb/testb_2-3_abacus.deb b 1
- pool/stupid/t/testb/testb_1:2-3_source+abacus+all.changes c 0
+ pool/stupid/t/testb/testb-addons_2-3_all.deb a 1
+ pool/stupid/t/testb/testb_1:2-3_source+all+abacus.changes c 0
 
 EOF
 dodiff results.expected results
@@ -1513,12 +1513,12 @@ $(ofd 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_a
 $(ofd 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_abacus.deb')
 $(ofd 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc')
 $(ofd 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.tar.gz')
-$(ofd 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:0.9-A:Z+a:z-0+aA.9zZ_source+abacus+all.changes')
+$(ofd 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:0.9-A:Z+a:z-0+aA.9zZ_source+all+abacus.changes')
 $(ofd 'pool/stupid/t/testb/testb-addons_2-2_all.deb')
 $(ofd 'pool/stupid/t/testb/testb_2-2_abacus.deb')
 $(ofd 'pool/stupid/t/testb/testb_2-2.dsc')
 $(ofd 'pool/stupid/t/testb/testb_2-2.diff.gz')
-$(ofd 'pool/stupid/t/testb/testb_1:2-2_source+abacus+all.changes')
+$(ofd 'pool/stupid/t/testb/testb_1:2-2_source+all+abacus.changes')
 EOF
 REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 cp db/tracking.db db/saved2tracking.db
@@ -1533,9 +1533,9 @@ Version: 1:0b.1-1
 Files:
  pool/stupid/4/4test/4test_0b.1-1.dsc s 1
  pool/stupid/4/4test/4test_0b.1-1.tar.gz s 1
- pool/stupid/4/4test/4test-addons_0b.1-1_all.deb a 1
  pool/stupid/4/4test/4test_0b.1-1_abacus.deb b 1
- pool/stupid/4/4test/4test_1:0b.1-1_source+abacus+all.changes c 0
+ pool/stupid/4/4test/4test-addons_0b.1-1_all.deb a 1
+ pool/stupid/4/4test/4test_1:0b.1-1_source+all+abacus.changes c 0
 
 Distribution: test1
 Source: bloat+-0a9z.app
@@ -1543,9 +1543,9 @@ Version: 99:9.0-A:Z+a:z-0+aA.9zZ
 Files:
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.dsc s 1
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.tar.gz s 1
- pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_9.0-A:Z+a:z-0+aA.9zZ_all.deb a 1
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ_abacus.deb b 1
- pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:9.0-A:Z+a:z-0+aA.9zZ_source+abacus+all.changes c 0
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_9.0-A:Z+a:z-0+aA.9zZ_all.deb a 1
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:9.0-A:Z+a:z-0+aA.9zZ_source+all+abacus.changes c 0
 
 Distribution: test1
 Source: simple
@@ -1562,9 +1562,9 @@ Files:
  pool/stupid/t/test/test_1-2.dsc s 1
  pool/stupid/t/test/test_1.orig.tar.gz s 1
  pool/stupid/t/test/test_1-2.diff.gz s 1
- pool/stupid/t/test/test-addons_1-2_all.deb a 1
  pool/stupid/t/test/test_1-2_abacus.deb b 1
- pool/stupid/t/test/test_1-2_source+abacus+all.changes c 0
+ pool/stupid/t/test/test-addons_1-2_all.deb a 1
+ pool/stupid/t/test/test_1-2_source+all+abacus.changes c 0
 
 Distribution: test1
 Source: testb
@@ -1573,9 +1573,9 @@ Files:
  pool/stupid/t/testb/testb_2-3.dsc s 1
  pool/stupid/t/testb/testb_2.orig.tar.gz s 1
  pool/stupid/t/testb/testb_2-3.diff.gz s 1
- pool/stupid/t/testb/testb-addons_2-3_all.deb a 1
  pool/stupid/t/testb/testb_2-3_abacus.deb b 1
- pool/stupid/t/testb/testb_1:2-3_source+abacus+all.changes c 0
+ pool/stupid/t/testb/testb-addons_2-3_all.deb a 1
+ pool/stupid/t/testb/testb_1:2-3_source+all+abacus.changes c 0
 
 EOF
 dodiff results.expected results
@@ -1593,10 +1593,10 @@ testrun -  -b . tidytracks 3<<EOF
 stdout
 -v0*=Looking for old tracks in test1...
 -v0*=Deleting files no longer referenced...
-$(ofd 'pool/stupid/4/4test/4test_1:0b.1-1_source+abacus+all.changes')
-$(ofd 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:9.0-A:Z+a:z-0+aA.9zZ_source+abacus+all.changes')
-$(ofd 'pool/stupid/t/test/test_1-2_source+abacus+all.changes')
-$(ofd 'pool/stupid/t/testb/testb_1:2-3_source+abacus+all.changes')
+$(ofd 'pool/stupid/4/4test/4test_1:0b.1-1_source+all+abacus.changes')
+$(ofd 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:9.0-A:Z+a:z-0+aA.9zZ_source+all+abacus.changes')
+$(ofd 'pool/stupid/t/test/test_1-2_source+all+abacus.changes')
+$(ofd 'pool/stupid/t/testb/testb_1:2-3_source+all+abacus.changes')
 EOF
 REPREPRO_OUT_DIR=. "$SRCDIR"/docs/outstore.py --check
 testout "" -b . dumpunreferenced
@@ -1609,8 +1609,8 @@ Version: 1:0b.1-1
 Files:
  pool/stupid/4/4test/4test_0b.1-1.dsc s 1
  pool/stupid/4/4test/4test_0b.1-1.tar.gz s 1
- pool/stupid/4/4test/4test-addons_0b.1-1_all.deb a 1
  pool/stupid/4/4test/4test_0b.1-1_abacus.deb b 1
+ pool/stupid/4/4test/4test-addons_0b.1-1_all.deb a 1
 
 Distribution: test1
 Source: bloat+-0a9z.app
@@ -1618,8 +1618,8 @@ Version: 99:9.0-A:Z+a:z-0+aA.9zZ
 Files:
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.dsc s 1
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.tar.gz s 1
- pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_9.0-A:Z+a:z-0+aA.9zZ_all.deb a 1
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ_abacus.deb b 1
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_9.0-A:Z+a:z-0+aA.9zZ_all.deb a 1
 
 Distribution: test1
 Source: simple
@@ -1636,8 +1636,8 @@ Files:
  pool/stupid/t/test/test_1-2.dsc s 1
  pool/stupid/t/test/test_1.orig.tar.gz s 1
  pool/stupid/t/test/test_1-2.diff.gz s 1
- pool/stupid/t/test/test-addons_1-2_all.deb a 1
  pool/stupid/t/test/test_1-2_abacus.deb b 1
+ pool/stupid/t/test/test-addons_1-2_all.deb a 1
 
 Distribution: test1
 Source: testb
@@ -1646,8 +1646,8 @@ Files:
  pool/stupid/t/testb/testb_2-3.dsc s 1
  pool/stupid/t/testb/testb_2.orig.tar.gz s 1
  pool/stupid/t/testb/testb_2-3.diff.gz s 1
- pool/stupid/t/testb/testb-addons_2-3_all.deb a 1
  pool/stupid/t/testb/testb_2-3_abacus.deb b 1
+ pool/stupid/t/testb/testb-addons_2-3_all.deb a 1
 
 EOF
 dodiff results.expected results
@@ -1683,9 +1683,9 @@ Version: 1:0b.1-1
 Files:
  pool/stupid/4/4test/4test_0b.1-1.dsc s 1
  pool/stupid/4/4test/4test_0b.1-1.tar.gz s 1
- pool/stupid/4/4test/4test-addons_0b.1-1_all.deb a 1
  pool/stupid/4/4test/4test_0b.1-1_abacus.deb b 1
- pool/stupid/4/4test/4test_1:0b.1-1_source+abacus+all.changes c 0
+ pool/stupid/4/4test/4test-addons_0b.1-1_all.deb a 1
+ pool/stupid/4/4test/4test_1:0b.1-1_source+all+abacus.changes c 0
 
 Distribution: test1
 Source: bloat+-0a9z.app
@@ -1702,9 +1702,9 @@ Version: 99:9.0-A:Z+a:z-0+aA.9zZ
 Files:
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.dsc s 1
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.tar.gz s 1
- pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_9.0-A:Z+a:z-0+aA.9zZ_all.deb a 1
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ_abacus.deb b 1
- pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:9.0-A:Z+a:z-0+aA.9zZ_source+abacus+all.changes c 0
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_9.0-A:Z+a:z-0+aA.9zZ_all.deb a 1
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:9.0-A:Z+a:z-0+aA.9zZ_source+all+abacus.changes c 0
 
 Distribution: test1
 Source: simple
@@ -1725,9 +1725,9 @@ Files:
  pool/stupid/t/test/test_1-2.dsc s 1
  pool/stupid/t/test/test_1.orig.tar.gz s 1
  pool/stupid/t/test/test_1-2.diff.gz s 1
- pool/stupid/t/test/test-addons_1-2_all.deb a 1
  pool/stupid/t/test/test_1-2_abacus.deb b 1
- pool/stupid/t/test/test_1-2_source+abacus+all.changes c 0
+ pool/stupid/t/test/test-addons_1-2_all.deb a 1
+ pool/stupid/t/test/test_1-2_source+all+abacus.changes c 0
 
 Distribution: test1
 Source: testb
@@ -1736,9 +1736,9 @@ Files:
  pool/stupid/t/testb/testb_2-3.dsc s 1
  pool/stupid/t/testb/testb_2.orig.tar.gz s 1
  pool/stupid/t/testb/testb_2-3.diff.gz s 1
- pool/stupid/t/testb/testb-addons_2-3_all.deb a 1
  pool/stupid/t/testb/testb_2-3_abacus.deb b 1
- pool/stupid/t/testb/testb_1:2-3_source+abacus+all.changes c 0
+ pool/stupid/t/testb/testb-addons_2-3_all.deb a 1
+ pool/stupid/t/testb/testb_1:2-3_source+all+abacus.changes c 0
 
 EOF
 dodiff results.expected results

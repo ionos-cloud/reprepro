@@ -58,6 +58,8 @@ enum permitflags {
 	pmf_unused_files = 0,
 	/* do not error out if there already is a newer package */
 	pmf_oldpackagenewer,
+	/* do not error out if there there are unadvertised binary files */
+	pmf_unlistedbinaries,
 	pmf_COUNT /* must be last */
 };
 enum cleanupflags {
@@ -326,6 +328,7 @@ CFSETPROC(incoming, permit) {
 	static const struct constant const permitconstants[] = {
 		{ "unused_files",	pmf_unused_files},
 		{ "older_version",	pmf_oldpackagenewer},
+		{ "unlisted_binaries",	pmf_unlistedbinaries},
 		/* not yet implemented:
 		   { "downgrade",		pmf_downgrade},
 		 */
@@ -987,6 +990,9 @@ static inline retvalue getsectionprioritycomponent(const struct incoming *i, con
 
 static retvalue candidate_read_deb(struct incoming *i, struct candidate *c, struct candidate_file *file) {
 	retvalue r;
+	size_t l;
+	char *base;
+	const char *packagenametocheck;
 
 	r = binaries_readdeb(&file->deb, file->tempfilename, true);
 	if (RET_WAS_ERROR(r))
@@ -1028,13 +1034,30 @@ static retvalue candidate_read_deb(struct incoming *i, struct candidate *c, stru
 				file->deb.sourceversion, BASENAME(i, file->ofs));
 		return RET_ERROR;
 	}
-	if (! strlist_in(&c->binaries, file->deb.name)) {
+
+	packagenametocheck = file->deb.name;
+	l = strlen(file->deb.name);
+	if (l > sizeof("-dbgsym")-1 &&
+	    strcmp(file->deb.name + l - (sizeof("dbgsym")), "-dbgsym") == 0) {
+		base = strndup(file->deb.name, l - (sizeof("dbgsym")));
+		if (FAILEDTOALLOC(base))
+			return RET_ERROR_OOM;
+		packagenametocheck = base;
+	} else {
+		base = NULL;
+	}
+
+	if (! strlist_in(&c->binaries, packagenametocheck)
+	    && !i->permit[pmf_unlistedbinaries]) {
 		fprintf(stderr,
-"Name '%s' of binary '%s' is not listed in Binaries header of '%s'!\n",
-				file->deb.name, BASENAME(i, file->ofs),
+"Name '%s' of binary '%s' is not listed in Binaries header of '%s'!\n"
+"(use Permit: unlisted_binaries in conf/incoming to ignore this error)\n",
+				packagenametocheck, BASENAME(i, file->ofs),
 				BASENAME(i, c->ofs));
+		free(base);
 		return RET_ERROR;
 	}
+	free(base);
 	r = properpackagename(file->deb.name);
 	if (RET_IS_OK(r))
 		r = propersourcename(file->deb.source);

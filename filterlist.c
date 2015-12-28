@@ -106,6 +106,9 @@ static inline retvalue filterlistfile_parse(struct filterlistfile *n, const char
 		/* Ignore line only containing whitespace */
 		if (line[0] == '\0')
 			continue;
+		/* Ignore lines starting with a comment sign */
+		if (line[0] == '#')
+			continue;
 		namestart = line;
 		while (*namestart != '\0' && xisspace(*namestart))
 			namestart++;

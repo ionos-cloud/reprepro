@@ -51,15 +51,25 @@ EOF
 
 testrun - dumpupdate 3<<EOF
 stderr
+-v6=aptmethod start 'file:${WORKDIR}/test/dists/test/main/binary-a/Packages.gz'
 *=aptmethod error receiving 'file:${WORKDIR}/test/dists/test/main/binary-a/Packages.gz':
-*='<File not there, apt-method suggests '${WORKDIR}/test/dists/test/main/binary-a/Packages' instead>'
+='<File not there, apt-method suggests '${WORKDIR}/test/dists/test/main/binary-a/Packages' instead>'
 ='File not found'
+='File not found - ${WORKDIR}/test/dists/test/main/binary-a/Packages.gz (2: No such file or directory)'
+-v6=aptmethod start 'file:${WORKDIR}/test/dists/test/main/binary-a/Packages.bz2'
 *=aptmethod error receiving 'file:${WORKDIR}/test/dists/test/main/binary-a/Packages.bz2':
+='File not found - ${WORKDIR}/test/dists/test/main/binary-a/Packages.bz2 (2: No such file or directory)'
+-v6=aptmethod start 'file:${WORKDIR}/test/dists/test/main/source/Sources.gz'
 *=aptmethod error receiving 'file:${WORKDIR}/test/dists/test/main/source/Sources.gz':
-*='<File not there, apt-method suggests '${WORKDIR}/test/dists/test/main/source/Sources' instead>'
+='File not found - ${WORKDIR}/test/dists/test/main/source/Sources.gz (2: No such file or directory)'
+='<File not there, apt-method suggests '${WORKDIR}/test/dists/test/main/source/Sources' instead>'
+-v6=aptmethod start 'file:${WORKDIR}/test/dists/test/main/source/Sources.bz2'
 *=aptmethod error receiving 'file:${WORKDIR}/test/dists/test/main/source/Sources.bz2':
+='File not found - ${WORKDIR}/test/dists/test/main/source/Sources.bz2 (2: No such file or directory)'
+-v6=aptmethod start 'file:${WORKDIR}/test/dists/test/main/binary-a/Packages'
 -v1*=aptmethod got 'file:${WORKDIR}/test/dists/test/main/binary-a/Packages'
 -v2*=Copy file '${WORKDIR}/test/dists/test/main/binary-a/Packages' to './lists/update_test_main_a_Packages'...
+-v6=aptmethod start 'file:${WORKDIR}/test/dists/test/main/source/Sources'
 -v1*=aptmethod got 'file:${WORKDIR}/test/dists/test/main/source/Sources'
 -v2*=Copy file '${WORKDIR}/test/dists/test/main/source/Sources' to './lists/update_test_main_Sources'...
 stdout
