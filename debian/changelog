@@ -1,3 +1,14 @@
+reprepro (4.17.0-1) unstable; urgency=medium
+
+  * new release
+  - some manpage fixes (Closes: #784024, #803481)
+  - add support for -dbgsym packages (Closes: #808558)
+  - allow comments in filterlists (Closes: #781258)
+  - fix parsing of strangly formated control files (Closes: #783129)
+  - add Exportoptions: noexport option in conf/distributions (Closes: #788351)
+
+ -- Bernhard R. Link <brlink@debian.org>  Mon, 28 Dec 2015 13:20:02 +0100
+
 reprepro (4.16.0-1) unstable; urgency=medium
 
   * new release
