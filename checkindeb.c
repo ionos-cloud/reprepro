@@ -228,6 +228,9 @@ retvalue deb_prepare(/*@out@*/struct debpackage **deb, component_t forcecomponen
 	const struct overridedata *oinfo;
 	char *control;
 	struct atomlist forcearchitectures;
+	const char *packagenametocheck;
+	char *base;
+	size_t l;
 
 	assert (givenfilekey != NULL);
 	assert (checksums != NULL);
@@ -241,13 +244,32 @@ retvalue deb_prepare(/*@out@*/struct debpackage **deb, component_t forcecomponen
 	if (RET_WAS_ERROR(r)) {
 		return r;
 	}
-	if (!strlist_in(allowed_binaries, pkg->deb.name) &&
+
+	/* -dbgsym packages are not listed in the Binary header, so look
+	 * for the base name instead */
+	packagenametocheck = pkg->deb.name;
+	l = strlen(pkg->deb.name);
+	if (l > sizeof("-dbgsym")-1 &&
+	    strcmp(pkg->deb.name + l - (sizeof("dbgsym")), "-dbgsym") == 0) {
+		base = strndup(pkg->deb.name, l - (sizeof("dbgsym")));
+		if (FAILEDTOALLOC(base)) {
+			deb_free(pkg);
+			return RET_ERROR_OOM;
+		}
+		packagenametocheck = base;
+	} else {
+		base = NULL;
+	}
+
+	if (!strlist_in(allowed_binaries, packagenametocheck) &&
 	    !IGNORING(surprisingbinary,
 "'%s' has packagename '%s' not listed in the .changes file!\n",
-					debfilename, pkg->deb.name)) {
+					debfilename, packagenametocheck)) {
 		deb_free(pkg);
+		free(base);
 		return RET_ERROR;
 	}
+	free(base);
 	if (strcmp(pkg->deb.source, expectedsourcepackage) != 0) {
 		/* this cannot be ignored easily, as it determines
 		 * the directory this file is stored into */
