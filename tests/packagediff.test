@@ -209,10 +209,13 @@ diffname="$(grep "^ $(sha1 old/2)" dists/sourcedistribution/main/binary-coal/Pac
 
 testrun - -b . update test 3<<EOF
 stderr
+-v6=aptmethod start 'file:$WORKDIR/dists/sourcedistribution/Release'
 -v1*=aptmethod got 'file:$WORKDIR/dists/sourcedistribution/Release'
 -v2*=Copy file '$WORKDIR/dists/sourcedistribution/Release' to './lists/fromsource_sourcedistribution_Release'...
+-v6=aptmethod start 'file:$WORKDIR/dists/sourcedistribution/main/binary-coal/Packages.diff/Index'
 -v1*=aptmethod got 'file:$WORKDIR/dists/sourcedistribution/main/binary-coal/Packages.diff/Index'
 -v2*=Copy file '$WORKDIR/dists/sourcedistribution/main/binary-coal/Packages.diff/Index' to './lists/fromsource_sourcedistribution_main_coal_Packages.diffindex'...
+-v6=aptmethod start 'file:$WORKDIR/dists/sourcedistribution/main/binary-coal/Packages.diff/${diffname}.gz'
 -v1*=aptmethod got 'file:$WORKDIR/dists/sourcedistribution/main/binary-coal/Packages.diff/${diffname}.gz'
 -v2*=Uncompress '$WORKDIR/dists/sourcedistribution/main/binary-coal/Packages.diff/${diffname}.gz' into './lists/fromsource_sourcedistribution_main_coal_Packages.diff-${diffname}' using '/bin/gunzip'...
 stdout
@@ -237,12 +240,16 @@ cp old/1 lists/fromsource_sourcedistribution_main_coal_Packages
 diffname2="$(grep "^ $(sha1 old/1)" dists/sourcedistribution/main/binary-coal/Packages.diff/Index | sed -e 's/.* //')"
 testrun - --noskipold -b . update test 3<<EOF
 stderr
+-v6=aptmethod start 'file:$WORKDIR/dists/sourcedistribution/Release'
 -v1*=aptmethod got 'file:$WORKDIR/dists/sourcedistribution/Release'
 -v2*=Copy file '$WORKDIR/dists/sourcedistribution/Release' to './lists/fromsource_sourcedistribution_Release'...
+-v6=aptmethod start 'file:$WORKDIR/dists/sourcedistribution/main/binary-coal/Packages.diff/Index'
 -v1*=aptmethod got 'file:$WORKDIR/dists/sourcedistribution/main/binary-coal/Packages.diff/Index'
 -v2*=Copy file '$WORKDIR/dists/sourcedistribution/main/binary-coal/Packages.diff/Index' to './lists/fromsource_sourcedistribution_main_coal_Packages.diffindex'...
+-v6=aptmethod start 'file:$WORKDIR/dists/sourcedistribution/main/binary-coal/Packages.diff/${diffname2}.gz'
 -v1*=aptmethod got 'file:$WORKDIR/dists/sourcedistribution/main/binary-coal/Packages.diff/${diffname2}.gz'
 -v2*=Uncompress '$WORKDIR/dists/sourcedistribution/main/binary-coal/Packages.diff/${diffname2}.gz' into './lists/fromsource_sourcedistribution_main_coal_Packages.diff-${diffname2}' using '/bin/gunzip'...
+-v6=aptmethod start 'file:$WORKDIR/dists/sourcedistribution/main/binary-coal/Packages.diff/${diffname}.gz'
 -v1*=aptmethod got 'file:$WORKDIR/dists/sourcedistribution/main/binary-coal/Packages.diff/${diffname}.gz'
 -v2*=Uncompress '$WORKDIR/dists/sourcedistribution/main/binary-coal/Packages.diff/${diffname}.gz' into './lists/fromsource_sourcedistribution_main_coal_Packages.diff-${diffname}' using '/bin/gunzip'...
 stdout
@@ -265,8 +272,10 @@ rm -r lists
 mkdir lists
 testrun - --noskipold -b . update test 3<<EOF
 stderr
+-v6=aptmethod start 'file:$WORKDIR/dists/sourcedistribution/Release'
 -v1*=aptmethod got 'file:$WORKDIR/dists/sourcedistribution/Release'
 -v2*=Copy file '$WORKDIR/dists/sourcedistribution/Release' to './lists/fromsource_sourcedistribution_Release'...
+-v6=aptmethod start 'file:$WORKDIR/dists/sourcedistribution/main/binary-coal/Packages'
 -v1*=aptmethod got 'file:$WORKDIR/dists/sourcedistribution/main/binary-coal/Packages'
 -v2*=Copy file '$WORKDIR/dists/sourcedistribution/main/binary-coal/Packages' to './lists/fromsource_sourcedistribution_main_coal_Packages'...
 stdout

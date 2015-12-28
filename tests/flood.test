@@ -566,17 +566,17 @@ Distribution: two
 Source: test
 Version: 1-1
 Files:
+ pool/main/t/test/mytest_2_all.deb a 2
  pool/main/t/test/sibling_2_another.deb b 1
  pool/main/t/test/siblingtoo_3_another.deb b 1
- pool/main/t/test/mytest_2_all.deb a 2
 
 Distribution: two
 Source: test
 Version: 2-1
 Files:
- pool/main/t/test/siblingalso_3.1_abacus.deb b 1
  pool/main/t/test/mytest_2.4_all.deb a 1
  pool/main/t/test/sibling_2.2_abacus.deb b 1
+ pool/main/t/test/siblingalso_3.1_abacus.deb b 1
 
 EOF
 dodiff results.expected results
@@ -616,17 +616,17 @@ Distribution: two
 Source: test
 Version: 1-1
 Files:
+ pool/main/t/test/mytest_2_all.deb a 1
  pool/main/t/test/sibling_2_another.deb b 1
  pool/main/t/test/siblingtoo_3_another.deb b 1
- pool/main/t/test/mytest_2_all.deb a 1
 
 Distribution: two
 Source: test
 Version: 2-1
 Files:
- pool/main/t/test/siblingalso_3.1_abacus.deb b 1
  pool/main/t/test/mytest_2.4_all.deb a 2
  pool/main/t/test/sibling_2.2_abacus.deb b 1
+ pool/main/t/test/siblingalso_3.1_abacus.deb b 1
 
 EOF
 dodiff results.expected results
@@ -674,16 +674,16 @@ Distribution: two
 Source: test
 Version: 1-1
 Files:
- pool/main/t/test/siblingtoo_3_another.deb b 1
  pool/main/t/test/mytest_2_all.deb a 1
+ pool/main/t/test/siblingtoo_3_another.deb b 1
 
 Distribution: two
 Source: test
 Version: 2-1
 Files:
- pool/main/t/test/siblingalso_3.1_abacus.deb b 1
  pool/main/t/test/mytest_2.4_all.deb a 2
  pool/main/t/test/sibling_2.2_abacus.deb b 1
+ pool/main/t/test/siblingalso_3.1_abacus.deb b 1
  pool/main/t/test/sibling_2.2_another.deb b 1
 
 EOF
@@ -730,9 +730,9 @@ Distribution: two
 Source: test
 Version: 2-1
 Files:
- pool/main/t/test/siblingalso_3.1_abacus.deb b 1
  pool/main/t/test/mytest_2.4_all.deb a 3
  pool/main/t/test/sibling_2.2_abacus.deb b 1
+ pool/main/t/test/siblingalso_3.1_abacus.deb b 1
  pool/main/t/test/sibling_2.2_another.deb b 1
 
 EOF
