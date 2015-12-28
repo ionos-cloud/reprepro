@@ -68,14 +68,16 @@ struct target {
 	struct table *packages;
 	/* do not allow write operations */
 	bool readonly;
+	/* has noexport option */
+	bool noexport;
 	/* was updated without tracking data (no problem when distribution
 	 * has no tracking, otherwise cause warning later) */
 	bool staletracking;
 };
 
-retvalue target_initialize_ubinary(/*@dependant@*/struct distribution *, component_t, architecture_t, /*@dependent@*/const struct exportmode *, bool /*readonly*/, /*@NULL@*/const char *fakecomponentprefix, /*@out@*/struct target **);
-retvalue target_initialize_binary(/*@dependant@*/struct distribution *, component_t, architecture_t, /*@dependent@*/const struct exportmode *, bool /*readonly*/, /*@NULL@*/const char *fakecomponentprefix, /*@out@*/struct target **);
-retvalue target_initialize_source(/*@dependant@*/struct distribution *, component_t, /*@dependent@*/const struct exportmode *, bool /*readonly*/, /*@NULL@*/const char *fakecomponentprefix, /*@out@*/struct target **);
+retvalue target_initialize_ubinary(/*@dependant@*/struct distribution *, component_t, architecture_t, /*@dependent@*/const struct exportmode *, bool /*readonly*/, bool /*noexport*/, /*@NULL@*/const char *fakecomponentprefix, /*@out@*/struct target **);
+retvalue target_initialize_binary(/*@dependant@*/struct distribution *, component_t, architecture_t, /*@dependent@*/const struct exportmode *, bool /*readonly*/, bool /*noexport*/, /*@NULL@*/const char *fakecomponentprefix, /*@out@*/struct target **);
+retvalue target_initialize_source(/*@dependant@*/struct distribution *, component_t, /*@dependent@*/const struct exportmode *, bool /*readonly*/, bool /*noexport*/, /*@NULL@*/const char *fakecomponentprefix, /*@out@*/struct target **);
 retvalue target_free(struct target *);
 
 retvalue target_export(struct target *, bool /*onlyneeded*/, bool /*snapshot*/, struct release *);

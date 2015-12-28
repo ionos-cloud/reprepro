@@ -47,6 +47,9 @@ static const char *exportdescription(const struct exportmode *mode, char *buffer
 #ifdef HAVE_LIBBZ2
 		,"bzip2ed"
 #endif
+#ifdef HAVE_LIBLZMA
+		,"xzed"
+#endif
 	};
 	bool needcomma = false,
 	     needellipsis = false;

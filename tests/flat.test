@@ -88,8 +88,10 @@ mv conf/updates.base conf/updates
 testrun - -b . update 1234 3<<EOF
 returns 255
 stderr
+-v6=aptmethod start 'file:$WORKDIR/flatsource/Release'
 *=aptmethod error receiving 'file:$WORKDIR/flatsource/Release':
-*='File not found'
+='File not found'
+='File not found - $WORKDIR/flatsource/Release (2: No such file or directory)'
 -v0*=There have been errors!
 stdout
 EOF
@@ -100,6 +102,7 @@ touch flatsource/Release
 testrun - -b . update 1234 3<<EOF
 returns 255
 stderr
+-v6=aptmethod start 'file:$WORKDIR/flatsource/Release'
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Release'
 -v2*=Copy file '$WORKDIR/flatsource/Release' to './lists/flattest_flatsource_flat_Release'...
 *=Missing checksums in Release file './lists/flattest_flatsource_flat_Release'!
@@ -112,6 +115,7 @@ echo "MD5Sum:" > flatsource/Release
 testrun - -b . update 1234 3<<EOF
 returns 254
 stderr
+-v6=aptmethod start 'file:$WORKDIR/flatsource/Release'
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Release'
 -v2*=Copy file '$WORKDIR/flatsource/Release' to './lists/flattest_flatsource_flat_Release'...
 *=Could not find 'Packages' within './lists/flattest_flatsource_flat_Release'
@@ -124,6 +128,7 @@ echo " trash" >> flatsource/Release
 testrun - -b . update 1234 3<<EOF
 returns 255
 stderr
+-v6=aptmethod start 'file:$WORKDIR/flatsource/Release'
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Release'
 -v2*=Copy file '$WORKDIR/flatsource/Release' to './lists/flattest_flatsource_flat_Release'...
 *=Error parsing md5 checksum line ' trash' within './lists/flattest_flatsource_flat_Release'
@@ -142,10 +147,13 @@ EOF
 
 testrun - -b . update 1234 3<<EOF
 stderr
+-v6=aptmethod start 'file:$WORKDIR/flatsource/Release'
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Release'
 -v2*=Copy file '$WORKDIR/flatsource/Release' to './lists/flattest_flatsource_flat_Release'...
+-v6=aptmethod start 'file:$WORKDIR/flatsource/Sources.gz'
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Sources.gz'
 -v2*=Uncompress '$WORKDIR/flatsource/Sources.gz' into './lists/flattest_flatsource_Sources' using '/bin/gunzip'...
+-v6=aptmethod start 'file:$WORKDIR/flatsource/Packages.gz'
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Packages.gz'
 -v2*=Uncompress '$WORKDIR/flatsource/Packages.gz' into './lists/flattest_flatsource_Packages' using '/bin/gunzip'...
 stdout
@@ -178,8 +186,10 @@ EOF
 
 testrun - -b . update 1234 3<<EOF
 stderr
+-v6=aptmethod start 'file:$WORKDIR/flatsource/Release'
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Release'
 -v2*=Copy file '$WORKDIR/flatsource/Release' to './lists/flattest_flatsource_flat_Release'...
+-v6=aptmethod start 'file:$WORKDIR/flatsource/Packages.gz'
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Packages.gz'
 -v2*=Uncompress '$WORKDIR/flatsource/Packages.gz' into './lists/flattest_flatsource_Packages' using '/bin/gunzip'...
 stdout
@@ -214,8 +224,10 @@ EOF
 
 testrun - -b . update 1234 3<<EOF
 stderr
+-v6=aptmethod start 'file:$WORKDIR/flatsource/Release'
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Release'
 -v2*=Copy file '$WORKDIR/flatsource/Release' to './lists/flattest_flatsource_flat_Release'...
+-v6=aptmethod start 'file:$WORKDIR/flatsource/Packages.gz'
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Packages.gz'
 -v2*=Uncompress '$WORKDIR/flatsource/Packages.gz' into './lists/flattest_flatsource_Packages' using '/bin/gunzip'...
 stdout
@@ -261,8 +273,10 @@ EOF
 
 testrun - -b . update 1234 3<<EOF
 stderr
+-v6=aptmethod start 'file:$WORKDIR/flatsource/Release'
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Release'
 -v2*=Copy file '$WORKDIR/flatsource/Release' to './lists/flattest_flatsource_flat_Release'...
+-v6=aptmethod start 'file:$WORKDIR/flatsource/Packages.gz'
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Packages.gz'
 -v2*=Uncompress '$WORKDIR/flatsource/Packages.gz' into './lists/flattest_flatsource_Packages' using '/bin/gunzip'...
 stdout
@@ -284,8 +298,10 @@ stdout
 -v0*=Getting packages...
 -v1*=Shutting down aptmethods...
 stderr
+-v6=aptmethod start 'file:$WORKDIR/flatsource/test.deb'
 *=aptmethod error receiving 'file:$WORKDIR/flatsource/test.deb':
-*='File not found'
+='File not found'
+='File not found - $WORKDIR/flatsource/test.deb (2: No such file or directory)'
 -v0*=There have been errors!
 return 255
 EOF
@@ -294,8 +310,10 @@ touch flatsource/test.deb
 
 testrun - -b . update 1234 3<<EOF
 stderr
+-v6=aptmethod start 'file:$WORKDIR/flatsource/Release'
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Release'
 -v2*=Copy file '$WORKDIR/flatsource/Release' to './lists/flattest_flatsource_flat_Release'...
+-v6=aptmethod start 'file:$WORKDIR/flatsource/test.deb'
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/test.deb'
 -v2*=Linking file '$WORKDIR/flatsource/test.deb' to './pool/a/t/test/test_0_all.deb'...
 stdout
@@ -355,10 +373,13 @@ EOF
 
 testrun - -b . update 1234 3<<EOF
 stderr
+-v6=aptmethod start 'file:$WORKDIR/flatsource/Release'
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Release'
 -v2*=Copy file '$WORKDIR/flatsource/Release' to './lists/flattest_flatsource_flat_Release'...
+-v6=aptmethod start 'file:$WORKDIR/flatsource/Packages.gz'
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Packages.gz'
 -v2*=Uncompress '$WORKDIR/flatsource/Packages.gz' into './lists/flattest_flatsource_Packages' using '/bin/gunzip'...
+-v6=aptmethod start 'file:$WORKDIR/flatsource/test.deb'
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/test.deb'
 -v2*=Linking file '$WORKDIR/flatsource/test.deb' to './pool/a/t/test/test_1_yyyyyyyyyy.deb'...
 stdout
@@ -416,10 +437,13 @@ EOF
 
 testrun - -b . update 1234 3<<EOF
 stderr
+-v6=aptmethod start 'file:$WORKDIR/flatsource/Release'
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Release'
 -v2*=Copy file '$WORKDIR/flatsource/Release' to './lists/flattest_flatsource_flat_Release'...
+-v6=aptmethod start 'file:$WORKDIR/flatsource/Sources.gz'
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Sources.gz'
 -v2*=Uncompress '$WORKDIR/flatsource/Sources.gz' into './lists/flattest_flatsource_Sources' using '/bin/gunzip'...
+-v6=aptmethod start 'file:$WORKDIR/./fake.dsc'
 -v1*=aptmethod got 'file:$WORKDIR/./fake.dsc'
 -v2*=Linking file '$WORKDIR/./fake.dsc' to './pool/a/t/test/fake.dsc'...
 stdout
@@ -468,8 +492,10 @@ EOF
 
 testrun - -b . update 1234 3<<EOF
 stderr
+-v6=aptmethod start 'file:$WORKDIR/flatsource/Release'
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Release'
 -v2*=Copy file '$WORKDIR/flatsource/Release' to './lists/flattest_flatsource_flat_Release'...
+-v6=aptmethod start 'file:$WORKDIR/flatsource/Sources.gz'
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Sources.gz'
 -v2*=Uncompress '$WORKDIR/flatsource/Sources.gz' into './lists/flattest_flatsource_Sources' using '/bin/gunzip'...
 stdout

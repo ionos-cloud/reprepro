@@ -59,7 +59,7 @@ static char *calc_identifier(const char *codename, component_t component, archit
 }
 
 
-static retvalue target_initialize(/*@dependant@*/struct distribution *distribution, component_t component, architecture_t architecture, packagetype_t packagetype, get_version getversion, get_installdata getinstalldata, get_architecture getarchitecture, get_filekeys getfilekeys, get_checksums getchecksums, get_sourceandversion getsourceandversion, do_reoverride doreoverride, do_retrack doretrack, complete_checksums docomplete, /*@null@*//*@only@*/char *directory, /*@dependent@*/const struct exportmode *exportmode, bool readonly, /*@out@*/struct target **d) {
+static retvalue target_initialize(/*@dependant@*/struct distribution *distribution, component_t component, architecture_t architecture, packagetype_t packagetype, get_version getversion, get_installdata getinstalldata, get_architecture getarchitecture, get_filekeys getfilekeys, get_checksums getchecksums, get_sourceandversion getsourceandversion, do_reoverride doreoverride, do_retrack doretrack, complete_checksums docomplete, /*@null@*//*@only@*/char *directory, /*@dependent@*/const struct exportmode *exportmode, bool readonly, bool noexport, /*@out@*/struct target **d) {
 	struct target *t;
 
 	assert(exportmode != NULL);
@@ -96,6 +96,7 @@ static retvalue target_initialize(/*@dependant@*/struct distribution *distributi
 	t->doretrack = doretrack;
 	t->completechecksums = docomplete;
 	t->readonly = readonly;
+	t->noexport = noexport;
 	*d = t;
 	return RET_OK;
 }
@@ -114,7 +115,7 @@ static const char *dist_component_name(component_t component, /*@null@*/const ch
 	return c + len + 1;
 }
 
-retvalue target_initialize_ubinary(struct distribution *d, component_t component, architecture_t architecture, const struct exportmode *exportmode, bool readonly, const char *fakecomponentprefix, struct target **target) {
+retvalue target_initialize_ubinary(struct distribution *d, component_t component, architecture_t architecture, const struct exportmode *exportmode, bool readonly, bool noexport, const char *fakecomponentprefix, struct target **target) {
 	return target_initialize(d, component, architecture, pt_udeb,
 			binaries_getversion,
 			binaries_getinstalldata,
@@ -127,9 +128,9 @@ retvalue target_initialize_ubinary(struct distribution *d, component_t component
 				dist_component_name(component,
 					fakecomponentprefix),
 				atoms_architectures[architecture]),
-			exportmode, readonly, target);
+			exportmode, readonly, noexport, target);
 }
-retvalue target_initialize_binary(struct distribution *d, component_t component, architecture_t architecture, const struct exportmode *exportmode, bool readonly, const char *fakecomponentprefix, struct target **target) {
+retvalue target_initialize_binary(struct distribution *d, component_t component, architecture_t architecture, const struct exportmode *exportmode, bool readonly, bool noexport, const char *fakecomponentprefix, struct target **target) {
 	return target_initialize(d, component, architecture, pt_deb,
 			binaries_getversion,
 			binaries_getinstalldata,
@@ -142,10 +143,10 @@ retvalue target_initialize_binary(struct distribution *d, component_t component,
 				dist_component_name(component,
 					fakecomponentprefix),
 				atoms_architectures[architecture]),
-			exportmode, readonly, target);
+			exportmode, readonly, noexport, target);
 }
 
-retvalue target_initialize_source(struct distribution *d, component_t component, const struct exportmode *exportmode, bool readonly, const char *fakecomponentprefix, struct target **target) {
+retvalue target_initialize_source(struct distribution *d, component_t component, const struct exportmode *exportmode, bool readonly, bool noexport, const char *fakecomponentprefix, struct target **target) {
 	return target_initialize(d, component, architecture_source, pt_dsc,
 			sources_getversion,
 			sources_getinstalldata,
@@ -156,7 +157,7 @@ retvalue target_initialize_source(struct distribution *d, component_t component,
 			sources_complete_checksums,
 			mprintf("%s/source", dist_component_name(component,
 					fakecomponentprefix)),
-			exportmode, readonly, target);
+			exportmode, readonly, noexport, target);
 }
 
 retvalue target_free(struct target *target) {
@@ -168,7 +169,7 @@ retvalue target_free(struct target *target) {
 		result = target_closepackagesdb(target);
 	} else
 		result = RET_OK;
-	if (target->wasmodified) {
+	if (target->wasmodified && !target->noexport) {
 		fprintf(stderr,
 "Warning: database '%s' was modified but no index file was exported.\n"
 "Changes will only be visible after the next 'export'!\n",
@@ -919,6 +920,8 @@ retvalue target_redochecksums(struct target *target, struct distribution *distri
 retvalue target_export(struct target *target, bool onlyneeded, bool snapshot, struct release *release) {
 	retvalue result;
 	bool onlymissing;
+
+	assert (!target->noexport);
 
 	if (verbose > 5) {
 		if (onlyneeded)

@@ -1,3 +1,20 @@
+2015-12-28  Bernhard R. Link <brlink@debian.org>
+	* fix duplicated --keeptemporaries description in manpage
+	* add Permit: unlisted_binary for conf/incoming
+	* if encountering a -dbgsym package in a .changes file, check the name
+	without -dbgsym in the Binary: header instead
+
+2015-06-13  Bernhard R. Link <brlink@debian.org>
+	* add Exportoptions: to conf/distributions,
+	  allowing to give "noexport" to never export a distribution.
+
+2015-05-09  Bernhard R. Link <brlink@debian.org>
+	* ignores lines starting with '#' in filterlists
+	* fix error parsing control files with multiple spaces/tabs after a colon
+
+2014-11-12  Bernhard R. Link <brlink@debian.org>
+	* fix segfault when verbose exporting with .xz indices
+
 2014-08-24  Bernhard R. Link <brlink@debian.org>
 	* fix DownloadListsAs not accepting .lz
 	* add support for unpacking .xz and .lzma files with liblzma

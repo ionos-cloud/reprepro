@@ -272,11 +272,6 @@ have been removed from them.
 do not want to be pestered with warnings about errors to remove them,
 or have a buggy rmdir call deleting non-empty directories.)
 .TP
-.B \-\-keeptemporaries
-If an export of an distribution fails,
-this option causes reprepro to not delete the temporary \fB.new\fP files
-in the \fBdists/\fP directory, so one can look at the partial result.
-.TP
 .B \-\-ask\-passphrase
 Ask for passphrases when signing things and one is needed. This is a quick
 and dirty implementation using the obsolete \fBgetpass(3)\fP function
@@ -989,8 +984,8 @@ Make sure you have at least half of the space of the current
 file size available in that partition.
 .TP
 .B flood \fIdistribution\fP \fR[\fP\fIarchitecture\fP\fR]\fP
-For each architecture of \fIdistribution\fP or for the one specified
-add architecture \fBall\fP packages from another architectures
+For each architecture of \fIdistribution\fP (or for the one specified)
+add architecture \fBall\fP packages from other architectures
 (but the same component or packagetype) under the following conditions:
 
  Packages are only upgraded, never downgraded.
@@ -1004,8 +999,8 @@ packages using \fB\-A\fP and which components/packagetypes are flooded by
 \fB\-C\fP/\fB\-T\fP as usual.
 
 There are mostly two use cases for this command:
-If you added an new distribution and want to copy all
-architecture all packages to it.
+If you added an new architecture to an distribution and want to copy all
+architecture \fBall\fP packages to it.
 Or if you included some architecture all packages only to some architectures
 using \fB\-A\fP to avoid breaking the other architectures for which the binary
 packages were still missing and now want to copy it to those architectures were
@@ -1403,6 +1398,17 @@ DebIndices: Packages Release . .gz
 UDebIndices: Packages . .gz
 .br
 DscIndices: Sources Release .gz
+.TP
+.B ExportOptions
+Options to modify how and if exporting is done:
+.br
+.B noexport
+Never export this distribution.
+That means there will be no directory below \fBdists/\fP generated and the distribution is only useful to copy packages to other distributions.
+.br
+.B keepunknown
+Ignore unknown files and directories in the exported directory.
+This is currently the only available option and the default, but might change in the future, so it can already be requested explicitely.
 .TP
 .B Contents
 Enable the creation of Contents files listing all the files
@@ -2062,6 +2068,11 @@ file if it lists files not belonging to any package in it.
 .br
 Ignore a package not added because there already is a strictly newer
 version available instead of treating this as an error.
+.br
+.B unlisted_binaries
+.br
+Do not abort with an error if a .changes file contains .deb files that
+are not listed in the Binaries header.
 .TP
 .B Cleanup \fIoptions
 A list of options to cause more files in the incoming directory to be

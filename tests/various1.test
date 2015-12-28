@@ -883,6 +883,7 @@ testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
 *=Name 'indebname' of binary 'indebname_debfileversion~2_all.deb' is not listed in Binaries header of 'test.changes'!
+*=(use Permit: unlisted_binaries in conf/incoming to ignore this error)
 -v0*=There have been errors!
 EOF
 sed -i -e 's/binaryinchanges/indebname/' i/test.changes
