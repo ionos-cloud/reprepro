@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005,2006,2007,2008,2009,2011,2012 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2006,2007,2008,2009,2011,2012,2016 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -3463,16 +3463,11 @@ ACTION_D(n, n, n, clearvanished) {
 		if (interrupted())
 			return RET_ERROR_INTERRUPTED;
 		if (delete <= 0) {
-			struct table *packages;
-			r = database_openpackages(identifier, true, &packages);
+			r = database_haspackages(identifier);
 			if (RET_IS_OK(r)) {
-				if (!table_isempty(packages)) {
-					fprintf(stderr,
+				fprintf(stderr,
 "There are still packages in '%s', not removing (give --delete to do so)!\n", identifier);
-					(void)table_close(packages);
-					continue;
-				}
-				r = table_close(packages);
+				continue;
 			}
 		}
 		if (interrupted())
