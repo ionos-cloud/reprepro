@@ -1182,7 +1182,7 @@ static retvalue list_in_target(struct target *target, const char *packagename) {
 	if (!RET_IS_OK(r))
 		return r;
 
-	result = table_getrecord(target->packages, packagename, &control);
+	result = table_getrecord(target->packages, packagename, &control, NULL);
 	if (RET_IS_OK(result)) {
 		if (listskip <= 0) {
 			r = listformat_print(listformat, target,
@@ -1277,7 +1277,7 @@ static retvalue ls_in_target(struct target *target, const char *packagename, str
 	if (!RET_IS_OK(r))
 		return r;
 
-	result = table_getrecord(target->packages, packagename, &control);
+	result = table_getrecord(target->packages, packagename, &control, NULL);
 	if (RET_IS_OK(result)) {
 		r = target->getversion(control, &version);
 		if (RET_IS_OK(r))

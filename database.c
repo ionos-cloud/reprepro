@@ -990,7 +990,7 @@ retvalue table_close(struct table *table) {
 	return result;
 }
 
-retvalue table_getrecord(struct table *table, const char *key, char **data_p) {
+retvalue table_getrecord(struct table *table, const char *key, char **data_p, size_t *datalen_p) {
 	int dbret;
 	DBT Key, Data;
 
@@ -1029,6 +1029,8 @@ retvalue table_getrecord(struct table *table, const char *key, char **data_p) {
 		return RET_ERROR;
 	}
 	*data_p = Data.data;
+	if (datalen_p != NULL)
+		*datalen_p = Data.size-1;
 	return RET_OK;
 }
 

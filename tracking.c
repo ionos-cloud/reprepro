@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2005,2006,2007,2008,2009 Bernhard R. Link
+ *  Copyright (C) 2005,2006,2007,2008,2009,2016 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -1239,7 +1239,7 @@ static retvalue targetremovesourcepackage(trackingdb t, struct trackedpackage *p
 		package = strndup(basefilename, s - basefilename);
 		if (FAILEDTOALLOC(package))
 			return RET_ERROR_OOM;
-		r = table_getrecord(target->packages, package, &control);
+		r = table_getrecord(target->packages, package, &control, NULL);
 		if (RET_WAS_ERROR(r)) {
 			free(package);
 			return r;

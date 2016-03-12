@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2004,2005,2007,2008 Bernhard R. Link
+ *  Copyright (C) 2004,2005,2007,2008,2016 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -286,7 +286,7 @@ retvalue target_removepackage(struct target *target, struct logger *logger, cons
 
 	assert(target != NULL && target->packages != NULL && name != NULL);
 
-	r = table_getrecord(target->packages, name, &oldchunk);
+	r = table_getrecord(target->packages, name, &oldchunk, NULL);
 	if (RET_WAS_ERROR(r)) {
 		return r;
 	}
@@ -433,7 +433,7 @@ retvalue target_addpackage(struct target *target, struct logger *logger, const c
 
 	assert(target->packages!=NULL);
 
-	r = table_getrecord(target->packages, name, &oldcontrol);
+	r = table_getrecord(target->packages, name, &oldcontrol, NULL);
 	if (RET_WAS_ERROR(r))
 		return r;
 	if (r == RET_NOTHING) {
@@ -554,7 +554,7 @@ retvalue target_checkaddpackage(struct target *target, const char *name, const c
 
 	assert(target->packages!=NULL);
 
-	r = table_getrecord(target->packages, name, &oldcontrol);
+	r = table_getrecord(target->packages, name, &oldcontrol, NULL);
 	if (RET_WAS_ERROR(r))
 		return r;
 	if (r == RET_NOTHING) {

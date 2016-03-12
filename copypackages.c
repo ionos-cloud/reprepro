@@ -394,7 +394,7 @@ static retvalue by_name(struct package_list *list, UNUSED(struct distribution *i
 			continue;
 		}
 
-		r = table_getrecord(fromtarget->packages, name, &chunk);
+		r = table_getrecord(fromtarget->packages, name, &chunk, NULL);
 		if (r == RET_NOTHING)
 			continue;
 		RET_ENDUPDATE(result, r);
