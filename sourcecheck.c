@@ -82,11 +82,10 @@ static retvalue collect_source_versions(struct distribution *d, struct info_sour
 			break;
 		}
 		while (package_next(&cursor)) {
-			char *version;
 			struct info_source **into = NULL;
 			struct info_source_version *v;
 
-			r = t->getversion(cursor.current.control, &version);
+			r = package_getversion(&cursor.current);
 			if (!RET_IS_OK(r)) {
 				RET_UPDATE(result, r);
 				continue;
@@ -128,18 +127,23 @@ static retvalue collect_source_versions(struct distribution *d, struct info_sour
 			if (into != NULL) {
 				last = zNEW(struct info_source);
 				if (FAILEDTOALLOC(last)) {
-					free(version);
 					result = RET_ERROR_OOM;
 					break;
 				}
 				last->name = strdup(cursor.current.name);
 				if (FAILEDTOALLOC(last->name)) {
-					free(version);
 					free(last);
 					result = RET_ERROR_OOM;
 					break;
 				}
-				last->version.version = version;
+				last->version.version = package_dupversion(
+						&cursor.current);
+				if (FAILEDTOALLOC(last->version.version)) {
+					result = RET_ERROR_OOM;
+					free(last->name);
+					free(last);
+					break;
+				}
 				last->next = *into;
 				*into = last;
 				RET_UPDATE(result, RET_OK);
@@ -149,23 +153,25 @@ static retvalue collect_source_versions(struct distribution *d, struct info_sour
 			assert (strcmp(cursor.current.name, last->name)==0);
 
 			v = &last->version;
-			while (strcmp(v->version, version) != 0) {
+			while (strcmp(v->version, cursor.current.version) != 0) {
 				if (v->next == NULL) {
 					v->next = zNEW(struct info_source_version);
 					if (FAILEDTOALLOC(v->next)) {
-						free(version);
 						result = RET_ERROR_OOM;
 						break;
 					}
 					v = v->next;
-					v->version = version;
-					version = NULL;
+					v->version = package_dupversion(
+							&cursor.current);
+					if (FAILEDTOALLOC(v->version)) {
+						result = RET_ERROR_OOM;
+						break;
+					}
 					RET_UPDATE(result, RET_OK);
 					break;
 				}
 				v = v->next;
 			}
-			free(version);
 		}
 		r = package_closeiterator(&cursor);
 		if (RET_WAS_ERROR(r)) {
