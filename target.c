@@ -276,6 +276,7 @@ retvalue target_removereadpackage(struct target *target, struct logger *logger, 
 		RET_UPDATE(result, r);
 	}
 	strlist_done(&files);
+	free(oldsource); free(oldsversion);
 	free(oldpversion);
 	return result;
 }
@@ -359,11 +360,12 @@ retvalue package_remove_by_cursor(struct package_cursor *tc, struct logger *logg
 		RET_UPDATE(result, r);
 	}
 	strlist_done(&files);
+	free(oldsource); free(oldsversion);
 	free(oldpversion);
 	return result;
 }
 
-static retvalue addpackages(struct target *target, const char *packagename, const char *controlchunk, /*@null@*/const char *oldcontrolchunk, const char *version, /*@null@*/const char *oldversion, const struct strlist *files, /*@only@*//*@null@*/struct strlist *oldfiles, /*@null@*/struct logger *logger, /*@null@*/struct trackingdata *trackingdata, architecture_t architecture, /*@null@*//*@only@*/char *oldsource, /*@null@*//*@only@*/char *oldsversion, /*@null@*/const char *causingrule, /*@null@*/const char *suitefrom) {
+static retvalue addpackages(struct target *target, const char *packagename, const char *controlchunk, /*@null@*/const char *oldcontrolchunk, const char *version, /*@null@*/const char *oldversion, const struct strlist *files, /*@only@*//*@null@*/struct strlist *oldfiles, /*@null@*/struct logger *logger, /*@null@*/struct trackingdata *trackingdata, architecture_t architecture, /*@null@*/const char *oldsource, /*@null@*/const char *oldsversion, /*@null@*/const char *causingrule, /*@null@*/const char *suitefrom) {
 
 	retvalue result, r;
 	struct table *table = target->packages;
@@ -540,6 +542,7 @@ retvalue target_addpackage(struct target *target, struct logger *logger, const c
 			target->staletracking = true;
 	}
 	free(newcontrol);
+	free(oldsource); free(oldsversion);
 	free(oldpversion);
 	free(oldcontrol);
 

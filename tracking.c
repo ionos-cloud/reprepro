@@ -767,14 +767,20 @@ retvalue tracking_parse(struct distribution *d, struct configiterator *iter) {
 	return RET_OK;
 }
 
-static retvalue trackingdata_remember(struct trackingdata *td, /*@only@*/char*name, /*@only@*/char*version) {
+static retvalue trackingdata_remember(struct trackingdata *td, const char*name, const char*version) {
 	struct trackingdata_remember *r;
 
 	r = NEW(struct trackingdata_remember);
 	if (FAILEDTOALLOC(r))
 		return RET_ERROR_OOM;
-	r->name = name;
-	r->version = version;
+	r->name = strdup(name);
+	r->version = strdup(version);
+	if (FAILEDTOALLOC(r->name) || FAILEDTOALLOC(r->version)) {
+		free(r->name);
+		free(r->version);
+		free(r);
+		return RET_ERROR_OOM;
+	}
 	r->next = td->remembered;
 	td->remembered = r;
 	return RET_OK;
@@ -816,6 +822,8 @@ retvalue trackingdata_switch(struct trackingdata *data, const char *source, cons
 		r = trackingdata_remember(data, data->pkg->sourcename,
 				data->pkg->sourceversion);
 		strlist_done(&data->pkg->filekeys);
+		free(data->pkg->sourcename);
+		free(data->pkg->sourceversion);
 		free(data->pkg->refcounts);
 		free(data->pkg->filetypes);
 		free(data->pkg);
@@ -830,21 +838,18 @@ retvalue trackingdata_switch(struct trackingdata *data, const char *source, cons
 	return RET_OK;
 }
 
-retvalue trackingdata_insert(struct trackingdata *data, enum filetype filetype, const struct strlist *filekeys, /*@null@*//*@only@*/char*oldsource, /*@null@*//*@only@*/char*oldversion, /*@null@*/const struct strlist *oldfilekeys) {
+retvalue trackingdata_insert(struct trackingdata *data, enum filetype filetype, const struct strlist *filekeys, /*@null@*/const char *oldsource, /*@null@*/const char*oldversion, /*@null@*/const struct strlist *oldfilekeys) {
 	retvalue result, r;
 	struct trackedpackage *pkg;
 
 	if (data == NULL) {
 		assert(oldversion == NULL && oldsource == NULL);
-		free(oldversion);
-		free(oldsource);
 		return RET_OK;
 	}
 	assert(data->pkg != NULL);
 	result = trackedpackage_adddupfilekeys(data->tracks, data->pkg,
 			filetype, filekeys, true);
 	if (RET_WAS_ERROR(result)) {
-		free(oldsource); free(oldversion);
 		return result;
 	}
 	if (oldsource == NULL || oldversion == NULL || oldfilekeys == NULL) {
@@ -855,20 +860,17 @@ retvalue trackingdata_insert(struct trackingdata *data, enum filetype filetype, 
 			strcmp(oldsource, data->pkg->sourcename) == 0) {
 		/* Unlikely, but it may also be the same source version as
 		 * the package we are currently adding */
-		free(oldsource); free(oldversion);
 		return trackedpackage_removefilekeys(data->tracks, data->pkg,
 				oldfilekeys);
 	}
 	r = tracking_get(data->tracks, oldsource, oldversion, &pkg);
 	if (RET_WAS_ERROR(r)) {
-		free(oldsource); free(oldversion);
 		return r;
 	}
 	if (r == RET_NOTHING) {
 		fprintf(stderr,
 "Could not found tracking data for %s_%s in %s to remove old files from it.\n",
 			oldsource, oldversion, data->tracks->codename);
-		free(oldsource); free(oldversion);
 		return result;
 	}
 	r = trackedpackage_removefilekeys(data->tracks, pkg, oldfilekeys);
@@ -881,7 +883,7 @@ retvalue trackingdata_insert(struct trackingdata *data, enum filetype filetype, 
 	return result;
 }
 
-retvalue trackingdata_remove(struct trackingdata *data, /*@only@*/char*oldsource, /*@only@*/char*oldversion, const struct strlist *oldfilekeys) {
+retvalue trackingdata_remove(struct trackingdata *data, const char* oldsource, const char*oldversion, const struct strlist *oldfilekeys) {
 	retvalue result, r;
 	struct trackedpackage *pkg;
 
@@ -891,20 +893,17 @@ retvalue trackingdata_remove(struct trackingdata *data, /*@only@*/char*oldsource
 			strcmp(oldsource, data->pkg->sourcename) == 0) {
 		/* Unlikely, but it may also be the same source version as
 		 * the package we are currently adding */
-		free(oldsource); free(oldversion);
 		return trackedpackage_removefilekeys(data->tracks,
 				data->pkg, oldfilekeys);
 	}
 	result = tracking_get(data->tracks, oldsource, oldversion, &pkg);
 	if (RET_WAS_ERROR(result)) {
-		free(oldsource); free(oldversion);
 		return result;
 	}
 	if (result == RET_NOTHING) {
 		fprintf(stderr,
 "Could not found tracking data for %s_%s in %s to remove old files from it.\n",
 			oldsource, oldversion, data->tracks->codename);
-		free(oldsource); free(oldversion);
 		return RET_OK;
 	}
 	r = trackedpackage_removefilekeys(data->tracks, pkg, oldfilekeys);
