@@ -329,7 +329,7 @@ static retvalue packagelist_add(struct distribution *into, const struct package_
 	return result;
 }
 
-static retvalue copy_by_func(struct package_list *list, struct distribution *into, struct distribution *from, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes, retvalue action(struct package_list*, struct distribution *, struct distribution *, struct target *, struct target *, void *), void *data) {
+static retvalue copy_by_func(struct package_list *list, struct distribution *into, struct distribution *from, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes, retvalue action(struct package_list*, struct target *, struct target *, void *), void *data) {
 	retvalue result, r;
 	struct target *origtarget, *desttarget;
 
@@ -351,7 +351,7 @@ static retvalue copy_by_func(struct package_list *list, struct distribution *int
 					into->codename);
 			continue;
 		}
-		r = action(list, into, from, desttarget, origtarget, data);
+		r = action(list, desttarget, origtarget, data);
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(result))
 			return result;
@@ -366,7 +366,7 @@ struct namelist {
 	bool *found;
 };
 
-static retvalue by_name(struct package_list *list, UNUSED(struct distribution *into), UNUSED(struct distribution *from), struct target *desttarget, struct target *fromtarget, void *data) {
+static retvalue by_name(struct package_list *list, struct target *desttarget, struct target *fromtarget, void *data) {
 	struct namelist *d = data;
 	retvalue result, r;
 	int i, j;
@@ -479,7 +479,7 @@ retvalue copy_by_name(struct distribution *into, struct distribution *from, int 
 	return r;
 }
 
-static retvalue by_source(struct package_list *list, UNUSED(struct distribution *into), UNUSED(struct distribution *from), struct target *desttarget, struct target *fromtarget, void *data) {
+static retvalue by_source(struct package_list *list, struct target *desttarget, struct target *fromtarget, void *data) {
 	struct namelist *d = data;
 	struct target_cursor iterator;
 	const char *packagename, *chunk;
@@ -632,7 +632,7 @@ retvalue copy_by_source(struct distribution *into, struct distribution *from, in
 	return r;
 }
 
-static retvalue by_formula(struct package_list *list, UNUSED(struct distribution *into), UNUSED(struct distribution *from), struct target *desttarget, struct target *fromtarget, void *data) {
+static retvalue by_formula(struct package_list *list, struct target *desttarget, struct target *fromtarget, void *data) {
 	term *condition = data;
 	struct target_cursor iterator;
 	const char *packagename, *chunk;
@@ -668,7 +668,7 @@ static retvalue by_formula(struct package_list *list, UNUSED(struct distribution
 	return result;
 }
 
-static retvalue by_glob(struct package_list *list, UNUSED(struct distribution *into), UNUSED(struct distribution *from), struct target *desttarget, struct target *fromtarget, void *data) {
+static retvalue by_glob(struct package_list *list, struct target *desttarget, struct target *fromtarget, void *data) {
 	const char *glob = data;
 	struct target_cursor iterator;
 	const char *packagename, *chunk;
