@@ -491,12 +491,8 @@ static retvalue by_source(struct package_list *list, struct target *desttarget, 
 	result = RET_NOTHING;
 	while (package_next(&iterator)) {
 		int i;
-		char *source, *sourceversion;
-		architecture_t package_architecture;
 
-		r = fromtarget->getsourceandversion(iterator.current.control,
-				iterator.current.name,
-				&source, &sourceversion);
+		r = package_getsource(&iterator.current);
 		if (r == RET_NOTHING)
 			continue;
 		if (RET_WAS_ERROR(r)) {
@@ -504,8 +500,7 @@ static retvalue by_source(struct package_list *list, struct target *desttarget, 
 			break;
 		}
 		/* only include if source name matches */
-		if (strcmp(source, d->argv[0]) != 0) {
-			free(source); free(sourceversion);
+		if (strcmp(iterator.current.source, d->argv[0]) != 0) {
 			continue;
 		}
 		i = 0;
@@ -514,11 +509,11 @@ static retvalue by_source(struct package_list *list, struct target *desttarget, 
 
 			i = d->argc;
 			while (--i > 0) {
-				r = dpkgversions_cmp(sourceversion,
+				r = dpkgversions_cmp(
+						iterator.current.sourceversion,
 						d->argv[i], &c);
 				assert (r != RET_NOTHING);
 				if (RET_WAS_ERROR(r)) {
-					free(source); free(sourceversion);
 					(void)package_closeiterator(&iterator);
 					return r;
 				}
@@ -528,20 +523,17 @@ static retvalue by_source(struct package_list *list, struct target *desttarget, 
 			/* there are source versions specified and
 			 * the source version of this package differs */
 			if (i == 0) {
-				free(source); free(sourceversion);
 				continue;
 			}
 		}
-		free(source); free(sourceversion);
-		r = fromtarget->getarchitecture(iterator.current.control,
-				&package_architecture);
+		r = package_getarchitecture(&iterator.current);
 		if (RET_WAS_ERROR(r)) {
 			result = r;
 			break;
 		}
 		r = list_prepareadd(list, desttarget,
 				iterator.current.name, NULL,
-				package_architecture,
+				iterator.current.architecture,
 				iterator.current.control);
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(r))
