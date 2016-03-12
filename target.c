@@ -429,38 +429,33 @@ static retvalue addpackages(struct target *target, const char *packagename, cons
 retvalue target_addpackage(struct target *target, struct logger *logger, const char *name, const char *version, const char *control, const struct strlist *filekeys, bool downgrade, struct trackingdata *trackingdata, architecture_t architecture, const char *causingrule, const char *suitefrom, struct description *description) {
 	struct strlist oldfilekeys, *ofk;
 	char *newcontrol;
-	char *oldcontrol, *oldsource, *oldsversion;
-	char *oldpversion;
+	struct package old;
 	retvalue r;
 
 	assert(target->packages!=NULL);
 
-	r = table_getrecord(target->packages, name, &oldcontrol, NULL);
+	r = package_get(target, name, NULL, &old);
 	if (RET_WAS_ERROR(r))
 		return r;
 	if (r == RET_NOTHING) {
 		ofk = NULL;
-		oldsource = NULL;
-		oldsversion = NULL;
-		oldpversion = NULL;
-		oldcontrol = NULL;
+		setzero(struct package, &old);
 	} else {
-
-		r = target->getversion(oldcontrol, &oldpversion);
+		r = package_getversion(&old);
 		if (RET_WAS_ERROR(r) && !IGNORING(brokenold,
 "Error parsing old version!\n")) {
-			free(oldcontrol);
+			package_done(&old);
 			return r;
 		}
 		if (RET_IS_OK(r)) {
 			int versioncmp;
 
-			r = dpkgversions_cmp(version, oldpversion, &versioncmp);
+			r = dpkgversions_cmp(version, old.version,
+					&versioncmp);
 			if (RET_WAS_ERROR(r)) {
 				if (!IGNORING(brokenversioncmp,
 "Parse errors processing versions of %s.\n", name)) {
-					free(oldpversion);
-					free(oldcontrol);
+					package_done(&old);
 					return r;
 				}
 			} else {
@@ -472,69 +467,63 @@ retvalue target_addpackage(struct target *target, struct logger *logger, const c
 "Skipping inclusion of '%s' '%s' in '%s', as it has already '%s'.\n",
 							name, version,
 							target->identifier,
-							oldpversion);
-						free(oldpversion);
-						free(oldcontrol);
+							old.version);
+						package_done(&old);
 						return RET_NOTHING;
 					} else if (versioncmp < 0) {
 						fprintf(stderr,
 "Warning: downgrading '%s' from '%s' to '%s' in '%s'!\n", name,
-							oldpversion, version,
+							old.version,
+							version,
 							target->identifier);
 					} else {
 						fprintf(stderr,
 "Warning: replacing '%s' version '%s' with equal version '%s' in '%s'!\n", name,
-							oldpversion, version,
+							old.version,
+							version,
 							target->identifier);
 					}
 				}
 			}
-		} else
-			oldpversion = NULL;
-		r = target->getfilekeys(oldcontrol, &oldfilekeys);
+		}
+		r = target->getfilekeys(old.control, &oldfilekeys);
 		ofk = &oldfilekeys;
 		if (RET_WAS_ERROR(r)) {
 			if (IGNORING(brokenold,
 "Error parsing files belonging to installed version of %s!\n", name)) {
 				ofk = NULL;
-				oldsversion = oldsource = NULL;
 			} else {
-				free(oldcontrol);
-				free(oldpversion);
+				package_done(&old);
 				return r;
 			}
 		} else if (trackingdata != NULL) {
-			r = target->getsourceandversion(oldcontrol,
-					name, &oldsource, &oldsversion);
+			r = package_getsource(&old);
 			if (RET_WAS_ERROR(r)) {
 				strlist_done(ofk);
 				if (IGNORING(brokenold,
 "Error searching for source name of installed version of %s!\n", name)) {
 					// TODO: free something of oldfilekeys?
 					ofk = NULL;
-					oldsversion = oldsource = NULL;
 				} else {
-					free(oldcontrol);
-					free(oldpversion);
+					package_done(&old);
 					return r;
 				}
 			}
-		} else {
-			oldsversion = oldsource = NULL;
 		}
 
 	}
 	newcontrol = NULL;
-	r = description_addpackage(target, name, control, oldcontrol,
+	r = description_addpackage(target, name, control, old.control,
 			description, &newcontrol);
 	if (RET_IS_OK(r))
 		control = newcontrol;
 	if (!RET_WAS_ERROR(r))
-		r = addpackages(target, name, control, oldcontrol,
-			version, oldpversion,
+		r = addpackages(target, name, control, old.control,
+			version, old.version,
 			filekeys, ofk,
 			logger,
-			trackingdata, architecture, oldsource, oldsversion,
+			trackingdata, architecture,
+			old.source, old.sourceversion,
 			causingrule, suitefrom);
 	if (RET_IS_OK(r)) {
 		target->wasmodified = true;
@@ -542,10 +531,7 @@ retvalue target_addpackage(struct target *target, struct logger *logger, const c
 			target->staletracking = true;
 	}
 	free(newcontrol);
-	free(oldsource); free(oldsversion);
-	free(oldpversion);
-	free(oldcontrol);
-
+	package_done(&old);
 	return r;
 }
 
