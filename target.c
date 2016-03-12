@@ -537,41 +537,35 @@ retvalue target_addpackage(struct target *target, struct logger *logger, const c
 
 retvalue target_checkaddpackage(struct target *target, const char *name, const char *version, bool tracking, bool permitnewerold) {
 	struct strlist oldfilekeys, *ofk;
-	char *oldcontrol, *oldsource, *oldsversion;
-	char *oldpversion;
+	struct package old;
 	retvalue r;
 
 	assert(target->packages!=NULL);
 
-	r = table_getrecord(target->packages, name, &oldcontrol, NULL);
+	r = package_get(target, name, NULL, &old);
 	if (RET_WAS_ERROR(r))
 		return r;
 	if (r == RET_NOTHING) {
 		ofk = NULL;
-		oldsource = NULL;
-		oldsversion = NULL;
-		oldpversion = NULL;
-		oldcontrol = NULL;
 	} else {
 		int versioncmp;
 
-		r = target->getversion(oldcontrol, &oldpversion);
+		r = package_getversion(&old);
 		if (RET_WAS_ERROR(r)) {
 			fprintf(stderr,
 "Error extracting version from old '%s' in '%s'. Database corrupted?\n", name, target->identifier);
-			free(oldcontrol);
+			package_done(&old);
 			return r;
 		}
 		assert (RET_IS_OK(r));
 
-		r = dpkgversions_cmp(version, oldpversion, &versioncmp);
+		r = dpkgversions_cmp(version, old.version, &versioncmp);
 		if (RET_WAS_ERROR(r)) {
 			fprintf(stderr,
 "Parse error comparing version '%s' of '%s' with old version '%s' in '%s'\n.",
-					version, name, oldpversion,
+					version, name, old.version,
 					target->identifier);
-			free(oldpversion);
-			free(oldcontrol);
+			package_done(&old);
 			return r;
 		}
 		if (versioncmp <= 0) {
@@ -584,7 +578,7 @@ retvalue target_checkaddpackage(struct target *target, const char *name, const c
 "(To ignore this error add Permit: older_version.)\n",
 						version, name,
 						target->identifier,
-						oldpversion);
+						old.version);
 					r = RET_ERROR;
 				} else if (verbose >= 0) {
 					printf(
@@ -592,49 +586,42 @@ retvalue target_checkaddpackage(struct target *target, const char *name, const c
 "while there already is '%s' in there.\n",
 						version, name,
 						target->identifier,
-						oldpversion);
+						old.version);
 				}
 			} else if (verbose > 2) {
 					printf(
 "Will not put '%s' in '%s', as already there with same version '%s'.\n",
 						name, target->identifier,
-						oldpversion);
+						old.version);
 
 			}
-			free(oldpversion);
-			free(oldcontrol);
+			package_done(&old);
 			return r;
 		}
-		r = target->getfilekeys(oldcontrol, &oldfilekeys);
+		r = target->getfilekeys(old.control, &oldfilekeys);
 		ofk = &oldfilekeys;
 		if (RET_WAS_ERROR(r)) {
 			fprintf(stderr,
 "Error extracting installed files from old '%s' in '%s'.\nDatabase corrupted?\n",
 				name, target->identifier);
-			free(oldcontrol);
-			free(oldpversion);
+			package_done(&old);
 			return r;
 		}
 		if (tracking) {
-			r = target->getsourceandversion(oldcontrol,
-					name, &oldsource, &oldsversion);
+			r = package_getsource(&old);
 			if (RET_WAS_ERROR(r)) {
 				fprintf(stderr,
 "Error extracting source name and version from '%s' in '%s'. Database corrupted?\n",
 						name, target->identifier);
 				strlist_done(ofk);
-				free(oldcontrol);
-				free(oldpversion);
+				package_done(&old);
 				return r;
 			}
 			/* TODO: check if tracking would succeed */
-			free(oldsversion);
-			free(oldsource);
 		}
 		strlist_done(ofk);
+		package_done(&old);
 	}
-	free(oldpversion);
-	free(oldcontrol);
 	return RET_OK;
 }
 
