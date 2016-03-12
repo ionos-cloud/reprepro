@@ -765,23 +765,19 @@ struct removesrcdata {
 
 static retvalue package_source_fits(struct package *package, void *data) {
 	struct removesrcdata *d = data;
-	char *sourcename, *sourceversion;
 	retvalue r;
 
-	r = package->target->getsourceandversion(package->control, package->name,
-			&sourcename, &sourceversion);
+	r = package_getsource(package);
 	if (!RET_IS_OK(r))
 		return r;
 	for (; d->sourcename != NULL ; d++) {
-		if (strcmp(sourcename, d->sourcename) != 0)
+		if (strcmp(package->source, d->sourcename) != 0)
 			continue;
 		if (d->sourceversion == NULL)
 			break;
-		if (strcmp(sourceversion, d->sourceversion) == 0)
+		if (strcmp(package->sourceversion, d->sourceversion) == 0)
 			break;
 	}
-	free(sourcename);
-	free(sourceversion);
 	if (d->sourcename == NULL)
 		return RET_NOTHING;
 	else {
