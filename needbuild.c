@@ -153,7 +153,6 @@ struct needbuild_data { architecture_t architecture;
 static retvalue check_source_needs_build(struct package *package, void *data) {
 	struct target *target = package->target;
 	struct needbuild_data *d = data;
-	char *sourceversion;
 	struct strlist binary, architectures, filekeys;
 	const char *dscfilename = NULL;
 	int i;
@@ -162,7 +161,7 @@ static retvalue check_source_needs_build(struct package *package, void *data) {
 	if (d->glob != NULL && !globmatch(package->name, d->glob))
 		return RET_NOTHING;
 
-	r = target->getversion(package->control, &sourceversion);
+	r = package_getversion(package);
 	if (!RET_IS_OK(r))
 		return r;
 	r = chunk_getwordlist(package->control, "Architecture", &architectures);
@@ -208,19 +207,16 @@ static retvalue check_source_needs_build(struct package *package, void *data) {
 		}
 		strlist_done(&architectures);
 		if (skip) {
-			free(sourceversion);
 			return RET_NOTHING;
 		}
 	}
 	r = chunk_getwordlist(package->control, "Binary", &binary);
 	if (!RET_IS_OK(r)) {
-		free(sourceversion);
 		return r;
 	}
 	r = target->getfilekeys(package->control, &filekeys);
 	if (!RET_IS_OK(r)) {
 		strlist_done(&binary);
-		free(sourceversion);
 		return r;
 	}
 	for (i = 0 ; i < filekeys.count ; i++) {
@@ -233,7 +229,6 @@ static retvalue check_source_needs_build(struct package *package, void *data) {
 		fprintf(stderr,
 "Warning: source package '%s' in '%s' without dsc file!\n",
 				package->name, target->identifier);
-		free(sourceversion);
 		strlist_done(&binary);
 		strlist_done(&filekeys);
 		return RET_NOTHING;
@@ -242,9 +237,8 @@ static retvalue check_source_needs_build(struct package *package, void *data) {
 	if (d->tracks != NULL) {
 		struct trackedpackage *tp;
 
-		r = tracking_get(d->tracks, package->name, sourceversion, &tp);
+		r = tracking_get(d->tracks, package->name, package->version, &tp);
 		if (RET_WAS_ERROR(r)) {
-			free(sourceversion);
 			strlist_done(&binary);
 			strlist_done(&filekeys);
 			return r;
@@ -252,10 +246,9 @@ static retvalue check_source_needs_build(struct package *package, void *data) {
 		if (RET_IS_OK(r)) {
 			r = tracked_source_needs_build(
 					d->architecture, package->name,
-					sourceversion, dscfilename,
+					package->version, dscfilename,
 					&binary, tp, d->printarch);
 			trackedpackage_free(tp);
-			free(sourceversion);
 			strlist_done(&binary);
 			strlist_done(&filekeys);
 			return r;
@@ -263,10 +256,9 @@ static retvalue check_source_needs_build(struct package *package, void *data) {
 		fprintf(stderr,
 "Warning: %s's tracking data of %s (%s) is out of date. Run retrack to repair!\n",
 				target->distribution->codename,
-				package->name, sourceversion);
+				package->name, package->version);
 	}
 	// TODO: implement without tracking
-	free(sourceversion);
 	strlist_done(&binary);
 	strlist_done(&filekeys);
 	return RET_NOTHING;
