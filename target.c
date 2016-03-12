@@ -716,11 +716,10 @@ retvalue package_check(struct package *package, UNUSED(void *pd)) {
 	struct target *target = package->target;
 	struct checksumsarray files;
 	struct strlist expectedfilekeys;
-	char *dummy, *version;
+	char *dummy;
 	retvalue result = RET_OK, r;
-	architecture_t package_architecture;
 
-	r = target->getversion(package->control, &version);
+	r = package_getversion(package);
 	if (!RET_IS_OK(r)) {
 		fprintf(stderr,
 "Error extraction version number from package control info of '%s'!\n",
@@ -729,7 +728,7 @@ retvalue package_check(struct package *package, UNUSED(void *pd)) {
 			r = RET_ERROR_MISSING;
 		return r;
 	}
-	r = target->getarchitecture(package->control, &package_architecture);
+	r = package_getarchitecture(package);
 	if (!RET_IS_OK(r)) {
 		fprintf(stderr,
 "Error extraction architecture from package control info of '%s'!\n",
@@ -740,16 +739,16 @@ retvalue package_check(struct package *package, UNUSED(void *pd)) {
 	}
 	/* check if the architecture matches the architecture where this
 	 * package belongs to. */
-	if (target->architecture != package_architecture &&
-	    package_architecture != architecture_all) {
+	if (target->architecture != package->architecture &&
+	    package->architecture != architecture_all) {
 		fprintf(stderr,
 "Wrong architecture '%s' of package '%s' in '%s'!\n",
-				atoms_architectures[package_architecture],
+				atoms_architectures[package->architecture],
 				package->name, target->identifier);
 		result = RET_ERROR;
 	}
-	r = target->getinstalldata(target, package->name, version,
-			package_architecture, package->control, &dummy,
+	r = target->getinstalldata(target, package->name, package->version,
+			package->architecture, package->control, &dummy,
 			&expectedfilekeys, &files);
 	if (RET_WAS_ERROR(r)) {
 		fprintf(stderr,
@@ -757,7 +756,6 @@ retvalue package_check(struct package *package, UNUSED(void *pd)) {
 				package->name);
 		result = r;
 	}
-	free(version);
 	if (RET_IS_OK(r)) {
 		free(dummy);
 		if (!strlist_subset(&expectedfilekeys, &files.names, NULL) ||
@@ -949,10 +947,9 @@ retvalue package_rerunnotifiers(struct package *package, UNUSED(void *data)) {
 	struct target *target = package->target;
 	struct logger *logger = target->distribution->logger;
 	struct strlist filekeys;
-	char *version;
 	retvalue r;
 
-	r = target->getversion(package->control, &version);
+	r = package_getversion(package);
 	if (!RET_IS_OK(r)) {
 		fprintf(stderr,
 "Error extraction version number from package control info of '%s'!\n",
@@ -966,13 +963,11 @@ retvalue package_rerunnotifiers(struct package *package, UNUSED(void *data)) {
 		fprintf(stderr,
 "Error extracting information about used files from package '%s'!\n",
 				package->name);
-		free(version);
 		return r;
 	}
-	r = logger_reruninfo(logger, target, package->name, version,
+	r = logger_reruninfo(logger, target, package->name, package->version,
 			package->control, &filekeys);
 	strlist_done(&filekeys);
-	free(version);
 	return r;
 }
 
