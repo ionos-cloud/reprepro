@@ -763,12 +763,12 @@ struct removesrcdata {
 	bool found;
 };
 
-static retvalue package_source_fits(UNUSED(struct distribution *di), struct target *target, const char *packagename, const char *control, void *data) {
+static retvalue package_source_fits(struct package *package, void *data) {
 	struct removesrcdata *d = data;
 	char *sourcename, *sourceversion;
 	retvalue r;
 
-	r = target->getsourceandversion(control, packagename,
+	r = package->target->getsourceandversion(package->control, package->name,
 			&sourcename, &sourceversion);
 	if (!RET_IS_OK(r))
 		return r;
@@ -839,7 +839,7 @@ static retvalue remove_packages(struct distribution *distribution, struct remove
 		RET_ENDUPDATE(result, r);
 		return result;
 	}
-	return distribution_remove_packages(distribution,
+	return package_remove_each(distribution,
 			// TODO: why not arch comp pt here?
 			atom_unknown, atom_unknown, atom_unknown,
 			package_source_fits, NULL,
@@ -960,10 +960,11 @@ ACTION_D(n, n, y, removesrcs) {
 	return r;
 }
 
-static retvalue package_matches_condition(UNUSED(struct distribution *di), struct target *target, UNUSED(const char *pa), const char *control, void *data) {
+static retvalue package_matches_condition(struct package *package, void *data) {
 	term *condition = data;
 
-	return term_decidechunktarget(condition, control, target);
+	return term_decidechunktarget(condition,
+			package->control, package->target);
 }
 
 ACTION_D(y, n, y, removefilter) {
@@ -1016,7 +1017,7 @@ ACTION_D(y, n, y, removefilter) {
 	} else
 		tracks = NULL;
 
-	result = distribution_remove_packages(distribution,
+	result = package_remove_each(distribution,
 			components, architectures, packagetypes,
 			package_matches_condition,
 			(tracks != NULL)?&trackingdata:NULL,
@@ -1030,8 +1031,8 @@ ACTION_D(y, n, y, removefilter) {
 	return result;
 }
 
-static retvalue package_matches_glob(UNUSED(struct distribution *di), UNUSED(struct target *ta), const char *packagename, UNUSED(const char *control), void *data) {
-	if (globmatch(packagename, data))
+static retvalue package_matches_glob(struct package *package, void *data) {
+	if (globmatch(package->name, data))
 		return RET_OK;
 	else
 		return RET_NOTHING;
@@ -1077,7 +1078,7 @@ ACTION_D(y, n, y, removematched) {
 	} else
 		tracks = NULL;
 
-	result = distribution_remove_packages(distribution,
+	result = package_remove_each(distribution,
 			components, architectures, packagetypes,
 			package_matches_glob,
 			(tracks != NULL)?&trackingdata:NULL,
@@ -1194,14 +1195,14 @@ static retvalue list_in_target(struct target *target, const char *packagename) {
 	return result;
 }
 
-static retvalue list_package(UNUSED(struct distribution *dummy2), struct target *target, const char *package, const char *control, UNUSED(void *dummy3)) {
+static retvalue list_package(struct package *package, UNUSED(void *dummy3)) {
 	if (listmax == 0)
 		return RET_NOTHING;
 
 	if (listskip <= 0) {
 		if (listmax > 0)
 			listmax--;
-		return listformat_print(listformat, target, package, control);
+		return listformat_print(listformat, package->target, package->name, package->control);
 	} else {
 		listskip--;
 		return RET_NOTHING;
@@ -1221,7 +1222,7 @@ ACTION_B(y, n, y, list) {
 		return r;
 
 	if (argc == 2)
-		return distribution_foreach_package(distribution,
+		return package_foreach(distribution,
 			components, architectures, packagetypes,
 			list_package, NULL, NULL);
 	else for (t = distribution->targets ; t != NULL ; t = t->next) {
@@ -1410,20 +1411,20 @@ ACTION_B(y, n, y, lsbycomponent) {
 	return printlsparts(argv[1], first);
 }
 
-static retvalue listfilterprint(UNUSED(struct distribution *di), struct target *target, const char *packagename, const char *control, void *data) {
+static retvalue listfilterprint(struct package *package, void *data) {
 	term *condition = data;
 	retvalue r;
 
 	if (listmax == 0)
 		return RET_NOTHING;
 
-	r = term_decidechunktarget(condition, control, target);
+	r = term_decidechunktarget(condition, package->control, package->target);
 	if (RET_IS_OK(r)) {
 		if (listskip <= 0) {
 			if (listmax > 0)
 				listmax--;
-			r = listformat_print(listformat, target,
-					packagename, control);
+			r = listformat_print(listformat, package->target,
+					package->name, package->control);
 		} else {
 			listskip--;
 			r = RET_NOTHING;
@@ -1449,25 +1450,25 @@ ACTION_B(y, n, y, listfilter) {
 		return result;
 	}
 
-	result = distribution_foreach_package(distribution,
+	result = package_foreach(distribution,
 			components, architectures, packagetypes,
 			listfilterprint, NULL, condition);
 	term_free(condition);
 	return result;
 }
 
-static retvalue listmatchprint(UNUSED(struct distribution *di), struct target *target, const char *packagename, const char *control, void *data) {
+static retvalue listmatchprint(struct package *package, void *data) {
 	const char *glob = data;
 
 	if (listmax == 0)
 		return RET_NOTHING;
 
-	if (globmatch(packagename, glob)) {
+	if (globmatch(package->name, glob)) {
 		if (listskip <= 0) {
 			if (listmax > 0)
 				listmax--;
-			return listformat_print(listformat, target,
-					packagename, control);
+			return listformat_print(listformat, package->target,
+					package->name, package->control);
 		} else {
 			listskip--;
 			return RET_NOTHING;
@@ -1487,7 +1488,7 @@ ACTION_B(y, n, y, listmatched) {
 	if (RET_WAS_ERROR(r)) {
 		return r;
 	}
-	result = distribution_foreach_package(distribution,
+	result = package_foreach(distribution,
 			components, architectures, packagetypes,
 			listmatchprint, NULL, (void*)argv[2]);
 	return result;
@@ -2430,7 +2431,7 @@ ACTION_RF(y, n, y, y, check) {
 			printf("Checking %s...\n", d->codename);
 		}
 
-		r = distribution_foreach_package(d,
+		r = package_foreach(d,
 				components, architectures, packagetypes,
 				package_check, NULL, NULL);
 		RET_UPDATE(result, r);
@@ -3650,8 +3651,8 @@ ACTION_R(n, n, y, y, gensnapshot) {
 
 
 /***********************rerunnotifiers********************************/
-static retvalue rerunnotifiersintarget(struct distribution *d, struct target *target, UNUSED(void *dummy)) {
-	if (!logger_rerun_needs_target(d->logger, target))
+static retvalue rerunnotifiersintarget(struct target *target, UNUSED(void *dummy)) {
+	if (!logger_rerun_needs_target(target->distribution->logger, target))
 		return RET_NOTHING;
 	return RET_OK;
 }
@@ -3681,7 +3682,7 @@ ACTION_B(y, n, y, rerunnotifiers) {
 		if (RET_WAS_ERROR(r))
 			break;
 
-		r = distribution_foreach_package(d,
+		r = package_foreach(d,
 				components, architectures, packagetypes,
 				package_rerunnotifiers,
 				rerunnotifiersintarget, NULL);

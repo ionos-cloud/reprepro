@@ -161,22 +161,22 @@ retvalue contentsoptions_parse(struct distribution *distribution, struct configi
 	return RET_OK;
 }
 
-static retvalue addpackagetocontents(UNUSED(struct distribution *di), UNUSED(struct target *ta), const char *packagename, const char *chunk, void *data) {
+static retvalue addpackagetocontents(struct package *package, void *data) {
 	struct filelist_list *contents = data;
 	retvalue r;
 	char *section, *filekey;
 
-	r = chunk_getvalue(chunk, "Section", &section);
+	r = chunk_getvalue(package->control, "Section", &section);
 	/* Ignoring packages without section, as they should not exist anyway */
 	if (!RET_IS_OK(r))
 		return r;
-	r = chunk_getvalue(chunk, "Filename", &filekey);
+	r = chunk_getvalue(package->control, "Filename", &filekey);
 	/* dito with filekey */
 	if (!RET_IS_OK(r)) {
 		free(section);
 		return r;
 	}
-	r = filelist_addpackage(contents, packagename, section, filekey);
+	r = filelist_addpackage(contents, package->name, section, filekey);
 
 	free(filekey);
 	free(section);
@@ -234,11 +234,7 @@ static retvalue gentargetcontents(struct target *target, struct release *release
 	result = package_openiterator(target, READONLY, &iterator);
 	if (RET_IS_OK(result)) {
 		while (package_next(&iterator)) {
-			r = addpackagetocontents(target->distribution,
-					target,
-					iterator.current.name,
-					iterator.current.control,
-					contents);
+			r = addpackagetocontents(&iterator.current, contents);
 			RET_UPDATE(result, r);
 			if (RET_WAS_ERROR(r))
 				break;
@@ -339,7 +335,7 @@ static retvalue genarchcontents(struct distribution *distribution, architecture_
 		release_abortfile(file);
 		return r;
 	}
-	r = distribution_foreach_package_c(distribution,
+	r = package_foreach_c(distribution,
 			components, architecture, type,
 			addpackagetocontents, contents);
 	if (!RET_WAS_ERROR(r))

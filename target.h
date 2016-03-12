@@ -95,15 +95,9 @@ retvalue target_checkaddpackage(struct target *, const char *name, const char *v
 retvalue target_removepackage(struct target *, /*@null@*/struct logger *, const char *name, struct trackingdata *);
 /* like target_removepackage, but do not read control data yourself but use available */
 retvalue target_removereadpackage(struct target *, /*@null@*/struct logger *, const char *name, const char *oldcontrol, /*@null@*/struct trackingdata *);
-/* Like target_removepackage, but delete the package record by cursor */
-
-retvalue package_check(struct distribution *, struct target *, const char *, const char *, void *);
 retvalue target_rereference(struct target *);
-retvalue package_referenceforsnapshot(struct distribution *, struct target *, const char *, const char *, void *);
 retvalue target_reoverride(struct target *, struct distribution *);
 retvalue target_redochecksums(struct target *, struct distribution *);
-
-retvalue package_rerunnotifiers(struct distribution *, struct target *, const char *, const char *, void *);
 
 static inline bool target_matches(const struct target *t, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes) {
 	if (limitations_missed(components, t->component))

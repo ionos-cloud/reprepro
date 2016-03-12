@@ -693,17 +693,17 @@ retvalue target_rereference(struct target *target) {
 	return result;
 }
 
-retvalue package_referenceforsnapshot(UNUSED(struct distribution *di), struct target *target, const char *package, const char *chunk, void *data) {
+retvalue package_referenceforsnapshot(struct package *package, void *data) {
 	const char *identifier = data;
 	struct strlist filekeys;
 	retvalue r;
 
-	r = target->getfilekeys(chunk, &filekeys);
+	r = package->target->getfilekeys(package->control, &filekeys);
 	if (RET_WAS_ERROR(r))
 		return r;
 	if (verbose > 15) {
 		fprintf(stderr, "adding references to '%s' for '%s': ",
-				identifier, package);
+				identifier, package->name);
 		(void)strlist_fprint(stderr, &filekeys);
 		(void)putc('\n', stderr);
 	}
@@ -712,27 +712,28 @@ retvalue package_referenceforsnapshot(UNUSED(struct distribution *di), struct ta
 	return r;
 }
 
-retvalue package_check(UNUSED(struct distribution *di), struct target *target, const char *package, const char *chunk, UNUSED(void *pd)) {
+retvalue package_check(struct package *package, UNUSED(void *pd)) {
+	struct target *target = package->target;
 	struct checksumsarray files;
 	struct strlist expectedfilekeys;
 	char *dummy, *version;
 	retvalue result = RET_OK, r;
 	architecture_t package_architecture;
 
-	r = target->getversion(chunk, &version);
+	r = target->getversion(package->control, &version);
 	if (!RET_IS_OK(r)) {
 		fprintf(stderr,
 "Error extraction version number from package control info of '%s'!\n",
-				package);
+				package->name);
 		if (r == RET_NOTHING)
 			r = RET_ERROR_MISSING;
 		return r;
 	}
-	r = target->getarchitecture(chunk, &package_architecture);
+	r = target->getarchitecture(package->control, &package_architecture);
 	if (!RET_IS_OK(r)) {
 		fprintf(stderr,
 "Error extraction architecture from package control info of '%s'!\n",
-				package);
+				package->name);
 		if (r == RET_NOTHING)
 			r = RET_ERROR_MISSING;
 		return r;
@@ -744,16 +745,16 @@ retvalue package_check(UNUSED(struct distribution *di), struct target *target, c
 		fprintf(stderr,
 "Wrong architecture '%s' of package '%s' in '%s'!\n",
 				atoms_architectures[package_architecture],
-				package, target->identifier);
+				package->name, target->identifier);
 		result = RET_ERROR;
 	}
-	r = target->getinstalldata(target, package, version,
-			package_architecture, chunk, &dummy,
+	r = target->getinstalldata(target, package->name, version,
+			package_architecture, package->control, &dummy,
 			&expectedfilekeys, &files);
 	if (RET_WAS_ERROR(r)) {
 		fprintf(stderr,
 "Error extracting information of package '%s'!\n",
-				package);
+				package->name);
 		result = r;
 	}
 	free(version);
@@ -763,7 +764,7 @@ retvalue package_check(UNUSED(struct distribution *di), struct target *target, c
 		    !strlist_subset(&expectedfilekeys, &files.names, NULL)) {
 			(void)fprintf(stderr,
 "Reparsing the package information of '%s' yields to the expectation to find:\n",
-					package);
+					package->name);
 			(void)strlist_fprint(stderr, &expectedfilekeys);
 			(void)fputs("but found:\n", stderr);
 			(void)strlist_fprint(stderr, &files.names);
@@ -772,28 +773,28 @@ retvalue package_check(UNUSED(struct distribution *di), struct target *target, c
 		}
 		strlist_done(&expectedfilekeys);
 	} else {
-		r = target->getchecksums(chunk, &files);
+		r = target->getchecksums(package->control, &files);
 		if (r == RET_NOTHING)
 			r = RET_ERROR;
 		if (RET_WAS_ERROR(r)) {
 			fprintf(stderr,
 "Even more errors extracting information of package '%s'!\n",
-					package);
+					package->name);
 			return r;
 		}
 	}
 
 	if (verbose > 10) {
-		fprintf(stderr, "checking files of '%s'\n", package);
+		fprintf(stderr, "checking files of '%s'\n", package->name);
 	}
 	r = files_expectfiles(&files.names, files.checksums);
 	if (RET_WAS_ERROR(r)) {
-		fprintf(stderr, "Files are missing for '%s'!\n", package);
+		fprintf(stderr, "Files are missing for '%s'!\n", package->name);
 	}
 	RET_UPDATE(result, r);
 	if (verbose > 10) {
 		(void)fprintf(stderr, "checking references to '%s' for '%s': ",
-				target->identifier, package);
+				target->identifier, package->name);
 		(void)strlist_fprint(stderr, &files.names);
 		(void)putc('\n', stderr);
 	}
@@ -944,30 +945,32 @@ retvalue target_export(struct target *target, bool onlyneeded, bool snapshot, st
 	return result;
 }
 
-retvalue package_rerunnotifiers(struct distribution *distribution, struct target *target, const char *package, const char *chunk, UNUSED(void *data)) {
-	struct logger *logger = distribution->logger;
+retvalue package_rerunnotifiers(struct package *package, UNUSED(void *data)) {
+	struct target *target = package->target;
+	struct logger *logger = target->distribution->logger;
 	struct strlist filekeys;
 	char *version;
 	retvalue r;
 
-	r = target->getversion(chunk, &version);
+	r = target->getversion(package->control, &version);
 	if (!RET_IS_OK(r)) {
 		fprintf(stderr,
 "Error extraction version number from package control info of '%s'!\n",
-				package);
+				package->name);
 		if (r == RET_NOTHING)
 			r = RET_ERROR_MISSING;
 		return r;
 	}
-	r = target->getfilekeys(chunk, &filekeys);
+	r = target->getfilekeys(package->control, &filekeys);
 	if (RET_WAS_ERROR(r)) {
 		fprintf(stderr,
 "Error extracting information about used files from package '%s'!\n",
-				package);
+				package->name);
 		free(version);
 		return r;
 	}
-	r = logger_reruninfo(logger, target, package, version, chunk, &filekeys);
+	r = logger_reruninfo(logger, target, package->name, version,
+			package->control, &filekeys);
 	strlist_done(&filekeys);
 	free(version);
 	return r;

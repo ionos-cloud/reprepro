@@ -11,9 +11,22 @@ struct package {
 	 * only to be used to free once this struct is abandoned */
 	char *pkgchunk, *pkgname;
 };
+struct distribution;
 struct target;
+struct atomlist;
 struct logger;
 struct trackingdata;
+
+typedef retvalue action_each_target(struct target *, void *);
+typedef retvalue action_each_package(struct package *, void *);
+
+/* call <action> for each package of <distribution> */
+retvalue package_foreach(struct distribution *, /*@null@*/const struct atomlist *, /*@null@*/const struct atomlist *, /*@null@*/const struct atomlist *, action_each_package, /*@null@*/action_each_target, void *);
+/* same but different ways to restrict it */
+retvalue package_foreach_c(struct distribution *, /*@null@*/const struct atomlist *, architecture_t, packagetype_t, action_each_package, void *);
+
+/* delete every package decider returns RET_OK for */
+retvalue package_remove_each(struct distribution *, const struct atomlist *, const struct atomlist *, const struct atomlist *, action_each_package /*decider*/, struct trackingdata *, void *);
 
 
 retvalue package_get(struct target *, const char * /*name*/, /*@null@*/ const char */*version*/, /*@out@*/ struct package *);
@@ -37,5 +50,9 @@ retvalue package_closeiterator(struct package_cursor *);
 
 retvalue package_remove_by_cursor(struct package_cursor *, /*@null@*/struct logger *, /*@null@*/struct trackingdata *);
 retvalue package_newcontrol_by_cursor(struct package_cursor *, const char *, size_t);
+
+retvalue package_check(struct package *, void *);
+retvalue package_referenceforsnapshot(struct package *, void *);
+retvalue package_rerunnotifiers(struct package *, void *);
 
 #endif

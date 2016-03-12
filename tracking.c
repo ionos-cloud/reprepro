@@ -1393,10 +1393,11 @@ retvalue tracking_removepackages(trackingdb t, struct distribution *distribution
 	return result;
 }
 
-static retvalue package_retrack(UNUSED(struct distribution *di), struct target *target, const char *packagename, const char *controlchunk, void *data) {
+static retvalue package_retrack(struct package *package, void *data) {
 	trackingdb tracks = data;
 
-	return target->doretrack(packagename, controlchunk, tracks);
+	return package->target->doretrack(package->name,
+			package->control, tracks);
 }
 
 retvalue tracking_retrack(struct distribution *d, bool needsretrack) {
@@ -1424,7 +1425,7 @@ retvalue tracking_retrack(struct distribution *d, bool needsretrack) {
 	r = tracking_reset(tracks);
 	if (!RET_WAS_ERROR(r)) {
 		/* add back information about actually used files */
-		r = distribution_foreach_package(d,
+		r = package_foreach(d,
 				atom_unknown, atom_unknown, atom_unknown,
 				package_retrack, NULL, tracks);
 	}
