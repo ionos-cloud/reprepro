@@ -693,12 +693,12 @@ retvalue copy_by_formula(struct distribution *into, struct distribution *from, c
 	return r;
 }
 
-static retvalue choose_by_name(UNUSED(struct target *target), const char *packagename, UNUSED(const char *version), UNUSED(const char *chunk), void *privdata) {
+static retvalue choose_by_name(struct package *package, void *privdata) {
 	const struct namelist *l = privdata;
 	int i;
 
 	for (i = 0 ; i < l->argc ; i++) {
-		if (strcmp(packagename, l->argv[i]) == 0)
+		if (strcmp(package->name, l->argv[i]) == 0)
 			break;
 	}
 	if (i >= l->argc)
@@ -706,21 +706,17 @@ static retvalue choose_by_name(UNUSED(struct target *target), const char *packag
 	return RET_OK;
 }
 
-static retvalue choose_by_source(struct target *target, const char *packagename, UNUSED(const char *versiondummy), const char *chunk, void *privdata) {
+static retvalue choose_by_source(struct package *package, void *privdata) {
 	const struct namelist *l = privdata;
-	char *source, *sourceversion;
 	retvalue r;
 
-	// TODO: why doesn't this use version?
-	r = target->getsourceandversion(chunk, packagename,
-			&source, &sourceversion);
-	if (!RET_IS_OK(r)) {
+	r = package_getsource(package);
+	if (!RET_IS_OK(r))
 		return r;
-	}
+
 	assert (l->argc > 0);
 	/* only include if source name matches */
-	if (strcmp(source, l->argv[0]) != 0) {
-		free(source); free(sourceversion);
+	if (strcmp(package->source, l->argv[0]) != 0) {
 		return RET_NOTHING;
 	}
 	if (l->argc > 1) {
@@ -728,11 +724,10 @@ static retvalue choose_by_source(struct target *target, const char *packagename,
 
 		i = l->argc;
 		while (--i > 0) {
-			r = dpkgversions_cmp(sourceversion,
+			r = dpkgversions_cmp(package->sourceversion,
 					l->argv[i], &c);
 			assert (r != RET_NOTHING);
 			if (RET_WAS_ERROR(r)) {
-				free(source); free(sourceversion);
 				return r;
 			}
 			if (c == 0)
@@ -741,24 +736,23 @@ static retvalue choose_by_source(struct target *target, const char *packagename,
 		/* there are source versions specified and
 		 * the source version of this package differs */
 		if (i == 0) {
-			free(source); free(sourceversion);
 			return RET_NOTHING;
 		}
 	}
-	free(source); free(sourceversion);
 	return RET_OK;
 }
 
-static retvalue choose_by_condition(struct target *target, UNUSED(const char *packagename), UNUSED(const char *version), const char *chunk, void *privdata) {
+static retvalue choose_by_condition(struct package *package, void *privdata) {
 	term *condition = privdata;
 
-	return term_decidechunktarget(condition, chunk, target);
+	return term_decidechunktarget(condition,
+			package->control, package->target);
 }
 
-static retvalue choose_by_glob(UNUSED(struct target *target), const char *packagename, UNUSED(const char *version), UNUSED(const char *chunk), void *privdata) {
+static retvalue choose_by_glob(struct package *package, void *privdata) {
 	const char *glob = privdata;
 
-	if (globmatch(packagename, glob))
+	if (globmatch(package->name, glob))
 		return RET_OK;
 	else
 		return RET_NOTHING;
@@ -814,8 +808,7 @@ retvalue copy_from_file(struct distribution *into, component_t component, archit
 	result = RET_NOTHING;
 	setzero(struct package, &package);
 	while (indexfile_getnext(i, &package, target, false)) {
-		r = choose_by_name(target, package.name, package.version,
-				package.control, &d);
+		r = choose_by_name(&package, &d);
 		if (RET_IS_OK(r))
 			r = list_prepareadd(&list, target, &package);
 		package_done(&package);
@@ -831,7 +824,7 @@ retvalue copy_from_file(struct distribution *into, component_t component, archit
 	return result;
 }
 
-typedef retvalue chooseaction(struct target *, const char *, const char *, const char *, void *);
+typedef retvalue chooseaction(struct package *, void *);
 
 static retvalue restore_from_snapshot(struct distribution *into, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes, const char *snapshotname, chooseaction action, void *d) {
 	retvalue result, r;
@@ -903,8 +896,7 @@ static retvalue restore_from_snapshot(struct distribution *into, const struct at
 			break;
 		setzero(struct package, &package);
 		while (indexfile_getnext(i, &package, target, false)) {
-			result = action(target, package.name, package.version,
-					package.control, d);
+			result = action(&package, d);
 			if (RET_IS_OK(result))
 				result = list_prepareadd(&list,
 						target, &package);
