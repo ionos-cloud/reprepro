@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005,2006,2007,2008,2009 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2006,2007,2008,2009,2016 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -82,6 +82,7 @@
 #include "filecntl.h"
 #include "remoterepository.h"
 #include "uncompression.h"
+#include "package.h"
 
 /* The data structures of this one: ("u_" is short for "update_")
 
@@ -1606,7 +1607,7 @@ static retvalue updates_calllisthooks(struct update_distribution *distributions)
  *         (all the logic in upgradelist.c, this is only clue code)         *
  ****************************************************************************/
 
-static upgrade_decision ud_decide_by_pattern(void *privdata, const struct target *target, const char *package, const char *source, /*@null@*/const char *old_version, const char *new_version, const char *new_src_version, const char *newcontrolchunk) {
+static upgrade_decision ud_decide_by_pattern(void *privdata, const struct target *target, struct package *new, /*@null@*/const char *old_version) {
 	const struct update_pattern *pattern = privdata, *p;
 	retvalue r;
 	upgrade_decision decision = UD_UPGRADE;
@@ -1618,7 +1619,7 @@ static upgrade_decision ud_decide_by_pattern(void *privdata, const struct target
 		while (p != NULL && !p->filtersrclist.set)
 			p = p->pattern_from;
 		if (p != NULL)
-			listdecision = filterlist_find(package, new_version,
+			listdecision = filterlist_find(new->name, new->version,
 					&p->filtersrclist);
 		else {
 			p = pattern;
@@ -1627,15 +1628,15 @@ static upgrade_decision ud_decide_by_pattern(void *privdata, const struct target
 			if (p == NULL)
 				listdecision = flt_install;
 			else
-				listdecision = filterlist_find(package,
-						new_version, &p->filterlist);
+				listdecision = filterlist_find(new->name,
+						new->version, &p->filterlist);
 		}
 	} else {
 		p = pattern;
 		while (p != NULL && !p->filterlist.set)
 			p = p->pattern_from;
 		if (p != NULL)
-			listdecision = filterlist_find(package, new_version,
+			listdecision = filterlist_find(new->name, new->version,
 					&p->filterlist);
 		else {
 			p = pattern;
@@ -1644,8 +1645,8 @@ static upgrade_decision ud_decide_by_pattern(void *privdata, const struct target
 			if (p == NULL)
 				listdecision = flt_install;
 			else
-				listdecision = filterlist_find(source,
-						new_src_version,
+				listdecision = filterlist_find(new->source,
+						new->sourceversion,
 						&p->filtersrclist);
 		}
 	}
@@ -1665,7 +1666,7 @@ static upgrade_decision ud_decide_by_pattern(void *privdata, const struct target
 		case flt_error:
 			/* cannot yet be handled! */
 			fprintf(stderr,
-"Package name marked to be unexpected('error'): '%s'!\n", package);
+"Package name marked to be unexpected('error'): '%s'!\n", new->name);
 			return UD_ERROR;
 		case flt_upgradeonly:
 			if (old_version == NULL)
@@ -1679,7 +1680,8 @@ static upgrade_decision ud_decide_by_pattern(void *privdata, const struct target
 	}
 
 	cmdline_still_undecided = false;
-	switch (filterlist_find(source, new_src_version, &cmdline_src_filter)) {
+	switch (filterlist_find(new->source, new->sourceversion,
+				&cmdline_src_filter)) {
 		case flt_deinstall:
 		case flt_purge:
 			return UD_NO;
@@ -1698,7 +1700,7 @@ static upgrade_decision ud_decide_by_pattern(void *privdata, const struct target
 		case flt_error:
 			/* cannot yet be handled! */
 			fprintf(stderr,
-"Package name marked to be unexpected('error'): '%s'!\n", package);
+"Package name marked to be unexpected('error'): '%s'!\n", new->name);
 			return UD_ERROR;
 		case flt_upgradeonly:
 			if (old_version == NULL)
@@ -1714,7 +1716,7 @@ static upgrade_decision ud_decide_by_pattern(void *privdata, const struct target
 
 
 	if (target->packagetype != pt_dsc) {
-		switch (filterlist_find(package, new_version,
+		switch (filterlist_find(new->name, new->version,
 					&cmdline_bin_filter)) {
 			case flt_deinstall:
 			case flt_purge:
@@ -1730,7 +1732,7 @@ static upgrade_decision ud_decide_by_pattern(void *privdata, const struct target
 			case flt_error:
 				/* cannot yet be handled! */
 				fprintf(stderr,
-"Package name marked to be unexpected('error'): '%s'!\n", package);
+"Package name marked to be unexpected('error'): '%s'!\n", new->name);
 				return UD_ERROR;
 			case flt_upgradeonly:
 				if (old_version == NULL)
@@ -1754,7 +1756,7 @@ static upgrade_decision ud_decide_by_pattern(void *privdata, const struct target
 		p = p->pattern_from;
 	if (p != NULL) {
 		r = term_decidechunktarget(p->includecondition,
-				newcontrolchunk, target);
+				new->control, target);
 		if (RET_WAS_ERROR(r))
 			return UD_ERROR;
 		if (r == RET_NOTHING) {
@@ -1768,9 +1770,9 @@ static upgrade_decision ud_decide_by_pattern(void *privdata, const struct target
 	p = pattern;
 	while (p != NULL && !p->omitextrasource_set)
 		p = p->pattern_from;
-	/* if unset or set to true, ignore source having that field */
+	/* if unset or set to true, ignore new->source having that field */
 	if (p == NULL || p->omitextrasource == true) {
-		if (chunk_gettruth(newcontrolchunk, "Extra-Source-Only"))
+		if (chunk_gettruth(new->control, "Extra-Source-Only"))
 			return UD_NO;
 	}
 

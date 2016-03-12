@@ -287,9 +287,7 @@ static retvalue upgradelist_trypackage(struct upgradelist *upgrade, void *privda
 		char *newcontrol;
 
 		decision = predecide(predecide_data, upgrade->target,
-				package->name, package->source,
-				NULL, package->version, package->sourceversion,
-				package->control);
+				package, NULL);
 		if (decision != UD_UPGRADE) {
 			upgrade->last = insertafter;
 			if (decision == UD_LOUDNO)
@@ -387,10 +385,7 @@ static retvalue upgradelist_trypackage(struct upgradelist *upgrade, void *privda
 "'%s' from '%s' is newer than '%s' currently\n",
 				version, package->name, current->version);
 		decision = predecide(predecide_data, upgrade->target,
-				current->name, package->source,
-				current->version,
-				version, package->sourceversion,
-				package->control);
+				package, current->version);
 		if (decision != UD_UPGRADE) {
 			if (decision == UD_LOUDNO)
 				fprintf(stderr,

@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2006,2007 Bernhard R. Link
+ *  Copyright (C) 2006,2007,2016 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -34,6 +34,7 @@
 #include "filterlist.h"
 #include "log.h"
 #include "configparser.h"
+#include "package.h"
 
 /***************************************************************************
  * step one:                                                               *
@@ -649,7 +650,7 @@ retvalue pull_prepare(struct distribution *alldistributions, struct pull_rule *r
  * decide what gets pulled                                                 *
  **************************************************************************/
 
-static upgrade_decision ud_decide_by_rule(void *privdata, const struct target *target, const char *package, const char *sourcename, /*@null@*/const char *old_version, const char *new_version, const char *sourceversion, const char *newcontrolchunk) {
+static upgrade_decision ud_decide_by_rule(void *privdata, const struct target *target, struct package *new, /*@null@*/const char *old_version) {
 	struct pull_rule *rule = privdata;
 	upgrade_decision decision = UD_UPGRADE;
 	retvalue r;
@@ -658,23 +659,23 @@ static upgrade_decision ud_decide_by_rule(void *privdata, const struct target *t
 	bool cmdline_still_undecided;
 
 	if (target->packagetype == pt_dsc) {
-		assert (strcmp(package, sourcename) == 0);
-		assert (strcmp(new_version, sourceversion) == 0);
+		assert (strcmp(new->name, new->source) == 0);
+		assert (strcmp(new->version, new->sourceversion) == 0);
 		if (rule->filtersrclist.set)
 			fl = &rule->filtersrclist;
 		else
 			fl = &rule->filterlist;
-		n = package;
-		v = new_version;
+		n = new->name;
+		v = new->version;
 	} else {
 		if (rule->filterlist.set) {
 			fl = &rule->filterlist;
-			n = package;
-			v = new_version;
+			n = new->name;
+			v = new->version;
 		} else {
 			fl = &rule->filtersrclist;
-			n = sourcename;
-			v = sourceversion;
+			n = new->source;
+			v = new->sourceversion;
 		}
 	}
 
@@ -693,7 +694,7 @@ static upgrade_decision ud_decide_by_rule(void *privdata, const struct target *t
 		case flt_error:
 			/* cannot yet be handled! */
 			fprintf(stderr,
-"Package name marked to be unexpected('error'): '%s'!\n", package);
+"Package name marked to be unexpected('error'): '%s'!\n", new->name);
 			return UD_ERROR;
 		case flt_upgradeonly:
 			if (old_version == NULL)
@@ -708,7 +709,7 @@ static upgrade_decision ud_decide_by_rule(void *privdata, const struct target *t
 	}
 
 	cmdline_still_undecided = false;
-	switch (filterlist_find(sourcename, sourceversion,
+	switch (filterlist_find(new->source, new->sourceversion,
 				&cmdline_src_filter)) {
 		case flt_deinstall:
 		case flt_purge:
@@ -728,7 +729,7 @@ static upgrade_decision ud_decide_by_rule(void *privdata, const struct target *t
 		case flt_error:
 			/* cannot yet be handled! */
 			fprintf(stderr,
-"Package name marked to be unexpected('error'): '%s'!\n", package);
+"Package name marked to be unexpected('error'): '%s'!\n", new->name);
 			return UD_ERROR;
 		case flt_upgradeonly:
 			if (old_version == NULL)
@@ -744,7 +745,7 @@ static upgrade_decision ud_decide_by_rule(void *privdata, const struct target *t
 
 
 	if (target->packagetype != pt_dsc) {
-		switch (filterlist_find(package, new_version,
+		switch (filterlist_find(new->name, new->version,
 					&cmdline_bin_filter)) {
 			case flt_deinstall:
 			case flt_purge:
@@ -760,7 +761,7 @@ static upgrade_decision ud_decide_by_rule(void *privdata, const struct target *t
 			case flt_error:
 				/* cannot yet be handled! */
 				fprintf(stderr,
-"Package name marked to be unexpected('error'): '%s'!\n", package);
+"Package name marked to be unexpected('error'): '%s'!\n", new->name);
 				return UD_ERROR;
 			case flt_upgradeonly:
 				if (old_version == NULL)
@@ -785,7 +786,7 @@ static upgrade_decision ud_decide_by_rule(void *privdata, const struct target *t
 	/* formula tested last as it is the most expensive */
 	if (rule->includecondition != NULL) {
 		r = term_decidechunktarget(rule->includecondition,
-				newcontrolchunk, target);
+				new->control, target);
 		if (RET_WAS_ERROR(r))
 			return UD_ERROR;
 		if (r == RET_NOTHING) {
