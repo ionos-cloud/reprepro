@@ -41,6 +41,7 @@
 #include "log.h"
 #include "files.h"
 #include "descriptions.h"
+#include "package.h"
 #include "target.h"
 
 static char *calc_identifier(const char *codename, component_t component, architecture_t architecture, packagetype_t packagetype) {
@@ -972,4 +973,36 @@ retvalue package_rerunnotifiers(struct distribution *distribution, struct target
 	strlist_done(&filekeys);
 	free(version);
 	return r;
+}
+
+retvalue package_get(struct target *target, const char *name, const char *version, struct package *pkg) {
+	retvalue result, r;
+	bool database_closed;
+
+	assert (version == NULL); /* not yet implemented */
+
+	memset(pkg, 0, sizeof(*pkg));
+
+	database_closed = target->packages == NULL;
+
+	if (database_closed) {
+		r = target_initpackagesdb(target, READONLY);
+		if (RET_WAS_ERROR(r))
+			return r;
+	}
+	result = table_getrecord(target->packages, name,
+			&pkg->pkgchunk, &pkg->controllen);
+	if (RET_IS_OK(result)) {
+		pkg->target = target;
+		pkg->name = name;
+		pkg->control = pkg->pkgchunk;
+	}
+	if (database_closed) {
+		r = target_closepackagesdb(target);
+		if (RET_WAS_ERROR(r)) {
+			package_done(pkg);
+			return r;
+		}
+	}
+	return result;
 }
