@@ -154,40 +154,36 @@ static void list_cancelpackage(struct package_list *list, /*@only@*/struct selec
 	assert (package == NULL);
 }
 
-static retvalue list_prepareadd(struct package_list *list, struct target *target, const char *packagename, /*@null@*/const char *v, architecture_t package_architecture, const char *chunk) {
-	char *version;
-	char *source, *sourceversion;
+static retvalue list_prepareadd(struct package_list *list, struct target *target, struct package *package) {
 	struct selectedpackage *new SETBUTNOTUSED(= NULL);
 	retvalue r;
 	int i;
 
-	if (v == NULL) {
-		r = target->getversion(chunk, &version);
-		assert (r != RET_NOTHING);
-		if (RET_WAS_ERROR(r)) {
-			return r;
-		}
-	}
-	r = target->getsourceandversion(chunk, packagename,
-			&source, &sourceversion);
+	assert (target->packagetype == package->target->packagetype);
+
+	r = package_getversion(package);
 	assert (r != RET_NOTHING);
-	if (RET_WAS_ERROR(r)) {
-		free(version);
+	if (RET_WAS_ERROR(r))
 		return r;
-	}
-	r = list_newpackage(list, target, source, sourceversion,
-			packagename, (v==NULL)?version:v, &new);
-	free(source); source = NULL;
-	free(sourceversion); sourceversion = NULL;
-	if (v == NULL) free(version); version = NULL;
+	r = package_getarchitecture(package);
+	assert (r != RET_NOTHING);
+	if (RET_WAS_ERROR(r))
+		return r;
+	r = package_getsource(package);
+	assert (r != RET_NOTHING);
+	if (RET_WAS_ERROR(r))
+		return r;
+	r = list_newpackage(list, target,
+			package->source, package->sourceversion,
+			package->name, package->version, &new);
 	assert (r != RET_NOTHING);
 	if (RET_WAS_ERROR(r))
 		return r;
 	assert (new != NULL);
 
-	new->architecture = package_architecture;
+	new->architecture = package->architecture;
 	r = target->getinstalldata(target, new->name, new->version,
-			package_architecture, chunk,
+			new->architecture, package->control,
 			&new->control, &new->filekeys, &new->origfiles);
 	assert (r != RET_NOTHING);
 	if (RET_WAS_ERROR(r)) {
@@ -376,7 +372,6 @@ static retvalue by_name(struct package_list *list, struct target *desttarget, st
 	for (i = 0 ; i < d->argc ; i++) {
 		struct package package;
 		const char *name = d->argv[i];
-		architecture_t package_architecture;
 
 		for (j = 0 ; j < i ; j++)
 			if (strcmp(d->argv[i], d->argv[j]) == 0)
@@ -398,14 +393,7 @@ static retvalue by_name(struct package_list *list, struct target *desttarget, st
 		RET_ENDUPDATE(result, r);
 		if (RET_WAS_ERROR(r))
 			break;
-		r = fromtarget->getarchitecture(package.control,
-				&package_architecture);
-		RET_ENDUPDATE(result, r);
-		if (RET_WAS_ERROR(r))
-			break;
-		r = list_prepareadd(list, desttarget,
-				package.name, NULL,
-				package_architecture, package.control);
+		r = list_prepareadd(list, desttarget, &package);
 		package_done(&package);
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(r))
@@ -526,15 +514,7 @@ static retvalue by_source(struct package_list *list, struct target *desttarget, 
 				continue;
 			}
 		}
-		r = package_getarchitecture(&iterator.current);
-		if (RET_WAS_ERROR(r)) {
-			result = r;
-			break;
-		}
-		r = list_prepareadd(list, desttarget,
-				iterator.current.name, NULL,
-				iterator.current.architecture,
-				iterator.current.control);
+		r = list_prepareadd(list, desttarget, &iterator.current);
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(r))
 			break;
@@ -628,7 +608,6 @@ retvalue copy_by_source(struct distribution *into, struct distribution *from, in
 static retvalue by_formula(struct package_list *list, struct target *desttarget, struct target *fromtarget, void *data) {
 	term *condition = data;
 	struct package_cursor iterator;
-	architecture_t package_architecture;
 	retvalue result, r;
 
 	r = package_openiterator(fromtarget, READONLY, &iterator);
@@ -645,15 +624,7 @@ static retvalue by_formula(struct package_list *list, struct target *desttarget,
 			result = r;
 			break;
 		}
-		r = fromtarget->getarchitecture(iterator.current.control,
-				&package_architecture);
-		if (RET_WAS_ERROR(r)) {
-			result = r;
-			break;
-		}
-		r = list_prepareadd(list, desttarget,
-				iterator.current.name, NULL,
-				package_architecture, iterator.current.control);
+		r = list_prepareadd(list, desttarget, &iterator.current);
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(r))
 			break;
@@ -666,7 +637,6 @@ static retvalue by_formula(struct package_list *list, struct target *desttarget,
 static retvalue by_glob(struct package_list *list, struct target *desttarget, struct target *fromtarget, void *data) {
 	const char *glob = data;
 	struct package_cursor iterator;
-	architecture_t package_architecture;
 	retvalue result, r;
 
 	r = package_openiterator(fromtarget, READONLY, &iterator);
@@ -677,15 +647,7 @@ static retvalue by_glob(struct package_list *list, struct target *desttarget, st
 	while (package_next(&iterator)) {
 		if (!globmatch(iterator.current.name, glob))
 			continue;
-		r = fromtarget->getarchitecture(iterator.current.control,
-				&package_architecture);
-		if (RET_WAS_ERROR(r)) {
-			result = r;
-			break;
-		}
-		r = list_prepareadd(list, desttarget,
-				iterator.current.name, NULL,
-				package_architecture, iterator.current.control);
+		r = list_prepareadd(list, desttarget, &iterator.current);
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(r))
 			break;
@@ -855,9 +817,7 @@ retvalue copy_from_file(struct distribution *into, component_t component, archit
 		r = choose_by_name(target, package.name, package.version,
 				package.control, &d);
 		if (RET_IS_OK(r))
-			r = list_prepareadd(&list, target,
-					package.name, package.version,
-					package.architecture, package.control);
+			r = list_prepareadd(&list, target, &package);
 		package_done(&package);
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(result))
@@ -947,10 +907,7 @@ static retvalue restore_from_snapshot(struct distribution *into, const struct at
 					package.control, d);
 			if (RET_IS_OK(result))
 				result = list_prepareadd(&list,
-						target, package.name,
-						package.version,
-						package.architecture,
-						package.control);
+						target, &package);
 			package_done(&package);
 			if (RET_WAS_ERROR(result))
 				break;
