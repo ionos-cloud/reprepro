@@ -1185,7 +1185,7 @@ static retvalue targetremovesourcepackage(trackingdb t, struct trackedpackage *p
 	arch_len = strlen(architecture);
 	for (i = 0 ; i < pkg->filekeys.count ; i++) {
 		const char *s, *basefilename, *filekey = pkg->filekeys.values[i];
-		char *package, *control, *source, *version;
+		char *packagename, *control, *source, *version;
 		struct strlist filekeys;
 		bool savedstaletracking;
 
@@ -1236,12 +1236,12 @@ static retvalue targetremovesourcepackage(trackingdb t, struct trackedpackage *p
 		else
 			basefilename++;
 		s = strchr(basefilename, '_');
-		package = strndup(basefilename, s - basefilename);
-		if (FAILEDTOALLOC(package))
+		packagename = strndup(basefilename, s - basefilename);
+		if (FAILEDTOALLOC(packagename))
 			return RET_ERROR_OOM;
-		r = table_getrecord(target->packages, package, &control, NULL);
+		r = table_getrecord(target->packages, packagename, &control, NULL);
 		if (RET_WAS_ERROR(r)) {
-			free(package);
+			free(packagename);
 			return r;
 		}
 		if (r == RET_NOTHING) {
@@ -1250,17 +1250,17 @@ static retvalue targetremovesourcepackage(trackingdb t, struct trackedpackage *p
 				fprintf(stderr,
 "Warning: tracking data might be incosistent:\n"
 "cannot find '%s' in '%s', but '%s' should be there.\n",
-						package, target->identifier,
+						packagename, target->identifier,
 						filekey);
 			}
-			free(package);
+			free(packagename);
 			continue;
 		}
-		r = target->getsourceandversion(control, package,
+		r = target->getsourceandversion(control, packagename,
 				&source, &version);
 		assert (r != RET_NOTHING);
 		if (RET_WAS_ERROR(r)) {
-			free(package);
+			free(packagename);
 			free(control);
 			return r;
 		}
@@ -1270,13 +1270,13 @@ static retvalue targetremovesourcepackage(trackingdb t, struct trackedpackage *p
 				fprintf(stderr,
 "Warning: tracking data might be incosistent:\n"
 "'%s' has '%s' of source '%s', but source '%s' contains '%s'.\n",
-						target->identifier, package,
+						target->identifier, packagename,
 						source, pkg->sourcename,
 						filekey);
 			}
 			free(source);
 			free(version);
-			free(package);
+			free(packagename);
 			free(control);
 			continue;
 		}
@@ -1287,11 +1287,11 @@ static retvalue targetremovesourcepackage(trackingdb t, struct trackedpackage *p
 				fprintf(stderr,
 "Warning: tracking data might be incosistent:\n"
 "'%s' has '%s' of source version '%s', but version '%s' contains '%s'.\n",
-						target->identifier, package,
+						target->identifier, packagename,
 						version, pkg->sourceversion,
 						filekey);
 			}
-			free(package);
+			free(packagename);
 			free(version);
 			free(control);
 			continue;
@@ -1300,7 +1300,7 @@ static retvalue targetremovesourcepackage(trackingdb t, struct trackedpackage *p
 		r = target->getfilekeys(control, &filekeys);
 		assert (r != RET_NOTHING);
 		if (RET_WAS_ERROR(r)) {
-			free(package);
+			free(packagename);
 			free(control);
 			return r;
 		}
@@ -1313,10 +1313,10 @@ static retvalue targetremovesourcepackage(trackingdb t, struct trackedpackage *p
 		/* that is a bit wasteful, as it parses some stuff again, but
 		 * but that is better than reimplementing logger here */
 		r = target_removereadpackage(target, distribution->logger,
-				package, control, NULL);
+				packagename, control, NULL);
 		target->staletracking = savedstaletracking;
 		free(control);
-		free(package);
+		free(packagename);
 		assert (r != RET_NOTHING);
 		if (RET_WAS_ERROR(r)) {
 			strlist_done(&filekeys);
