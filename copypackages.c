@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2008,2009 Bernhard R. Link
+ *  Copyright (C) 2008,2009,2016 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -41,8 +41,8 @@
 struct target_package_list {
 	struct target_package_list *next;
 	struct target *target;
-	struct package {
-		/*@null@*/struct package *next;
+	struct selectedpackage {
+		/*@null@*/struct selectedpackage *next;
 		char *name;
 		char *version;
 		char *sourcename;
@@ -58,9 +58,9 @@ struct package_list {
 	/*@null@*/struct target_package_list *targets;
 };
 
-static retvalue list_newpackage(struct package_list *list, struct target *target, const char *sourcename, const char *sourceversion, const char *packagename, const char *packageversion, /*@out@*/struct package **package_p) {
+static retvalue list_newpackage(struct package_list *list, struct target *target, const char *sourcename, const char *sourceversion, const char *packagename, const char *packageversion, /*@out@*/struct selectedpackage **package_p) {
 	struct target_package_list *t, **t_p;
-	struct package *package, **p_p;
+	struct selectedpackage *package, **p_p;
 	int c;
 
 	t_p = &list->targets;
@@ -85,7 +85,7 @@ static retvalue list_newpackage(struct package_list *list, struct target *target
 				packagename);
 		return RET_ERROR_EXIST;
 	}
-	package = zNEW(struct package);
+	package = zNEW(struct selectedpackage);
 	if (FAILEDTOALLOC(package))
 		return RET_ERROR_OOM;
 	package->name = strdup(packagename);
@@ -120,7 +120,7 @@ static retvalue list_newpackage(struct package_list *list, struct target *target
 	return RET_OK;
 }
 
-static void package_free(/*@only@*/struct package *package) {
+static void package_free(/*@only@*/struct selectedpackage *package) {
 	if (package == NULL)
 		return;
 
@@ -134,9 +134,9 @@ static void package_free(/*@only@*/struct package *package) {
 	free(package);
 }
 
-static void list_cancelpackage(struct package_list *list, /*@only@*/struct package *package) {
+static void list_cancelpackage(struct package_list *list, /*@only@*/struct selectedpackage *package) {
 	struct target_package_list *target;
-	struct package **p_p;
+	struct selectedpackage **p_p;
 
 	assert (package != NULL);
 
@@ -156,7 +156,7 @@ static void list_cancelpackage(struct package_list *list, /*@only@*/struct packa
 static retvalue list_prepareadd(struct package_list *list, struct target *target, const char *packagename, /*@null@*/const char *v, architecture_t package_architecture, const char *chunk) {
 	char *version;
 	char *source, *sourceversion;
-	struct package *new SETBUTNOTUSED(= NULL);
+	struct selectedpackage *new SETBUTNOTUSED(= NULL);
 	retvalue r;
 	int i;
 
@@ -248,7 +248,7 @@ static retvalue list_prepareadd(struct package_list *list, struct target *target
 	return RET_OK;
 }
 
-static retvalue package_add(struct distribution *into, /*@null@*/trackingdb tracks, struct target *target, const struct package *package, /*@null@*/ const char *suitefrom) {
+static retvalue package_add(struct distribution *into, /*@null@*/trackingdb tracks, struct target *target, const struct selectedpackage *package, /*@null@*/ const char *suitefrom) {
 	struct trackingdata trackingdata;
 	retvalue r;
 
@@ -292,7 +292,7 @@ static retvalue package_add(struct distribution *into, /*@null@*/trackingdb trac
 static retvalue packagelist_add(struct distribution *into, const struct package_list *list, /*@null@*/const char *suitefrom) {
 	retvalue result, r;
 	struct target_package_list *tpl;
-	struct package *package;
+	struct selectedpackage *package;
 	trackingdb tracks;
 
 	r = distribution_prepareforwriting(into);
@@ -419,7 +419,7 @@ static retvalue by_name(struct package_list *list, UNUSED(struct distribution *i
 
 static void packagelist_done(struct package_list *list) {
 	struct target_package_list *target;
-	struct package *package;
+	struct selectedpackage *package;
 
 	while ((target = list->targets) != NULL) {
 		list->targets = target->next;
