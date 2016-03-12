@@ -1247,34 +1247,33 @@ struct lspart {
 	struct lsversion *versions;
 };
 
-static retvalue newlsversion(struct lsversion **versions_p, /*@only@*/char *version, architecture_t architecture) {
+static retvalue newlsversion(struct lsversion **versions_p, struct package *package, architecture_t architecture) {
 	struct lsversion *v, **v_p;
 
 	for (v_p = versions_p ; (v = *v_p) != NULL ; v_p = &v->next) {
-		if (strcmp(v->version, version) != 0)
+		if (strcmp(v->version, package->version) != 0)
 			continue;
-		free(version);
 		return atomlist_add_uniq(&v->architectures, architecture);
 	}
 	v = zNEW(struct lsversion);
 	if (FAILEDTOALLOC(v))
 		return RET_ERROR_OOM;
 	*v_p = v;
-	v->version = version;
+	v->version = package_dupversion(package);
+	if (FAILEDTOALLOC(v->version))
+		return RET_ERROR_OOM;
 	return atomlist_add(&v->architectures, architecture);
 }
 
 static retvalue ls_in_target(struct target *target, const char *packagename, struct lsversion **versions_p) {
 	retvalue r, result;
 	struct package pkg;
-	char *version;
 
 	result = package_get(target, packagename, NULL, &pkg);
 	if (RET_IS_OK(result)) {
-		// TODO: ...
-		r = target->getversion(pkg.control, &version);
+		r = package_getversion(&pkg);
 		if (RET_IS_OK(r))
-			r = newlsversion(versions_p, version,
+			r = newlsversion(versions_p, &pkg,
 					target->architecture);
 		package_done(&pkg);
 		RET_UPDATE(result, r);
