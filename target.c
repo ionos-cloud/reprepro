@@ -1066,6 +1066,14 @@ retvalue package_getversion(struct package *package) {
 	return r;
 }
 
+retvalue package_getarchitecture(struct package *package) {
+	if (atom_defined(package->architecture))
+		return RET_OK;
+
+	return package->target->getarchitecture(package->control,
+			&package->architecture);
+}
+
 retvalue package_getsource(struct package *package) {
 	retvalue r;
 

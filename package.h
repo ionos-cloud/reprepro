@@ -1,6 +1,8 @@
 #ifndef REPREPRO_PACKAGE_H
 #define REPREPRO_PACKAGE_H
 
+#include "atoms.h"
+
 struct package {
 	/*@temp@*/ struct target *target;
 	const char *name;
@@ -10,6 +12,7 @@ struct package {
 	const char *version;
 	const char *source;
 	const char *sourceversion;
+	architecture_t architecture;
 
 	/* used to keep the memory that might be needed for the above,
 	 * only to be used to free once this struct is abandoned */
@@ -46,6 +49,7 @@ static inline void package_done(struct package *pkg) {
 
 retvalue package_getversion(struct package *);
 retvalue package_getsource(struct package *);
+retvalue package_getarchitecture(struct package *);
 
 static inline char *package_dupversion(struct package *package) {
 	assert (package->version != NULL);
