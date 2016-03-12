@@ -94,7 +94,6 @@ retvalue target_addpackage(struct target *, /*@null@*/struct logger *, const cha
 retvalue target_checkaddpackage(struct target *, const char *name, const char *version, bool tracking, bool permitnewerold);
 retvalue target_removepackage(struct target *, /*@null@*/struct logger *, const char *name, struct trackingdata *);
 /* like target_removepackage, but do not read control data yourself but use available */
-retvalue target_removereadpackage(struct target *, /*@null@*/struct logger *, const char *name, const char *oldcontrol, /*@null@*/struct trackingdata *);
 retvalue target_rereference(struct target *);
 retvalue target_reoverride(struct target *, struct distribution *);
 retvalue target_redochecksums(struct target *, struct distribution *);

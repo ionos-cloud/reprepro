@@ -224,71 +224,57 @@ retvalue target_closepackagesdb(struct target *target) {
 }
 
 /* Remove a package from the given target. */
-retvalue target_removereadpackage(struct target *target, struct logger *logger, const char *name, const char *oldcontrol, struct trackingdata *trackingdata) {
-	char *oldpversion = NULL;
+retvalue package_remove(struct package *old, struct logger *logger, struct trackingdata *trackingdata) {
 	struct strlist files;
 	retvalue result, r;
-	char *oldsource, *oldsversion;
 
-	assert (target != NULL && target->packages != NULL);
-	assert (oldcontrol != NULL && name != NULL);
+	assert (old->target != NULL && old->target->packages != NULL);
 
 	if (logger != NULL) {
-		/* need to get the version for logging, if not available */
-		r = target->getversion(oldcontrol, &oldpversion);
-		if (!RET_IS_OK(r))
-			oldpversion = NULL;
+		(void)package_getversion(old);
 	}
-	r = target->getfilekeys(oldcontrol, &files);
+	r = old->target->getfilekeys(old->control, &files);
 	if (RET_WAS_ERROR(r)) {
-		free(oldpversion);
 		return r;
 	}
 	if (trackingdata != NULL) {
-		r = target->getsourceandversion(oldcontrol,
-				name, &oldsource, &oldsversion);
-		if (!RET_IS_OK(r)) {
-			oldsource = oldsversion = NULL;
-		}
-	} else {
-		oldsource = oldsversion = NULL;
+		(void)package_getsource(old);
 	}
 	if (verbose > 0)
 		printf("removing '%s' from '%s'...\n",
-				name, target->identifier);
-	result = table_deleterecord(target->packages, name, false);
+				old->name, old->target->identifier);
+	result = table_deleterecord(old->target->packages, old->name, false);
 	if (RET_IS_OK(result)) {
-		target->wasmodified = true;
-		if (oldsource!= NULL && oldsversion != NULL) {
+		old->target->wasmodified = true;
+		if (trackingdata != NULL && old->source != NULL
+				&& old->sourceversion != NULL) {
 			r = trackingdata_remove(trackingdata,
-					oldsource, oldsversion, &files);
+					old->source, old->sourceversion, &files);
 			RET_UPDATE(result, r);
 		}
 		if (trackingdata == NULL)
-			target->staletracking = true;
+			old->target->staletracking = true;
 		if (logger != NULL)
-			logger_log(logger, target, name,
-					NULL, oldpversion,
-					NULL, oldcontrol,
+			logger_log(logger, old->target, old->name,
+					NULL, old->version,
+					NULL, old->control,
 					NULL, &files,
 					NULL, NULL);
-		r = references_delete(target->identifier, &files, NULL);
+		r = references_delete(old->target->identifier, &files, NULL);
 		RET_UPDATE(result, r);
 	}
 	strlist_done(&files);
-	free(oldsource); free(oldsversion);
-	free(oldpversion);
 	return result;
 }
 
 /* Remove a package from the given target. */
 retvalue target_removepackage(struct target *target, struct logger *logger, const char *name, struct trackingdata *trackingdata) {
-	char *oldchunk;
+	struct package old;
 	retvalue r;
 
 	assert(target != NULL && target->packages != NULL && name != NULL);
 
-	r = table_getrecord(target->packages, name, &oldchunk, NULL);
+	r = package_get(target, name, NULL, &old);
 	if (RET_WAS_ERROR(r)) {
 		return r;
 	}
@@ -298,70 +284,55 @@ retvalue target_removepackage(struct target *target, struct logger *logger, cons
 					name, target->identifier);
 		return RET_NOTHING;
 	}
-	r = target_removereadpackage(target, logger,
-			name, oldchunk, trackingdata);
-	free(oldchunk);
+	r = package_remove(&old, logger, trackingdata);
+	package_done(&old);
 	return r;
 }
 
 /* Like target_removepackage, but delete the package record by cursor */
 retvalue package_remove_by_cursor(struct package_cursor *tc, struct logger *logger, struct trackingdata *trackingdata) {
 	struct target * const target = tc->target;
-	const char * const name = tc->current.name;
-	const char * const control = tc->current.control;
-	char *oldpversion = NULL;
+	struct package *old = &tc->current;
 	struct strlist files;
 	retvalue result, r;
-	char *oldsource, *oldsversion;
 
 	assert (target != NULL && target->packages != NULL);
-	assert (name != NULL && control != NULL);
+	assert (target == old->target);
 
 	if (logger != NULL) {
-		/* need to get the version for logging, if not available */
-		r = target->getversion(control, &oldpversion);
-		if (!RET_IS_OK(r))
-			oldpversion = NULL;
+		(void)package_getversion(old);
 	}
-	r = target->getfilekeys(control, &files);
+	r = old->target->getfilekeys(old->control, &files);
 	if (RET_WAS_ERROR(r)) {
-		free(oldpversion);
 		return r;
 	}
 	if (trackingdata != NULL) {
-		r = target->getsourceandversion(control,
-				name, &oldsource, &oldsversion);
-		if (!RET_IS_OK(r)) {
-			oldsource = oldsversion = NULL;
-		}
-	} else {
-		oldsource = oldsversion = NULL;
+		(void)package_getsource(old);
 	}
 	if (verbose > 0)
 		printf("removing '%s' from '%s'...\n",
-				name, target->identifier);
-	result = cursor_delete(target->packages, tc->cursor, name, NULL);
+				old->name, old->target->identifier);
+	result = cursor_delete(target->packages, tc->cursor, old->name, NULL);
 	if (RET_IS_OK(result)) {
-		target->wasmodified = true;
-		if (oldsource != NULL && oldsversion != NULL) {
+		old->target->wasmodified = true;
+		if (trackingdata != NULL && old->source != NULL
+				&& old->sourceversion != NULL) {
 			r = trackingdata_remove(trackingdata,
-					oldsource, oldsversion, &files);
+					old->source, old->sourceversion, &files);
 			RET_UPDATE(result, r);
 		}
 		if (trackingdata == NULL)
-			target->staletracking = true;
+			old->target->staletracking = true;
 		if (logger != NULL)
-			logger_log(logger, target, name,
-					NULL, oldpversion,
-					NULL, control,
+			logger_log(logger, old->target, old->name,
+					NULL, old->version,
+					NULL, old->control,
 					NULL, &files,
 					NULL, NULL);
-		r = references_delete(target->identifier, &files, NULL);
+		r = references_delete(old->target->identifier, &files, NULL);
 		RET_UPDATE(result, r);
 	}
 	strlist_done(&files);
-	free(oldsource); free(oldsversion);
-	free(oldpversion);
 	return result;
 }
 

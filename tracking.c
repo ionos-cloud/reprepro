@@ -1305,11 +1305,7 @@ static retvalue targetremovesourcepackage(trackingdb t, struct trackedpackage *p
 		 * told to remove the tracking data, so it might mark things
 		 * as stale, which we do not want.. */
 		savedstaletracking = target->staletracking;
-
-		/* that is a bit wasteful, as it parses some stuff again, but
-		 * but that is better than reimplementing logger here */
-		r = target_removereadpackage(target, distribution->logger,
-				package.name, package.control, NULL);
+		r = package_remove(&package, distribution->logger, NULL);
 		target->staletracking = savedstaletracking;
 		package_done(&package);
 		assert (r != RET_NOTHING);

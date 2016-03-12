@@ -74,6 +74,7 @@ retvalue package_openiterator(struct target *, bool /*readonly*/, /*@out@*/struc
 bool package_next(struct package_cursor *);
 retvalue package_closeiterator(struct package_cursor *);
 
+retvalue package_remove(struct package *, /*@null@*/struct logger *, /*@null@*/struct trackingdata *);
 retvalue package_remove_by_cursor(struct package_cursor *, /*@null@*/struct logger *, /*@null@*/struct trackingdata *);
 retvalue package_newcontrol_by_cursor(struct package_cursor *, const char *, size_t);
 
