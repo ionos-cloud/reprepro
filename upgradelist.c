@@ -93,38 +93,38 @@ static void package_data_free(/*@only@*/struct package_data *data){
  * It is called once for every package we already have in this target.
  * upgrade->list points to the first in the sorted list,
  * upgrade->last to the last one inserted */
-static retvalue save_package_version(struct upgradelist *upgrade, const char *packagename, const char *chunk) {
-	char *version;
+static retvalue save_package_version(struct upgradelist *upgrade, struct package *pkg) {
 	retvalue r;
 	struct package_data *package;
 
-	r = upgrade->target->getversion(chunk, &version);
+	r = package_getversion(pkg);
 	if (RET_WAS_ERROR(r))
 		return r;
 
 	package = zNEW(struct package_data);
-	if (FAILEDTOALLOC(package)) {
-		free(version);
+	if (FAILEDTOALLOC(package))
 		return RET_ERROR_OOM;
-	}
 
 	package->privdata = NULL;
-	package->name = strdup(packagename);
+	package->name = strdup(pkg->name);
 	if (FAILEDTOALLOC(package->name)) {
 		free(package);
-		free(version);
 		return RET_ERROR_OOM;
 	}
-	package->version_in_use = version;
-	version = NULL; // just to be sure...
+	package->version_in_use = package_dupversion(pkg);
+	if (FAILEDTOALLOC(package->version_in_use)) {
+		free(package->name);
+		free(package);
+		return RET_ERROR_OOM;
+	}
 	package->version = package->version_in_use;
 
 	if (upgrade->list == NULL) {
-		/* first chunk to add: */
+		/* first package to add: */
 		upgrade->list = package;
 		upgrade->last = package;
 	} else {
-		if (strcmp(packagename, upgrade->last->name) > 0) {
+		if (strcmp(pkg->name, upgrade->last->name) > 0) {
 			upgrade->last->next = package;
 			upgrade->last = package;
 		} else {
@@ -159,9 +159,7 @@ retvalue upgradelist_initialize(struct upgradelist **ul, struct target *t) {
 		return r;
 	}
 	while (package_next(&iterator)) {
-		r2 = save_package_version(upgrade,
-				iterator.current.name,
-				iterator.current.control);
+		r2 = save_package_version(upgrade, &iterator.current);
 		RET_UPDATE(r, r2);
 		if (RET_WAS_ERROR(r2))
 			break;
