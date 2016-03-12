@@ -1183,8 +1183,7 @@ static retvalue list_in_target(struct target *target, const char *packagename) {
 	result = package_get(target, packagename, NULL, &pkg);
 	if (RET_IS_OK(result)) {
 		if (listskip <= 0) {
-			r = listformat_print(listformat, target,
-					packagename, pkg.control);
+			r = listformat_print(listformat, &pkg);
 			RET_UPDATE(result, r);
 			if (listmax > 0)
 				listmax--;
@@ -1202,7 +1201,7 @@ static retvalue list_package(struct package *package, UNUSED(void *dummy3)) {
 	if (listskip <= 0) {
 		if (listmax > 0)
 			listmax--;
-		return listformat_print(listformat, package->target, package->name, package->control);
+		return listformat_print(listformat, package);
 	} else {
 		listskip--;
 		return RET_NOTHING;
@@ -1423,8 +1422,7 @@ static retvalue listfilterprint(struct package *package, void *data) {
 		if (listskip <= 0) {
 			if (listmax > 0)
 				listmax--;
-			r = listformat_print(listformat, package->target,
-					package->name, package->control);
+			r = listformat_print(listformat, package);
 		} else {
 			listskip--;
 			r = RET_NOTHING;
@@ -1467,8 +1465,7 @@ static retvalue listmatchprint(struct package *package, void *data) {
 		if (listskip <= 0) {
 			if (listmax > 0)
 				listmax--;
-			return listformat_print(listformat, package->target,
-					package->name, package->control);
+			return listformat_print(listformat, package);
 		} else {
 			listskip--;
 			return RET_NOTHING;
