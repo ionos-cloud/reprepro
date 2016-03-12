@@ -6,10 +6,14 @@ struct package {
 	const char *name;
 	const char *control;
 	size_t controllen;
+	/* for the following NULL means not yet extracted: */
+	const char *version;
+	const char *source;
+	const char *sourceversion;
 
 	/* used to keep the memory that might be needed for the above,
 	 * only to be used to free once this struct is abandoned */
-	char *pkgchunk, *pkgname;
+	char *pkgchunk, *pkgname, *pkgversion, *pkgsource, *pkgsrcversion;
 };
 struct distribution;
 struct target;
@@ -34,9 +38,27 @@ retvalue package_get(struct target *, const char * /*name*/, /*@null@*/ const ch
 static inline void package_done(struct package *pkg) {
 	free(pkg->pkgname);
 	free(pkg->pkgchunk);
+	free(pkg->pkgversion);
+	free(pkg->pkgsource);
+	free(pkg->pkgsrcversion);
 	memset(pkg, 0, sizeof(*pkg));
 }
 
+retvalue package_getversion(struct package *);
+retvalue package_getsource(struct package *);
+
+static inline char *package_dupversion(struct package *package) {
+	assert (package->version != NULL);
+	if (package->pkgversion == NULL)
+		return strdup(package->version);
+	else {
+		// steal version from package
+		// (caller must ensure it is not freed while still needed)
+		char *v = package->pkgversion;
+		package->pkgversion = NULL;
+		return v;
+	}
+}
 
 struct package_cursor {
 	/*@temp@*/struct target *target;

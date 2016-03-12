@@ -1051,3 +1051,33 @@ retvalue package_closeiterator(struct package_cursor *tc) {
 	RET_UPDATE(result, r);
 	return result;
 }
+
+retvalue package_getversion(struct package *package) {
+	retvalue r;
+
+	if (package->version != NULL)
+		return RET_OK;
+
+	r = package->target->getversion(package->control, &package->pkgversion);
+	if (RET_IS_OK(r)) {
+		assert (package->pkgversion != NULL);
+		package->version = package->pkgversion;
+	}
+	return r;
+}
+
+retvalue package_getsource(struct package *package) {
+	retvalue r;
+
+	if (package->source != NULL)
+		return RET_OK;
+
+	r = package->target->getsourceandversion(package->control, package->name,
+			&package->pkgsource, &package->pkgsrcversion);
+	if (RET_IS_OK(r)) {
+		assert (package->pkgsource != NULL);
+		package->source = package->pkgsource;
+		package->sourceversion = package->pkgsrcversion;
+	}
+	return r;
+}
