@@ -39,14 +39,12 @@ retvalue listformat_print(const char *listformat, struct package *package) {
 	const char *p, *q;
 
 	if (listformat == NULL) {
-		char *version;
 
-		r = target->getversion(package->control, &version);
+		r = package_getversion(package);
 		if (RET_IS_OK(r)) {
 			printf( "%s: %s %s\n",
 					target->identifier, package->name,
-					version);
-			free(version);
+					package->version);
 		} else {
 			printf("Could not retrieve version from %s in %s\n",
 					package->name, target->identifier);
@@ -144,27 +142,23 @@ retvalue listformat_print(const char *listformat, struct package *package) {
 			value = NULL;
 			v = atoms_components[target->component];
 		} else if (q - p == 8 && strncasecmp(p, "{$source", 8) == 0) {
-			char *dummy = NULL;
-			r = target->getsourceandversion(package->control,
-					package->name, &value, &dummy);
+			r = package_getsource(package);
 			if (RET_WAS_ERROR(r))
 				return r;
 			if (RET_IS_OK(r)) {
-				free(dummy);
-				v = value;
+				value = NULL;
+				v = package->source;
 			} else {
 				value = NULL;
 				v = "";
 			}
 		} else if (q - p == 15 && strncasecmp(p, "{$sourceversion", 15) == 0) {
-			char *dummy = NULL;
-			r = target->getsourceandversion(package->control,
-					package->name, &dummy, &value);
+			r = package_getsource(package);
 			if (RET_WAS_ERROR(r))
 				return r;
 			if (RET_IS_OK(r)) {
-				free(dummy);
-				v = value;
+				value = NULL;
+				v = package->sourceversion;
 			} else {
 				value = NULL;
 				v = "";
