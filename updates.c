@@ -1607,7 +1607,7 @@ static retvalue updates_calllisthooks(struct update_distribution *distributions)
  *         (all the logic in upgradelist.c, this is only clue code)         *
  ****************************************************************************/
 
-static upgrade_decision ud_decide_by_pattern(void *privdata, const struct target *target, struct package *new, /*@null@*/const char *old_version) {
+static upgrade_decision ud_decide_by_pattern(void *privdata, struct target *target, struct package *new, /*@null@*/const char *old_version) {
 	const struct update_pattern *pattern = privdata, *p;
 	retvalue r;
 	upgrade_decision decision = UD_UPGRADE;

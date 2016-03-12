@@ -650,7 +650,7 @@ retvalue pull_prepare(struct distribution *alldistributions, struct pull_rule *r
  * decide what gets pulled                                                 *
  **************************************************************************/
 
-static upgrade_decision ud_decide_by_rule(void *privdata, const struct target *target, struct package *new, /*@null@*/const char *old_version) {
+static upgrade_decision ud_decide_by_rule(void *privdata, struct target *target, struct package *new, /*@null@*/const char *old_version) {
 	struct pull_rule *rule = privdata;
 	upgrade_decision decision = UD_UPGRADE;
 	retvalue r;
