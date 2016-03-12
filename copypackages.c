@@ -616,7 +616,7 @@ static retvalue by_formula(struct package_list *list, struct target *desttarget,
 		return r;
 	result = RET_NOTHING;
 	while (package_next(&iterator)) {
-		r = term_decidechunktarget(condition, iterator.current.control,
+		r = term_decidepackage(condition, &iterator.current,
 				desttarget);
 		if (r == RET_NOTHING)
 			continue;
@@ -745,8 +745,7 @@ static retvalue choose_by_source(struct package *package, void *privdata) {
 static retvalue choose_by_condition(struct package *package, void *privdata) {
 	term *condition = privdata;
 
-	return term_decidechunktarget(condition,
-			package->control, package->target);
+	return term_decidepackage(condition, package, package->target);
 }
 
 static retvalue choose_by_glob(struct package *package, void *privdata) {

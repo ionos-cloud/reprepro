@@ -40,7 +40,7 @@ typedef struct term_atom {
 struct term_special {
 	const char *name;
 	retvalue (*parse)(enum term_comparison, const char *, size_t len, struct compare_with *);
-	bool (*compare)(enum term_comparison, const struct compare_with *, const void*, void*);
+	bool (*compare)(enum term_comparison, const struct compare_with *, void*, void*);
 	void (*done)(enum term_comparison, struct compare_with *);
 };
 

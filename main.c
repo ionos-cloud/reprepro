@@ -959,8 +959,7 @@ ACTION_D(n, n, y, removesrcs) {
 static retvalue package_matches_condition(struct package *package, void *data) {
 	term *condition = data;
 
-	return term_decidechunktarget(condition,
-			package->control, package->target);
+	return term_decidepackage(condition, package, package->target);
 }
 
 ACTION_D(y, n, y, removefilter) {
@@ -1412,7 +1411,7 @@ static retvalue listfilterprint(struct package *package, void *data) {
 	if (listmax == 0)
 		return RET_NOTHING;
 
-	r = term_decidechunktarget(condition, package->control, package->target);
+	r = term_decidepackage(condition, package, package->target);
 	if (RET_IS_OK(r)) {
 		if (listskip <= 0) {
 			if (listmax > 0)

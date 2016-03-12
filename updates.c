@@ -1755,8 +1755,7 @@ static upgrade_decision ud_decide_by_pattern(void *privdata, struct target *targ
 	while (p != NULL && !p->includecondition_set)
 		p = p->pattern_from;
 	if (p != NULL) {
-		r = term_decidechunktarget(p->includecondition,
-				new->control, target);
+		r = term_decidepackage(p->includecondition, new, target);
 		if (RET_WAS_ERROR(r))
 			return UD_ERROR;
 		if (r == RET_NOTHING) {

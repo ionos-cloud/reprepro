@@ -785,8 +785,7 @@ static upgrade_decision ud_decide_by_rule(void *privdata, struct target *target,
 
 	/* formula tested last as it is the most expensive */
 	if (rule->includecondition != NULL) {
-		r = term_decidechunktarget(rule->includecondition,
-				new->control, target);
+		r = term_decidepackage(rule->includecondition, new, target);
 		if (RET_WAS_ERROR(r))
 			return UD_ERROR;
 		if (r == RET_NOTHING) {
