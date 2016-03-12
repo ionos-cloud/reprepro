@@ -36,6 +36,7 @@
 #include "filecntl.h"
 #include "mprintf.h"
 #include "globmatch.h"
+#include "package.h"
 #include "copypackages.h"
 
 struct target_package_list {
@@ -371,13 +372,10 @@ static retvalue by_name(struct package_list *list, struct target *desttarget, st
 	retvalue result, r;
 	int i, j;
 
-	r = target_initpackagesdb(fromtarget, READONLY);
-	if (RET_WAS_ERROR(r))
-		return r;
 	result = RET_NOTHING;
 	for (i = 0 ; i < d->argc ; i++) {
+		struct package package;
 		const char *name = d->argv[i];
-		char *chunk;
 		architecture_t package_architecture;
 
 		for (j = 0 ; j < i ; j++)
@@ -394,26 +392,26 @@ static retvalue by_name(struct package_list *list, struct target *desttarget, st
 			continue;
 		}
 
-		r = table_getrecord(fromtarget->packages, name, &chunk, NULL);
+		r = package_get(fromtarget, name, NULL, &package);
 		if (r == RET_NOTHING)
 			continue;
 		RET_ENDUPDATE(result, r);
 		if (RET_WAS_ERROR(r))
 			break;
-		r = fromtarget->getarchitecture(chunk, &package_architecture);
+		r = fromtarget->getarchitecture(package.control,
+				&package_architecture);
 		RET_ENDUPDATE(result, r);
 		if (RET_WAS_ERROR(r))
 			break;
 		r = list_prepareadd(list, desttarget,
-				name, NULL, package_architecture, chunk);
-		free(chunk);
+				package.name, NULL,
+				package_architecture, package.control);
+		package_done(&package);
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(r))
 			break;
 		d->found[i] = true;
 	}
-	r = target_closepackagesdb(fromtarget);
-	RET_ENDUPDATE(result, r);
 	return result;
 }
 
