@@ -556,17 +556,14 @@ static retvalue floodlist_pull(struct floodlist *list, struct target *source) {
 		return r;
 	result = RET_NOTHING;
 	while (package_next(&iterator)) {
-		architecture_t package_architecture;
-
-		r = list->target->getarchitecture(iterator.current.control,
-				&package_architecture);
+		r = package_getarchitecture(&iterator.current);
 		if (r == RET_NOTHING)
 			continue;
 		if (!RET_IS_OK(r)) {
 			RET_UPDATE(result, r);
 			break;
 		}
-		if (package_architecture != architecture_all)
+		if (iterator.current.architecture != architecture_all)
 			continue;
 
 		r = floodlist_trypackage(list, &iterator.current);
