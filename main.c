@@ -74,6 +74,7 @@
 #include "filterlist.h"
 #include "descriptions.h"
 #include "outhook.h"
+#include "package.h"
 
 #ifndef STD_BASE_DIR
 #define STD_BASE_DIR "."
@@ -1173,29 +1174,23 @@ ACTION_B(y, n, y, buildneeded) {
 
 static retvalue list_in_target(struct target *target, const char *packagename) {
 	retvalue r, result;
-	char *control;
+	struct package pkg;
 
 	if (listmax == 0)
 		return RET_NOTHING;
 
-	r = target_initpackagesdb(target, READONLY);
-	if (!RET_IS_OK(r))
-		return r;
-
-	result = table_getrecord(target->packages, packagename, &control, NULL);
+	result = package_get(target, packagename, NULL, &pkg);
 	if (RET_IS_OK(result)) {
 		if (listskip <= 0) {
 			r = listformat_print(listformat, target,
-					packagename, control);
+					packagename, pkg.control);
 			RET_UPDATE(result, r);
 			if (listmax > 0)
 				listmax--;
 		} else
 			listskip--;
-		free(control);
+		package_done(&pkg);
 	}
-	r = target_closepackagesdb(target);
-	RET_ENDUPDATE(result, r);
 	return result;
 }
 
@@ -1271,23 +1266,19 @@ static retvalue newlsversion(struct lsversion **versions_p, /*@only@*/char *vers
 
 static retvalue ls_in_target(struct target *target, const char *packagename, struct lsversion **versions_p) {
 	retvalue r, result;
-	char *control, *version;
+	struct package pkg;
+	char *version;
 
-	r = target_initpackagesdb(target, READONLY);
-	if (!RET_IS_OK(r))
-		return r;
-
-	result = table_getrecord(target->packages, packagename, &control, NULL);
+	result = package_get(target, packagename, NULL, &pkg);
 	if (RET_IS_OK(result)) {
-		r = target->getversion(control, &version);
+		// TODO: ...
+		r = target->getversion(pkg.control, &version);
 		if (RET_IS_OK(r))
 			r = newlsversion(versions_p, version,
 					target->architecture);
-		free(control);
+		package_done(&pkg);
 		RET_UPDATE(result, r);
 	}
-	r = target_closepackagesdb(target);
-	RET_ENDUPDATE(result, r);
 	return result;
 }
 
