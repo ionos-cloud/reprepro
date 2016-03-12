@@ -188,7 +188,7 @@ static retvalue collect_source_versions(struct distribution *d, struct info_sour
 	return result;
 }
 
-static retvalue process_binaries(struct distribution *d, struct info_source *sources, retvalue (*action)(struct distribution *, struct target *, const char *, const char *, const char *, const char *, void *), void *privdata) {
+static retvalue process_binaries(struct distribution *d, struct info_source *sources, retvalue (*action)(struct package *, void *), void *privdata) {
 	struct target *t;
 	struct package_cursor cursor;
 	retvalue result = RET_NOTHING, r;
@@ -202,17 +202,17 @@ static retvalue process_binaries(struct distribution *d, struct info_source *sou
 			break;
 		}
 		while (package_next(&cursor)) {
-			char *source, *version;
 			struct info_source *s;
 			struct info_source_version *v;
 
-			r = t->getsourceandversion(cursor.current.control,
-					cursor.current.name,
-					&source, &version);
+			r = package_getsource(&cursor.current);
 			if (!RET_IS_OK(r)) {
 				RET_UPDATE(result, r);
 				continue;
 			}
+			const char *source = cursor.current.source;
+			const char *version = cursor.current.sourceversion;
+
 			s = sources;
 			while (s != NULL && strcmp(s->name, source) < 0) {
 				s = s->next;
@@ -226,14 +226,9 @@ static retvalue process_binaries(struct distribution *d, struct info_source *sou
 			if (v != NULL) {
 				v->used = true;
 			} else if (action != NULL) {
-				r = action(d, t,
-						cursor.current.name,
-						source, version,
-						cursor.current.control,
-						privdata);
+				r = action(&cursor.current, privdata);
 				RET_UPDATE(result, r);
 			}
-			free(source); free(version);
 		}
 		r = package_closeiterator(&cursor);
 		if (RET_WAS_ERROR(r)) {
@@ -334,15 +329,16 @@ static retvalue listsourcemissing(struct distribution *d, const struct trackedpa
 	return RET_NOTHING;
 }
 
-static retvalue listmissing(struct distribution *d, struct target *t, UNUSED(const char *name), const char *source, const char *version, const char *chunk, UNUSED(void*data)) {
+static retvalue listmissing(struct package *package, UNUSED(void*data)) {
 	retvalue r;
 	struct strlist list;
 
-	r = t->getfilekeys(chunk, &list);
+	r = package->target->getfilekeys(package->control, &list);
 	if (!RET_IS_OK(r))
 		return r;
 	assert (list.count == 1);
-	printf("%s %s %s %s\n", d->codename, source, version, list.values[0]);
+	printf("%s %s %s %s\n", package->target->distribution->codename,
+			package->source, package->sourceversion, list.values[0]);
 	strlist_done(&list);
 	return RET_OK;
 }
@@ -408,22 +404,22 @@ static retvalue listcruft(struct distribution *d, const struct trackedpackage *p
 	return RET_NOTHING;
 }
 
-static retvalue listmissingonce(struct distribution *d, UNUSED(struct target *t), UNUSED(const char *name), const char *source, const char *version, UNUSED(const char *chunk), void *data) {
+static retvalue listmissingonce(struct package *package, void *data) {
 	struct info_source **already = data;
 	struct info_source *s;
 
 	for (s = *already ; s != NULL ; s = s->next) {
-		if (strcmp(s->name, source) != 0)
+		if (strcmp(s->name, package->source) != 0)
 			continue;
-		if (strcmp(s->version.version, version) != 0)
+		if (strcmp(s->version.version, package->sourceversion) != 0)
 			continue;
 		return RET_NOTHING;
 	}
 	s = zNEW(struct info_source);
 	if (FAILEDTOALLOC(s))
 		return RET_ERROR_OOM;
-	s->name = strdup(source);
-	s->version.version = strdup(version);
+	s->name = strdup(package->source);
+	s->version.version = strdup(package->sourceversion);
 	if (FAILEDTOALLOC(s->name) || FAILEDTOALLOC(s->version.version)) {
 		free(s->name);
 		free(s->version.version);
@@ -433,7 +429,8 @@ static retvalue listmissingonce(struct distribution *d, UNUSED(struct target *t)
 	s->next = *already;
 	*already = s;
 	printf("binaries-without-source %s %s %s\n",
-			d->codename, source, version);
+			package->target->distribution->codename,
+			package->source, package->sourceversion);
 	return RET_OK;
 }
 
