@@ -1186,7 +1186,7 @@ static retvalue targetremovesourcepackage(trackingdb t, struct trackedpackage *p
 	arch_len = strlen(architecture);
 	for (i = 0 ; i < pkg->filekeys.count ; i++) {
 		const char *s, *basefilename, *filekey = pkg->filekeys.values[i];
-		char *packagename, *source, *version;
+		char *packagename;
 		struct package package;
 		struct strlist filekeys;
 		bool savedstaletracking;
@@ -1261,45 +1261,40 @@ static retvalue targetremovesourcepackage(trackingdb t, struct trackedpackage *p
 		// TODO: ugly
 		package.pkgname = packagename;
 		packagename = NULL;
-		// TODO: ...
-		r = target->getsourceandversion(package.control, package.name,
-				&source, &version);
+
+		r = package_getsource(&package);
 		assert (r != RET_NOTHING);
 		if (RET_WAS_ERROR(r)) {
 			package_done(&package);
 			return r;
 		}
-		if (strcmp(source, pkg->sourcename) != 0) {
+		if (strcmp(package.source, pkg->sourcename) != 0) {
 			if (pkg->filetypes[i] != ft_ALL_BINARY
 			    && verbose >= -1) {
 				fprintf(stderr,
 "Warning: tracking data might be incosistent:\n"
 "'%s' has '%s' of source '%s', but source '%s' contains '%s'.\n",
 						target->identifier, package.name,
-						source, pkg->sourcename,
+						package.source, pkg->sourcename,
 						filekey);
 			}
-			free(source);
-			free(version);
 			package_done(&package);
 			continue;
 		}
-		free(source);
-		if (strcmp(version, pkg->sourceversion) != 0) {
+		if (strcmp(package.sourceversion, pkg->sourceversion) != 0) {
 			if (pkg->filetypes[i] != ft_ALL_BINARY
 			    && verbose >= -1) {
 				fprintf(stderr,
 "Warning: tracking data might be incosistent:\n"
 "'%s' has '%s' of source version '%s', but version '%s' contains '%s'.\n",
 						target->identifier, package.name,
-						version, pkg->sourceversion,
+						package.sourceversion,
+						pkg->sourceversion,
 						filekey);
 			}
-			free(version);
 			package_done(&package);
 			continue;
 		}
-		free(version);
 		r = target->getfilekeys(package.control, &filekeys);
 		assert (r != RET_NOTHING);
 		if (RET_WAS_ERROR(r)) {
