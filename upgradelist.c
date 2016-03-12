@@ -197,12 +197,14 @@ void upgradelist_free(struct upgradelist *upgrade) {
 	return;
 }
 
-static retvalue upgradelist_trypackage(struct upgradelist *upgrade, void *privdata, upgrade_decide_function *predecide, void *predecide_data, const char *packagename_const, /*@null@*//*@only@*/char *packagename, const char *sourcename, /*@only@*/char *version, const char *sourceversion, architecture_t architecture, const char *chunk) {
+static retvalue upgradelist_trypackage(struct upgradelist *upgrade, void *privdata, upgrade_decide_function *predecide, void *predecide_data, struct package *package) {
+	char *version;
 	retvalue r;
 	upgrade_decision decision;
 	struct package_data *current, *insertafter;
 
-	if (architecture == architecture_all) {
+
+	if (package->architecture == architecture_all) {
 		if (upgrade->target->packagetype == pt_dsc) {
 			fputs("Internal error: trying to put binary ('all')"
 					" package into source architecture!\n",
@@ -210,6 +212,10 @@ static retvalue upgradelist_trypackage(struct upgradelist *upgrade, void *privda
 			return RET_ERROR_INTERNAL;
 		}
 	}
+
+	version = package_dupversion(package);
+	if (FAILEDTOALLOC(version))
+		return RET_ERROR_OOM;
 
 	/* insertafter = NULL will mean insert before list */
 	insertafter = upgrade->last;
@@ -233,7 +239,7 @@ static retvalue upgradelist_trypackage(struct upgradelist *upgrade, void *privda
 		if (current == NULL)
 			cmp = -1; /* every package is before the end of list */
 		else
-			cmp = strcmp(packagename_const, current->name);
+			cmp = strcmp(package->name, current->name);
 
 		if (cmp == 0)
 			break;
@@ -248,7 +254,7 @@ static retvalue upgradelist_trypackage(struct upgradelist *upgrade, void *privda
 				break;
 			}
 			// I only hope noone creates indices anti-sorted:
-			precmp = strcmp(packagename_const, insertafter->name);
+			precmp = strcmp(package->name, insertafter->name);
 			if (precmp == 0) {
 				current = insertafter;
 				break;
@@ -283,47 +289,40 @@ static retvalue upgradelist_trypackage(struct upgradelist *upgrade, void *privda
 		char *newcontrol;
 
 		decision = predecide(predecide_data, upgrade->target,
-				packagename_const, sourcename,
-				NULL, version, sourceversion,
-				chunk);
+				package->name, package->source,
+				NULL, package->version, package->sourceversion,
+				package->control);
 		if (decision != UD_UPGRADE) {
 			upgrade->last = insertafter;
 			if (decision == UD_LOUDNO)
 				fprintf(stderr,
 "Loudly rejecting '%s' '%s' to enter '%s'!\n",
-						packagename_const, version,
+						package->name, version,
 						upgrade->target->identifier);
-			free(packagename);
 			free(version);
 			return (decision==UD_ERROR)?RET_ERROR:RET_NOTHING;
 		}
 
 		new = zNEW(struct package_data);
 		if (FAILEDTOALLOC(new)) {
-			free(packagename);
 			free(version);
 			return RET_ERROR_OOM;
 		}
 		new->deleted = false; //to be sure...
 		new->privdata = privdata;
-		if (packagename == NULL) {
-			new->name = strdup(packagename_const);
-			if (FAILEDTOALLOC(new->name)) {
-				free(packagename);
-				free(version);
-				free(new);
-				return RET_ERROR_OOM;
-			}
-		} else
-			new->name = packagename;
-		packagename = NULL; //to be sure...
+		new->name = strdup(package->name);
+		if (FAILEDTOALLOC(new->name)) {
+			free(version);
+			free(new);
+			return RET_ERROR_OOM;
+		}
 		new->new_version = version;
 		new->version = version;
-		new->architecture = architecture;
+		new->architecture = package->architecture;
 		version = NULL; //to be sure...
 		r = upgrade->target->getinstalldata(upgrade->target,
 				new->name, new->new_version,
-				new->architecture, chunk,
+				new->architecture, package->control,
 				&new->new_control, &new->new_filekeys,
 				&new->new_origfiles);
 		if (RET_WAS_ERROR(r)) {
@@ -360,7 +359,6 @@ static retvalue upgradelist_trypackage(struct upgradelist *upgrade, void *privda
 
 		r = dpkgversions_cmp(version, current->version, &versioncmp);
 		if (RET_WAS_ERROR(r)) {
-			free(packagename);
 			free(version);
 			return r;
 		}
@@ -384,22 +382,22 @@ static retvalue upgradelist_trypackage(struct upgradelist *upgrade, void *privda
 			} else
 				free(version);
 
-			free(packagename);
 			return RET_NOTHING;
 		}
 		if (versioncmp > 0 && verbose > 30)
 			fprintf(stderr,
 "'%s' from '%s' is newer than '%s' currently\n",
-				version, packagename_const, current->version);
+				version, package->name, current->version);
 		decision = predecide(predecide_data, upgrade->target,
-				current->name, sourcename,
+				current->name, package->source,
 				current->version,
-				version, sourceversion, chunk);
+				version, package->sourceversion,
+				package->control);
 		if (decision != UD_UPGRADE) {
 			if (decision == UD_LOUDNO)
 				fprintf(stderr,
 "Loudly rejecting '%s' '%s' to enter '%s'!\n",
-						packagename_const, version,
+						package->name, version,
 						upgrade->target->identifier);
 			/* Even if we do not install it, setting it on hold
 			 * will keep it or even install from a mirror before
@@ -407,7 +405,6 @@ static retvalue upgradelist_trypackage(struct upgradelist *upgrade, void *privda
 			if (decision == UD_HOLD)
 				current->deleted = false;
 			free(version);
-			free(packagename);
 			/* while supersede will remove the current package */
 			if (decision == UD_SUPERSEDE) {
 				current->deleted = true;
@@ -427,7 +424,6 @@ static retvalue upgradelist_trypackage(struct upgradelist *upgrade, void *privda
 			} else
 					free(version);
 			current->deleted = false;
-			free(packagename);
 			return RET_NOTHING;
 		}
 		if (versioncmp != 0 && current->version == current->new_version
@@ -447,7 +443,6 @@ static retvalue upgradelist_trypackage(struct upgradelist *upgrade, void *privda
 				} else
 					free(version);
 				current->deleted = false;
-				free(packagename);
 				return RET_NOTHING;
 			}
 		}
@@ -455,21 +450,20 @@ static retvalue upgradelist_trypackage(struct upgradelist *upgrade, void *privda
 // TODO: the following case might be worth considering, but sadly new_version
 // might have changed without the proper data set.
 //		if (versioncmp >= 0 && current->version == current->version_in_use
-//				&& current->new_version != NULL) {
+//				&& current->new_version != NULL) 
 
-		current->architecture = architecture;
+		current->architecture = package->architecture;
 		r = upgrade->target->getinstalldata(upgrade->target,
-				packagename_const, version,
-				architecture, chunk,
+				package->name, version,
+				package->architecture, package->control,
 				&control, &files, &origfiles);
-		free(packagename);
 		if (RET_WAS_ERROR(r)) {
 			free(version);
 			return r;
 		}
 		/* apply override data */
 		r = upgrade->target->doreoverride(upgrade->target,
-				packagename_const, control, &newcontrol);
+				package->name, control, &newcontrol);
 		if (RET_WAS_ERROR(r)) {
 			free(version);
 			free(control);
@@ -496,10 +490,8 @@ static retvalue upgradelist_trypackage(struct upgradelist *upgrade, void *privda
 
 retvalue upgradelist_update(struct upgradelist *upgrade, void *privdata, const char *filename, upgrade_decide_function *decide, void *decide_data, bool ignorewrongarchitecture) {
 	struct indexfile *i;
-	char *packagename, *version, *sourcename, *sourceversion;
-	const char *control;
+	struct package package;
 	retvalue result, r;
-	architecture_t package_architecture;
 
 	r = indexfile_open(&i, filename, c_none);
 	if (!RET_IS_OK(r))
@@ -507,21 +499,16 @@ retvalue upgradelist_update(struct upgradelist *upgrade, void *privdata, const c
 
 	result = RET_NOTHING;
 	upgrade->last = NULL;
-	while (indexfile_getnext(i, &packagename, &version, &control,
-				&package_architecture,
+	setzero(struct package, &package);
+	while (indexfile_getnext(i, &package,
 				upgrade->target, ignorewrongarchitecture)) {
-		r = upgrade->target->getsourceandversion(control, packagename,
-				&sourcename, &sourceversion);
+		r = package_getsource(&package);
 		if (RET_IS_OK(r)) {
 			r = upgradelist_trypackage(upgrade, privdata,
-					decide, decide_data,
-					packagename, packagename, sourcename,
-					version, sourceversion,
-					package_architecture, control);
+					decide, decide_data, &package);
 			RET_UPDATE(result, r);
-			free(sourcename);
-			free(sourceversion);
 		}
+		package_done(&package);
 		if (RET_WAS_ERROR(r)) {
 			if (verbose > 0)
 				fprintf(stderr,
@@ -548,65 +535,31 @@ retvalue upgradelist_pull(struct upgradelist *upgrade, struct target *source, up
 		return r;
 	result = RET_NOTHING;
 	while (package_next(&iterator)) {
-		char *version;
-		architecture_t package_architecture;
-		char *sourcename, *sourceversion;
-
 		assert (source->packagetype == upgrade->target->packagetype);
 
-		r = source->getversion(iterator.current.control, &version);
+		r = package_getversion(&iterator.current);
 		assert (r != RET_NOTHING);
 		if (!RET_IS_OK(r)) {
 			RET_UPDATE(result, r);
 			break;
 		}
-		r = source->getarchitecture(iterator.current.control,
-				&package_architecture);
+		r = package_getarchitecture(&iterator.current);
 		if (!RET_IS_OK(r)) {
 			RET_UPDATE(result, r);
 			break;
 		}
-		if (package_architecture != upgrade->target->architecture
-				&& package_architecture != architecture_all) {
-			free(version);
-			continue;
-			if (source->architecture
-			    == upgrade->target->architecture
-			    && !ignore[IGN_wrongarchitecture]) {
-				fprintf(stderr,
-"WARNING: architecture '%s' package '%s' in '%s'!\n",
-						atoms_architectures[
-						package_architecture],
-						iterator.current.name,
-						source->identifier);
-				if (ignored[IGN_wrongarchitecture] == 0) {
-					fprintf(stderr,
-"(expected 'all' or '%s', so ignoring this package, but\n"
-"your database seems to be in a bad state. (Try running 'reprepro check')!)\n",
-						atoms_architectures[
-						source->architecture]);
-				}
-				ignored[IGN_wrongarchitecture]++;
-			}
-			free(version);
+		if (iterator.current.architecture != architecture_all &&
+				iterator.current.architecture !=
+					upgrade->target->architecture) {
 			continue;
 		}
 
-		r = upgrade->target->getsourceandversion(
-				iterator.current.control,
-				iterator.current.name,
-				&sourcename, &sourceversion);
+		r = package_getsource(&iterator.current);
 		if (RET_IS_OK(r)) {
 			r = upgradelist_trypackage(upgrade, privdata,
 					predecide, decide_data,
-					iterator.current.name,
-					NULL, sourcename,
-					version, sourceversion,
-					package_architecture,
-					iterator.current.control);
+					&iterator.current);
 			RET_UPDATE(result, r);
-			free(sourcename);
-			free(sourceversion);
 		}
 		if (RET_WAS_ERROR(r))
 			break;

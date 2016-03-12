@@ -808,9 +808,7 @@ retvalue copy_from_file(struct distribution *into, component_t component, archit
 	struct target *target;
 	struct package_list list;
 	struct namelist d = {argc, argv, NULL, NULL};
-	char *packagename, *version;
-	architecture_t package_architecture;
-	const char *control;
+	struct package package;
 
 	assert (atom_defined(architecture));
 	assert (atom_defined(component));
@@ -852,16 +850,15 @@ retvalue copy_from_file(struct distribution *into, component_t component, archit
 	if (!RET_IS_OK(result))
 		return result;
 	result = RET_NOTHING;
-	while (indexfile_getnext(i, &packagename, &version, &control,
-				&package_architecture, target, false)) {
-		r = choose_by_name(target,
-				packagename, version, control, &d);
+	setzero(struct package, &package);
+	while (indexfile_getnext(i, &package, target, false)) {
+		r = choose_by_name(target, package.name, package.version,
+				package.control, &d);
 		if (RET_IS_OK(r))
 			r = list_prepareadd(&list, target,
-					packagename, version,
-					package_architecture, control);
-		free(packagename);
-		free(version);
+					package.name, package.version,
+					package.architecture, package.control);
+		package_done(&package);
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(result))
 			break;
@@ -882,7 +879,6 @@ static retvalue restore_from_snapshot(struct distribution *into, const struct at
 	struct target *target;
 	char *basedir;
 	enum compression compression;
-	architecture_t package_architecture;
 
 	basedir = calc_snapshotbasedir(into->codename, snapshotname);
 	if (FAILEDTOALLOC(basedir))
@@ -892,8 +888,8 @@ static retvalue restore_from_snapshot(struct distribution *into, const struct at
 	result = RET_NOTHING;
 	for (target = into->targets ; target != NULL ;
 			target = target->next) {
-		char *filename, *packagename, *version;
-		const char *control;
+		struct package package;
+		char *filename;
 		struct indexfile *i;
 
 		if (!target_matches(target,
@@ -945,17 +941,17 @@ static retvalue restore_from_snapshot(struct distribution *into, const struct at
 		result = indexfile_open(&i, filename, compression);
 		if (!RET_IS_OK(result))
 			break;
-		while (indexfile_getnext(i, &packagename, &version, &control,
-					&package_architecture,
-					target, false)) {
-			result = action(target,
-					packagename, version, control, d);
+		setzero(struct package, &package);
+		while (indexfile_getnext(i, &package, target, false)) {
+			result = action(target, package.name, package.version,
+					package.control, d);
 			if (RET_IS_OK(result))
 				result = list_prepareadd(&list,
-						target, packagename, version,
-						package_architecture, control);
-			free(packagename);
-			free(version);
+						target, package.name,
+						package.version,
+						package.architecture,
+						package.control);
+			package_done(&package);
 			if (RET_WAS_ERROR(result))
 				break;
 		}
