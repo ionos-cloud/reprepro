@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2010,2011 Bernhard R. Link
+ *  Copyright (C) 2010,2011,2016 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -24,6 +24,7 @@
 #include "error.h"
 #include "distribution.h"
 #include "trackingt.h"
+#include "package.h"
 #include "sourcecheck.h"
 
 /* This is / will be the implementation of the
@@ -69,31 +70,30 @@ static void free_source_info(struct info_source *s) {
 static retvalue collect_source_versions(struct distribution *d, struct info_source **out) {
 	struct info_source *root = NULL, *last = NULL;
 	struct target *t;
-	struct target_cursor target_cursor = TARGET_CURSOR_ZERO;
-	const char *name, *chunk;
+	struct package_cursor cursor;
 	retvalue result = RET_NOTHING, r;
 
 	for (t = d->targets ; t != NULL ; t = t->next) {
 		if (t->architecture != architecture_source)
 			continue;
-		r = target_openiterator(t, true, &target_cursor);
+		r = package_openiterator(t, true, &cursor);
 		if (RET_WAS_ERROR(r)) {
 			RET_UPDATE(result, r);
 			break;
 		}
-		while (target_nextpackage(&target_cursor, &name, &chunk)) {
+		while (package_next(&cursor)) {
 			char *version;
 			struct info_source **into = NULL;
 			struct info_source_version *v;
 
-			r = t->getversion(chunk, &version);
+			r = t->getversion(cursor.current.control, &version);
 			if (!RET_IS_OK(r)) {
 				RET_UPDATE(result, r);
 				continue;
 			}
 			if (last != NULL) {
 				int c;
-				c = strcmp(name, last->name);
+				c = strcmp(cursor.current.name, last->name);
 				if (c < 0) {
 					/* start at the beginning */
 					last = NULL;
@@ -102,7 +102,7 @@ static retvalue collect_source_versions(struct distribution *d, struct info_sour
 					if (last->next == NULL)
 						break;
 					last = last->next;
-					c = strcmp(name, last->name);
+					c = strcmp(cursor.current.name, last->name);
 					if (c == 0) {
 						into = NULL;
 						break;
@@ -115,7 +115,7 @@ static retvalue collect_source_versions(struct distribution *d, struct info_sour
 				into = &root;
 				while ((last = *into) != NULL) {
 					int c;
-					c = strcmp(name, last->name);
+					c = strcmp(cursor.current.name, last->name);
 					if (c == 0) {
 						into = NULL;
 						break;
@@ -132,7 +132,7 @@ static retvalue collect_source_versions(struct distribution *d, struct info_sour
 					result = RET_ERROR_OOM;
 					break;
 				}
-				last->name = strdup(name);
+				last->name = strdup(cursor.current.name);
 				if (FAILEDTOALLOC(last->name)) {
 					free(version);
 					free(last);
@@ -146,7 +146,7 @@ static retvalue collect_source_versions(struct distribution *d, struct info_sour
 				continue;
 			}
 			assert (last != NULL);
-			assert (strcmp(name, last->name)==0);
+			assert (strcmp(cursor.current.name, last->name)==0);
 
 			v = &last->version;
 			while (strcmp(v->version, version) != 0) {
@@ -167,7 +167,7 @@ static retvalue collect_source_versions(struct distribution *d, struct info_sour
 			}
 			free(version);
 		}
-		r = target_closeiterator(&target_cursor);
+		r = package_closeiterator(&cursor);
 		if (RET_WAS_ERROR(r)) {
 			RET_UPDATE(result, r);
 			break;
@@ -184,24 +184,24 @@ static retvalue collect_source_versions(struct distribution *d, struct info_sour
 
 static retvalue process_binaries(struct distribution *d, struct info_source *sources, retvalue (*action)(struct distribution *, struct target *, const char *, const char *, const char *, const char *, void *), void *privdata) {
 	struct target *t;
-	struct target_cursor target_cursor = TARGET_CURSOR_ZERO;
-	const char *name, *chunk;
+	struct package_cursor cursor;
 	retvalue result = RET_NOTHING, r;
 
 	for (t = d->targets ; t != NULL ; t = t->next) {
 		if (t->architecture == architecture_source)
 			continue;
-		r = target_openiterator(t, true, &target_cursor);
+		r = package_openiterator(t, true, &cursor);
 		if (RET_WAS_ERROR(r)) {
 			RET_UPDATE(result, r);
 			break;
 		}
-		while (target_nextpackage(&target_cursor, &name, &chunk)) {
+		while (package_next(&cursor)) {
 			char *source, *version;
 			struct info_source *s;
 			struct info_source_version *v;
 
-			r = t->getsourceandversion(chunk, name,
+			r = t->getsourceandversion(cursor.current.control,
+					cursor.current.name,
 					&source, &version);
 			if (!RET_IS_OK(r)) {
 				RET_UPDATE(result, r);
@@ -221,13 +221,15 @@ static retvalue process_binaries(struct distribution *d, struct info_source *sou
 				v->used = true;
 			} else if (action != NULL) {
 				r = action(d, t,
-						name, source, version, chunk,
+						cursor.current.name,
+						source, version,
+						cursor.current.control,
 						privdata);
 				RET_UPDATE(result, r);
 			}
 			free(source); free(version);
 		}
-		r = target_closeiterator(&target_cursor);
+		r = package_closeiterator(&cursor);
 		if (RET_WAS_ERROR(r)) {
 			RET_UPDATE(result, r);
 			break;

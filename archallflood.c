@@ -29,6 +29,7 @@
 #include "distribution.h"
 #include "tracking.h"
 #include "files.h"
+#include "package.h"
 #include "archallflood.h"
 
 struct aa_source_name {
@@ -315,8 +316,7 @@ static retvalue save_package_version(struct floodlist *list, const char *package
 static retvalue floodlist_initialize(struct floodlist **fl, struct target *t) {
 	struct floodlist *list;
 	retvalue r, r2;
-	const char *packagename, *controlchunk;
-	struct target_cursor iterator;
+	struct package_cursor iterator;
 
 	list = zNEW(struct floodlist);
 	if (FAILEDTOALLOC(list))
@@ -326,18 +326,19 @@ static retvalue floodlist_initialize(struct floodlist **fl, struct target *t) {
 
 	/* Begin with the packages currently in the archive */
 
-	r = target_openiterator(t, READONLY, &iterator);
+	r = package_openiterator(t, READONLY, &iterator);
 	if (RET_WAS_ERROR(r)) {
 		floodlist_free(list);
 		return r;
 	}
-	while (target_nextpackage(&iterator, &packagename, &controlchunk)) {
-		r2 = save_package_version(list, packagename, controlchunk);
+	while (package_next(&iterator)) {
+		r2 = save_package_version(list,
+				iterator.current.name, iterator.current.control);
 		RET_UPDATE(r, r2);
 		if (RET_WAS_ERROR(r2))
 			break;
 	}
-	r2 = target_closeiterator(&iterator);
+	r2 = package_closeiterator(&iterator);
 	RET_UPDATE(r, r2);
 
 	if (RET_WAS_ERROR(r)) {
@@ -558,19 +559,18 @@ static retvalue floodlist_trypackage(struct floodlist *list, const char *package
 
 static retvalue floodlist_pull(struct floodlist *list, struct target *source) {
 	retvalue result, r;
-	const char *package, *control;
-	struct target_cursor iterator;
+	struct package_cursor iterator;
 
 	list->last = NULL;
-	r = target_openiterator(source, READONLY, &iterator);
+	r = package_openiterator(source, READONLY, &iterator);
 	if (RET_WAS_ERROR(r))
 		return r;
 	result = RET_NOTHING;
-	while (target_nextpackage(&iterator, &package, &control)) {
+	while (package_next(&iterator)) {
 		char *version;
 		architecture_t package_architecture;
 
-		r = list->target->getarchitecture(control,
+		r = list->target->getarchitecture(iterator.current.control,
 				&package_architecture);
 		if (r == RET_NOTHING)
 			continue;
@@ -581,14 +581,15 @@ static retvalue floodlist_pull(struct floodlist *list, struct target *source) {
 		if (package_architecture != architecture_all)
 			continue;
 
-		r = list->target->getversion(control, &version);
+		r = list->target->getversion(iterator.current.control, &version);
 		if (r == RET_NOTHING)
 			continue;
 		if (!RET_IS_OK(r)) {
 			RET_UPDATE(result, r);
 			break;
 		}
-		r = floodlist_trypackage(list, package, version, control);
+		r = floodlist_trypackage(list, iterator.current.name,
+				version, iterator.current.control);
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(r))
 			break;
@@ -597,7 +598,7 @@ static retvalue floodlist_pull(struct floodlist *list, struct target *source) {
 			break;
 		}
 	}
-	r = target_closeiterator(&iterator);
+	r = package_closeiterator(&iterator);
 	RET_ENDUPDATE(result, r);
 	return result;
 }

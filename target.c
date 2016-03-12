@@ -303,12 +303,11 @@ retvalue target_removepackage(struct target *target, struct logger *logger, cons
 	return r;
 }
 
-
 /* Like target_removepackage, but delete the package record by cursor */
-retvalue target_removepackage_by_cursor(struct target_cursor *tc, struct logger *logger, struct trackingdata *trackingdata) {
+retvalue package_remove_by_cursor(struct package_cursor *tc, struct logger *logger, struct trackingdata *trackingdata) {
 	struct target * const target = tc->target;
-	const char * const name = tc->lastname;
-	const char * const control = tc->lastcontrol;
+	const char * const name = tc->current.name;
+	const char * const control = tc->current.control;
 	char *oldpversion = NULL;
 	struct strlist files;
 	retvalue result, r;
@@ -340,7 +339,7 @@ retvalue target_removepackage_by_cursor(struct target_cursor *tc, struct logger 
 	if (verbose > 0)
 		printf("removing '%s' from '%s'...\n",
 				name, target->identifier);
-	result = cursor_delete(target->packages, tc->cursor, tc->lastname, NULL);
+	result = cursor_delete(target->packages, tc->cursor, name, NULL);
 	if (RET_IS_OK(result)) {
 		target->wasmodified = true;
 		if (oldsource != NULL && oldsversion != NULL) {
@@ -652,8 +651,7 @@ retvalue target_checkaddpackage(struct target *target, const char *name, const c
 
 retvalue target_rereference(struct target *target) {
 	retvalue result, r;
-	struct target_cursor iterator;
-	const char *package, *control;
+	struct package_cursor iterator;
 
 	if (verbose > 1) {
 		if (verbose > 2)
@@ -668,20 +666,21 @@ retvalue target_rereference(struct target *target) {
 	if (verbose > 2)
 		printf("Referencing %s...\n", target->identifier);
 
-	r = target_openiterator(target, READONLY, &iterator);
+	r = package_openiterator(target, READONLY, &iterator);
 	assert (r != RET_NOTHING);
 	if (RET_WAS_ERROR(r))
 		return r;
-	while (target_nextpackage(&iterator, &package, &control)) {
+	while (package_next(&iterator)) {
 		struct strlist filekeys;
 
-		r = target->getfilekeys(control, &filekeys);
+		r = target->getfilekeys(iterator.current.control, &filekeys);
 		RET_UPDATE(result, r);
 		if (!RET_IS_OK(r))
 			continue;
 		if (verbose > 10) {
 			fprintf(stderr, "adding references to '%s' for '%s': ",
-					target->identifier, package);
+					target->identifier,
+					iterator.current.name);
 			(void)strlist_fprint(stderr, &filekeys);
 			(void)putc('\n', stderr);
 		}
@@ -689,7 +688,7 @@ retvalue target_rereference(struct target *target) {
 		strlist_done(&filekeys);
 		RET_UPDATE(result, r);
 	}
-	r = target_closeiterator(&iterator);
+	r = package_closeiterator(&iterator);
 	RET_ENDUPDATE(result, r);
 	return result;
 }
@@ -807,9 +806,8 @@ retvalue package_check(UNUSED(struct distribution *di), struct target *target, c
 /* Reapply override information */
 
 retvalue target_reoverride(struct target *target, struct distribution *distribution) {
-	struct target_cursor iterator;
+	struct package_cursor iterator;
 	retvalue result, r;
-	const char *package, *controlchunk;
 
 	assert(target->packages == NULL);
 	assert(distribution != NULL);
@@ -820,14 +818,15 @@ retvalue target_reoverride(struct target *target, struct distribution *distribut
 				target->identifier);
 	}
 
-	r = target_openiterator(target, READWRITE, &iterator);
+	r = package_openiterator(target, READWRITE, &iterator);
 	if (!RET_IS_OK(r))
 		return r;
 	result = RET_NOTHING;
-	while (target_nextpackage(&iterator, &package, &controlchunk)) {
+	while (package_next(&iterator)) {
 		char *newcontrolchunk = NULL;
 
-		r = target->doreoverride(target, package, controlchunk,
+		r = target->doreoverride(target, iterator.current.name,
+				iterator.current.control,
 				&newcontrolchunk);
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(r)) {
@@ -838,7 +837,7 @@ retvalue target_reoverride(struct target *target, struct distribution *distribut
 			break;
 		}
 		if (RET_IS_OK(r)) {
-			r = cursor_replace(target->packages, iterator.cursor,
+			r = package_newcontrol_by_cursor(&iterator,
 				newcontrolchunk, strlen(newcontrolchunk));
 			free(newcontrolchunk);
 			if (RET_WAS_ERROR(r)) {
@@ -848,7 +847,7 @@ retvalue target_reoverride(struct target *target, struct distribution *distribut
 			target->wasmodified = true;
 		}
 	}
-	r = target_closeiterator(&iterator);
+	r = package_closeiterator(&iterator);
 	RET_ENDUPDATE(result, r);
 	return result;
 }
@@ -875,9 +874,8 @@ static retvalue complete_package_checksums(struct target *target, const char *co
 }
 
 retvalue target_redochecksums(struct target *target, struct distribution *distribution) {
-	struct target_cursor iterator;
+	struct package_cursor iterator;
 	retvalue result, r;
-	const char *package, *controlchunk;
 
 	assert(target->packages == NULL);
 	assert(distribution != NULL);
@@ -888,20 +886,20 @@ retvalue target_redochecksums(struct target *target, struct distribution *distri
 				target->identifier);
 	}
 
-	r = target_openiterator(target, READWRITE, &iterator);
+	r = package_openiterator(target, READWRITE, &iterator);
 	if (!RET_IS_OK(r))
 		return r;
 	result = RET_NOTHING;
-	while (target_nextpackage(&iterator, &package, &controlchunk)) {
+	while (package_next(&iterator)) {
 		char *newcontrolchunk = NULL;
 
-		r = complete_package_checksums(target, controlchunk,
+		r = complete_package_checksums(target, iterator.current.control,
 				&newcontrolchunk);
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(r))
 			break;
 		if (RET_IS_OK(r)) {
-			r = cursor_replace(target->packages, iterator.cursor,
+			r = package_newcontrol_by_cursor(&iterator,
 				newcontrolchunk, strlen(newcontrolchunk));
 			free(newcontrolchunk);
 			if (RET_WAS_ERROR(r)) {
@@ -911,7 +909,7 @@ retvalue target_redochecksums(struct target *target, struct distribution *distri
 			target->wasmodified = true;
 		}
 	}
-	r = target_closeiterator(&iterator);
+	r = package_closeiterator(&iterator);
 	RET_ENDUPDATE(result, r);
 	return result;
 }
@@ -1004,5 +1002,49 @@ retvalue package_get(struct target *target, const char *name, const char *versio
 			return r;
 		}
 	}
+	return result;
+}
+
+retvalue package_openiterator(struct target *t, bool readonly, /*@out@*/struct package_cursor *tc) {
+	retvalue r, r2;
+	struct cursor *c;
+
+	r = target_initpackagesdb(t, readonly);
+	assert (r != RET_NOTHING);
+	if (RET_WAS_ERROR(r))
+		return r;
+	r = table_newglobalcursor(t->packages, &c);
+	assert (r != RET_NOTHING);
+	if (RET_WAS_ERROR(r)) {
+		r2 = target_closepackagesdb(t);
+		RET_UPDATE(r, r2);
+		return r;
+	}
+	tc->target = t;
+	tc->cursor = c;
+	memset(&tc->current, 0, sizeof(tc->current));
+	return RET_OK;
+}
+
+bool package_next(struct package_cursor *tc) {
+	bool success;
+	package_done(&tc->current);
+	success = cursor_nexttempdata(tc->target->packages, tc->cursor,
+			&tc->current.name, &tc->current.control,
+			&tc->current.controllen);
+	if (!success)
+		memset(&tc->current, 0, sizeof(tc->current));
+	else
+		tc->current.target = tc->target;
+	return success;
+}
+
+retvalue package_closeiterator(struct package_cursor *tc) {
+	retvalue result, r;
+
+	package_done(&tc->current);
+	result = cursor_close(tc->target->packages, tc->cursor);
+	r = target_closepackagesdb(tc->target);
+	RET_UPDATE(result, r);
 	return result;
 }

@@ -28,8 +28,9 @@
 #include "dpkgversions.h"
 #include "target.h"
 #include "files.h"
-#include "upgradelist.h"
 #include "descriptions.h"
+#include "package.h"
+#include "upgradelist.h"
 
 struct package_data {
 	struct package_data *next;
@@ -142,8 +143,7 @@ static retvalue save_package_version(struct upgradelist *upgrade, const char *pa
 retvalue upgradelist_initialize(struct upgradelist **ul, struct target *t) {
 	struct upgradelist *upgrade;
 	retvalue r, r2;
-	const char *packagename, *controlchunk;
-	struct target_cursor iterator;
+	struct package_cursor iterator;
 
 	upgrade = zNEW(struct upgradelist);
 	if (FAILEDTOALLOC(upgrade))
@@ -153,18 +153,20 @@ retvalue upgradelist_initialize(struct upgradelist **ul, struct target *t) {
 
 	/* Beginn with the packages currently in the archive */
 
-	r = target_openiterator(t, READONLY, &iterator);
+	r = package_openiterator(t, READONLY, &iterator);
 	if (RET_WAS_ERROR(r)) {
 		upgradelist_free(upgrade);
 		return r;
 	}
-	while (target_nextpackage(&iterator, &packagename, &controlchunk)) {
-		r2 = save_package_version(upgrade, packagename, controlchunk);
+	while (package_next(&iterator)) {
+		r2 = save_package_version(upgrade,
+				iterator.current.name,
+				iterator.current.control);
 		RET_UPDATE(r, r2);
 		if (RET_WAS_ERROR(r2))
 			break;
 	}
-	r2 = target_closeiterator(&iterator);
+	r2 = package_closeiterator(&iterator);
 	RET_UPDATE(r, r2);
 
 	if (RET_WAS_ERROR(r)) {
@@ -538,28 +540,28 @@ retvalue upgradelist_update(struct upgradelist *upgrade, void *privdata, const c
 
 retvalue upgradelist_pull(struct upgradelist *upgrade, struct target *source, upgrade_decide_function *predecide, void *decide_data, void *privdata) {
 	retvalue result, r;
-	const char *package, *control;
-	struct target_cursor iterator;
+	struct package_cursor iterator;
 
 	upgrade->last = NULL;
-	r = target_openiterator(source, READONLY, &iterator);
+	r = package_openiterator(source, READONLY, &iterator);
 	if (RET_WAS_ERROR(r))
 		return r;
 	result = RET_NOTHING;
-	while (target_nextpackage(&iterator, &package, &control)) {
+	while (package_next(&iterator)) {
 		char *version;
 		architecture_t package_architecture;
 		char *sourcename, *sourceversion;
 
 		assert (source->packagetype == upgrade->target->packagetype);
 
-		r = source->getversion(control, &version);
+		r = source->getversion(iterator.current.control, &version);
 		assert (r != RET_NOTHING);
 		if (!RET_IS_OK(r)) {
 			RET_UPDATE(result, r);
 			break;
 		}
-		r = source->getarchitecture(control, &package_architecture);
+		r = source->getarchitecture(iterator.current.control,
+				&package_architecture);
 		if (!RET_IS_OK(r)) {
 			RET_UPDATE(result, r);
 			break;
@@ -575,7 +577,7 @@ retvalue upgradelist_pull(struct upgradelist *upgrade, struct target *source, up
 "WARNING: architecture '%s' package '%s' in '%s'!\n",
 						atoms_architectures[
 						package_architecture],
-						package,
+						iterator.current.name,
 						source->identifier);
 				if (ignored[IGN_wrongarchitecture] == 0) {
 					fprintf(stderr,
@@ -590,14 +592,18 @@ retvalue upgradelist_pull(struct upgradelist *upgrade, struct target *source, up
 			continue;
 		}
 
-		r = upgrade->target->getsourceandversion(control, package,
+		r = upgrade->target->getsourceandversion(
+				iterator.current.control,
+				iterator.current.name,
 				&sourcename, &sourceversion);
 		if (RET_IS_OK(r)) {
 			r = upgradelist_trypackage(upgrade, privdata,
 					predecide, decide_data,
-					package, NULL, sourcename,
+					iterator.current.name,
+					NULL, sourcename,
 					version, sourceversion,
-					package_architecture, control);
+					package_architecture,
+					iterator.current.control);
 			RET_UPDATE(result, r);
 			free(sourcename);
 			free(sourceversion);
@@ -609,7 +615,7 @@ retvalue upgradelist_pull(struct upgradelist *upgrade, struct target *source, up
 			break;
 		}
 	}
-	r = target_closeiterator(&iterator);
+	r = package_closeiterator(&iterator);
 	RET_ENDUPDATE(result, r);
 	return result;
 }

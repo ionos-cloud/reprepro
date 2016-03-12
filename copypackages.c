@@ -479,23 +479,23 @@ retvalue copy_by_name(struct distribution *into, struct distribution *from, int 
 
 static retvalue by_source(struct package_list *list, struct target *desttarget, struct target *fromtarget, void *data) {
 	struct namelist *d = data;
-	struct target_cursor iterator;
-	const char *packagename, *chunk;
+	struct package_cursor iterator;
 	retvalue result, r;
 
 	assert (d->argc > 0);
 
-	r = target_openiterator(fromtarget, READONLY, &iterator);
+	r = package_openiterator(fromtarget, READONLY, &iterator);
 	assert (r != RET_NOTHING);
 	if (!RET_IS_OK(r))
 		return r;
 	result = RET_NOTHING;
-	while (target_nextpackage(&iterator, &packagename, &chunk)) {
+	while (package_next(&iterator)) {
 		int i;
 		char *source, *sourceversion;
 		architecture_t package_architecture;
 
-		r = fromtarget->getsourceandversion(chunk, packagename,
+		r = fromtarget->getsourceandversion(iterator.current.control,
+				iterator.current.name,
 				&source, &sourceversion);
 		if (r == RET_NOTHING)
 			continue;
@@ -519,7 +519,7 @@ static retvalue by_source(struct package_list *list, struct target *desttarget, 
 				assert (r != RET_NOTHING);
 				if (RET_WAS_ERROR(r)) {
 					free(source); free(sourceversion);
-					(void)target_closeiterator(&iterator);
+					(void)package_closeiterator(&iterator);
 					return r;
 				}
 				if (c == 0)
@@ -533,20 +533,23 @@ static retvalue by_source(struct package_list *list, struct target *desttarget, 
 			}
 		}
 		free(source); free(sourceversion);
-		r = fromtarget->getarchitecture(chunk, &package_architecture);
+		r = fromtarget->getarchitecture(iterator.current.control,
+				&package_architecture);
 		if (RET_WAS_ERROR(r)) {
 			result = r;
 			break;
 		}
 		r = list_prepareadd(list, desttarget,
-				packagename, NULL, package_architecture, chunk);
+				iterator.current.name, NULL,
+				package_architecture,
+				iterator.current.control);
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(r))
 			break;
 		d->found[0] = true;
 		d->found[i] = true;
 	}
-	r = target_closeiterator(&iterator);
+	r = package_closeiterator(&iterator);
 	RET_ENDUPDATE(result, r);
 	return result;
 }
@@ -632,67 +635,70 @@ retvalue copy_by_source(struct distribution *into, struct distribution *from, in
 
 static retvalue by_formula(struct package_list *list, struct target *desttarget, struct target *fromtarget, void *data) {
 	term *condition = data;
-	struct target_cursor iterator;
-	const char *packagename, *chunk;
+	struct package_cursor iterator;
 	architecture_t package_architecture;
 	retvalue result, r;
 
-	r = target_openiterator(fromtarget, READONLY, &iterator);
+	r = package_openiterator(fromtarget, READONLY, &iterator);
 	assert (r != RET_NOTHING);
 	if (!RET_IS_OK(r))
 		return r;
 	result = RET_NOTHING;
-	while (target_nextpackage(&iterator, &packagename, &chunk)) {
-		r = term_decidechunktarget(condition, chunk, desttarget);
+	while (package_next(&iterator)) {
+		r = term_decidechunktarget(condition, iterator.current.control,
+				desttarget);
 		if (r == RET_NOTHING)
 			continue;
 		if (RET_WAS_ERROR(r)) {
 			result = r;
 			break;
 		}
-		r = fromtarget->getarchitecture(chunk, &package_architecture);
+		r = fromtarget->getarchitecture(iterator.current.control,
+				&package_architecture);
 		if (RET_WAS_ERROR(r)) {
 			result = r;
 			break;
 		}
 		r = list_prepareadd(list, desttarget,
-				packagename, NULL, package_architecture, chunk);
+				iterator.current.name, NULL,
+				package_architecture, iterator.current.control);
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(r))
 			break;
 	}
-	r = target_closeiterator(&iterator);
+	r = package_closeiterator(&iterator);
 	RET_ENDUPDATE(result, r);
 	return result;
 }
 
 static retvalue by_glob(struct package_list *list, struct target *desttarget, struct target *fromtarget, void *data) {
 	const char *glob = data;
-	struct target_cursor iterator;
-	const char *packagename, *chunk;
+	struct package_cursor iterator;
 	architecture_t package_architecture;
 	retvalue result, r;
 
-	r = target_openiterator(fromtarget, READONLY, &iterator);
+	r = package_openiterator(fromtarget, READONLY, &iterator);
 	assert (r != RET_NOTHING);
 	if (!RET_IS_OK(r))
 		return r;
 	result = RET_NOTHING;
-	while (target_nextpackage(&iterator, &packagename, &chunk)) {
-		if (!globmatch(packagename, glob))
+	while (package_next(&iterator)) {
+		if (!globmatch(iterator.current.name, glob))
 			continue;
-		r = fromtarget->getarchitecture(chunk, &package_architecture);
+		r = fromtarget->getarchitecture(iterator.current.control,
+				&package_architecture);
 		if (RET_WAS_ERROR(r)) {
 			result = r;
 			break;
 		}
 		r = list_prepareadd(list, desttarget,
-				packagename, NULL, package_architecture, chunk);
+				iterator.current.name, NULL,
+				package_architecture, iterator.current.control);
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(r))
 			break;
 	}
-	r = target_closeiterator(&iterator);
+	r = package_closeiterator(&iterator);
 	RET_ENDUPDATE(result, r);
 	return result;
 }

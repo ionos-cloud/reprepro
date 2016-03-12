@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2006,2007 Bernhard R. Link
+ *  Copyright (C) 2006,2007,2016 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -33,6 +33,7 @@
 #include "files.h"
 #include "ignore.h"
 #include "configparser.h"
+#include "package.h"
 
 /* options are zerroed when called, when error is returned contentsopions_done
  * is called by the caller */
@@ -187,7 +188,7 @@ static retvalue gentargetcontents(struct target *target, struct release *release
 	char *contentsfilename;
 	struct filetorelease *file;
 	struct filelist_list *contents;
-	struct target_cursor iterator;
+	struct package_cursor iterator;
 
 	if (onlyneeded && target->saved_wasmodified)
 		onlyneeded = false;
@@ -230,18 +231,19 @@ static retvalue gentargetcontents(struct target *target, struct release *release
 		release_abortfile(file);
 		return r;
 	}
-	result = target_openiterator(target, READONLY, &iterator);
+	result = package_openiterator(target, READONLY, &iterator);
 	if (RET_IS_OK(result)) {
-		const char *package, *control;
-
-		while (target_nextpackage(&iterator, &package, &control)) {
+		while (package_next(&iterator)) {
 			r = addpackagetocontents(target->distribution,
-					target, package, control, contents);
+					target,
+					iterator.current.name,
+					iterator.current.control,
+					contents);
 			RET_UPDATE(result, r);
 			if (RET_WAS_ERROR(r))
 				break;
 		}
-		r = target_closeiterator(&iterator);
+		r = package_closeiterator(&iterator);
 		RET_ENDUPDATE(result, r);
 	}
 	if (!RET_WAS_ERROR(result))
