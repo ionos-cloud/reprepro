@@ -64,7 +64,7 @@ while [ $# -gt 0 ] ; do
 			;;
 		--valgrind-opts)
 			shift
-			VALGRIND_EXTRA_OPTIONS="${VALGRIND_EXTRA_OPITONS} $1"
+			VALGRIND_EXTRA_OPTIONS="${VALGRIND_EXTRA_OPTIONS} $1"
 			shift
 			;;
 		--verbosity)
@@ -233,6 +233,7 @@ runtest() {
 if test x"$testtorun" != x"all" ; then
 	runtest "$testtorun"
 else
+	runtest updatepullreject
 	runtest descriptions
 	runtest easyupdate
 	runtest srcfilterlist
