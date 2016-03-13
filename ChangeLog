@@ -2,6 +2,8 @@
 	* fix bug in flood that could get confused which binary package
 	  belongs to which source if a destination contains packages
 	  belonging to different versions of the same souce.
+	* fix bug in the message about "warning" triggered in FilterList
+	  of pull. ('(null)' was printed instead of the package name).
 
 2015-12-28  Bernhard R. Link <brlink@debian.org>
 	* fix duplicated --keeptemporaries description in manpage
