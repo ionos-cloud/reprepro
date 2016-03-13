@@ -1,3 +1,8 @@
+2016-03-13  Bernhard R. Link <brlink@debian.org>
+	* fix bug in flood that could get confused which binary package
+	  belongs to which source if a destination contains packages
+	  belonging to different versions of the same souce.
+
 2015-12-28  Bernhard R. Link <brlink@debian.org>
 	* fix duplicated --keeptemporaries description in manpage
 	* add Permit: unlisted_binary for conf/incoming
