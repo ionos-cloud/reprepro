@@ -107,7 +107,7 @@ retvalue dir_create_needed(const char *directory, int *createddepth) {
 		} else if (e == EEXIST) {
 			free(this);
 			break;
-		/* normaly ENOENT should be the only problem,
+		/* normally ENOENT should be the only problem,
 		 * but check the others to be nice to annoying filesystems */
 		} else if (e != ENOENT && e != EACCES && e != EPERM) {
 			fprintf(stderr,
@@ -216,7 +216,7 @@ const char *dirs_basename(const char *filename) {
 	if (bn == NULL)
 		return filename;
 	// not really suited for the basename of directories,
-	// things like /bla/blub/ will give emtpy string...
+	// things like /bla/blub/ will give empty string...
 	return bn+1;
 }
 

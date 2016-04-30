@@ -111,7 +111,11 @@ EOF
 echo "with tracking is $tracking"
 if $tracking ; then
 	echo "Tracking: minimal" >> conf/distributions
-	TRACKINGTESTOPTIONS="-D t=1"
+	if test x"${REPREPROOPTIONS#*--verbosedb}" != x"$REPREPROOPTIONS" ; then
+		TRACKINGTESTOPTIONS="-D t=1"
+	else
+		TRACKINGTESTOPTIONS="-D t=0"
+	fi
 else
 	TRACKINGTESTOPTIONS="-D t=0"
 fi

@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2009 Bernhard R. Link
+ *  Copyright (C) 2009,2016 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -31,13 +31,19 @@
 #include "files.h"
 #include "archallflood.h"
 
-struct aa_source_package {
-	/*@null@*/struct aa_source_package *parent;
-	/*@null@*/struct aa_source_package *left_child;
-	/*@null@*/struct aa_source_package *right_child;
-	/*@null@*/struct aa_source_package *nextversion;
+struct aa_source_name {
+	/*@null@*/struct aa_source_name *parent;
+	/*@null@*/struct aa_source_name *left_child;
+	/*@null@*/struct aa_source_name *right_child;
 
 	char *name;
+
+	/*@null@*/struct aa_source_version *versions;
+};
+
+struct aa_source_version {
+	/*@null@*/struct aa_source_version *next;
+	struct aa_source_name *name;
 	char *version;
 
 	/* if true, it was already verified that there is no
@@ -48,8 +54,6 @@ struct aa_source_package {
 	 * package, so replacing an architecture all is only allowed
 	 * if there is already a binary for the new one */
 	bool has_sibling;
-
-	int refcount;
 };
 
 struct aa_package_data {
@@ -59,9 +63,9 @@ struct aa_package_data {
 
 	/* NULL if does not exists/not yet known */
 	/*@null@*/char *old_version;
-	/*@null@*/struct aa_source_package *old_source;
+	/*@null@*/struct aa_source_version *old_source;
 	/*@null@*/char *new_version;
-	/*@null@*/struct aa_source_package *new_source;
+	/*@null@*/struct aa_source_version *new_source;
 	bool new_has_sibling;
 
 	struct checksumsarray new_origfiles;
@@ -71,7 +75,7 @@ struct aa_package_data {
 
 struct floodlist {
 	/*@dependent@*/struct target *target;
-	struct aa_source_package *sources;
+	struct aa_source_name *sources;
 	struct aa_package_data *list;
 	/* package the next package will most probably be after.
 	 * (NULL=before start of list) */
@@ -91,7 +95,7 @@ static void aa_package_data_free(/*@only@*/struct aa_package_data *data){
 }
 
 static void floodlist_free(struct floodlist *list) {
-	struct aa_source_package *s;
+	struct aa_source_name *s;
 	struct aa_package_data *l;
 
 	if (list == NULL)
@@ -105,7 +109,7 @@ static void floodlist_free(struct floodlist *list) {
 	}
 	s = list->sources;
 	while (s != NULL) {
-		struct aa_source_package *n;
+		struct aa_source_name *n;
 
 		while (s->left_child != NULL || s->right_child != NULL) {
 			if (s->left_child != NULL) {
@@ -119,16 +123,15 @@ static void floodlist_free(struct floodlist *list) {
 			}
 		}
 
-		while (s->nextversion != NULL) {
-			n = s->nextversion->nextversion;
-			/* do not free name, it is not malloced */
-			free(s->nextversion->version);
-			free(s->nextversion);
-			s->nextversion = n;
+		while (s->versions != NULL) {
+			struct aa_source_version *nv;
+			nv = s->versions->next;
+			free(s->versions->version);
+			free(s->versions);
+			s->versions = nv;
 		}
 	        n = s->parent;
 		free(s->name);
-		free(s->version);
 		free(s);
 		s = n;
 	}
@@ -136,8 +139,8 @@ static void floodlist_free(struct floodlist *list) {
 	return;
 }
 
-static retvalue find_or_add_source(struct floodlist *list, /*@only@*/char *source, /*@only@*/char *sourceversion, /*@out@*/struct aa_source_package **src_p) {
-	struct aa_source_package *parent, **p, *n;
+static retvalue find_or_add_sourcename(struct floodlist *list, /*@only@*/char *source, /*@out@*/struct aa_source_name **src_p) {
+	struct aa_source_name *parent, **p, *n;
 	int c;
 
 	parent = NULL;
@@ -158,77 +161,61 @@ static retvalue find_or_add_source(struct floodlist *list, /*@only@*/char *sourc
 	}
 	if (*p == NULL) {
 		/* there is not even something with this name */
-		n = zNEW(struct aa_source_package);
+		n = zNEW(struct aa_source_name);
 		if (FAILEDTOALLOC(n)) {
-			free(source); free(sourceversion);
+			free(source);
 			return RET_ERROR_OOM;
 		}
 		n->name = source;
-		n->version = sourceversion;
 		n->parent = parent;
 		*p = n;
 		*src_p = n;
 		return RET_OK;
 	}
 	free(source);
-	source = (*p)->name;
-	/* source name found, now look for version: */
-	c = strcmp(sourceversion, (*p)->version);
-	if (c == 0) {
-		free(sourceversion);
-		*src_p = *p;
-		return RET_OK;
-	}
-	if (c < 0) {
-		/* before first item, do some swapping as this is
-		 * part of the name linked list */
-		n = zNEW(struct aa_source_package);
-		if (FAILEDTOALLOC(n)) {
-			free(sourceversion);
-			return RET_ERROR_OOM;
-		}
-		memcpy(n, *p, sizeof(struct aa_source_package));
-		setzero(struct aa_source_package, *p);
-		(*p)->name = source;
-		(*p)->version = sourceversion;
-		(*p)->left_child = n->left_child;
-		(*p)->right_child = n->right_child;
-		(*p)->parent = n->parent;
-		n->left_child = NULL;
-		n->right_child = NULL;
-		n->parent = NULL;
-		(*p)->nextversion = n;
-		*src_p = *p;
-		return RET_OK;
-	}
-	do {
-		p = &(*p)->nextversion;
-		if (*p == NULL)
-			break;
-		c = strcmp(sourceversion, (*p)->version);
-	} while (c > 0);
+	*src_p = *p;
+	return RET_OK;
+}
 
+static retvalue find_or_add_source(struct floodlist *list, /*@only@*/char *source, /*@only@*/char *sourceversion, /*@out@*/struct aa_source_version **src_p) {
+	retvalue r;
+	struct aa_source_name *sn;
+	struct aa_source_version **p, *n;
+	int c;
+
+	r = find_or_add_sourcename(list, source, &sn);
+	if (RET_WAS_ERROR(r))
+		return r;
+
+	/* source name found (or created), now look for version: */
+
+	p = &sn->versions;
+	c = -1;
+	while (*p != NULL && (c = strcmp(sourceversion, (*p)->version)) > 0) {
+		p = &(*p)->next;
+	}
 	if (c == 0) {
 		assert (*p != NULL);
 		free(sourceversion);
 		*src_p = *p;
 		return RET_OK;
 	}
-	n = zNEW(struct aa_source_package);
+	n = zNEW(struct aa_source_version);
 	if (FAILEDTOALLOC(n)) {
 		free(sourceversion);
 		return RET_ERROR_OOM;
 	}
-	n->name = source;
+	n->name = sn;
 	n->version = sourceversion;
-	n->nextversion = *p;
+	n->next = *p;
 	*p = n;
 	*src_p = n;
 	return RET_OK;
 }
 
-static struct aa_source_package *find_source(struct floodlist *list, const char *source, const char *sourceversion) {
-	struct aa_source_package *p;
+static struct aa_source_version *find_source(struct floodlist *list, const char *source, const char *sourceversion) {
+	struct aa_source_name *p;
+	struct aa_source_version *v;
 	int c = -1;
 
 	p = list->sources;
@@ -244,12 +231,13 @@ static struct aa_source_package *find_source(struct floodlist *list, const char 
 	}
 	if (p == NULL)
 		return NULL;
-	while (p != NULL && (c = strcmp(sourceversion, p->version)) > 0)
-		p = p->nextversion;
+	v = p->versions;
+	while (v != NULL && (c = strcmp(sourceversion, v->version)) > 0)
+		v = v->next;
 	if (c < 0)
 		return NULL;
 	else
-		return p;
+		return v;
 }
 
 /* Before anything else is done the current state of one target is read into
@@ -258,7 +246,7 @@ static struct aa_source_package *find_source(struct floodlist *list, const char 
 static retvalue save_package_version(struct floodlist *list, const char *packagename, const char *chunk) {
 	char *version, *source, *sourceversion;
 	architecture_t architecture;
-	struct aa_source_package *src;
+	struct aa_source_version *src;
 	retvalue r;
 	struct aa_package_data *package;
 
@@ -429,7 +417,7 @@ static retvalue floodlist_trypackage(struct floodlist *list, const char *package
 		/* adding a package not yet known */
 		struct aa_package_data *new;
 		char *source, *sourceversion;
-		struct aa_source_package *src;
+		struct aa_source_version *src;
 
 		r = list->target->getsourceandversion(chunk,
 				packagename_const, &source, &sourceversion);
@@ -475,7 +463,7 @@ static retvalue floodlist_trypackage(struct floodlist *list, const char *package
 		struct strlist files;
 		struct checksumsarray origfiles;
 		char *source, *sourceversion;
-		struct aa_source_package *src;
+		struct aa_source_version *src;
 		int versioncmp;
 
 		list->last = current;
@@ -639,7 +627,7 @@ static retvalue floodlist_install(struct floodlist *list, struct logger *logger,
 			if (td != NULL) {
 				if (pkg->new_source != NULL) {
 					r = trackingdata_switch(td,
-						pkg->new_source->name,
+						pkg->new_source->name->name,
 						pkg->new_source->version);
 				} else {
 					char *source, *sourceversion;

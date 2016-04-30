@@ -84,14 +84,14 @@ void markdone_finish(struct markdonefile *done) {
 		error = true;
 	else {
 		if (ferror(done->file) != 0) {
-			fprintf(stderr, "An error occured writing to '%s'!\n",
+			fprintf(stderr, "An error occurred writing to '%s'!\n",
 					done->tempfilename);
 			(void)fclose(done->file);
 			error = true;
 		} else if (fclose(done->file) != 0) {
 			int e = errno;
 			fprintf(stderr,
-"Error %d occured writing to '%s': %s!\n",
+"Error %d occurred writing to '%s': %s!\n",
 					e, done->tempfilename, strerror(e));
 			error = true;
 		}

@@ -132,7 +132,7 @@ retvalue chunk_getextralinelist(const char *chunk, const char *name, struct strl
 	/* walk over the first line */
 	while (*f != '\0' && *f != '\n')
 		f++;
-	/* nothing there is an emtpy list */
+	/* nothing there is an empty list */
 	if (*f == '\0')
 		return RET_OK;
 	f++;
@@ -745,7 +745,7 @@ const char *chunk_over(const char *e) {
 	return e;
 }
 
-/* this is a bit wastefull, as with normaly perfect formated input, it just
+/* this is a bit wastefull, as with normally perfect formated input, it just
  * writes everything to itself in a inefficent way. But when there are \r
  * in it or spaces before it or stuff like that, it will be in perfect
  * form afterwards. */

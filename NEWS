@@ -1,3 +1,8 @@
+Updates between 4.17.0 and 4.17.1:
+- fix bug with 'flood' if there are binaries belonging to different versions
+  of the same source package
+- fix output caused by 'warning' FilterList files.
+
 Updates between 4.16.1 and 4.17.0:
 - some manpage fixes
 - '#' in filterlists are comments
@@ -215,7 +220,7 @@ Updates between 3.9.2 and 3.10.0:
 - new conditions to look as sourcename, binary names and sections
 
 Updates between 3.9.1 and 3.9.2:
-+ fix bug (catched by assertion if there is no old index file)
++ fix bug (caught by assertion if there is no old index file)
   that inverts the logic of downloading .diff files when there is no
   DownLoadListsAs line.
 

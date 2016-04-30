@@ -94,7 +94,7 @@ retvalue propersourcename(const char *string) {
 	if (string[0] == '\0') {
 		/* This is not really ignoreable, as this will lead
 		 * to paths not normalized, so all checks go wrong */
-		fprintf(stderr, "Source name is not allowed to be emtpy!\n");
+		fprintf(stderr, "Source name is not allowed to be empty!\n");
 		return RET_ERROR;
 	}
 	if (string[0] == '.') {
@@ -343,7 +343,7 @@ retvalue properpackagename(const char *string) {
 	if (string[0] == '\0') {
 		/* This is not really ignoreable, as this is a primary
 		 * key for our database */
-		fprintf(stderr, "Package name is not allowed to be emtpy!\n");
+		fprintf(stderr, "Package name is not allowed to be empty!\n");
 		return RET_ERROR;
 	}
 	s = string;

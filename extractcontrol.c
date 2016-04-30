@@ -144,7 +144,7 @@ static retvalue try_extractcontrol(char **control, const char *debfile, bool bro
 				r = RET_NOTHING;
 			if (*afterchanges != '\0') {
 				fprintf(stderr,
-"Unexpected emtpy line in control information within '%s'\n"
+"Unexpected empty line in control information within '%s'\n"
 "(obtained via 'ar p %s control.tar.gz | tar -XOzf - %scontrol')\n",
 						debfile, debfile,
 						brokentar?"":"./");

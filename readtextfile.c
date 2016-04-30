@@ -60,7 +60,7 @@ retvalue readtextfilefd(int fd, const char *source, char **data, size_t *len) {
 	while ((readbytes = read(fd, buffer + readdata, buffersize-readdata))
 			> 0) {
 
-		/* text files are normaly small, so it does not hurt to check
+		/* text files are normally small, so it does not hurt to check
 		 * the whole of them always */
 		if (isbinarydata(buffer + readdata, (size_t)readbytes, source)) {
 			free(buffer);

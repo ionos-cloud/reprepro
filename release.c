@@ -472,7 +472,7 @@ static retvalue release_usecached(struct release *release,
 			if (r == RET_ERROR_WRONG_MD5) {
 				fprintf(stderr,
 "WARNING: '%s' is different from recorded checksums.\n"
-"(This was only catched because some new checksum type was not yet available.)\n"
+"(This was only caught because some new checksum type was not yet available.)\n"
 "Triggering recreation of that file.\n", fullfilename);
 				r = RET_NOTHING;
 			}
@@ -1572,7 +1572,7 @@ retvalue release_prepare(struct release *release, struct distribution *distribut
 		{ "MD5Sum:\n", "SHA1:\n", "SHA256:\n" };
 	struct release_entry *plainentry, *signedentry, *detachedentry;
 
-	// TODO: check for existance of Release file here first?
+	// TODO: check for existence of Release file here first?
 	if (onlyifneeded && !release->new) {
 		return RET_NOTHING;
 	}

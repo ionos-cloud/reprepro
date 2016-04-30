@@ -556,7 +556,7 @@ retvalue binaries_readdeb(struct deb_headers *deb, const char *filename, bool ne
 			return RET_ERROR_OOM;
 	}
 
-	/* normaly there, but optional: */
+	/* normally there, but optional: */
 
 	r = getvalue_n(deb->control, PRIORITY_FIELDNAME, &deb->priority);
 	if (RET_WAS_ERROR(r))
