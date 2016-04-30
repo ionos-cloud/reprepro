@@ -111,7 +111,7 @@ static retvalue database_lock(size_t waitforlock) {
 				unsigned int timetosleep = 10;
 				if (verbose >= 0)
 					printf(
-"Could not aquire lock: %s already exists!\nWaiting 10 seconds before trying again.\n",
+"Could not acquire lock: %s already exists!\nWaiting 10 seconds before trying again.\n",
 						lockfile);
 				while (timetosleep > 0)
 					timetosleep = sleep(timetosleep);
@@ -1796,7 +1796,7 @@ retvalue database_opentracking(const char *codename, bool readonly, struct table
 	}
 	if (rdb_trackingdatabaseopen) {
 		(void)fputs(
-"Internal Error: Trying to open multiple tracking databases at the same time.\nThis should normaly not happen (to avoid triggering bugs in the underlying BerkeleyDB)\n",
+"Internal Error: Trying to open multiple tracking databases at the same time.\nThis should normally not happen (to avoid triggering bugs in the underlying BerkeleyDB)\n",
 				stderr);
 		return RET_ERROR;
 	}
@@ -1825,7 +1825,7 @@ retvalue database_openpackages(const char *identifier, bool readonly, struct tab
 	if (rdb_packagesdatabaseopen) {
 		(void)fputs(
 "Internal Error: Trying to open multiple packages databases at the same time.\n"
-"This should normaly not happen (to avoid triggering bugs in the underlying BerkeleyDB)\n",
+"This should normally not happen (to avoid triggering bugs in the underlying BerkeleyDB)\n",
 				stderr);
 		return RET_ERROR;
 	}
@@ -2313,7 +2313,7 @@ retvalue database_translate_legacy_checksums(bool verbosedb) {
 	e = deletefile(fullfilename);
 	if (e != 0) {
 		fprintf(stderr, "Could not delete '%s'!\n"
-"It can now savely be deleted and it all that is left to be done!\n",
+"It can now safely be deleted and it all that is left to be done!\n",
 				fullfilename);
 		database_free();
 		return RET_ERRNO(e);

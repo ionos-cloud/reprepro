@@ -197,7 +197,7 @@ static retvalue list_prepareadd(struct package_list *list, struct target *target
 		const struct checksums *checksums = new->origfiles.checksums[i];
 
 		r = files_canadd(newfilekey, checksums);
-		/* normaly it should just already have that file,
+		/* normally it should just already have that file,
 		 * in which case we have nothing to do: */
 		if (r == RET_NOTHING)
 			continue;
