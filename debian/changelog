@@ -1,3 +1,11 @@
+reprepro (4.17.1-1) unstable; urgency=medium
+
+  * new bugfix release
+  - fix bug in 'flood' command and output of 'warning' in FilterList
+  - fix some spelling mistakes
+
+ -- Bernhard R. Link <brlink@debian.org>  Sat, 30 Apr 2016 15:18:57 +0200
+
 reprepro (4.17.0-1) unstable; urgency=medium
 
   * new release
