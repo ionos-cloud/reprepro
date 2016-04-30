@@ -1080,7 +1080,7 @@ void logger_log(struct logger *log, struct target *target, const char *name, con
 	assert (control != NULL || oldcontrol != NULL);
 
 	assert (version != NULL || control == NULL);
-	/* so that a replacement can be detected by existance of oldversion */
+	/* so that a replacement can be detected by existence of oldversion */
 	if (oldcontrol != NULL && oldversion == NULL)
 		oldversion = "#unparseable#";
 

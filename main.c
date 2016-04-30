@@ -134,7 +134,7 @@ static bool	verbosedatabase = false;
 static enum spacecheckmode spacecheckmode = scm_FULL;
 /* default: 100 MB for database to grow */
 static off_t reserveddbspace = 1024*1024*100
-/* 1MB safety margin for other fileystems */;
+/* 1MB safety margin for other filesystems */;
 static off_t reservedotherspace = 1024*1024;
 
 /* define for each config value an owner, and only higher owners are allowed

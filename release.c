@@ -1572,7 +1572,7 @@ retvalue release_prepare(struct release *release, struct distribution *distribut
 		{ "MD5Sum:\n", "SHA1:\n", "SHA256:\n" };
 	struct release_entry *plainentry, *signedentry, *detachedentry;
 
-	// TODO: check for existance of Release file here first?
+	// TODO: check for existence of Release file here first?
 	if (onlyifneeded && !release->new) {
 		return RET_NOTHING;
 	}
