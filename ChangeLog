@@ -1,3 +1,10 @@
+2016-03-13  Bernhard R. Link <brlink@debian.org>
+	* fix bug in flood that could get confused which binary package
+	  belongs to which source if a destination contains packages
+	  belonging to different versions of the same souce.
+	* fix bug in the message about "warning" triggered in FilterList
+	  of pull. ('(null)' was printed instead of the package name).
+
 2015-12-28  Bernhard R. Link <brlink@debian.org>
 	* fix duplicated --keeptemporaries description in manpage
 	* add Permit: unlisted_binary for conf/incoming
@@ -27,7 +34,7 @@
 
 2014-06-28  Bernhard R. Link <brlink@debian.org>
         * fix compiling without liblzma.
-	* disable liblzma usage unless explicitely requested
+	* disable liblzma usage unless explicitly requested
 	  (to avoid the double-dependency to liblzma un lzma-utils).
 
 2014-06-14  Bernhard R. Link <brlink@debian.org>
@@ -148,7 +155,7 @@
 
 2012-07-11
 	* fix bug in checking old unchanged {Packages/Sources}.bz2
-	  files for existance. (Triggering even an assertion when
+	  files for existence. (Triggering even an assertion when
 	  only .bz2 index files are requested).
 	* ignore diff comments about unterminated lines
 	  when parsing .diff files
@@ -642,7 +649,7 @@
 	the files in stdin and stdout.
 
 2009-04-03
-	* fix bug (catched by assertion) that inverts the logic of downloading
+	* fix bug (caught by assertion) that inverts the logic of downloading
 	.diff files when there is no DownLoadListsAs line.
 
 2009-03-18
@@ -1313,7 +1320,7 @@
 
 2007-06-11  Bernhard R. Link <brlink@debian.org>
 	* detect "false" and "no" as false in boolean headers.
-	(Until now only existance was tested and considered as
+	(Until now only existence was tested and considered as
 	 true, which broke apt-methods telling "Send-Config: false")
 
 2007-06-10  Bernhard R. Link <brlink@debian.org>
@@ -1675,7 +1682,7 @@
 2006-04-28  Bernhard R. Link <brlink@debian.org>
 	* rewrite decision for exporting distributions a bit:
 	export all distributions that did not have errors by default
-	(it did not export anything when an error occured)
+	(it did not export anything when an error occurred)
 	added new --export option with possible values
 	   never, changed, normal and forced.
 
@@ -1684,7 +1691,7 @@
 
 2006-04-23  Bernhard R. Link <brlink@debian.org>
 	* unbreak new skipold for delete rules
-	
+
 2006-04-22  Bernhard R. Link <brlink@debian.org>
 	* explicitly save which files are already
 	processed and to be skipped by --skipold.
@@ -1700,7 +1707,7 @@
 
 2006-03-30  Bernhard R. Link <brlink@debian.org>
 	* warn about architectures called 'all'
-	
+
 2006-02-25  Bernhard R. Link <brlink@debian.org>
 	* add --ignore=missingfile to look for .orig.tar.gz
 	files of broken .changes (no -sa though needed) files

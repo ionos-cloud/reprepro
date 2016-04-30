@@ -25,7 +25,7 @@ struct dsc_headers {
 	char *name, *version;
 	char *control;
 	struct checksumsarray files;
-	/* normaly not in a .dsc file: */
+	/* normally not in a .dsc file: */
 	/*@null@*/ char *section, *priority;
 };
 

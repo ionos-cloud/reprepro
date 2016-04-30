@@ -50,7 +50,7 @@ void addfield_free(/*@only@*//*@null@*/struct fieldtoadd *);
 /* that is chunk_replacefields(chunk,{fieldname,strlen,data,strlen},fieldname); */
 /*@null@*/char *chunk_replacefield(const char *, const char *, const char *, bool /*maybemissing*/);
 
-/* make sure a given field is first and remove any later occurences */
+/* make sure a given field is first and remove any later occurrences */
 /*@null@*/char *chunk_normalize(const char *, const char *, const char *);
 
 /* reformat control data, removing leading spaces and CRs */

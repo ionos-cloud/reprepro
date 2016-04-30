@@ -140,6 +140,12 @@ cat <<EOF
 $(sha256sum "$1" | cut -d' ' -f1) $(stat -c "%s" "$1")
 EOF
 }
+sizeonly() {
+stat -c "%s" "$1"
+}
+sha2only() {
+sha256sum "$1" | cut -d' ' -f1
+}
 fullchecksum() {
 cat <<EOF
 $(sha "$1") $(sha2 "$1") $(md5sum "$1" | cut -d' ' -f1) $(stat -c "%s" "$1")

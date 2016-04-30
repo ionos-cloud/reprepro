@@ -85,7 +85,7 @@ static retvalue device_find_or_create(struct devices *devices, dev_t id, const c
 	if (ret != 0) {
 		int e = errno;
 		fprintf(stderr,
-"Error judging free space for the fileystem '%s' belongs to: %d=%s\n"
+"Error judging free space for the filesystem '%s' belongs to: %d=%s\n"
 "(Take a look at --spacecheck in the manpage on how to modify checking.)\n",
 					dirname, e, strerror(e));
 		return RET_ERRNO(e);
@@ -202,7 +202,7 @@ retvalue space_check(struct devices *devices) {
 		if (ret != 0) {
 			int e = errno;
 			fprintf(stderr,
-"Error judging free space for the fileystem '%s' belongs to: %d=%s\n"
+"Error judging free space for the filesystem '%s' belongs to: %d=%s\n"
 "(As this worked before in this run, something must have changed strangely)\n",
 					device->somepath,
 					e, strerror(e));

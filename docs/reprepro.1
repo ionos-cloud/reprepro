@@ -238,7 +238,7 @@ If nothing was done, return with exitcode 1 instead of the usual 0.
 
 Note that "nothing was done" means the primary purpose of the action
 in question.
-Auxillary actions (opening and closeing the database, exporting missing
+Auxilary actions (opening and closeing the database, exporting missing
 files with \-\-export=lookedat, ...) usually do not count.
 Also note that this is not very well tested.
 If you find an action that claims to have done something in some cases
@@ -331,7 +331,7 @@ Take a look at
 to be sure.
 This option in the command line is usually not very useful, as it is possible
 to set the environment variable directly.
-Its main reason for existance is that it can be used in \fIconf\fP\fB/options\fP.
+Its main reason for existence is that it can be used in \fIconf\fP\fB/options\fP.
 .TP
 .BI \-\-gunzip " gz-uncompressor"
 While reprepro links against \fBlibz\fP, it will look for the program given
@@ -959,7 +959,7 @@ of the given architecture built from that version of the source,
 without a \fB.changes\fP or \fB.log\fP file for the given architecture,
 with an Architecture field including \fBany\fP, \fIos\fP\fB-any\fP (with
 \fIos\fP being the part before the hyphen in the architecture or \fBlinux\fP
-if there is no hypen) or the architecture and
+if there is no hyphen) or the architecture and
 at least one package in the Binary field not yet available.
 
 If instead of \fIarchitecture\fP the term \fBany\fP is used,
@@ -1408,7 +1408,7 @@ That means there will be no directory below \fBdists/\fP generated and the distr
 .br
 .B keepunknown
 Ignore unknown files and directories in the exported directory.
-This is currently the only available option and the default, but might change in the future, so it can already be requested explicitely.
+This is currently the only available option and the default, but might change in the future, so it can already be requested explicitly.
 .TP
 .B Contents
 Enable the creation of Contents files listing all the files
@@ -2268,7 +2268,7 @@ Allow strings to be empty that are used to construct filenames.
 (like versions, architectures, ...)
 .TP
 .B extension
-Allow to \fBincludedeb\fP files that do not end with \fB.deb\fP,
+Allow one to \fBincludedeb\fP files that do not end with \fB.deb\fP,
 to \fBincludedsc\fP files not ending in \fB.dsc\fP and to
 \fBinclude\fP files not ending in \fB.changes\fP.
 .TP
@@ -2296,7 +2296,7 @@ enough to have checked the code of your libs, kernel and filesystems.
 .B ignore \fR(for forward compatibility)
 Ignore unknown ignore types given to \fI\-\-ignore\fP.
 .TP
-.B flatandnonflat \fR(only supresses a warning)
+.B flatandnonflat \fR(only suppresses a warning)
 Do not warn about a flat and a non-flat distribution from the same
 source with the same name when updating.
 (Hopefully never ever needed.)

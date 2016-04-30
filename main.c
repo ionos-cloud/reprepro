@@ -134,7 +134,7 @@ static bool	verbosedatabase = false;
 static enum spacecheckmode spacecheckmode = scm_FULL;
 /* default: 100 MB for database to grow */
 static off_t reserveddbspace = 1024*1024*100
-/* 1MB safety margin for other fileystems */;
+/* 1MB safety margin for other filesystems */;
 static off_t reservedotherspace = 1024*1024;
 
 /* define for each config value an owner, and only higher owners are allowed
@@ -1609,7 +1609,7 @@ ACTION_F(n, n, y, y, export) {
 			continue;
 
 		if (d->exportoptions[deo_noexport]) {
-			/* if explicitely selected, warn if not used: */
+			/* if explicitly selected, warn if not used: */
 			if (argc > 1 && verbose >= 0 ) {
 				printf("No exporting %s (as it has the noexport option set).\n", d->codename);
 			}

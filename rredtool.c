@@ -345,7 +345,7 @@ static retvalue make_prefix_uniq(struct old_patch *o) {
 	struct old_patch *p, *last = NULL;
 	const char *lookfor = o->nameprefix;
 
-	/* make the prefix uniq by extending all previous occurences
+	/* make the prefix uniq by extending all previous occurrences
 	 * of this prefix with an additional +. As this might already
 	 * have happened, this has to be possibly repeated */
 

@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2004,2005,2006,2007,2008 Bernhard R. Link
+ *  Copyright (C) 2004,2005,2006,2007,2008,2016 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -289,7 +289,7 @@ static retvalue upgradelist_trypackage(struct upgradelist *upgrade, void *privda
 			if (decision == UD_LOUDNO)
 				fprintf(stderr,
 "Loudly rejecting '%s' '%s' to enter '%s'!\n",
-						packagename, version,
+						packagename_const, version,
 						upgrade->target->identifier);
 			free(packagename);
 			free(version);
@@ -397,7 +397,7 @@ static retvalue upgradelist_trypackage(struct upgradelist *upgrade, void *privda
 			if (decision == UD_LOUDNO)
 				fprintf(stderr,
 "Loudly rejecting '%s' '%s' to enter '%s'!\n",
-						packagename, version,
+						packagename_const, version,
 						upgrade->target->identifier);
 			/* Even if we do not install it, setting it on hold
 			 * will keep it or even install from a mirror before

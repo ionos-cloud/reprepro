@@ -303,7 +303,7 @@ static void search_binary(/*@null@*/const char *setting, const char *default_pro
 	if (strcmp(setting, "NONE") == 0)
 		return;
 	/* look for the file, look in $PATH if not qualified,
-	 * only check existance, if someone it putting files not executable
+	 * only check existence, if someone it putting files not executable
 	 * by us there it is their fault (as being executeable by us is hard
 	 * to check) */
 	if (strchr(setting, '/') != NULL) {
@@ -347,7 +347,7 @@ static void search_binary(/*@null@*/const char *setting, const char *default_pro
 	*program_p = program;
 }
 
-/* check for existance of external programs */
+/* check for existence of external programs */
 void uncompressions_check(const char *gunzip, const char *bunzip2, const char *unlzma, const char *unxz, const char *lunzip) {
 	search_binary(gunzip,  "gunzip",  &extern_uncompressors[c_gzip]);
 	search_binary(bunzip2, "bunzip2", &extern_uncompressors[c_bzip2]);

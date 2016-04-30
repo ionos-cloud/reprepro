@@ -81,7 +81,7 @@ static retvalue list_newpackage(struct package_list *list, struct target *target
 		p_p = &(*p_p)->next;
 	if (*p_p != NULL && c == 0) {
 		// TODO: improve this message..., or some context elsewhere
-		fprintf(stderr, "Multiple occurences of package '%s'!\n",
+		fprintf(stderr, "Multiple occurrences of package '%s'!\n",
 				packagename);
 		return RET_ERROR_EXIST;
 	}
@@ -200,7 +200,7 @@ static retvalue list_prepareadd(struct package_list *list, struct target *target
 		const struct checksums *checksums = new->origfiles.checksums[i];
 
 		r = files_canadd(newfilekey, checksums);
-		/* normaly it should just already have that file,
+		/* normally it should just already have that file,
 		 * in which case we have nothing to do: */
 		if (r == RET_NOTHING)
 			continue;

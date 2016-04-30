@@ -103,8 +103,8 @@ stdout
 -v2*=Created directory "./pool/main/p/package"
 $(ofa 'pool/main/p/package/package_1.0-1.dsc')
 $(ofa 'pool/main/p/package/package_1.0-1.tar.gz')
-*=db: 'package' added to packages.db(bla|main|source).
-*=db: 'package' added to tracking.db(bla).
+-d1*=db: 'package' added to packages.db(bla|main|source).
+-d1*=db: 'package' added to tracking.db(bla).
 EOF
 rm package_1.0*
 
@@ -158,8 +158,8 @@ testrun - -C main includedeb test rumsrumsrums_1.0-1_all.deb 3<<EOF
 stderr
 stdout
 $(ofa 'pool/main/p/package/rumsrumsrums_1.0-1_all.deb')
-*=db: 'rumsrumsrums' added to packages.db(bla|main|abacus).
-*=db: 'rumsrumsrums' added to packages.db(bla|main|another).
+-d1*=db: 'rumsrumsrums' added to packages.db(bla|main|abacus).
+-d1*=db: 'rumsrumsrums' added to packages.db(bla|main|another).
 EOF
 
 testrun - build-needing test another 3<<EOF
@@ -186,7 +186,7 @@ testrun - -C main includedeb test troettroet_1.0-1_abacus.deb 3<<EOF
 stderr
 stdout
 $(ofa 'pool/main/p/package/troettroet_1.0-1_abacus.deb')
-*=db: 'troettroet' added to packages.db(bla|main|abacus).
+-d1*=db: 'troettroet' added to packages.db(bla|main|abacus).
 EOF
 
 testrun - build-needing test another 3<<EOF
@@ -590,8 +590,8 @@ stdout
 -v2*=Created directory "./pool/main/l/linuxwildcard"
 $(ofa 'pool/main/l/linuxwildcard/linuxwildcard_1.0-1.dsc')
 $(ofa 'pool/main/l/linuxwildcard/linuxwildcard_1.0-1.tar.gz')
-*=db: 'linuxwildcard' added to packages.db(oses|main|source).
-*=db: 'linuxwildcard' added to tracking.db(oses).
+-d1*=db: 'linuxwildcard' added to packages.db(oses|main|source).
+-d1*=db: 'linuxwildcard' added to tracking.db(oses).
 EOF
 
 testrun - includedsc oses kfreebsdwildcard_1.0-1.dsc 3<<EOF
@@ -602,8 +602,8 @@ stdout
 -v2*=Created directory "./pool/main/k/kfreebsdwildcard"
 $(ofa 'pool/main/k/kfreebsdwildcard/kfreebsdwildcard_1.0-1.dsc')
 $(ofa 'pool/main/k/kfreebsdwildcard/kfreebsdwildcard_1.0-1.tar.gz')
-*=db: 'kfreebsdwildcard' added to packages.db(oses|main|source).
-*=db: 'kfreebsdwildcard' added to tracking.db(oses).
+-d1*=db: 'kfreebsdwildcard' added to packages.db(oses|main|source).
+-d1*=db: 'kfreebsdwildcard' added to tracking.db(oses).
 EOF
 
 testrun empty build-needing oses all
