@@ -593,6 +593,7 @@ cat > pkg/DEBIAN/control <<EOF
 Package: indebname
 Version: 1:0versionindeb~1
 Source: sourceindeb (0sourceversionindeb)
+Architecture: dummy
 EOF
 dpkg-deb -b pkg i/debfilename_debfileversion~2_coal.deb
 DEBMD5="$(md5sum i/debfilename_debfileversion~2_coal.deb | cut -d' ' -f1)"
@@ -830,7 +831,9 @@ EOF
 echo ...
 echo "Description: test-package" >> pkg/DEBIAN/control
 echo " a package to test reprepro" >> pkg/DEBIAN/control
-dpkg-deb -b pkg i/debfilename_debfileversion~2_all.deb
+dpkg-deb -Z none --uniform-compression -b pkg i/debfilename_debfileversion~2_all.deb
+# ugly hack, to be replaced with reimplementation of dpkg-deb:
+sed -e 's/^Architecture: /Dummy-Field1: /' -i i/debfilename_debfileversion~2_all.deb
 DEBMD5S="$(md5sum i/debfilename_debfileversion~2_all.deb | cut -d' ' -f1) $(stat -c '%s' i/debfilename_debfileversion~2_all.deb)"
 printf '$d\nw\nq\n' | ed -s i/test.changes
 echo " $DEBMD5S - - debfilename_debfileversion~2_all.deb" >> i/test.changes
@@ -840,6 +843,7 @@ stderr
 *=No Architecture field in ./temp/debfilename_debfileversion~2_all.deb's control file!
 -v0*=There have been errors!
 EOF
+sed -e '/^Architecture/d' -i pkg/DEBIAN/control
 echo "Architecture: coal" >> pkg/DEBIAN/control
 dpkg-deb -b pkg i/debfilename_debfileversion~2_all.deb
 DEBMD5S="$(md5sum i/debfilename_debfileversion~2_all.deb | cut -d' ' -f1) $(stat -c '%s' i/debfilename_debfileversion~2_all.deb)"
