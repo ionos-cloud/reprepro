@@ -17,9 +17,9 @@ _reprepro()
 		if [[ -n "$confdir" ]] ; then
 			conffile="$confdir/options"
 			distfile="$confdir/distributions"
-		elif [[ -n "${REPREPRO_CONF_DIR:+set}" ]] ; then
-			conffile="$REPREPRO_CONF_DIR/options"
-			distfile="$REPREPRO_CONF_DIR/distributions"
+		elif [[ -n "${REPREPRO_CONFIG_DIR:+set}" ]] ; then
+			conffile="$REPREPRO_CONFIG_DIR/options"
+			distfile="$REPREPRO_CONFIG_DIR/distributions"
 		else
 			conffile="+b/conf/options"
 			distfile="+b/conf/distributions"
@@ -55,8 +55,8 @@ _reprepro()
 		local conffile
 		if [[ -n "$confdir" ]] ; then
 			conffile="$confdir/options"
-		elif [[ -n "${REPREPRO_CONF_DIR:+set}" ]] ; then
-			conffile="$REPREPRO_CONF_DIR/options"
+		elif [[ -n "${REPREPRO_CONFIG_DIR:+set}" ]] ; then
+			conffile="$REPREPRO_CONFIG_DIR/options"
 		else
 			conffile="+b/conf/options"
 		fi
@@ -101,9 +101,9 @@ _reprepro()
 		if [[ -n "$confdir" ]] ; then
 			conffile="$confdir/options"
 			incomingfile="$confdir/incoming"
-		elif [[ -n "${REPREPRO_CONF_DIR:+set}" ]] ; then
-			conffile="$REPREPRO_CONF_DIR/options"
-			incomingfile="$REPREPRO_CONF_DIR/incoming"
+		elif [[ -n "${REPREPRO_CONFIG_DIR:+set}" ]] ; then
+			conffile="$REPREPRO_CONFIG_DIR/options"
+			incomingfile="$REPREPRO_CONFIG_DIR/incoming"
 		else
 			conffile="+b/conf/options"
 			incomingfile="+b/conf/incoming"
