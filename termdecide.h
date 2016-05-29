@@ -7,12 +7,12 @@
 #ifndef REPREPRO_TARGET_H
 #include "target.h"
 #endif
-
-/* decide based on a chunk, (warning: string comparisons even for version!)*/
-retvalue term_decidechunk(const term *, const char *, /*@null@*/const void *);
+#ifndef REPREPRO_PACKAGE_H
+#include "package.h"
+#endif
 
 retvalue term_compilefortargetdecision(/*@out@*/term **, const char *);
-retvalue term_decidechunktarget(const term *, const char *, const struct target *);
+retvalue term_decidepackage(const term *, struct package *, struct target *);
 
 
 

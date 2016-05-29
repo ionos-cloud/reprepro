@@ -31,11 +31,11 @@ bool database_allcreated(void);
 
 retvalue table_close(/*@only@*/struct table *);
 
-bool table_isempty(struct table *);
+retvalue database_haspackages(const char *);
 
 bool table_recordexists(struct table *, const char *);
 /* retrieve a record from the database, return RET_NOTHING if there is none: */
-retvalue table_getrecord(struct table *, const char *, /*@out@*/char **);
+retvalue table_getrecord(struct table *, const char *, /*@out@*/char **, /*@out@*/ /*@null@*/ size_t *);
 retvalue table_gettemprecord(struct table *, const char *, /*@out@*//*@null@*/const char **, /*@out@*//*@null@*/size_t *);
 retvalue table_getpair(struct table *, const char *, const char *, /*@out@*/const char **, /*@out@*/size_t *);
 

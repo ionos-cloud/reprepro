@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005,2006,2007,2008,2009,2010 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2006,2007,2008,2009,2010,2016 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -39,6 +39,7 @@
 #include "uploaderslist.h"
 #include "configparser.h"
 #include "byhandhook.h"
+#include "package.h"
 #include "distribution.h"
 
 static retvalue distribution_free(struct distribution *distribution) {
@@ -532,34 +533,33 @@ retvalue distribution_readall(struct distribution **distributions) {
 }
 
 /* call <action> for each package */
-retvalue distribution_foreach_package(struct distribution *distribution, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes, each_package_action action, each_target_action target_action, void *data) {
+retvalue package_foreach(struct distribution *distribution, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes, action_each_package action, action_each_target target_action, void *data) {
 	retvalue result, r;
 	struct target *t;
-	struct target_cursor iterator;
-	const char *package, *control;
+	struct package_cursor iterator;
 
 	result = RET_NOTHING;
 	for (t = distribution->targets ; t != NULL ; t = t->next) {
 		if (!target_matches(t, components, architectures, packagetypes))
 			continue;
 		if (target_action != NULL) {
-			r = target_action(distribution, t, data);
+			r = target_action(t, data);
 			if (RET_WAS_ERROR(r))
 				return result;
 			if (r == RET_NOTHING)
 				continue;
 		}
-		r = target_openiterator(t, READONLY, &iterator);
+		r = package_openiterator(t, READONLY, &iterator);
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(r))
 			return result;
-		while (target_nextpackage(&iterator, &package, &control)) {
-			r = action(distribution, t, package, control, data);
+		while (package_next(&iterator)) {
+			r = action(&iterator.current, data);
 			RET_UPDATE(result, r);
 			if (RET_WAS_ERROR(r))
 				break;
 		}
-		r = target_closeiterator(&iterator);
+		r = package_closeiterator(&iterator);
 		RET_ENDUPDATE(result, r);
 		if (RET_WAS_ERROR(result))
 			return result;
@@ -567,11 +567,10 @@ retvalue distribution_foreach_package(struct distribution *distribution, const s
 	return result;
 }
 
-retvalue distribution_foreach_package_c(struct distribution *distribution, const struct atomlist *components, architecture_t architecture, packagetype_t packagetype, each_package_action action, void *data) {
+retvalue package_foreach_c(struct distribution *distribution, const struct atomlist *components, architecture_t architecture, packagetype_t packagetype, action_each_package action, void *data) {
 	retvalue result, r;
 	struct target *t;
-	const char *package, *control;
-	struct target_cursor iterator;
+	struct package_cursor iterator;
 
 	result = RET_NOTHING;
 	for (t = distribution->targets ; t != NULL ; t = t->next) {
@@ -582,17 +581,17 @@ retvalue distribution_foreach_package_c(struct distribution *distribution, const
 			continue;
 		if (limitation_missed(packagetype, t->packagetype))
 			continue;
-		r = target_openiterator(t, READONLY, &iterator);
+		r = package_openiterator(t, READONLY, &iterator);
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(r))
 			return result;
-		while (target_nextpackage(&iterator, &package, &control)) {
-			r = action(distribution, t, package, control, data);
+		while (package_next(&iterator)) {
+			r = action(&iterator.current, data);
 			RET_UPDATE(result, r);
 			if (RET_WAS_ERROR(r))
 				break;
 		}
-		r = target_closeiterator(&iterator);
+		r = package_closeiterator(&iterator);
 		RET_ENDUPDATE(result, r);
 		if (RET_WAS_ERROR(result))
 			return result;
@@ -794,7 +793,7 @@ retvalue distribution_snapshot(struct distribution *distribution, const char *na
 	id = mprintf("s=%s=%s", distribution->codename, name);
 	if (FAILEDTOALLOC(id))
 		return RET_ERROR_OOM;
-	r = distribution_foreach_package(distribution,
+	r = package_foreach(distribution,
 			atom_unknown, atom_unknown, atom_unknown,
 			package_referenceforsnapshot, NULL, id);
 	free(id);
@@ -1102,11 +1101,10 @@ retvalue distribution_prepareforwriting(struct distribution *distribution) {
 }
 
 /* delete every package decider returns RET_OK for */
-retvalue distribution_remove_packages(struct distribution *distribution, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes, each_package_action decider, struct trackingdata *trackingdata, void *data) {
+retvalue package_remove_each(struct distribution *distribution, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes, action_each_package decider, struct trackingdata *trackingdata, void *data) {
 	retvalue result, r;
 	struct target *t;
-	struct target_cursor iterator;
-	const char *package, *control;
+	struct package_cursor iterator;
 
 	if (distribution->readonly) {
 		fprintf(stderr,
@@ -1119,24 +1117,23 @@ retvalue distribution_remove_packages(struct distribution *distribution, const s
 	for (t = distribution->targets ; t != NULL ; t = t->next) {
 		if (!target_matches(t, components, architectures, packagetypes))
 			continue;
-		r = target_openiterator(t, READWRITE, &iterator);
+		r = package_openiterator(t, READWRITE, &iterator);
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(r))
 			return result;
-		while (target_nextpackage(&iterator, &package, &control)) {
-			r = decider(distribution, t,
-					package, control, data);
+		while (package_next(&iterator)) {
+			r = decider(&iterator.current, data);
 			RET_UPDATE(result, r);
 			if (RET_WAS_ERROR(r))
 				break;
 			if (RET_IS_OK(r)) {
-				r = target_removepackage_by_cursor(&iterator,
+				r = package_remove_by_cursor(&iterator,
 					distribution->logger, trackingdata);
 				RET_UPDATE(result, r);
 				RET_UPDATE(distribution->status, r);
 			}
 		}
-		r = target_closeiterator(&iterator);
+		r = package_closeiterator(&iterator);
 		RET_ENDUPDATE(result, r);
 		if (RET_WAS_ERROR(result))
 			return result;

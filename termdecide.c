@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2004,2005,2007,2009 Bernhard R. Link
+ *  Copyright (C) 2004,2005,2007,2009,2016 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -57,7 +57,10 @@ static inline bool check_field(enum term_comparison c, const char *value, const 
 	}
 }
 
-retvalue term_decidechunk(const term *condition, const char *controlchunk, const void *privdata) {
+/* this has a target argument instead of using package->target
+ * as the package might come from one distribution/architecture/...
+ * and the decision being about adding it somewhere else */
+retvalue term_decidepackage(const term *condition, struct package *package, struct target *target) {
 	const struct term_atom *atom = condition;
 
 	while (atom != NULL) {
@@ -68,9 +71,9 @@ retvalue term_decidechunk(const term *condition, const char *controlchunk, const
 		if (atom->isspecial) {
 			correct = atom->special.type->compare(c,
 					&atom->special.comparewith,
-					controlchunk, privdata);
+					package, target);
 		} else {
-			r = chunk_getvalue(controlchunk,
+			r = chunk_getvalue(package->control,
 					atom->generic.key, &value);
 			if (RET_WAS_ERROR(r))
 				return r;
@@ -116,25 +119,14 @@ static retvalue parsestring(enum term_comparison c, const char *value, size_t le
 // TODO: check for well-formed versions
 #define parseversion parsestring
 
-static bool comparesource(enum term_comparison c, const struct compare_with *v, const void *d1, const void *d2) {
-	const char *control = d1;
-	const struct target *target = d2;
-	char *package, *source, *version;
+static bool comparesource(enum term_comparison c, const struct compare_with *v, void *d1, UNUSED(void *d2)) {
+	struct package *package = d1;
 	retvalue r;
-	bool matches;
 
-	// TODO: make more efficient
-	r = chunk_getvalue(control, "Package", &package);
+	r = package_getsource(package);
 	if (!RET_IS_OK(r))
 		return false;
-	r = target->getsourceandversion(control, package, &source, &version);
-	free(package);
-	if (!RET_IS_OK(r))
-		return false;
-	free(version);
-	matches = check_field(c, source, v->pointer);
-	free(source);
-	return matches;
+	return check_field(c, package->source, v->pointer);
 }
 
 static inline bool compare_dpkgversions(enum term_comparison c, const char *version, const char *param) {
@@ -162,39 +154,23 @@ static inline bool compare_dpkgversions(enum term_comparison c, const char *vers
 		return check_field(c, version, param);
 }
 
-static bool compareversion(enum term_comparison c, const struct compare_with *v, const void *d1, const void *d2) {
-	const char *control = d1;
-	const struct target *target = d2;
-	char *version;
+static bool compareversion(enum term_comparison c, const struct compare_with *v, void *d1, UNUSED(void *d2)) {
+	struct package *package = d1;
 	retvalue r;
-	bool matches;
 
-	r = target->getversion(control, &version);
+	r = package_getversion(package);
 	if (!RET_IS_OK(r))
 		return false;
-	matches = compare_dpkgversions(c, version, v->pointer);
-	free(version);
-	return matches;
+	return compare_dpkgversions(c, package->version, v->pointer);
 }
-static bool comparesourceversion(enum term_comparison c, const struct compare_with *v, const void *d1, const void *d2) {
-	const char *control = d1;
-	const struct target *target = d2;
-	char *package, *source, *version;
+static bool comparesourceversion(enum term_comparison c, const struct compare_with *v, void *d1, UNUSED(void *d2)) {
+	struct package *package = d1;
 	retvalue r;
-	bool matches;
 
-	// TODO: make more efficient
-	r = chunk_getvalue(control, "Package", &package);
+	r = package_getsource(package);
 	if (!RET_IS_OK(r))
 		return false;
-	r = target->getsourceandversion(control, package, &source, &version);
-	free(package);
-	if (!RET_IS_OK(r))
-		return false;
-	free(source);
-	matches = compare_dpkgversions(c, version, v->pointer);
-	free(version);
-	return matches;
+	return compare_dpkgversions(c, package->sourceversion, v->pointer);
 }
 
 static void freestring(UNUSED(enum term_comparison c), struct compare_with *d) {
@@ -270,7 +246,7 @@ static retvalue parsecomponent(enum term_comparison c, const char *value, size_t
 	return RET_ERROR;
 }
 
-static bool comparetype(enum term_comparison c, const struct compare_with *v, UNUSED(const void *d1), const void *d2) {
+static bool comparetype(enum term_comparison c, const struct compare_with *v, UNUSED( void *d1), void *d2) {
 	const struct target *target = d2;
 
 	if (c == tc_equal)
@@ -283,7 +259,7 @@ static bool comparetype(enum term_comparison c, const struct compare_with *v, UN
 				v->pointer);
 
 }
-static bool comparearchitecture(enum term_comparison c, const struct compare_with *v, UNUSED(const void *d1), const void *d2) {
+static bool comparearchitecture(enum term_comparison c, const struct compare_with *v, UNUSED(void *d1), void *d2) {
 	const struct target *target = d2;
 
 	if (c == tc_equal)
@@ -295,7 +271,7 @@ static bool comparearchitecture(enum term_comparison c, const struct compare_wit
 				atoms_architectures[target->architecture],
 				v->pointer);
 }
-static bool comparecomponent(enum term_comparison c, const struct compare_with *v, UNUSED(const void *d1), const void *d2) {
+static bool comparecomponent(enum term_comparison c, const struct compare_with *v, UNUSED(void *d1), void *d2) {
 	const struct target *target = d2;
 
 	if (c == tc_equal)
@@ -323,8 +299,4 @@ retvalue term_compilefortargetdecision(term **term_p, const char *formula) {
 	return term_compile(term_p, formula,
 		T_GLOBMATCH|T_OR|T_BRACKETS|T_NEGATION|T_VERSION|T_NOTEQUAL,
 		targetdecisionspecial);
-}
-
-retvalue term_decidechunktarget(const term *condition, const char *controlchunk, const struct target *target) {
-	return term_decidechunk(condition, controlchunk, target);
 }

@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2005,2006,2007,2008,2009 Bernhard R. Link
+ *  Copyright (C) 2005,2006,2007,2008,2009,2016 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -30,6 +30,7 @@
 #include "reference.h"
 #include "ignore.h"
 #include "configparser.h"
+#include "package.h"
 
 #include "database_p.h"
 #include "tracking.h"
@@ -766,14 +767,20 @@ retvalue tracking_parse(struct distribution *d, struct configiterator *iter) {
 	return RET_OK;
 }
 
-static retvalue trackingdata_remember(struct trackingdata *td, /*@only@*/char*name, /*@only@*/char*version) {
+static retvalue trackingdata_remember(struct trackingdata *td, const char*name, const char*version) {
 	struct trackingdata_remember *r;
 
 	r = NEW(struct trackingdata_remember);
 	if (FAILEDTOALLOC(r))
 		return RET_ERROR_OOM;
-	r->name = name;
-	r->version = version;
+	r->name = strdup(name);
+	r->version = strdup(version);
+	if (FAILEDTOALLOC(r->name) || FAILEDTOALLOC(r->version)) {
+		free(r->name);
+		free(r->version);
+		free(r);
+		return RET_ERROR_OOM;
+	}
 	r->next = td->remembered;
 	td->remembered = r;
 	return RET_OK;
@@ -815,6 +822,8 @@ retvalue trackingdata_switch(struct trackingdata *data, const char *source, cons
 		r = trackingdata_remember(data, data->pkg->sourcename,
 				data->pkg->sourceversion);
 		strlist_done(&data->pkg->filekeys);
+		free(data->pkg->sourcename);
+		free(data->pkg->sourceversion);
 		free(data->pkg->refcounts);
 		free(data->pkg->filetypes);
 		free(data->pkg);
@@ -829,21 +838,18 @@ retvalue trackingdata_switch(struct trackingdata *data, const char *source, cons
 	return RET_OK;
 }
 
-retvalue trackingdata_insert(struct trackingdata *data, enum filetype filetype, const struct strlist *filekeys, /*@null@*//*@only@*/char*oldsource, /*@null@*//*@only@*/char*oldversion, /*@null@*/const struct strlist *oldfilekeys) {
+retvalue trackingdata_insert(struct trackingdata *data, enum filetype filetype, const struct strlist *filekeys, /*@null@*/const char *oldsource, /*@null@*/const char*oldversion, /*@null@*/const struct strlist *oldfilekeys) {
 	retvalue result, r;
 	struct trackedpackage *pkg;
 
 	if (data == NULL) {
 		assert(oldversion == NULL && oldsource == NULL);
-		free(oldversion);
-		free(oldsource);
 		return RET_OK;
 	}
 	assert(data->pkg != NULL);
 	result = trackedpackage_adddupfilekeys(data->tracks, data->pkg,
 			filetype, filekeys, true);
 	if (RET_WAS_ERROR(result)) {
-		free(oldsource); free(oldversion);
 		return result;
 	}
 	if (oldsource == NULL || oldversion == NULL || oldfilekeys == NULL) {
@@ -854,20 +860,17 @@ retvalue trackingdata_insert(struct trackingdata *data, enum filetype filetype, 
 			strcmp(oldsource, data->pkg->sourcename) == 0) {
 		/* Unlikely, but it may also be the same source version as
 		 * the package we are currently adding */
-		free(oldsource); free(oldversion);
 		return trackedpackage_removefilekeys(data->tracks, data->pkg,
 				oldfilekeys);
 	}
 	r = tracking_get(data->tracks, oldsource, oldversion, &pkg);
 	if (RET_WAS_ERROR(r)) {
-		free(oldsource); free(oldversion);
 		return r;
 	}
 	if (r == RET_NOTHING) {
 		fprintf(stderr,
 "Could not found tracking data for %s_%s in %s to remove old files from it.\n",
 			oldsource, oldversion, data->tracks->codename);
-		free(oldsource); free(oldversion);
 		return result;
 	}
 	r = trackedpackage_removefilekeys(data->tracks, pkg, oldfilekeys);
@@ -880,7 +883,7 @@ retvalue trackingdata_insert(struct trackingdata *data, enum filetype filetype, 
 	return result;
 }
 
-retvalue trackingdata_remove(struct trackingdata *data, /*@only@*/char*oldsource, /*@only@*/char*oldversion, const struct strlist *oldfilekeys) {
+retvalue trackingdata_remove(struct trackingdata *data, const char* oldsource, const char*oldversion, const struct strlist *oldfilekeys) {
 	retvalue result, r;
 	struct trackedpackage *pkg;
 
@@ -890,20 +893,17 @@ retvalue trackingdata_remove(struct trackingdata *data, /*@only@*/char*oldsource
 			strcmp(oldsource, data->pkg->sourcename) == 0) {
 		/* Unlikely, but it may also be the same source version as
 		 * the package we are currently adding */
-		free(oldsource); free(oldversion);
 		return trackedpackage_removefilekeys(data->tracks,
 				data->pkg, oldfilekeys);
 	}
 	result = tracking_get(data->tracks, oldsource, oldversion, &pkg);
 	if (RET_WAS_ERROR(result)) {
-		free(oldsource); free(oldversion);
 		return result;
 	}
 	if (result == RET_NOTHING) {
 		fprintf(stderr,
 "Could not found tracking data for %s_%s in %s to remove old files from it.\n",
 			oldsource, oldversion, data->tracks->codename);
-		free(oldsource); free(oldversion);
 		return RET_OK;
 	}
 	r = trackedpackage_removefilekeys(data->tracks, pkg, oldfilekeys);
@@ -1185,7 +1185,8 @@ static retvalue targetremovesourcepackage(trackingdb t, struct trackedpackage *p
 	arch_len = strlen(architecture);
 	for (i = 0 ; i < pkg->filekeys.count ; i++) {
 		const char *s, *basefilename, *filekey = pkg->filekeys.values[i];
-		char *package, *control, *source, *version;
+		char *packagename;
+		struct package package;
 		struct strlist filekeys;
 		bool savedstaletracking;
 
@@ -1236,12 +1237,12 @@ static retvalue targetremovesourcepackage(trackingdb t, struct trackedpackage *p
 		else
 			basefilename++;
 		s = strchr(basefilename, '_');
-		package = strndup(basefilename, s - basefilename);
-		if (FAILEDTOALLOC(package))
+		packagename = strndup(basefilename, s - basefilename);
+		if (FAILEDTOALLOC(packagename))
 			return RET_ERROR_OOM;
-		r = table_getrecord(target->packages, package, &control);
+		r = package_get(target, packagename, NULL, &package);
 		if (RET_WAS_ERROR(r)) {
-			free(package);
+			free(packagename);
 			return r;
 		}
 		if (r == RET_NOTHING) {
@@ -1250,58 +1251,53 @@ static retvalue targetremovesourcepackage(trackingdb t, struct trackedpackage *p
 				fprintf(stderr,
 "Warning: tracking data might be incosistent:\n"
 "cannot find '%s' in '%s', but '%s' should be there.\n",
-						package, target->identifier,
+						packagename, target->identifier,
 						filekey);
 			}
-			free(package);
+			free(packagename);
 			continue;
 		}
-		r = target->getsourceandversion(control, package,
-				&source, &version);
+		// TODO: ugly
+		package.pkgname = packagename;
+		packagename = NULL;
+
+		r = package_getsource(&package);
 		assert (r != RET_NOTHING);
 		if (RET_WAS_ERROR(r)) {
-			free(package);
-			free(control);
+			package_done(&package);
 			return r;
 		}
-		if (strcmp(source, pkg->sourcename) != 0) {
+		if (strcmp(package.source, pkg->sourcename) != 0) {
 			if (pkg->filetypes[i] != ft_ALL_BINARY
 			    && verbose >= -1) {
 				fprintf(stderr,
 "Warning: tracking data might be incosistent:\n"
 "'%s' has '%s' of source '%s', but source '%s' contains '%s'.\n",
-						target->identifier, package,
-						source, pkg->sourcename,
+						target->identifier, package.name,
+						package.source, pkg->sourcename,
 						filekey);
 			}
-			free(source);
-			free(version);
-			free(package);
-			free(control);
+			package_done(&package);
 			continue;
 		}
-		free(source);
-		if (strcmp(version, pkg->sourceversion) != 0) {
+		if (strcmp(package.sourceversion, pkg->sourceversion) != 0) {
 			if (pkg->filetypes[i] != ft_ALL_BINARY
 			    && verbose >= -1) {
 				fprintf(stderr,
 "Warning: tracking data might be incosistent:\n"
 "'%s' has '%s' of source version '%s', but version '%s' contains '%s'.\n",
-						target->identifier, package,
-						version, pkg->sourceversion,
+						target->identifier, package.name,
+						package.sourceversion,
+						pkg->sourceversion,
 						filekey);
 			}
-			free(package);
-			free(version);
-			free(control);
+			package_done(&package);
 			continue;
 		}
-		free(version);
-		r = target->getfilekeys(control, &filekeys);
+		r = target->getfilekeys(package.control, &filekeys);
 		assert (r != RET_NOTHING);
 		if (RET_WAS_ERROR(r)) {
-			free(package);
-			free(control);
+			package_done(&package);
 			return r;
 		}
 
@@ -1309,14 +1305,9 @@ static retvalue targetremovesourcepackage(trackingdb t, struct trackedpackage *p
 		 * told to remove the tracking data, so it might mark things
 		 * as stale, which we do not want.. */
 		savedstaletracking = target->staletracking;
-
-		/* that is a bit wasteful, as it parses some stuff again, but
-		 * but that is better than reimplementing logger here */
-		r = target_removereadpackage(target, distribution->logger,
-				package, control, NULL);
+		r = package_remove(&package, distribution->logger, NULL);
 		target->staletracking = savedstaletracking;
-		free(control);
-		free(package);
+		package_done(&package);
 		assert (r != RET_NOTHING);
 		if (RET_WAS_ERROR(r)) {
 			strlist_done(&filekeys);
@@ -1392,10 +1383,11 @@ retvalue tracking_removepackages(trackingdb t, struct distribution *distribution
 	return result;
 }
 
-static retvalue package_retrack(UNUSED(struct distribution *di), struct target *target, const char *packagename, const char *controlchunk, void *data) {
+static retvalue package_retrack(struct package *package, void *data) {
 	trackingdb tracks = data;
 
-	return target->doretrack(packagename, controlchunk, tracks);
+	return package->target->doretrack(package->name,
+			package->control, tracks);
 }
 
 retvalue tracking_retrack(struct distribution *d, bool needsretrack) {
@@ -1423,7 +1415,7 @@ retvalue tracking_retrack(struct distribution *d, bool needsretrack) {
 	r = tracking_reset(tracks);
 	if (!RET_WAS_ERROR(r)) {
 		/* add back information about actually used files */
-		r = distribution_foreach_package(d,
+		r = package_foreach(d,
 				atom_unknown, atom_unknown, atom_unknown,
 				package_retrack, NULL, tracks);
 	}

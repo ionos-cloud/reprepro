@@ -1,3 +1,7 @@
+2016-03-*  Bernhard R. Link <brlink@debian.org>
+	* refactor code to use struct package and struct package_cursor
+	  most of the time package data is accessed.
+
 2016-03-13  Bernhard R. Link <brlink@debian.org>
 	* fix bug in flood that could get confused which binary package
 	  belongs to which source if a destination contains packages
