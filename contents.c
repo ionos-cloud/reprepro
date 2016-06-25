@@ -23,8 +23,8 @@
 #include <string.h>
 #include <ctype.h>
 #include "error.h"
+#include "strlist.h"
 #include "mprintf.h"
-#include "chunks.h"
 #include "dirs.h"
 #include "names.h"
 #include "release.h"
@@ -163,24 +163,8 @@ retvalue contentsoptions_parse(struct distribution *distribution, struct configi
 
 static retvalue addpackagetocontents(struct package *package, void *data) {
 	struct filelist_list *contents = data;
-	retvalue r;
-	char *section, *filekey;
 
-	r = chunk_getvalue(package->control, "Section", &section);
-	/* Ignoring packages without section, as they should not exist anyway */
-	if (!RET_IS_OK(r))
-		return r;
-	r = chunk_getvalue(package->control, "Filename", &filekey);
-	/* dito with filekey */
-	if (!RET_IS_OK(r)) {
-		free(section);
-		return r;
-	}
-	r = filelist_addpackage(contents, package->name, section, filekey);
-
-	free(filekey);
-	free(section);
-	return r;
+	return filelist_addpackage(contents, package);
 }
 
 static retvalue gentargetcontents(struct target *target, struct release *release, bool onlyneeded, bool symlink) {
