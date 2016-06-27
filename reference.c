@@ -159,7 +159,7 @@ retvalue references_remove(const char *neededby) {
 	l = strlen(neededby);
 
 	result = RET_NOTHING;
-	while (cursor_nexttempdata(rdb_references, cursor,
+	while (cursor_nexttempstring(rdb_references, cursor,
 				&found_to, &found_by, &datalen)) {
 
 		if (datalen >= l && strncmp(found_by, neededby, l) == 0 &&

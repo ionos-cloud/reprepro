@@ -35,4 +35,6 @@ static inline bool endswith(const char *name, const char *suffix) {
 	return ln > ls && strcmp(name + (ln - ls), suffix) == 0;
 }
 
+retvalue splitnameandversion(const char *nameandversion, const char **name_p, const char **version_p);
+
 #endif

@@ -74,6 +74,7 @@
 #include "filterlist.h"
 #include "descriptions.h"
 #include "outhook.h"
+#include "packagedata.h"
 
 #ifndef STD_BASE_DIR
 #define STD_BASE_DIR "."
@@ -645,19 +646,19 @@ ACTION_R(n, n, n, y, addreferences) {
 	return ret;
 }
 
-static retvalue remove_from_target(struct distribution *distribution, struct trackingdata *trackingdata, struct target *target, int count, const char * const *names, int *todo, bool *gotremoved) {
+static retvalue remove_from_target(struct distribution *distribution, struct trackingdata *trackingdata, struct target *target, int count, struct nameandversion *nameandversion, int *remaining) {
 	retvalue result, r;
 	int i;
 
 	result = RET_NOTHING;
 	for (i = 0 ; i < count ; i++){
 		r = target_removepackage(target, distribution->logger,
-				names[i], trackingdata);
+				nameandversion[i].name, nameandversion[i].version, trackingdata);
 		RET_UPDATE(distribution->status, r);
 		if (RET_IS_OK(r)) {
-			if (!gotremoved[i])
-				(*todo)--;
-			gotremoved[i] = true;
+			if (!nameandversion[i].found)
+				(*remaining)--;
+			nameandversion[i].found = true;
 		}
 		RET_UPDATE(result, r);
 	}
@@ -668,9 +669,10 @@ ACTION_D(y, n, y, remove) {
 	retvalue result, r;
 	struct distribution *distribution;
 	struct target *t;
-	bool *gotremoved;
-	int todo;
-
+	struct nameandversion data[argc-2];
+	char *delimiter;
+	int i;
+	int remaining;
 	trackingdb tracks;
 	struct trackingdata trackingdata;
 
@@ -702,12 +704,21 @@ ACTION_D(y, n, y, remove) {
 		}
 	}
 
-	todo = argc-2;
-	gotremoved = nzNEW(argc - 2, bool);
+	for (i = 0 ; i < argc-2 ; i++) {
+		data[i].found = false;
+		r = splitnameandversion(argv[2 + i], &data[i].name, &data[i].version);
+		if (RET_WAS_ERROR(r)) {
+			for (i-- ; i >= 0 ; i--) {
+				if (data[i].version != NULL)
+					free((char *)data[i].name);
+			}
+			return r;
+		}
+	}
+
+	remaining = argc-2;
 	result = RET_NOTHING;
-	if (FAILEDTOALLOC(gotremoved))
-		result = RET_ERROR_OOM;
-	else for (t = distribution->targets ; t != NULL ; t = t->next) {
+	for (t = distribution->targets ; t != NULL ; t = t->next) {
 		 if (!target_matches(t, components, architectures, packagetypes))
 			 continue;
 		 r = target_initpackagesdb(t, READWRITE);
@@ -718,8 +729,8 @@ ACTION_D(y, n, y, remove) {
 				 (distribution->tracking != dt_NONE)
 				 	? &trackingdata
 					: NULL,
-				 t, argc-2, argv+2,
-				 &todo, gotremoved);
+				 t, argc-2, data,
+				 &remaining);
 		 RET_UPDATE(result, r);
 		 r = target_closepackagesdb(t);
 		 RET_UPDATE(distribution->status, r);
@@ -736,23 +747,26 @@ ACTION_D(y, n, y, remove) {
 		r = tracking_done(tracks);
 		RET_ENDUPDATE(result, r);
 	}
-	if (verbose >= 0 && !RET_WAS_ERROR(result) && todo > 0) {
-		int i = argc - 2;
-
+	if (verbose >= 0 && !RET_WAS_ERROR(result) && remaining > 0) {
 		(void)fputs("Not removed as not found: ", stderr);
-		while (i > 0) {
-			i--;
-			assert(gotremoved != NULL);
-			if (!gotremoved[i]) {
-				(void)fputs(argv[2 + i], stderr);
-				todo--;
-				if (todo > 0)
-					(void)fputs(", ", stderr);
+		delimiter = "";
+		for (i = 0; i < argc - 2; i++) {
+			if (!data[i].found) {
+				if (data[i].version == NULL) {
+					fprintf(stderr, "%s%s", delimiter, data[i].name);
+				} else {
+					fprintf(stderr, "%s%s=%s", delimiter, data[i].name, data[i].version);
+				}
+				remaining--;
+				delimiter = ", ";
 			}
 		}
 		(void)fputc('\n', stderr);
 	}
-	free(gotremoved);
+	for (i = 0; i < argc - 2; i++) {
+		if (data[i].version != NULL)
+			free((char *)data[i].name);
+	}
 	return result;
 }
 
@@ -898,44 +912,13 @@ ACTION_D(n, n, y, removesrcs) {
 	}
 	for (i = 0 ; i < argc-2 ; i++) {
 		data[i].found = false;
-		data[i].sourcename = argv[2 + i];
-		data[i].sourceversion = index(data[i].sourcename, '=');
-		if (data[i].sourceversion != NULL) {
-			if (index(data[i].sourceversion+1, '=') != NULL) {
-				fprintf(stderr,
-"Cannot parse '%s': more than one '='\n",
-						data[i].sourcename);
-				data[i].sourcename = NULL;
-				r = RET_ERROR;
-			} else if (data[i].sourceversion[1] == '\0') {
-				fprintf(stderr,
-"Cannot parse '%s': no version after '='\n",
-						data[i].sourcename);
-				data[i].sourcename = NULL;
-				r = RET_ERROR;
-			} else if (data[i].sourceversion == data[i].sourcename) {
-				fprintf(stderr,
-"Cannot parse '%s': no source name found before the '='\n",
-						data[i].sourcename);
-				data[i].sourcename = NULL;
-				r = RET_ERROR;
-			} else {
-				data[i].sourcename = strndup(data[i].sourcename,
-						data[i].sourceversion
-						- data[i].sourcename);
-				if (FAILEDTOALLOC(data[i].sourcename))
-					r = RET_ERROR_OOM;
-				else
-					r = RET_OK;
+		r = splitnameandversion(argv[2 + i], &data[i].sourcename, &data[i].sourceversion);
+		if (RET_WAS_ERROR(r)) {
+			for (i-- ; i >= 0 ; i--) {
+				if (data[i].sourceversion != NULL)
+					free((char *)data[i].sourcename);
 			}
-			if (RET_WAS_ERROR(r)) {
-				for (i-- ; i >= 0 ; i--) {
-					if (data[i].sourceversion != NULL)
-						free((char*)data[i].sourcename);
-				}
-				return r;
-			}
-			data[i].sourceversion++;
+			return r;
 		}
 	}
 	data[i].sourcename = NULL;
@@ -1172,32 +1155,28 @@ ACTION_B(y, n, y, buildneeded) {
 }
 
 static retvalue list_in_target(struct target *target, const char *packagename) {
-	retvalue r, result;
-	char *control;
 	struct packagedata packagedata;
+	struct target_cursor iterator;
+	retvalue r, result;
 
 	if (listmax == 0)
 		return RET_NOTHING;
 
-	r = target_initpackagesdb(target, READONLY);
-	if (!RET_IS_OK(r))
-		return r;
-
-	result = table_getrecord(target->packages, packagename, &control);
-	parse_packagedata(control, &packagedata);
+	result = target_openduplicateiterator(target, READONLY, packagename, &iterator, &packagedata);
 	if (RET_IS_OK(result)) {
-		if (listskip <= 0) {
-			r = listformat_print(listformat, target,
-					packagename, &packagedata);
-			RET_UPDATE(result, r);
-			if (listmax > 0)
-				listmax--;
-		} else
-			listskip--;
-		free(control);
+		do {
+			if (listskip <= 0) {
+				r = listformat_print(listformat, target,
+						packagename, &packagedata);
+				RET_UPDATE(result, r);
+				if (listmax > 0)
+					listmax--;
+			} else
+				listskip--;
+		} while (target_nextpackage(&iterator, NULL, &packagedata));
+		r = target_closeiterator(&iterator);
+		RET_ENDUPDATE(result, r);
 	}
-	r = target_closepackagesdb(target);
-	RET_ENDUPDATE(result, r);
 	return result;
 }
 
@@ -1254,42 +1233,39 @@ struct lspart {
 	struct lsversion *versions;
 };
 
-static retvalue newlsversion(struct lsversion **versions_p, /*@only@*/char *version, architecture_t architecture) {
+static retvalue newlsversion(struct lsversion **versions_p, /*@only@*/const char *version, architecture_t architecture) {
 	struct lsversion *v, **v_p;
 
 	for (v_p = versions_p ; (v = *v_p) != NULL ; v_p = &v->next) {
 		if (strcmp(v->version, version) != 0)
 			continue;
-		free(version);
 		return atomlist_add_uniq(&v->architectures, architecture);
 	}
 	v = zNEW(struct lsversion);
 	if (FAILEDTOALLOC(v))
 		return RET_ERROR_OOM;
 	*v_p = v;
-	v->version = version;
+	v->version = strdup(version);
+	if (FAILEDTOALLOC(v->version))
+		return RET_ERROR_OOM;
 	return atomlist_add(&v->architectures, architecture);
 }
 
 static retvalue ls_in_target(struct target *target, const char *packagename, struct lsversion **versions_p) {
 	retvalue r, result;
-	char *control, *version;
+	struct packagedata packagedata;
+	struct target_cursor iterator;
 
-	r = target_initpackagesdb(target, READONLY);
-	if (!RET_IS_OK(r))
-		return r;
-
-	result = table_getrecord(target->packages, packagename, &control);
+	result = target_openduplicateiterator(target, READONLY, packagename, &iterator, &packagedata);
 	if (RET_IS_OK(result)) {
-		r = target->getversion(control, &version);
-		if (RET_IS_OK(r))
-			r = newlsversion(versions_p, version,
-					target->architecture);
-		free(control);
-		RET_UPDATE(result, r);
+		do {
+			r = newlsversion(versions_p, packagedata.version, target->architecture);
+			RET_UPDATE(result, r);
+		} while (target_nextpackage(&iterator, NULL, &packagedata));
+
+		r = target_closeiterator(&iterator);
+		RET_ENDUPDATE(result, r);
 	}
-	r = target_closepackagesdb(target);
-	RET_ENDUPDATE(result, r);
 	return result;
 }
 
@@ -1565,8 +1541,10 @@ ACTION_F(n, n, n, n, listchecksums) {
 ACTION_B(n, n, n, dumpcontents) {
 	retvalue result, r;
 	struct table *packages;
-	const char *package, *chunk;
+	const char *package;
 	struct cursor *cursor;
+	void *data;
+	size_t data_len;
 	struct packagedata packagedata;
 
 	assert (argc == 2);
@@ -1581,8 +1559,8 @@ ACTION_B(n, n, n, dumpcontents) {
 		return r;
 	}
 	result = RET_NOTHING;
-	while (cursor_nexttemp(packages, cursor, &package, &chunk)) {
-		parse_packagedata(chunk, &packagedata);
+	while (cursor_nexttempdata(packages, cursor, &package, &data, &data_len)) {
+		parse_packagedata(data, data_len, &packagedata);
 		printf("'%s' -> '%s'\n", package, packagedata.chunk);
 		result = RET_OK;
 	}
@@ -1938,6 +1916,8 @@ ACTION_B(y, n, y, dumppull) {
 
 ACTION_D(y, n, y, copy) {
 	struct distribution *destination, *source;
+	struct nameandversion data[argc-2];
+	int i;
 	retvalue result;
 
 	result = distribution_get(alldistributions, argv[1], true, &destination);
@@ -1959,8 +1939,26 @@ ACTION_D(y, n, y, copy) {
 	if (RET_WAS_ERROR(result))
 		return result;
 
-	return copy_by_name(destination, source, argc-3, argv+3,
+	for (i = 0 ; i < argc-3 ; i++) {
+		result = splitnameandversion(argv[3 + i], &data[i].name, &data[i].version);
+		if (RET_WAS_ERROR(result)) {
+			for (i-- ; i >= 0 ; i--) {
+				if (data[i].version != NULL)
+					free((char *)data[i].name);
+			}
+			return result;
+		}
+	}
+	data[i].name = NULL;
+	data[i].version = NULL;
+
+	result = copy_by_name(destination, source, data,
 			components, architectures, packagetypes);
+	for (i = 0 ; i < argc-3 ; i++) {
+		if (data[i].version != NULL)
+			free((char *)data[i].name);
+	}
+	return result;
 }
 
 ACTION_D(y, n, y, copysrc) {

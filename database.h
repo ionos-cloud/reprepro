@@ -36,25 +36,33 @@ bool table_isempty(struct table *);
 bool table_recordexists(struct table *, const char *);
 /* retrieve a record from the database, return RET_NOTHING if there is none: */
 retvalue table_getrecord(struct table *, const char *, /*@out@*/char **);
+retvalue table_getcomplexrecord(struct table *, bool secondary, const char *key, /*@out@*/void **data_p, /*@out@*/size_t *len_p);
 retvalue table_gettemprecord(struct table *, const char *, /*@out@*//*@null@*/const char **, /*@out@*//*@null@*/size_t *);
 retvalue table_getpair(struct table *, const char *, const char *, /*@out@*/const char **, /*@out@*/size_t *);
 
-retvalue table_adduniqsizedrecord(struct table *, const char * /*key*/, const char * /*data*/, size_t /*data_size*/, bool /*allowoverwrote*/, bool /*nooverwrite*/);
+retvalue table_adduniqsizedrecord(struct table *, const char * /*key*/, const void * /*data*/, size_t /*data_size*/, bool /*allowoverwrite*/, bool /*nooverwrite*/);
 retvalue table_adduniqrecord(struct table *, const char * /*key*/, const char * /*data*/);
 retvalue table_addrecord(struct table *, const char * /*key*/, const char * /*data*/, size_t /*len*/, bool /*ignoredups*/);
-retvalue table_replacerecord(struct table *, const char *key, const char *data);
+retvalue table_replacesizedrecord(struct table *, const char *key, const void *data, size_t data_size);
 retvalue table_deleterecord(struct table *, const char *key, bool ignoremissing);
 retvalue table_checkrecord(struct table *, const char *key, const char *data);
 retvalue table_removerecord(struct table *, const char *key, const char *data);
 
 retvalue table_newglobalcursor(struct table *, /*@out@*/struct cursor **);
-retvalue table_newduplicatecursor(struct table *, const char *, /*@out@*/struct cursor **, /*@out@*/const char **, /*@out@*/const char **, /*@out@*/size_t *);
+retvalue table_newduplicatecursor(struct table *, bool secondary, const char *, /*@out@*/struct cursor **, /*@out@*/const void **, /*@out@*/size_t *);
+retvalue table_newduplicatepairedcursor(struct table *table, const char *key, struct cursor **cursor_p, const char **value_p, const char **data_p, size_t *datalen_p);
 retvalue table_newpairedcursor(struct table *, const char *, const char *, /*@out@*/struct cursor **, /*@out@*//*@null@*/const char **, /*@out@*//*@null@*/size_t *);
 bool cursor_nexttemp(struct table *, struct cursor *, /*@out@*/const char **, /*@out@*/const char **);
-bool cursor_nexttempdata(struct table *, struct cursor *, /*@out@*/const char **, /*@out@*/const char **, /*@out@*/size_t *);
+bool cursor_nexttempdata(struct table *, struct cursor *, /*@out@*/const char **key, /*@out@*/void **data, /*@out@*/size_t *len_p);
+bool cursor_nexttempstring(struct table *, struct cursor *, /*@out@*/const char **, /*@out@*/const char **, /*@out@*/size_t *);
 bool cursor_nextpair(struct table *, struct cursor *, /*@null@*//*@out@*/const char **, /*@out@*/const char **, /*@out@*/const char **, /*@out@*/size_t *);
 retvalue cursor_replace(struct table *, struct cursor *, const char *, size_t);
 retvalue cursor_delete(struct table *, struct cursor *, const char *, /*@null@*/const char *);
 retvalue cursor_close(struct table *, /*@only@*/struct cursor *);
+
+static inline retvalue table_adduniqsizedstring(struct table *table, const char *key, const char *data, size_t data_size, bool allowoverwrite, bool nooverwrite) {
+	assert (data_size > 0 && data[data_size-1] == '\0');
+	return table_adduniqsizedrecord(table, key, data, data_size, allowoverwrite, nooverwrite);
+}
 
 #endif

@@ -37,6 +37,7 @@
 #include "mprintf.h"
 #include "globmatch.h"
 #include "copypackages.h"
+#include "packagedata.h"
 
 struct target_package_list {
 	struct target_package_list *next;
@@ -58,6 +59,18 @@ struct package_list {
 	/*@null@*/struct target_package_list *targets;
 };
 
+// cascade_strcmp compares the two strings s1 and s2. If the strings are equal, the strings
+// t1 and t2 are compared.
+static int cascade_strcmp(const char *s1, const char *s2, const char *t1, const char *t2) {
+	int result;
+
+	result = strcmp(s1, s2);
+	if (result == 0) {
+		result = strcmp(t1, t2);
+	}
+	return result;
+}
+
 static retvalue list_newpackage(struct package_list *list, struct target *target, const char *sourcename, const char *sourceversion, const char *packagename, const char *packageversion, /*@out@*/struct package **package_p) {
 	struct target_package_list *t, **t_p;
 	struct package *package, **p_p;
@@ -77,12 +90,12 @@ static retvalue list_newpackage(struct package_list *list, struct target *target
 		t = *t_p;
 
 	p_p = &t->packages;
-	while (*p_p != NULL && (c = strcmp(packagename, (*p_p)->name)) < 0)
+	while (*p_p != NULL && (c = cascade_strcmp(packagename, (*p_p)->name, packageversion, (*p_p)->version)) < 0)
 		p_p = &(*p_p)->next;
 	if (*p_p != NULL && c == 0) {
 		// TODO: improve this message..., or some context elsewhere
-		fprintf(stderr, "Multiple occurrences of package '%s'!\n",
-				packagename);
+		fprintf(stderr, "Multiple occurences of package '%s' with version '%s'!\n",
+				packagename, packageversion);
 		return RET_ERROR_EXIST;
 	}
 	package = zNEW(struct package);
@@ -366,37 +379,57 @@ struct namelist {
 	bool *found;
 };
 
+static int strcmp2(const char *s1, const char *s2) {
+	if (s1 == NULL || s2 == NULL) {
+		if (s1 == NULL && s2 == NULL) {
+			return 0;
+		} else if (s1 == NULL) {
+			return -1;
+		} else {
+			return 1;
+		}
+	} else {
+		return strcmp(s1, s2);
+	}
+}
+
 static retvalue by_name(struct package_list *list, UNUSED(struct distribution *into), UNUSED(struct distribution *from), struct target *desttarget, struct target *fromtarget, void *data) {
-	struct namelist *d = data;
+	struct nameandversion *nameandversion = data;
+	struct nameandversion *d;
+	struct nameandversion *prev;
 	retvalue result, r;
-	int i, j;
 
 	r = target_initpackagesdb(fromtarget, READONLY);
 	if (RET_WAS_ERROR(r))
 		return r;
 	result = RET_NOTHING;
-	for (i = 0 ; i < d->argc ; i++) {
-		const char *name = d->argv[i];
-		char *chunk;
+	for (d = nameandversion; d->name != NULL ; d++) {
 		struct packagedata packagedata;
 		architecture_t package_architecture;
 
-		for (j = 0 ; j < i ; j++)
-			if (strcmp(d->argv[i], d->argv[j]) == 0)
+		for (prev = nameandversion ; prev < d ; prev++) {
+			if (strcmp(prev->name, d->name) == 0 && strcmp2(prev->version, d->version) == 0)
 				break;
-		if (j < i) {
-			if (verbose >= 0 && ! d->warnedabout[j])
-				fprintf(stderr,
+		}
+		if (prev < d) {
+			if (verbose >= 0 && ! prev->warnedabout) {
+				if (d->version == NULL) {
+					fprintf(stderr,
 "Hint: '%s' was listed multiple times, ignoring all but first!\n",
-						d->argv[i]);
-			d->warnedabout[j] = true;
+							d->name);
+				} else {
+					fprintf(stderr,
+"Hint: '%s=%s' was listed multiple times, ignoring all but first!\n",
+							d->name, d->version);
+				}
+			}
+			prev->warnedabout = true;
 			/* do not complain second is missing if we ignore it: */
-			d->found[i] = true;
+			d->found = true;
 			continue;
 		}
 
-		r = table_getrecord(fromtarget->packages, name, &chunk);
-		parse_packagedata(chunk, &packagedata);
+		r = target_getpackage(fromtarget, d->name, d->version, &packagedata);
 		if (r == RET_NOTHING)
 			continue;
 		RET_ENDUPDATE(result, r);
@@ -407,12 +440,12 @@ static retvalue by_name(struct package_list *list, UNUSED(struct distribution *i
 		if (RET_WAS_ERROR(r))
 			break;
 		r = list_prepareadd(list, desttarget,
-				name, NULL, package_architecture, packagedata.chunk);
+				d->name, d->version, package_architecture, packagedata.chunk);
 		packagedata_free(&packagedata);
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(r))
 			break;
-		d->found[i] = true;
+		d->found = true;
 	}
 	r = target_closepackagesdb(fromtarget);
 	RET_ENDUPDATE(result, r);
@@ -435,30 +468,24 @@ static void packagelist_done(struct package_list *list) {
 	}
 }
 
-retvalue copy_by_name(struct distribution *into, struct distribution *from, int argc, const char **argv, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes) {
+retvalue copy_by_name(struct distribution *into, struct distribution *from, struct nameandversion *nameandversion, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes) {
 	struct package_list list;
-	struct namelist names = {
-		argc, argv, nzNEW(argc, bool), nzNEW(argc, bool)
-	};
+	struct nameandversion *d;
 	retvalue r;
 
-	if (FAILEDTOALLOC(names.warnedabout) || FAILEDTOALLOC(names.found)) {
-		free(names.found);
-		free(names.warnedabout);
-		return RET_ERROR_OOM;
+	for (d = nameandversion; d->name != NULL; d++) {
+		d->found = false;
+		d->warnedabout = false;
 	}
 
 	memset(&list, 0, sizeof(list));
 	r = copy_by_func(&list, into, from, components,
-			architectures, packagetypes, by_name, &names);
-	free(names.warnedabout);
+			architectures, packagetypes, by_name, nameandversion);
 	if (verbose >= 0 && !RET_WAS_ERROR(r)) {
-		int i;
 		bool first = true;
 
-		assert(names.found != NULL);
-		for (i = 0 ; i < argc ; i++) {
-			if (names.found[i])
+		for (d = nameandversion; d->name != NULL; d++) {
+			if (d->found)
 				continue;
 			if (first)
 				(void)fputs(
@@ -466,14 +493,17 @@ retvalue copy_by_name(struct distribution *into, struct distribution *from, int 
 			else
 				(void)fputs(", ", stderr);
 			first = false;
-			(void)fputs(argv[i], stderr);
+			(void)fputs(d->name, stderr);
+			if (d->version != NULL) {
+				(void)fputs("=", stderr);
+				(void)fputs(d->version, stderr);
+			}
 		}
 		if (!first) {
 			(void)fputc('.', stderr);
 			(void)fputc('\n', stderr);
 		}
 	}
-	free(names.found);
 	if (!RET_IS_OK(r))
 		return r;
 	r = packagelist_add(into, &list, from->codename);

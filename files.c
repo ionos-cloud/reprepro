@@ -59,7 +59,7 @@ retvalue files_add_checksums(const char *filekey, const struct checksums *checks
 	r = checksums_getcombined(checksums, &combined, &combinedlen);
 	if (!RET_IS_OK(r))
 		return r;
-	r = table_adduniqsizedrecord(rdb_checksums, filekey,
+	r = table_adduniqsizedstring(rdb_checksums, filekey,
 			combined, combinedlen + 1, true, false);
 	if (!RET_IS_OK(r))
 		return r;
@@ -75,7 +75,7 @@ static retvalue files_replace_checksums(const char *filekey, const struct checks
 	r = checksums_getcombined(checksums, &combined, &combinedlen);
 	if (!RET_IS_OK(r))
 		return r;
-	return table_adduniqsizedrecord(rdb_checksums, filekey,
+	return table_adduniqsizedstring(rdb_checksums, filekey,
 			combined, combinedlen + 1, true, false);
 }
 
@@ -378,7 +378,7 @@ retvalue files_checkpool(bool fast) {
 	r = table_newglobalcursor(rdb_checksums, &cursor);
 	if (!RET_IS_OK(r))
 		return r;
-	while (cursor_nexttempdata(rdb_checksums, cursor,
+	while (cursor_nexttempstring(rdb_checksums, cursor,
 				&filekey, &combined, &combinedlen)) {
 		r = checksums_setall(&expected, combined, combinedlen);
 		if (RET_WAS_ERROR(r)) {
@@ -424,7 +424,7 @@ retvalue files_collectnewchecksums(void) {
 	r = table_newglobalcursor(rdb_checksums, &cursor);
 	if (!RET_IS_OK(r))
 		return r;
-	while (cursor_nexttempdata(rdb_checksums, cursor,
+	while (cursor_nexttempstring(rdb_checksums, cursor,
 				&filekey, &all, &alllen)) {
 		r = checksums_setall(&expected, all, alllen);
 		if (!RET_IS_OK(r)) {
@@ -520,7 +520,7 @@ static retvalue regenerate_filelist(void *data, const char *filekey) {
 				p += strlen(p)+1;
 			}
 		}
-		r = table_adduniqsizedrecord(rdb_contents,
+		r = table_adduniqsizedstring(rdb_contents,
 				filekey, filelist, fls, true, true);
 		free(filelist);
 	}

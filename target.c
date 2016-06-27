@@ -229,9 +229,10 @@ retvalue target_removereadpackage(struct target *target, struct logger *logger, 
 	struct strlist files;
 	retvalue result, r;
 	char *oldsource, *oldsversion;
+	char *key;
 
 	assert (target != NULL && target->packages != NULL);
-	assert (olddata != NULL && olddata->chunk != NULL && name != NULL);
+	assert (olddata != NULL && olddata->data != NULL && name != NULL);
 
 	if (logger != NULL) {
 		/* need to get the version for logging, if not available */
@@ -254,9 +255,11 @@ retvalue target_removereadpackage(struct target *target, struct logger *logger, 
 		oldsource = oldsversion = NULL;
 	}
 	if (verbose > 0)
-		printf("removing '%s' from '%s'...\n",
-				name, target->identifier);
-	result = table_deleterecord(target->packages, name, false);
+		printf("removing '%s=%s' from '%s'...\n",
+				name, olddata->version, target->identifier);
+	key = packagedata_primarykey(name, olddata->version);
+	result = table_deleterecord(target->packages, key, false);
+	free(key);
 	if (RET_IS_OK(result)) {
 		target->wasmodified = true;
 		if (oldsource!= NULL && oldsversion != NULL) {
@@ -281,15 +284,13 @@ retvalue target_removereadpackage(struct target *target, struct logger *logger, 
 }
 
 /* Remove a package from the given target. */
-retvalue target_removepackage(struct target *target, struct logger *logger, const char *name, struct trackingdata *trackingdata) {
-	char *oldchunk;
+retvalue target_removepackage(struct target *target, struct logger *logger, const char *name, const char *version, struct trackingdata *trackingdata) {
 	struct packagedata olddata;
 	retvalue r;
 
 	assert(target != NULL && target->packages != NULL && name != NULL);
 
-	r = table_getrecord(target->packages, name, &oldchunk);
-	parse_packagedata(oldchunk, &olddata);
+	r = target_getpackage(target, name, version, &olddata);
 	if (RET_WAS_ERROR(r)) {
 		return r;
 	}
@@ -316,11 +317,10 @@ retvalue target_removepackage_by_cursor(struct target_cursor *tc, struct logger 
 	retvalue result, r;
 	char *oldsource, *oldsversion;
 
-	parse_packagedata(tc->lastcontrol, &packagedata);
+	parse_packagedata(tc->lastdata, tc->lastdata_len, &packagedata);
 
 	assert (target != NULL && target->packages != NULL);
-	assert (name != NULL);
-	// TODO: assert (packagedata.data != NULL);
+	assert (name != NULL && packagedata.data != NULL);
 
 	if (logger != NULL) {
 		/* need to get the version for logging, if not available */
@@ -369,13 +369,16 @@ retvalue target_removepackage_by_cursor(struct target_cursor *tc, struct logger 
 	return result;
 }
 
-static retvalue addpackages(struct target *target, const char *packagename, const char *controlchunk, const char *version, /*@null@*/const struct packagedata *oldpackage, /*@null@*/const char *oldversion, const struct strlist *files, /*@only@*//*@null@*/struct strlist *oldfiles, /*@null@*/struct logger *logger, /*@null@*/struct trackingdata *trackingdata, architecture_t architecture, /*@null@*//*@only@*/char *oldsource, /*@null@*//*@only@*/char *oldsversion, /*@null@*/const char *causingrule, /*@null@*/const char *suitefrom) {
+static retvalue addpackages(struct target *target, const char *packagename, const char *controlchunk, const char *version, /*@null@*/const struct packagedata *oldpackage, const struct strlist *files, /*@only@*//*@null@*/struct strlist *oldfiles, /*@null@*/struct logger *logger, /*@null@*/struct trackingdata *trackingdata, architecture_t architecture, /*@null@*//*@only@*/char *oldsource, /*@null@*//*@only@*/char *oldsversion, /*@null@*/const char *causingrule, /*@null@*/const char *suitefrom) {
 
 	retvalue result, r;
+	char *key;
+	struct packagedata packagedata;
 	struct table *table = target->packages;
 	enum filetype filetype;
 
 	assert (atom_defined(architecture));
+	assert (oldpackage != NULL);
 
 	if (architecture == architecture_source)
 		filetype = ft_SOURCE;
@@ -394,14 +397,23 @@ static retvalue addpackages(struct target *target, const char *packagename, cons
 		return r;
 	}
 
+	r = packagedata_create(version, controlchunk, &packagedata);
+	if (RET_WAS_ERROR(r)) {
+		if (oldfiles != NULL)
+			strlist_done(oldfiles);
+		return r;
+	}
+
 	/* Add package to the distribution's database */
 
-	if (oldpackage != NULL) {
-		result = table_replacerecord(table, packagename, controlchunk);
+	key = packagedata_primarykey(packagename, version);
+	if (oldpackage->data != NULL) {
+		result = table_replacesizedrecord(table, packagename, packagedata.data, packagedata.data_len);
 
 	} else {
-		result = table_adduniqrecord(table, packagename, controlchunk);
+		result = table_adduniqsizedrecord(table, key, packagedata.data, packagedata.data_len, false, false);
 	}
+	free(key);
 
 	if (RET_WAS_ERROR(result)) {
 		if (oldfiles != NULL)
@@ -409,15 +421,11 @@ static retvalue addpackages(struct target *target, const char *packagename, cons
 		return result;
 	}
 
-	if (logger != NULL) {
-		char *oldcontrolchunk = NULL;
-		if (oldpackage != NULL)
-			oldcontrolchunk = oldpackage->chunk;
+	if (logger != NULL)
 		logger_log(logger, target, packagename,
-				version, oldversion,
-				controlchunk, oldcontrolchunk,
+				version, oldpackage->version,
+				controlchunk, oldpackage->chunk,
 				files, oldfiles, causingrule, suitefrom);
-	}
 
 	r = trackingdata_insert(trackingdata, filetype, files,
 			oldsource, oldsversion, oldfiles);
@@ -434,126 +442,182 @@ static retvalue addpackages(struct target *target, const char *packagename, cons
 	return result;
 }
 
+// If version is NULL, return the latest version of the specified package name.
+// The return structure packagedata must already be allocated.
+retvalue target_getpackage(struct target *target, const char *name, const char *version, /*@out*/struct packagedata *packagedata) {
+	void *data;
+	size_t data_len;
+	retvalue r;
+
+	if (version == NULL) {
+		r = table_getcomplexrecord(target->packages, true, name, &data, &data_len);
+	} else {
+		char *key;
+		key = packagedata_primarykey(name, version);
+		r = table_getcomplexrecord(target->packages, false, key, &data, &data_len);
+		free(key);
+	}
+	if (!RET_IS_OK(r)) {
+		// Error case or no package found.
+		setzero(struct packagedata, packagedata);
+		return r;
+	}
+	return parse_packagedata(data, data_len, packagedata);
+}
+
 retvalue target_addpackage(struct target *target, struct logger *logger, const char *name, const char *version, const char *control, const struct strlist *filekeys, bool downgrade, struct trackingdata *trackingdata, architecture_t architecture, const char *causingrule, const char *suitefrom, struct description *description) {
 	struct strlist oldfilekeys, *ofk;
 	struct packagedata oldpackage;
 	char *newcontrol;
-	char *oldcontrol, *oldsource, *oldsversion;
-	char *oldpversion;
+	char *oldsource, *oldsversion;
 	retvalue r;
+	// TODO: make keep_old user configurable.
+	bool keep_old = true;
+	// Overwrite existing package versions.
+	bool overwrite_existing;
+	bool replace = true;
 
 	assert(target->packages!=NULL);
 
-	r = table_getrecord(target->packages, name, &oldcontrol);
-	parse_packagedata(oldcontrol, &oldpackage);
+	overwrite_existing = downgrade;
+
+	r = target_getpackage(target, name, NULL, &oldpackage);
 	if (RET_WAS_ERROR(r))
 		return r;
 	if (r == RET_NOTHING) {
 		ofk = NULL;
 		oldsource = NULL;
 		oldsversion = NULL;
-		oldpversion = NULL;
-		oldcontrol = NULL;
 	} else {
+		int versioncmp;
 
-		r = target->getversion(oldcontrol, &oldpversion);
-		if (RET_WAS_ERROR(r) && !IGNORING(brokenold,
-"Error parsing old version!\n")) {
-			free(oldcontrol);
-			return r;
-		}
-		if (RET_IS_OK(r)) {
-			int versioncmp;
-
-			r = dpkgversions_cmp(version, oldpversion, &versioncmp);
-			if (RET_WAS_ERROR(r)) {
-				if (!IGNORING(brokenversioncmp,
-"Parse errors processing versions of %s.\n", name)) {
-					free(oldpversion);
-					free(oldcontrol);
-					return r;
-				}
-			} else {
-				if (versioncmp <= 0) {
-					/* new Version is not newer than
-					 * old version */
-					if (!downgrade) {
-						fprintf(stderr,
-"Skipping inclusion of '%s' '%s' in '%s', as it has already '%s'.\n",
-							name, version,
-							target->identifier,
-							oldpversion);
-						free(oldpversion);
-						free(oldcontrol);
-						return RET_NOTHING;
-					} else if (versioncmp < 0) {
-						fprintf(stderr,
-"Warning: downgrading '%s' from '%s' to '%s' in '%s'!\n", name,
-							oldpversion, version,
-							target->identifier);
-					} else {
-						fprintf(stderr,
-"Warning: replacing '%s' version '%s' with equal version '%s' in '%s'!\n", name,
-							oldpversion, version,
-							target->identifier);
-					}
-				}
-			}
-		} else
-			oldpversion = NULL;
-		r = target->getfilekeys(oldcontrol, &oldfilekeys);
-		ofk = &oldfilekeys;
+		r = dpkgversions_cmp(version, oldpackage.version, &versioncmp);
 		if (RET_WAS_ERROR(r)) {
-			if (IGNORING(brokenold,
-"Error parsing files belonging to installed version of %s!\n", name)) {
-				ofk = NULL;
-				oldsversion = oldsource = NULL;
-			} else {
-				free(oldcontrol);
-				free(oldpversion);
+			if (!IGNORING(brokenversioncmp,
+"Parse errors processing versions of %s.\n", name)) {
+				packagedata_free(&oldpackage);
 				return r;
 			}
-		} else if (trackingdata != NULL) {
-			r = target->getsourceandversion(oldcontrol,
-					name, &oldsource, &oldsversion);
+		} else {
+			if (versioncmp == 0) {
+				// new Version is same than the old version
+				if (!overwrite_existing) {
+					fprintf(stderr,
+"Skipping inclusion of '%s' '%s' in '%s', as this version already exists.\n",
+						name, version,
+						target->identifier);
+					packagedata_free(&oldpackage);
+					return RET_NOTHING;
+				} else {
+					fprintf(stderr,
+"Warning: replacing '%s' version '%s' with equal version '%s' in '%s'!\n", name,
+						oldpackage.version, version,
+						target->identifier);
+				}
+			} else if (versioncmp < 0) {
+				/* new Version is older than
+				 * old version */
+				if (keep_old) {
+					struct packagedata samepackage;
+					r = target_getpackage(target, name, version, &samepackage);
+					if (RET_WAS_ERROR(r)) {
+						packagedata_free(&oldpackage);
+						return r;
+					} else if (RET_IS_OK(r)) {
+						if (!overwrite_existing) {
+							fprintf(stderr,
+		"Skipping inclusion of '%s' '%s' in '%s', as this version already exists.\n",
+								name, version,
+								target->identifier);
+							packagedata_free(&oldpackage);
+							packagedata_free(&samepackage);
+							return RET_NOTHING;
+						} else {
+							fprintf(stderr,
+		"Warning: replacing '%s' version '%s' with equal version '%s' in '%s'!\n", name,
+								samepackage.version, version,
+								target->identifier);
+						}
+					} else { // r == RET_NOTHING
+						replace = false;
+					}
+					packagedata_free(&samepackage);
+				} else if (!downgrade) {
+					fprintf(stderr,
+"Skipping inclusion of '%s' '%s' in '%s', as it has already '%s'.\n",
+						name, version,
+						target->identifier,
+						oldpackage.version);
+					packagedata_free(&oldpackage);
+					return RET_NOTHING;
+				} else {
+					fprintf(stderr,
+"Warning: downgrading '%s' from '%s' to '%s' in '%s'!\n", name,
+						oldpackage.version, version,
+						target->identifier);
+				}
+			} else { // versioncmp > 0
+				replace = !keep_old;
+			}
+		}
+		if (replace) {
+			r = target->getfilekeys(oldpackage.chunk, &oldfilekeys);
+			ofk = &oldfilekeys;
 			if (RET_WAS_ERROR(r)) {
-				strlist_done(ofk);
 				if (IGNORING(brokenold,
-"Error searching for source name of installed version of %s!\n", name)) {
-					// TODO: free something of oldfilekeys?
+"Error parsing files belonging to installed version of %s!\n", name)) {
 					ofk = NULL;
 					oldsversion = oldsource = NULL;
 				} else {
-					free(oldcontrol);
-					free(oldpversion);
+					packagedata_free(&oldpackage);
 					return r;
 				}
+			} else if (trackingdata != NULL) {
+				r = target->getsourceandversion(oldpackage.chunk,
+						name, &oldsource, &oldsversion);
+				if (RET_WAS_ERROR(r)) {
+					strlist_done(ofk);
+					if (IGNORING(brokenold,
+"Error searching for source name of installed version of %s!\n", name)) {
+						// TODO: free something of oldfilekeys?
+						ofk = NULL;
+						oldsversion = oldsource = NULL;
+					} else {
+						packagedata_free(&oldpackage);
+						return r;
+					}
+				}
+			} else {
+				oldsversion = oldsource = NULL;
 			}
-		} else {
-			oldsversion = oldsource = NULL;
 		}
-
 	}
 	newcontrol = NULL;
-	r = description_addpackage(target, name, control, oldcontrol,
+	r = description_addpackage(target, name, control, oldpackage.chunk,
 			description, &newcontrol);
 	if (RET_IS_OK(r))
 		control = newcontrol;
-	if (!RET_WAS_ERROR(r))
+	if (!RET_WAS_ERROR(r)) {
+		if (!replace) {
+			packagedata_free(&oldpackage);
+			ofk = NULL;
+			oldsversion = NULL;
+			oldsource = NULL;
+		}
 		r = addpackages(target, name, control,
-			version, &oldpackage, oldpversion,
+			version, &oldpackage,
 			filekeys, ofk,
 			logger,
 			trackingdata, architecture, oldsource, oldsversion,
 			causingrule, suitefrom);
+	}
 	if (RET_IS_OK(r)) {
 		target->wasmodified = true;
 		if (trackingdata == NULL)
 			target->staletracking = true;
 	}
 	free(newcontrol);
-	free(oldpversion);
-	free(oldcontrol);
+	packagedata_free(&oldpackage);
 
 	return r;
 }

@@ -462,8 +462,8 @@ retvalue export_target(const char *relativedir, struct target *target,  const st
 	const char *status;
 	char *relfilename;
 	char buffer[100];
-	const char *chunk;
-	size_t chunk_len;
+	const char *packagename;
+	struct packagedata packagedata;
 	struct target_cursor iterator;
 
 	relfilename = calc_dirconcat(relativedir, exportmode->filename);
@@ -496,13 +496,12 @@ retvalue export_target(const char *relativedir, struct target *target,  const st
 			free(relfilename);
 			return r;
 		}
-		while (target_nextpackage_len(&iterator, NULL,
-					&chunk, &chunk_len)) {
-			if (chunk_len == 0)
+		while (target_nextpackage(&iterator, &packagename, &packagedata)) {
+			if (packagedata.fields_len->chunk_len == 0)
 				continue;
-			(void)release_writedata(file, chunk, chunk_len);
+			(void)release_writedata(file, packagedata.chunk, packagedata.fields_len->chunk_len-1);
 			(void)release_writestring(file, "\n");
-			if (chunk[chunk_len-1] != '\n')
+			if (packagedata.chunk[packagedata.fields_len->chunk_len-2] != '\n')
 				(void)release_writestring(file, "\n");
 		}
 		r = target_closeiterator(&iterator);

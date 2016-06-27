@@ -92,7 +92,8 @@ struct target_cursor {
 	/*@temp@*/struct target *target;
 	struct cursor *cursor;
 	const char *lastname;
-	const char *lastcontrol;
+	void *lastdata;
+	size_t lastdata_len;
 };
 #define TARGET_CURSOR_ZERO {NULL, NULL, NULL, NULL}
 /* wrapper around initpackagesdb and table_newglobalcursor */
@@ -116,30 +117,53 @@ static inline retvalue target_openiterator(struct target *t, bool readonly, /*@o
 	return RET_OK;
 }
 
+/* wrapper around initpackagesdb and table_newduplicatecursor */
+static inline retvalue target_openduplicateiterator(struct target *t, bool readonly, const char *key, /*@out@*/struct target_cursor *tc, /*@out@*/struct packagedata *packagedata) {
+	retvalue r, r2;
+	struct cursor *c;
+	void *data;
+	size_t data_len;
+
+	r = target_initpackagesdb(t, readonly);
+	assert (r != RET_NOTHING);
+	if (RET_WAS_ERROR(r))
+		return r;
+
+	r = table_newduplicatecursor(t->packages, true, key, &c, (const void**)&data, &data_len);
+	if (!RET_IS_OK(r)) {
+		r2 = target_closepackagesdb(t);
+		RET_ENDUPDATE(r, r2);
+		return r;
+	}
+	tc->target = t;
+	tc->cursor = c;
+	tc->lastdata = data;
+	tc->lastdata_len = data_len;
+	parse_packagedata(data, data_len, packagedata);
+	return RET_OK;
+}
+
 /* wrapper around cursor_nexttemp */
 static inline bool target_nextpackage(struct target_cursor *tc, /*@out@*/const char **packagename_p, /*@out@*/struct packagedata *packagedata) {
 	bool success;
 
-	success = cursor_nexttemp(tc->target->packages, tc->cursor,
-			&tc->lastname, &tc->lastcontrol);
+	success = cursor_nexttempdata(tc->target->packages, tc->cursor,
+			&tc->lastname, &tc->lastdata, &tc->lastdata_len);
 	if (success) {
-		*packagename_p = tc->lastname;
-		parse_packagedata(tc->lastcontrol, packagedata);
+		if (packagename_p != NULL) {
+			*packagename_p = tc->lastname;
+		}
+		parse_packagedata(tc->lastdata, tc->lastdata_len, packagedata);
 	} else {
 		tc->lastname = NULL;
-		tc->lastcontrol = NULL;
+		tc->lastdata = NULL;
+		tc->lastdata_len = 0;
 		if (packagename_p != NULL)
 			*packagename_p = NULL;
 	}
 	return success;
 }
-/* wrapper around cursor_nexttemp */
-static inline bool target_nextpackage_len(struct target_cursor *tc, /*@out@*//*@null@*/const char **packagename_p, /*@out@*/const char **chunk_p, /*@out@*/size_t *len_p) {
-	tc->lastname = NULL;
-	tc->lastcontrol = NULL;
-	return cursor_nexttempdata(tc->target->packages, tc->cursor,
-			packagename_p, chunk_p, len_p);
-}
+
 /* wrapper around cursor_close and target_closepackagesdb */
 static inline retvalue target_closeiterator(struct target_cursor *tc) {
 	retvalue result, r;
@@ -156,7 +180,7 @@ struct description;
 retvalue target_addpackage(struct target *, /*@null@*/struct logger *, const char *name, const char *version, const char *control, const struct strlist *filekeys, bool downgrade, /*@null@*/struct trackingdata *, architecture_t, /*@null@*/const char *causingrule, /*@null@*/const char *suitefrom, /*@null@*/struct description *);
 retvalue target_checkaddpackage(struct target *, const char *name, const char *version, bool tracking, bool permitnewerold);
 retvalue target_getpackage(struct target *, const char *name, const char *version, /*@out*/struct packagedata *);
-retvalue target_removepackage(struct target *, /*@null@*/struct logger *, const char *name, struct trackingdata *);
+retvalue target_removepackage(struct target *, /*@null@*/struct logger *, const char *name, const char *version, struct trackingdata *);
 /* like target_removepackage, but do not read control data yourself but use available */
 retvalue target_removereadpackage(struct target *, /*@null@*/struct logger *, const char *name, const struct packagedata *olddata, /*@null@*/struct trackingdata *);
 /* Like target_removepackage, but delete the package record by cursor */

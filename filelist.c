@@ -454,7 +454,7 @@ retvalue filelist_addpackage(struct filelist_list *list, const char *packagename
 	if (RET_IS_OK(r)) {
 		r = filelist_addfiles(list, package, filekey, c, len + 1);
 		if (contents != NULL)
-			r = table_adduniqsizedrecord(rdb_contents, filekey,
+			r = table_adduniqsizedstring(rdb_contents, filekey,
 					contents, len + 1, true, false);
 	}
 	free(contents);
@@ -462,7 +462,7 @@ retvalue filelist_addpackage(struct filelist_list *list, const char *packagename
 }
 
 retvalue fakefilelist(const char *filekey) {
-	return table_adduniqsizedrecord(rdb_contents, filekey,
+	return table_adduniqsizedstring(rdb_contents, filekey,
 			"", 1, true, false);
 }
 
@@ -676,7 +676,7 @@ retvalue filelists_translate(struct table *oldtable, struct table *newtable) {
 	r = table_newglobalcursor(oldtable, &cursor);
 	if (!RET_IS_OK(r))
 		return r;
-	while (cursor_nexttempdata(oldtable, cursor, &filekey,
+	while (cursor_nexttempstring(oldtable, cursor, &filekey,
 				&olddata, &olddata_len)) {
 		const char *p;
 		size_t l;
@@ -697,7 +697,7 @@ retvalue filelists_translate(struct table *oldtable, struct table *newtable) {
 		r = filelistcompressor_finish(&c, &newdata, &newdata_size);
 		if (!RET_IS_OK(r))
 			break;
-		r = table_adduniqsizedrecord(newtable, filekey,
+		r = table_adduniqsizedstring(newtable, filekey,
 				newdata, newdata_size, false, false);
 		free(newdata);
 		if (RET_WAS_ERROR(r))

@@ -43,6 +43,7 @@
 #include "dpkgversions.h"
 #include "distribution.h"
 #include "database_p.h"
+#include "packagedata.h"
 
 #define STRINGIFY(x) #x
 #define TOSTRING(x) STRINGIFY(x)
@@ -211,16 +212,17 @@ static retvalue database_hasdatabasefile(const char *filename, /*@out@*/bool *ex
 
 enum database_type {
 	dbt_QUERY,
-	dbt_BTREE, dbt_BTREEDUP, dbt_BTREEPAIRS,
+	dbt_BTREE, dbt_BTREEDUP, dbt_BTREEPAIRS, dbt_BTREEVERSIONS,
 	dbt_HASH,
 	dbt_COUNT /* must be last */
 };
 static const uint32_t types[dbt_COUNT] = {
 	DB_UNKNOWN,
-	DB_BTREE, DB_BTREE, DB_BTREE,
+	DB_BTREE, DB_BTREE, DB_BTREE, DB_BTREE,
 	DB_HASH
 };
 
+static int debianversioncompare(UNUSED(DB *db), const DBT *a, const DBT *b);
 #if DB_VERSION_MAJOR >= 6
 static int paireddatacompare(UNUSED(DB *db), const DBT *a, const DBT *b, size_t *locp);
 #else
@@ -242,7 +244,7 @@ static retvalue database_opentable(const char *filename, /*@null@*/const char *s
 		free(fullfilename);
 		return RET_DBERR(dbret);
 	}
-	if (type == dbt_BTREEDUP || type == dbt_BTREEPAIRS) {
+	if (type == dbt_BTREEDUP || type == dbt_BTREEPAIRS || type == dbt_BTREEVERSIONS) {
 		dbret = table->set_flags(table, DB_DUPSORT);
 		if (dbret != 0) {
 			table->err(table, dbret, "db_set_flags(DB_DUPSORT):");
@@ -253,6 +255,15 @@ static retvalue database_opentable(const char *filename, /*@null@*/const char *s
 	}
 	if (type == dbt_BTREEPAIRS) {
 		dbret = table->set_dup_compare(table,  paireddatacompare);
+		if (dbret != 0) {
+			table->err(table, dbret, "db_set_dup_compare:");
+			(void)table->close(table, 0);
+			free(fullfilename);
+			return RET_DBERR(dbret);
+		}
+	}
+	if (type == dbt_BTREEVERSIONS) {
+		dbret = table->set_dup_compare(table, debianversioncompare);
 		if (dbret != 0) {
 			table->err(table, dbret, "db_set_dup_compare:");
 			(void)table->close(table, 0);
@@ -945,33 +956,75 @@ static const char databaseerror[] = "Internal error of the underlying BerkeleyDB
  There is nothing that cannot be solved by another layer of indirection, except
  too many levels of indirection. (Source forgotten) */
 
+struct cursor {
+	DBC *cursor;
+	uint32_t flags;
+	retvalue r;
+};
+
 struct table {
 	char *name, *subname;
 	DB *berkeleydb;
+	DB *sec_berkeleydb;
 	bool *flagreset;
 	bool readonly, verbose;
 };
 
 static void table_printerror(struct table *table, int dbret, const char *action) {
-	if (table->subname != NULL)
-		table->berkeleydb->err(table->berkeleydb, dbret,
-				"%sWithin %s subtable %s at %s",
-				databaseerror, table->name, table->subname,
-				action);
-	else
-		table->berkeleydb->err(table->berkeleydb, dbret,
-				"%sWithin %s at %s",
-				databaseerror, table->name, action);
+	char *error_msg;
+
+	switch (dbret) {
+	case DB_MALFORMED_KEY:
+		error_msg = "DB_MALFORMED_KEY: Primary key does not contain the separator '|'.";
+		break;
+	case RET_ERROR_OOM:
+		error_msg = "RET_ERROR_OOM: Out of memory.";
+		break;
+	default:
+		error_msg = NULL;
+		break;
+	}
+
+	if (error_msg == NULL) {
+		if (table->subname != NULL)
+			table->berkeleydb->err(table->berkeleydb, dbret,
+					"%sWithin %s subtable %s at %s",
+					databaseerror, table->name, table->subname,
+					action);
+		else
+			table->berkeleydb->err(table->berkeleydb, dbret,
+					"%sWithin %s at %s",
+					databaseerror, table->name, action);
+	} else {
+		if (table->subname != NULL)
+			table->berkeleydb->errx(table->berkeleydb,
+					"%sWithin %s subtable %s at %s: %s",
+					databaseerror, table->name, table->subname,
+					action, error_msg);
+		else
+			table->berkeleydb->errx(table->berkeleydb,
+					"%sWithin %s at %s: %s",
+					databaseerror, table->name, action, error_msg);
+	}
 }
 
 retvalue table_close(struct table *table) {
 	int dbret;
-	retvalue result;
+	retvalue result = RET_OK;
 
 	if (table == NULL)
 		return RET_NOTHING;
 	if (table->flagreset != NULL)
 		*table->flagreset = false;
+	if (table->sec_berkeleydb != NULL) {
+		dbret = table->sec_berkeleydb->close(table->sec_berkeleydb, 0);
+		if (dbret != 0) {
+			fprintf(stderr, "db_sec_close(%s, %s): %s\n",
+					table->name, table->subname,
+					db_strerror(dbret));
+			result = RET_DBERR(dbret);
+		}
+	}
 	if (table->berkeleydb == NULL) {
 		assert (table->readonly);
 		dbret = 0;
@@ -982,17 +1035,17 @@ retvalue table_close(struct table *table) {
 				table->name, table->subname,
 				db_strerror(dbret));
 		result = RET_DBERR(dbret);
-	} else
-		result = RET_OK;
+	}
 	free(table->name);
 	free(table->subname);
 	free(table);
 	return result;
 }
 
-retvalue table_getrecord(struct table *table, const char *key, char **data_p) {
+retvalue table_getcomplexrecord(struct table *table, bool secondary, const char *key, /*@out@*/void **data_p, /*@out@*/size_t *len_p) {
 	int dbret;
 	DBT Key, Data;
+	DB *db;
 
 	assert (table != NULL);
 	if (table->berkeleydb == NULL) {
@@ -1004,8 +1057,11 @@ retvalue table_getrecord(struct table *table, const char *key, char **data_p) {
 	CLEARDBT(Data);
 	Data.flags = DB_DBT_MALLOC;
 
-	dbret = table->berkeleydb->get(table->berkeleydb, NULL,
-			&Key, &Data, 0);
+	if (secondary)
+		db = table->sec_berkeleydb;
+	else
+		db = table->berkeleydb;
+	dbret = db->get(db, NULL, &Key, &Data, 0);
 	// TODO: find out what error code means out of memory...
 	if (dbret == DB_NOTFOUND)
 		return RET_NOTHING;
@@ -1015,21 +1071,45 @@ retvalue table_getrecord(struct table *table, const char *key, char **data_p) {
 	}
 	if (FAILEDTOALLOC(Data.data))
 		return RET_ERROR_OOM;
-	if (Data.size <= 0 ||
-	    ((const char*)Data.data)[Data.size-1] != '\0') {
+	if (Data.size <= 0) {
 		if (table->subname != NULL)
 			fprintf(stderr,
-"Database %s(%s) returned corrupted (not null-terminated) data!",
+"Database %s(%s) returned corrupted data!\n",
 					table->name, table->subname);
 		else
 			fprintf(stderr,
-"Database %s returned corrupted (not null-terminated) data!",
+"Database %s returned corrupted data!\n",
 					table->name);
 		free(Data.data);
 		return RET_ERROR;
 	}
 	*data_p = Data.data;
+	*len_p = Data.size;
 	return RET_OK;
+}
+
+retvalue table_getrecord(struct table *table, const char *key, char **data_p) {
+	retvalue result;
+	void *data;
+	size_t len;
+
+	result = table_getcomplexrecord(table, false, key, &data, &len);
+	if (RET_IS_OK(result)) {
+		if (unlikely(((char*)data)[len-1] != '\0')) {
+			if (table->subname != NULL)
+				fprintf(stderr,
+"Database %s(%s) returned corrupted (not null-terminated) data!\n",
+					table->name, table->subname);
+			else
+				fprintf(stderr,
+"Database %s returned corrupted (not null-terminated) data!\n",
+					table->name);
+			free(data);
+			return RET_ERROR;
+		}
+		*data_p = (char*)data;
+	}
+	return result;
 }
 
 retvalue table_getpair(struct table *table, const char *key, const char *value, /*@out@*/const char **data_p, /*@out@*/size_t *datalen_p) {
@@ -1218,13 +1298,13 @@ retvalue table_addrecord(struct table *table, const char *key, const char *data,
 	return RET_OK;
 }
 
-retvalue table_adduniqsizedrecord(struct table *table, const char *key, const char *data, size_t data_size, bool allowoverwrite, bool nooverwrite) {
+retvalue table_adduniqsizedrecord(struct table *table, const char *key, const void *data, size_t data_size, bool allowoverwrite, bool nooverwrite) {
 	int dbret;
 	DBT Key, Data;
 
 	assert (table != NULL);
 	assert (!table->readonly && table->berkeleydb != NULL);
-	assert (data_size > 0 && data[data_size-1] == '\0');
+	assert (data_size > 0);
 
 	SETDBT(Key, key);
 	SETDBTl(Data, data, data_size);
@@ -1249,7 +1329,7 @@ retvalue table_adduniqsizedrecord(struct table *table, const char *key, const ch
 	return RET_OK;
 }
 retvalue table_adduniqrecord(struct table *table, const char *key, const char *data) {
-	return table_adduniqsizedrecord(table, key, data, strlen(data)+1,
+	return table_adduniqsizedstring(table, key, data, strlen(data)+1,
 			false, false);
 }
 
@@ -1282,26 +1362,26 @@ retvalue table_deleterecord(struct table *table, const char *key, bool ignoremis
 	return RET_OK;
 }
 
-retvalue table_replacerecord(struct table *table, const char *key, const char *data) {
+retvalue table_replacesizedrecord(struct table *table, const char *key, const void *data, size_t data_size) {
 	retvalue r;
 
 	r = table_deleterecord(table, key, false);
 	if (r != RET_ERROR_MISSING && RET_WAS_ERROR(r))
 		return r;
-	return table_adduniqrecord(table, key, data);
+	return table_adduniqsizedrecord(table, key, data, data_size, false, false);
 }
 
-struct cursor {
-	DBC *cursor;
-	uint32_t flags;
-	retvalue r;
-};
-
 retvalue table_newglobalcursor(struct table *table, struct cursor **cursor_p) {
+	DB *berkeleydb;
 	struct cursor *cursor;
 	int dbret;
 
-	if (table->berkeleydb == NULL) {
+	berkeleydb = table->berkeleydb;
+	if (table->sec_berkeleydb != NULL) {
+		berkeleydb = table->sec_berkeleydb;
+	}
+
+	if (berkeleydb == NULL) {
 		assert (table->readonly);
 		*cursor_p = NULL;
 		return RET_OK;
@@ -1314,7 +1394,7 @@ retvalue table_newglobalcursor(struct table *table, struct cursor **cursor_p) {
 	cursor->cursor = NULL;
 	cursor->flags = DB_NEXT;
 	cursor->r = RET_OK;
-	dbret = table->berkeleydb->cursor(table->berkeleydb, NULL,
+	dbret = berkeleydb->cursor(berkeleydb, NULL,
 			&cursor->cursor, 0);
 	if (dbret != 0) {
 		table_printerror(table, dbret, "cursor");
@@ -1325,12 +1405,23 @@ retvalue table_newglobalcursor(struct table *table, struct cursor **cursor_p) {
 	return RET_OK;
 }
 
-static inline retvalue parse_pair(struct table *table, DBT Key, DBT Data, /*@null@*//*@out@*/const char **key_p, /*@out@*/const char **value_p, /*@out@*/const char **data_p, /*@out@*/size_t *datalen_p) {
+static inline retvalue parse_pair(struct table *table, const void *key, size_t key_size, const void *data, size_t data_size, /*@null@*//*@out@*/const char **key_p, /*@out@*/const char **value_p, /*@out@*/const char **data_p, /*@out@*/size_t *datalen_p) {
 	/*@dependant@*/ const char *separator;
 
-	if (Key.size == 0 || Data.size == 0 ||
-	    ((const char*)Key.data)[Key.size-1] != '\0' ||
-	    ((const char*)Data.data)[Data.size-1] != '\0') {
+	if (key != NULL && (key_size == 0 || ((const char*)key)[key_size-1] != '\0')) {
+		if (table->subname != NULL)
+			fprintf(stderr,
+"Database %s(%s) returned corrupted (not null-terminated) key!",
+					table->name, table->subname);
+		else
+			fprintf(stderr,
+"Database %s returned corrupted (not null-terminated) key!",
+					table->name);
+		return RET_ERROR;
+	}
+
+	if (data_size == 0 ||
+	    ((const char*)data)[data_size-1] != '\0') {
 		if (table->subname != NULL)
 			fprintf(stderr,
 "Database %s(%s) returned corrupted (not null-terminated) data!",
@@ -1341,7 +1432,7 @@ static inline retvalue parse_pair(struct table *table, DBT Key, DBT Data, /*@nul
 					table->name);
 		return RET_ERROR;
 	}
-	separator = memchr(Data.data, '\0', Data.size-1);
+	separator = memchr(data, '\0', data_size-1);
 	if (separator == NULL) {
 		if (table->subname != NULL)
 			fprintf(stderr,
@@ -1354,20 +1445,25 @@ static inline retvalue parse_pair(struct table *table, DBT Key, DBT Data, /*@nul
 		return RET_ERROR;
 	}
 	if (key_p != NULL)
-		*key_p = Key.data;
-	*value_p = Data.data;
+		*key_p = key;
+	*value_p = data;
 	*data_p = separator + 1;
-	*datalen_p = Data.size - (separator - (const char*)Data.data) - 2;
+	*datalen_p = data_size - (separator - (const char*)data) - 2;
 	return RET_OK;
 }
 
-retvalue table_newduplicatecursor(struct table *table, const char *key, struct cursor **cursor_p, const char **value_p, const char **data_p, size_t *datalen_p) {
+retvalue table_newduplicatecursor(struct table *table, bool secondary, const char *key, struct cursor **cursor_p, const void **data_p, size_t *datalen_p) {
 	struct cursor *cursor;
 	int dbret;
 	DBT Key, Data;
-	retvalue r;
+	DB *berkeleydb;
 
-	if (table->berkeleydb == NULL) {
+	berkeleydb = table->berkeleydb;
+	if (secondary && table->sec_berkeleydb != NULL) {
+		berkeleydb = table->sec_berkeleydb;
+	}
+
+	if (berkeleydb == NULL) {
 		assert (table->readonly);
 		*cursor_p = NULL;
 		return RET_NOTHING;
@@ -1380,7 +1476,7 @@ retvalue table_newduplicatecursor(struct table *table, const char *key, struct c
 	cursor->cursor = NULL;
 	cursor->flags = DB_NEXT_DUP;
 	cursor->r = RET_OK;
-	dbret = table->berkeleydb->cursor(table->berkeleydb, NULL,
+	dbret = berkeleydb->cursor(berkeleydb, NULL,
 			&cursor->cursor, 0);
 	if (dbret != 0) {
 		table_printerror(table, dbret, "cursor");
@@ -1401,16 +1497,45 @@ retvalue table_newduplicatecursor(struct table *table, const char *key, struct c
 		free(cursor);
 		return RET_DBERR(dbret);
 	}
-	r = parse_pair(table, Key, Data, NULL, value_p, data_p, datalen_p);
-	assert (r != RET_NOTHING);
-	if (RET_WAS_ERROR(r)) {
+
+	if (Key.size == 0 || ((const char*)Key.data)[Key.size-1] != '\0') {
+		if (table->subname != NULL)
+			fprintf(stderr,
+"Database %s(%s) returned corrupted (not null-terminated) key!",
+					table->name, table->subname);
+		else
+			fprintf(stderr,
+"Database %s returned corrupted (not null-terminated) key!",
+					table->name);
 		(void)cursor->cursor->c_close(cursor->cursor);
 		free(cursor);
-		return r;
+		return RET_ERROR;
 	}
 
 	*cursor_p = cursor;
+	*data_p = Data.data;
+	*datalen_p = Data.size;
 	return RET_OK;
+}
+
+inline retvalue table_newduplicatepairedcursor(struct table *table, const char *key, struct cursor **cursor_p, const char **value_p, const char **data_p, size_t *datalen_p) {
+	retvalue r;
+	struct cursor *cursor;
+	const void *data;
+	size_t datalen;
+
+	r = table_newduplicatecursor(table, false, key, &cursor, &data, &datalen);
+
+	if (RET_IS_OK(r)) {
+		r = parse_pair(table, NULL, 0, data, datalen, NULL, value_p, data_p, datalen_p);
+		assert (r != RET_NOTHING);
+		if (RET_WAS_ERROR(r)) {
+			(void)cursor->cursor->c_close(cursor->cursor);
+			free(cursor);
+		}
+	}
+
+	return r;
 }
 
 retvalue table_newpairedcursor(struct table *table, const char *key, const char *value, struct cursor **cursor_p, const char **data_p, size_t *datalen_p) {
@@ -1532,7 +1657,32 @@ bool cursor_nexttemp(struct table *table, struct cursor *cursor, const char **ke
 	return true;
 }
 
-bool cursor_nexttempdata(struct table *table, struct cursor *cursor, const char **key, const char **data, size_t *len_p) {
+bool cursor_nexttempstring(struct table *table, struct cursor *cursor, const char **key, const char **data_p, size_t *len_p) {
+	bool success;
+	void *data;
+	size_t len;
+
+	success = cursor_nexttempdata(table, cursor, key, &data, &len);
+	if (success) {
+		if (len <= 0 || ((const char*)data)[len-1] != '\0') {
+			if (table->subname != NULL)
+				fprintf(stderr,
+	"Database %s(%s) returned corrupted (not null-terminated) data!\n",
+						table->name, table->subname);
+			else
+				fprintf(stderr,
+	"Database %s returned corrupted (not null-terminated) data!\n",
+						table->name);
+			cursor->r = RET_ERROR;
+			return false;
+		}
+		*data_p = data;
+		*len_p = len - 1;
+	}
+	return success;
+}
+
+bool cursor_nexttempdata(struct table *table, struct cursor *cursor, const char **key, void **data, size_t *len_p) {
 	DBT Key, Data;
 	int dbret;
 
@@ -1542,7 +1692,7 @@ bool cursor_nexttempdata(struct table *table, struct cursor *cursor, const char 
 	CLEARDBT(Key);
 	CLEARDBT(Data);
 
-	dbret = cursor->cursor->c_get(cursor->cursor, &Key, &Data, DB_NEXT);
+	dbret = cursor->cursor->c_get(cursor->cursor, &Key, &Data, cursor->flags);
 	if (dbret == DB_NOTFOUND)
 		return false;
 
@@ -1552,15 +1702,14 @@ bool cursor_nexttempdata(struct table *table, struct cursor *cursor, const char 
 		return false;
 	}
 	if (Key.size <= 0 || Data.size <= 0 ||
-	    ((const char*)Key.data)[Key.size-1] != '\0' ||
-	    ((const char*)Data.data)[Data.size-1] != '\0') {
+	    ((const char*)Key.data)[Key.size-1] != '\0') {
 		if (table->subname != NULL)
 			fprintf(stderr,
-"Database %s(%s) returned corrupted (not null-terminated) data!",
+"Database %s(%s) returned corrupted (not null-terminated) key!\n",
 					table->name, table->subname);
 		else
 			fprintf(stderr,
-"Database %s returned corrupted (not null-terminated) data!",
+"Database %s returned corrupted (not null-terminated) key!\n",
 					table->name);
 		cursor->r = RET_ERROR;
 		return false;
@@ -1568,7 +1717,7 @@ bool cursor_nexttempdata(struct table *table, struct cursor *cursor, const char 
 	if (key != NULL)
 		*key = Key.data;
 	*data = Data.data;
-	*len_p = Data.size - 1;
+	*len_p = Data.size;
 	return true;
 }
 
@@ -1598,7 +1747,7 @@ bool cursor_nextpair(struct table *table, struct cursor *cursor, /*@null@*/const
 		cursor->r = RET_DBERR(dbret);
 		return false;
 	}
-	r = parse_pair(table, Key, Data, key_p, value_p, data_p, datalen_p);
+	r = parse_pair(table, Key.data, Key.size, Data.data, Data.size, key_p, value_p, data_p, datalen_p);
 	if (RET_WAS_ERROR(r)) {
 		cursor->r = r;
 		return false;
@@ -1754,6 +1903,55 @@ retvalue database_openreferences(void) {
 	return RET_OK;
 }
 
+static int debianversioncompare(UNUSED(DB *db), const DBT *a, const DBT *b) {
+	const char *a_version;
+	const char *b_version;
+	int versioncmp;
+	// There is no way to indicate an error to the caller
+	// Thus return -1 in case of an error
+	retvalue r = -1;
+
+	if (a->size == 0 || ((char*)a->data)[a->size-1] != '\0') {
+		char *value = malloc(a->size + 1);
+		if (!FAILEDTOALLOC(value)) {
+			memcpy(value, a->data, a->size);
+			value[a->size] = '\0';
+			fprintf(stderr, "Database value '%s' empty or not NULL terminated.\n", value);
+		}
+		return r;
+	}
+	if (b->size == 0 || ((char*)b->data)[b->size-1] != '\0') {
+		char *value = malloc(b->size + 1);
+		if (!FAILEDTOALLOC(value)) {
+			memcpy(value, b->data, b->size);
+			value[b->size] = '\0';
+			fprintf(stderr, "Database value '%s' empty or not NULL terminated.\n", value);
+		}
+		return r;
+	}
+
+	a_version = strchr(a->data, '|');
+	if (a_version == NULL) {
+		fprintf(stderr, "Database value '%s' malformed. It should be 'package|version'.\n", (char*)a->data);
+		return r;
+	}
+	a_version++;
+	b_version = strchr(b->data, '|');
+	if (b_version == NULL) {
+		fprintf(stderr, "Database value '%s' malformed. It should be 'package|version'.\n", (char*)b->data);
+		return r;
+	}
+	b_version++;
+
+	r = dpkgversions_cmp(a_version, b_version, &versioncmp);
+	if (RET_WAS_ERROR(r)) {
+		fprintf(stderr, "Parse errors processing versions.\n");
+		return r;
+	}
+
+	return -versioncmp;
+}
+
 /* only compare the first 0-terminated part of the data */
 static int paireddatacompare(UNUSED(DB *db), const DBT *a, const DBT *b
 #if DB_VERSION_MAJOR >= 6
@@ -1797,8 +1995,28 @@ retvalue database_opentracking(const char *codename, bool readonly, struct table
 	return RET_OK;
 }
 
+static int get_package_name(DB *secondary, const DBT *pkey, const DBT *pdata, DBT *skey) {
+	const char *separator;
+	size_t length;
+
+	separator = memchr(pkey->data, '|', pkey->size);
+	if (unlikely(separator == NULL)) {
+		return DB_MALFORMED_KEY;
+	}
+
+	length = (size_t)separator - (size_t)pkey->data;
+	skey->flags = DB_DBT_APPMALLOC;
+	skey->data = strndup(pkey->data, length);
+	if (FAILEDTOALLOC(skey->data)) {
+		return RET_ERROR_OOM;
+	}
+	skey->size = length + 1;
+	return 0;
+}
+
 retvalue database_openpackages(const char *identifier, bool readonly, struct table **table_p) {
 	struct table *table;
+	struct table *secondary_table;
 	retvalue r;
 
 	if (rdb_nopackages) {
@@ -1820,6 +2038,22 @@ retvalue database_openpackages(const char *identifier, bool readonly, struct tab
 	assert (r != RET_NOTHING);
 	if (RET_WAS_ERROR(r))
 		return r;
+
+	r = database_table("packages.secondary.db", identifier,
+			dbt_BTREEVERSIONS, readonly?DB_RDONLY:DB_CREATE, &secondary_table);
+	assert (r != RET_NOTHING);
+	if (RET_WAS_ERROR(r))
+		return r;
+
+	if (table->berkeleydb != NULL) {
+		r = table->berkeleydb->associate(table->berkeleydb, NULL,
+				secondary_table->berkeleydb, get_package_name, 0);
+		if (RET_WAS_ERROR(r)) {
+			return r;
+		}
+	}
+
+	table->sec_berkeleydb = secondary_table->berkeleydb;
 	table->flagreset = &rdb_packagesdatabaseopen;
 	rdb_packagesdatabaseopen = true;
 	*table_p = table;
@@ -1833,7 +2067,12 @@ retvalue database_listpackages(struct strlist *identifiers) {
 
 /* drop a database */
 retvalue database_droppackages(const char *identifier) {
-	return database_dropsubtable("packages.db", identifier);
+	retvalue r;
+
+	r = database_dropsubtable("packages.db", identifier);
+	if (RET_IS_OK(r))
+		r = database_dropsubtable("packages.secondary.db", identifier);
+	return r;
 }
 
 retvalue database_openfiles(void) {
@@ -1957,9 +2196,9 @@ static retvalue table_copy(struct table *oldtable, struct table *newtable) {
 	r = table_newglobalcursor(oldtable, &cursor);
 	if (!RET_IS_OK(r))
 		return r;
-	while (cursor_nexttempdata(oldtable, cursor, &filekey,
+	while (cursor_nexttempstring(oldtable, cursor, &filekey,
 				&data, &data_len)) {
-		r = table_adduniqsizedrecord(newtable, filekey,
+		r = table_adduniqsizedstring(newtable, filekey,
 				data, data_len+1, false, true);
 		if (RET_WAS_ERROR(r))
 			return r;
@@ -2127,7 +2366,7 @@ static inline retvalue translate(struct table *oldmd5sums, struct table *newchec
 			return r;
 		}
 		numold++;
-		r = table_adduniqsizedrecord(newchecksums, filekey,
+		r = table_adduniqsizedstring(newchecksums, filekey,
 				combined, combinedlen + 1, true, false);
 		assert (r != RET_NOTHING);
 		if (!RET_IS_OK(r)) {

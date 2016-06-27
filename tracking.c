@@ -1135,7 +1135,7 @@ static retvalue tracking_foreachversion(trackingdb t, struct distribution *distr
 	const char *value, *data;
 	size_t datalen;
 
-	r = table_newduplicatecursor(t->table, sourcename, &cursor,
+	r = table_newduplicatepairedcursor(t->table, sourcename, &cursor,
 			&value, &data, &datalen);
 	if (!RET_IS_OK(r))
 		return r;
@@ -1185,7 +1185,7 @@ static retvalue targetremovesourcepackage(trackingdb t, struct trackedpackage *p
 	arch_len = strlen(architecture);
 	for (i = 0 ; i < pkg->filekeys.count ; i++) {
 		const char *s, *basefilename, *filekey = pkg->filekeys.values[i];
-		char *package, *control, *source, *version;
+		char *package, *source, *version;
 		struct packagedata packagedata;
 		struct strlist filekeys;
 		bool savedstaletracking;
@@ -1240,8 +1240,8 @@ static retvalue targetremovesourcepackage(trackingdb t, struct trackedpackage *p
 		package = strndup(basefilename, s - basefilename);
 		if (FAILEDTOALLOC(package))
 			return RET_ERROR_OOM;
-		r = table_getrecord(target->packages, package, &control);
-		parse_packagedata(control, &packagedata);
+		// TODO: Support multiple versions
+		r = target_getpackage(target, package, NULL, &packagedata);
 		if (RET_WAS_ERROR(r)) {
 			free(package);
 			return r;

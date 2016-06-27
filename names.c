@@ -148,3 +148,47 @@ char *calc_changes_basename(const char *name, const char *version, const struct 
 	assert ((size_t)(p-n) == l);
 	return n;
 }
+
+// In case version_p points to a non-NULL value, name_p needs to be freed after usage.
+retvalue splitnameandversion(const char *nameandversion, const char **name_p, const char **version_p) {
+	char *version;
+	retvalue r;
+
+	version = index(nameandversion, '=');
+	if (version != NULL) {
+		if (index(version+1, '=') != NULL) {
+			fprintf(stderr,
+"Cannot parse '%s': more than one '='\n",
+					nameandversion);
+			*name_p = NULL;
+			*version_p = NULL;
+			r = RET_ERROR;
+		} else if (version[1] == '\0') {
+			fprintf(stderr,
+"Cannot parse '%s': no version after '='\n",
+					nameandversion);
+			*name_p = NULL;
+			*version_p = NULL;
+			r = RET_ERROR;
+		} else if (version == nameandversion) {
+			fprintf(stderr,
+"Cannot parse '%s': no source name found before the '='\n",
+					nameandversion);
+			*name_p = NULL;
+			*version_p = NULL;
+			r = RET_ERROR;
+		} else {
+			*name_p = strndup(nameandversion, version - nameandversion);
+			if (FAILEDTOALLOC(*name_p))
+				r = RET_ERROR_OOM;
+			else
+				r = RET_OK;
+			*version_p = version + 1;
+		}
+	} else {
+		r = RET_OK;
+		*name_p = nameandversion;
+		*version_p = NULL;
+	}
+	return r;
+}

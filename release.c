@@ -1491,7 +1491,7 @@ static retvalue storechecksums(struct release *release) {
 		if (!RET_IS_OK(r))
 			continue;
 
-		r = table_adduniqsizedrecord(release->cachedb,
+		r = table_adduniqsizedstring(release->cachedb,
 				file->relativefilename, combinedchecksum, len+1,
 				false, false);
 		RET_UPDATE(result, r);

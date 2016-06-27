@@ -75,7 +75,7 @@ static retvalue count_sizes(struct cursor *cursor, bool specific, struct distrib
 	bool snapshot;
 	unsigned long long all = 0, onlyall = 0;
 
-	while (cursor_nexttempdata(rdb_references, cursor,
+	while (cursor_nexttempstring(rdb_references, cursor,
 				&key, &data, &len)) {
 		if (last_file == NULL || strcmp(last_file, key) != 0) {
 			if (last_file != NULL) {
