@@ -1,3 +1,7 @@
+Updates between 4.18.0 and 5.0.0:
+- require new status 103 behaviour from apt methods
+  (i.e. http from squeeze and before no longer supported)
+
 Updates between 4.17.1 and 4.18.0:
 - some code refactoring (no new features or bugfixes, only chances to break stuff)
 

@@ -1,3 +1,9 @@
+2016-10-22  Bernhard R. Link <brlink@debian.org>
+	* drop workaround for apt-method interface change:
+	  answer 103 is now always expected to end the method's doing
+	  (in other words the http apt method from squeeze and before is no
+	  longer supported)
+
 2016-03-*  Bernhard R. Link <brlink@debian.org>
 	* refactor code to use struct package and struct package_cursor
 	  most of the time package data is accessed.
