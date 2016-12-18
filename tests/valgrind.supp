@@ -6,32 +6,12 @@
    obj:/usr/lib*/libz.so.*
 }
 {
-   careless-libdb6
+   careless-libdb
    Memcheck:Param
    pwrite64(buf)
-   fun:__pwrite_nocancel
+   fun:__pwrite*_nocancel
    fun:__os_io
-   obj:/usr/lib*/libdb-6*.so
-   fun:__memp_bhwrite
-   fun:__memp_sync_int
-}
-{
-   careless-libdb5
-   Memcheck:Param
-   pwrite64(buf)
-   fun:__pwrite_nocancel
-   fun:__os_io
-   obj:/usr/lib*/libdb-5*.so
-   fun:__memp_bhwrite
-   fun:__memp_sync_int
-}
-{
-   careless-libdb48
-   Memcheck:Param
-   pwrite64(buf)
-   fun:__pwrite_nocancel
-   fun:__os_io
-   obj:/usr/lib/libdb-4*.so
+   obj:/usr/lib*/libdb-*.so
    fun:__memp_bhwrite
    fun:__memp_sync_int
 }
@@ -127,11 +107,11 @@
 {
    liblzma-thinks-random-jumps-are-fun
    Memcheck:Cond
-   obj:/lib/x86_64-linux-gnu/liblzma.so.5.0.0
-   obj:/lib/x86_64-linux-gnu/liblzma.so.5.0.0
-   obj:/lib/x86_64-linux-gnu/liblzma.so.5.0.0
-   obj:/lib/x86_64-linux-gnu/liblzma.so.5.0.0
-   obj:/lib/x86_64-linux-gnu/liblzma.so.5.0.0
+   obj:/lib/x86_64-linux-gnu/liblzma.so.5*
+   obj:/lib/x86_64-linux-gnu/liblzma.so.5*
+   obj:/lib/x86_64-linux-gnu/liblzma.so.5*
+   obj:/lib/x86_64-linux-gnu/liblzma.so.5*
+   obj:/lib/x86_64-linux-gnu/liblzma.so.5*
    fun:lzma_stream_encoder
    fun:lzma_easy_encoder
 }
