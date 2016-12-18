@@ -205,6 +205,11 @@ cd package-1.0
 dpkg-genchanges -B > ../package_1.0-1_another.changes
 cd ..
 
+# work around dpkg-dev 1.18.15+ no longer adding Architectures of log files:
+if ! grep -q -s '^Architecture:' package_1.0-1_another.changes ; then
+	sed -e 's/^Version:/Architecture: another\n&/' -i package_1.0-1_another.changes
+fi
+
 testrun - -C main include test package_1.0-1_another.changes 3<<EOF
 stderr
 *=Ignoring log file: 'package_1.0-1_another.log'!
@@ -411,6 +416,11 @@ cd allandany-1.0
 dpkg-genchanges -B > ../allandany_1.0-1_another.changes
 cd ..
 rm -r allandany-1.0
+
+# work around dpkg-dev 1.18.15+ no longer adding Architectures of log files:
+if ! grep -q -s '^Architecture:' allandany_1.0-1_another.changes ; then
+	sed -e 's/^Version:/Architecture: another\n&/' -i allandany_1.0-1_another.changes
+fi
 
 testrun - --delete includedsc test allandany_1.0-1.dsc 3<<EOF
 stderr
