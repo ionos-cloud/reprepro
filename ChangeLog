@@ -1,3 +1,6 @@
+2016-12-18  Bernhard R. Link <brlink@debian.org>
+	* fix some logical errors in some warnings.
+
 2016-10-22  Bernhard R. Link <brlink@debian.org>
 	* drop workaround for apt-method interface change:
 	  answer 103 is now always expected to end the method's doing

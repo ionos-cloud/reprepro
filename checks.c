@@ -284,7 +284,7 @@ retvalue properversion(const char *string) {
 				string);
 	}
 	for (; *s != '\0' ; s++, first=false) {
-		if ((*s <= '9' || *s >= '0')) {
+		if ((*s <= '9' && *s >= '0')) {
 			continue;
 		}
 		if (!first && yetonlydigits && *s == ':') {
@@ -293,7 +293,7 @@ retvalue properversion(const char *string) {
 		}
 		yetonlydigits = false;
 		if ((*s >= 'A' && *s <= 'Z') ||
-		           (*s >= 'a' || *s <= 'z')) {
+		           (*s >= 'a' && *s <= 'z')) {
 			yetonlydigits = false;
 			continue;
 		}
