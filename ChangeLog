@@ -2,7 +2,8 @@
 	* add support for .buildinfo files in .changes files:
 	- new tracking mode includebuildinfos to store them in pool/
 	- ignored by 'include' unless Tracking: includebuildinfos
-	- ignored by 'processincoming', unless stored by tracking.
+	- processincoming with LogDir set stores them like log files
+	- otherwise ignored by 'processincoming' if not used
 	- new Cleanup: unused_buildinfo_files for conf/incoming to
 	  remove used buildinfo files.
 

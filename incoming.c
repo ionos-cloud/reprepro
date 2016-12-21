@@ -2139,6 +2139,7 @@ static retvalue candidate_prepare_logdir(struct incoming *i, struct candidate *c
 	count = 0;
 	for (file = c->files ; file != NULL ; file = file->next) {
 		if (file->ofs == c->ofs || file->type == fe_LOG
+				|| file->type == fe_BUILDINFO
 				|| (file->type == fe_BYHAND && !file->used))
 			count++;
 	}
@@ -2149,6 +2150,7 @@ static retvalue candidate_prepare_logdir(struct incoming *i, struct candidate *c
 	j = 0;
 	for (file = c->files ; file != NULL ; file = file->next) {
 		if (file->ofs == c->ofs || file->type == fe_LOG
+				|| file->type == fe_BUILDINFO
 				|| (file->type == fe_BYHAND && !file->used)) {
 			r = candidate_usefile(i, c, file);
 			if (RET_WAS_ERROR(r))
