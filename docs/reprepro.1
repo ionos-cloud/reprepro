@@ -2086,6 +2086,13 @@ deleted:
 If there is \fBunused_files\fP in \fBPermit\fP then also delete those
 files when the package is deleted after successful processing.
 .br
+.B unused_buildinfo_files
+.br
+If .buildinfo files of processed .changes files are not used (neither
+stored by LogDir nor with Tracking: includebuildinfos) then delete them
+from the incoming dir.
+(This option has no additional effect if \fBunused_files\fP is already used.)
+.br
 .B on_deny
 .br
 If a \fB.changes\fP file is denied processing because of missing signatures

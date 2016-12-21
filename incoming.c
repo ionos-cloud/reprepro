@@ -74,6 +74,8 @@ enum cleanupflags {
 	/* delete unused files after sucessfully
 	 * processing the used ones */
 	cuf_unused_files,
+	/* same but restricted to .buildinfo files */
+	cuf_unused_buildinfo_files,
 	cuf_COUNT /* must be last */
 };
 enum optionsflags {
@@ -275,6 +277,7 @@ CFfinishparse(incoming) {
 	}
 	if (i->morguedir != NULL && !i->cleanup[cuf_on_deny]
 			&& !i->cleanup[cuf_on_error]
+			&& !i->cleanup[cuf_unused_buildinfo_files]
 			&& !i->cleanup[cuf_unused_files]) {
 		fprintf(stderr,
 "Warning: There is a 'MorgueDir' but no 'Cleanup' to act on in rule '%s'\n"
@@ -357,6 +360,7 @@ CFSETPROC(incoming, cleanup) {
 	CFSETPROCVARS(incoming, i, d);
 	static const struct constant const cleanupconstants[] = {
 		{ "unused_files", cuf_unused_files},
+		{ "unused_buildinfo_files", cuf_unused_buildinfo_files},
 		{ "on_deny", cuf_on_deny},
 		/* not yet implemented
 		{ "on_deny_check_owner", cuf_on_deny_check_owner},
@@ -2324,7 +2328,9 @@ static retvalue candidate_add(struct incoming *i, struct candidate *c) {
 					BASENAME(i, c->ofs));
 		}
 		for (file = c->files ; file != NULL ; file = file->next) {
-			if (file->used || i->cleanup[cuf_unused_files])
+			if (file->used || i->cleanup[cuf_unused_files] ||
+					(file->type == fe_BUILDINFO &&
+					 i->cleanup[cuf_unused_buildinfo_files]))
 				i->delete[file->ofs] = true;
 		}
 		return RET_NOTHING;
@@ -2352,7 +2358,9 @@ static retvalue candidate_add(struct incoming *i, struct candidate *c) {
 	for (file = c->files ; file != NULL ; file = file->next) {
 		if (file->used)
 			i->processed[file->ofs] = true;
-		if (file->used || i->cleanup[cuf_unused_files]) {
+		if (file->used || i->cleanup[cuf_unused_files] ||
+				(file->type == fe_BUILDINFO &&
+				 i->cleanup[cuf_unused_buildinfo_files])) {
 			i->delete[file->ofs] = true;
 		}
 	}

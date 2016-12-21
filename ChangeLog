@@ -3,6 +3,8 @@
 	- new tracking mode includebuildinfos to store them in pool/
 	- ignored by 'include' unless Tracking: includebuildinfos
 	- ignored by 'processincoming', unless stored by tracking.
+	- new Cleanup: unused_buildinfo_files for conf/incoming to
+	  remove used buildinfo files.
 
 2016-12-18  Bernhard R. Link <brlink@debian.org>
 	* fix some logical errors in some warnings.
