@@ -1,5 +1,6 @@
 2016-12-21  Bernhard R. Link <brlink@debian.org>
 	* add support for .buildinfo files in .changes files:
+	- new tracking mode includebuildinfos to store them in pool/
 	- ignored by 'include' unless Tracking: includebuildinfos
 	- ignored by 'processincoming', unless stored by tracking.
 

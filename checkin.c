@@ -548,7 +548,9 @@ static retvalue changes_fixfields(const struct distribution *distribution, const
 		const struct overridedata *oinfo = NULL;
 		const char *force = NULL;
 
-		if (e->type == fe_BYHAND || e->type == fe_LOG) {
+		if (e->type == fe_BYHAND ||
+		    e->type == fe_BUILDINFO ||
+		    e->type == fe_LOG) {
 			needsourcedir = true;
 			continue;
 		}
@@ -810,8 +812,10 @@ static retvalue changes_check(const struct distribution *distribution, const cha
 	/* Then check for each file, if its architecture is sensible
 	 * and listed. */
 	for (e = changes->files ; e != NULL ; e = e->next) {
-		if (e->type == fe_BYHAND || e->type == fe_LOG)
+		if (e->type == fe_BYHAND || e->type == fe_LOG) {
+			/* don't insist on a single architecture for those */
 			continue;
+		}
 		if (atom_defined(e->architecture_into)) {
 			if (e->architecture_into == architecture_all) {
 				/* "all" can be added if at least one binary
@@ -921,7 +925,8 @@ static retvalue changes_checkfiles(const char *filename, struct changes *changes
 					changes->source,
 					changes->changesversion,
 					e->basename);
-		} else if (FE_SOURCE(e->type) || e->type == fe_LOG) {
+		} else if (FE_SOURCE(e->type) || e->type == fe_LOG
+				|| e->type == fe_BUILDINFO) {
 			assert(changes->srcdirectory!=NULL);
 			e->filekey = calc_dirconcat(changes->srcdirectory,
 					e->basename);
@@ -1267,6 +1272,11 @@ static retvalue changes_includepkgs(struct distribution *distribution, struct ch
 					distribution, trackingdata);
 			if (r == RET_NOTHING)
 				*missed_p = true;
+		} else if (e->type == fe_BUILDINFO && trackingdata != NULL) {
+			r = trackedpackage_addfilekey(trackingdata->tracks,
+					trackingdata->pkg,
+					ft_BUILDINFO, e->filekey, false);
+			e->filekey = NULL;
 		} else if (e->type == fe_LOG && trackingdata != NULL) {
 			r = trackedpackage_addfilekey(trackingdata->tracks,
 					trackingdata->pkg,
@@ -1385,7 +1395,7 @@ retvalue changes_add(trackingdb const tracks, const struct atomlist *packagetype
 			packagetypes, forcearchitectures,
 			distribution->trackingoptions.includebyhand,
 			distribution->trackingoptions.includelogs,
-			false);
+			distribution->trackingoptions.includebuildinfos);
 	if (RET_WAS_ERROR(r))
 		return r;
 

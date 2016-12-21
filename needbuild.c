@@ -91,7 +91,7 @@ static retvalue tracked_source_needs_build(architecture_t architecture, const ch
 			   so nothing is to be done */
 			return RET_NOTHING;
 		}
-		if (ft == ft_LOG || ft == ft_CHANGES) {
+		if (ft == ft_LOG || ft == ft_BUILDINFO || ft == ft_CHANGES) {
 			const char *a = strrchr(fk, '_');
 			const char *e;
 

@@ -70,6 +70,7 @@ struct distribution {
 	enum trackingtype { dt_NONE=0, dt_KEEP, dt_ALL, dt_MINIMAL } tracking;
 	struct trackingoptions { bool includechanges;
 		bool includebyhand;
+		bool includebuildinfos;
 		bool includelogs;
 		bool needsources;
 		bool keepsources;

@@ -286,6 +286,147 @@ $(opa 'someindep' '3' 'test' 'main' 'abacus' 'deb')
 EOF
 rm -r pool db
 
+echo now the same with tracking information:
+
+cat > conf/distributions <<EOF
+Codename: test
+Architectures: coal source
+Components: main
+Tracking: minimal includebuildinfos
+EOF
+
+mkdir -p pool/main/s/source-a pool/main/s/source-b
+
+echo Check that include properly ignores a .buildinfo file
+testrun - include test source-a_1_binary.changes 3<<EOF
+stderr
+=Warning: database 'test|main|coal' was modified but no index file was exported.
+=Changes will only be visible after the next 'export'!
+stdout
+$(odb)
+$(ofa 'pool/main/s/source-a/onlyall_1_all.deb')
+$(ofa 'pool/main/s/source-a/source-a_1_all.buildinfo')
+$(opa 'onlyall' '1' 'test' 'main' 'coal' 'deb')
+$(ota 'test' 'source-a')
+EOF
+rm -r pool db
+
+mkdir pool
+testrun - -A coal include test source-b_2_binary.changes 3<<EOF
+stderr
+-v1*=Skipping 'source-b_2_abacus.buildinfo' as architecture is not in the requested set.
+-v1*=Skipping 'onlyany_2_abacus.deb' as architecture is not in the requested set.
+*=source-b_2_binary.changes: Not enough files in .changes!
+-v0*=There have been errors!
+returns 255
+stdout
+$(odb)
+EOF
+rm -r pool db
+
+mkdir pool
+testrun - -A coal include test source-b_2_source.changes 3<<EOF
+stderr
+-v1*=Skipping 'source-b_2.dsc' as architecture 'source' is not in the requested set.
+-v1*=Skipping 'source-b_2.tar.gz' as architecture 'source' is not in the requested set.
+*=source-b_2_source.changes: Not enough files in .changes!
+-v0*=There have been errors!
+returns 255
+stdout
+$(odb)
+EOF
+rm -r pool db
+
+mkdir pool
+testrun - -A coal include test source-b_2_sourceandbuild.changes 3<<EOF
+stderr
+-v1*=Skipping 'source-b_2_source.buildinfo' as architecture 'source' is not in the requested set.
+-v1*=Skipping 'source-b_2.dsc' as architecture 'source' is not in the requested set.
+-v1*=Skipping 'source-b_2.tar.gz' as architecture 'source' is not in the requested set.
+*=source-b_2_sourceandbuild.changes: Not enough files in .changes!
+-v0*=There have been errors!
+returns 255
+stdout
+$(odb)
+EOF
+rm -r pool db
+
+mkdir -p pool/main/s/source-a pool/main/s/source-b
+testrun - include test source-b_2_sourceandbuild.changes 3<<EOF
+stderr
+=Warning: database 'test|main|source' was modified but no index file was exported.
+=Changes will only be visible after the next 'export'!
+stdout
+$(odb)
+$(ofa 'pool/main/s/source-b/source-b_2_source.buildinfo')
+$(ofa 'pool/main/s/source-b/source-b_2.dsc')
+$(ofa 'pool/main/s/source-b/source-b_2.tar.gz')
+$(opa 'source-b' '2' 'test' 'main' 'source' 'dsc')
+$(ota 'test' 'source-b')
+EOF
+rm -r pool db
+
+cat > conf/distributions <<EOF
+Codename: test
+Architectures: abacus source
+Components: main
+Tracking: minimal includebuildinfos
+EOF
+
+mkdir -p pool/main/s/source-a pool/main/s/source-b pool/main/s/source-c
+
+echo Check that include properly ignores a .buildinfo file
+testrun - include test source-a_1_binary.changes 3<<EOF
+stderr
+=Warning: database 'test|main|abacus' was modified but no index file was exported.
+=Changes will only be visible after the next 'export'!
+stdout
+$(odb)
+$(ofa 'pool/main/s/source-a/source-a_1_all.buildinfo')
+$(ofa 'pool/main/s/source-a/onlyall_1_all.deb')
+$(opa 'onlyall' '1' 'test' 'main' 'abacus' 'deb')
+$(ota 'test' 'source-a')
+EOF
+
+testrun - include test source-b_2_binary.changes 3<<EOF
+stderr
+=Warning: database 'test|main|abacus' was modified but no index file was exported.
+=Changes will only be visible after the next 'export'!
+stdout
+$(ofa 'pool/main/s/source-b/source-b_2_abacus.buildinfo')
+$(ofa 'pool/main/s/source-b/onlyany_2_abacus.deb')
+$(opa 'onlyany' '2' 'test' 'main' 'abacus' 'deb')
+$(ota 'test' 'source-b')
+EOF
+
+testrun - include test source-b_2_sourceandbuild.changes 3<<EOF
+stderr
+=Warning: database 'test|main|source' was modified but no index file was exported.
+=Changes will only be visible after the next 'export'!
+stdout
+$(ofa 'pool/main/s/source-b/source-b_2_source.buildinfo')
+$(ofa 'pool/main/s/source-b/source-b_2.dsc')
+$(ofa 'pool/main/s/source-b/source-b_2.tar.gz')
+$(opa 'source-b' '2' 'test' 'main' 'source' 'dsc')
+EOF
+
+testrun - include test source-c_3_full.changes 3<<EOF
+stderr
+=Warning: database 'test|main|source' was modified but no index file was exported.
+=Warning: database 'test|main|abacus' was modified but no index file was exported.
+=Changes will only be visible after the next 'export'!
+stdout
+$(ofa 'pool/main/s/source-c/source-c_3_abacus.buildinfo')
+$(ofa 'pool/main/s/source-c/source-c_3.dsc')
+$(ofa 'pool/main/s/source-c/source-c_3.tar.gz')
+$(ofa 'pool/main/s/source-c/somearch_3_abacus.deb')
+$(ofa 'pool/main/s/source-c/someindep_3_all.deb')
+$(opa 'source-c' '3' 'test' 'main' 'source' 'dsc')
+$(opa 'somearch' '3' 'test' 'main' 'abacus' 'deb')
+$(opa 'someindep' '3' 'test' 'main' 'abacus' 'deb')
+$(ota 'test' 'source-c')
+EOF
+rm -r pool db
 
 mkdir -p pool/main/s/source-a pool/main/s/source-b pool/main/s/source-c
 mkdir i j tmp
@@ -302,6 +443,72 @@ EOF
 rm './i/source-b_2_source.changes'
 rm './i/source-a_1_source.changes'
 
+echo check to process all .changes at the same time with tracking:
+testrun - processincoming foo 3<<EOF
+stderr
+=Warning: database 'test|main|source' was modified but no index file was exported.
+=Warning: database 'test|main|abacus' was modified but no index file was exported.
+=Changes will only be visible after the next 'export'!
+stdout
+$(odb)
+$(ofa 'pool/main/s/source-a/source-a_1_all.buildinfo')
+$(ofa 'pool/main/s/source-a/onlyall_1_all.deb')
+$(opa 'onlyall' '1' 'test' 'main' 'abacus' 'deb')
+$(ofa 'pool/main/s/source-a/source-a_1_source.buildinfo')
+$(ofa 'pool/main/s/source-a/source-a_1.dsc')
+$(ofa 'pool/main/s/source-a/source-a_1.tar.gz')
+$(opa 'source-a' '1' 'test' 'main' 'source' 'dsc')
+$(ota 'test' 'source-a')
+$(ofa 'pool/main/s/source-b/source-b_2_abacus.buildinfo')
+$(ofa 'pool/main/s/source-b/onlyany_2_abacus.deb')
+$(opa 'onlyany' '2' 'test' 'main' 'abacus' 'deb')
+$(ofa 'pool/main/s/source-b/source-b_2_source.buildinfo')
+$(ofa 'pool/main/s/source-b/source-b_2.dsc')
+$(ofa 'pool/main/s/source-b/source-b_2.tar.gz')
+$(opa 'source-b' '2' 'test' 'main' 'source' 'dsc')
+$(ota 'test' 'source-b')
+$(ofa 'pool/main/s/source-c/source-c_3_abacus.buildinfo')
+$(ofa 'pool/main/s/source-c/source-c_3.dsc')
+$(ofa 'pool/main/s/source-c/source-c_3.tar.gz')
+$(ofa 'pool/main/s/source-c/somearch_3_abacus.deb')
+$(ofa 'pool/main/s/source-c/someindep_3_all.deb')
+$(opa 'source-c' '3' 'test' 'main' 'source' 'dsc')
+$(opa 'somearch' '3' 'test' 'main' 'abacus' 'deb')
+$(opa 'someindep' '3' 'test' 'main' 'abacus' 'deb')
+$(ota 'test' 'source-c')
+-v3*=deleting './i/onlyall_1_all.deb'...
+-v3*=deleting './i/onlyany_2_abacus.deb'...
+-v3*=deleting './i/somearch_3_abacus.deb'...
+-v3*=deleting './i/someindep_3_all.deb'...
+-v3*=deleting './i/source-a_1.dsc'...
+-v3*=deleting './i/source-a_1.tar.gz'...
+-v3*=deleting './i/source-a_1_all.buildinfo'...
+-v3*=deleting './i/source-a_1_binary.changes'...
+-v3*=deleting './i/source-a_1_source.buildinfo'...
+-v3*=deleting './i/source-a_1_sourceandbuild.changes'...
+-v3*=deleting './i/source-b_2.dsc'...
+-v3*=deleting './i/source-b_2.tar.gz'...
+-v3*=deleting './i/source-b_2_abacus.buildinfo'...
+-v3*=deleting './i/source-b_2_binary.changes'...
+-v3*=deleting './i/source-b_2_source.buildinfo'...
+-v3*=deleting './i/source-b_2_sourceandbuild.changes'...
+-v3*=deleting './i/source-c_3.dsc'...
+-v3*=deleting './i/source-c_3.tar.gz'...
+-v3*=deleting './i/source-c_3_abacus.buildinfo'...
+-v3*=deleting './i/source-c_3_full.changes'...
+EOF
+
+rm -r db pool
+mkdir -p pool/main/s/source-a pool/main/s/source-b pool/main/s/source-c
+
+cp j/* i/
+rm './i/source-b_2_source.changes'
+rm './i/source-a_1_source.changes'
+ed -s conf/distributions <<EOF
+g/^Tracking: /s/include[^ ]*//g
+w
+q
+EOF
 
 echo check to process all .changes at the same time without storing buildinfo:
 testrun - processincoming foo 3<<EOF
@@ -316,11 +523,13 @@ $(opa 'onlyall' '1' 'test' 'main' 'abacus' 'deb')
 $(ofa 'pool/main/s/source-a/source-a_1.dsc')
 $(ofa 'pool/main/s/source-a/source-a_1.tar.gz')
 $(opa 'source-a' '1' 'test' 'main' 'source' 'dsc')
+$(ota 'test' 'source-a')
 $(ofa 'pool/main/s/source-b/onlyany_2_abacus.deb')
 $(opa 'onlyany' '2' 'test' 'main' 'abacus' 'deb')
 $(ofa 'pool/main/s/source-b/source-b_2.dsc')
 $(ofa 'pool/main/s/source-b/source-b_2.tar.gz')
 $(opa 'source-b' '2' 'test' 'main' 'source' 'dsc')
+$(ota 'test' 'source-b')
 $(ofa 'pool/main/s/source-c/source-c_3.dsc')
 $(ofa 'pool/main/s/source-c/source-c_3.tar.gz')
 $(ofa 'pool/main/s/source-c/somearch_3_abacus.deb')
@@ -328,6 +537,7 @@ $(ofa 'pool/main/s/source-c/someindep_3_all.deb')
 $(opa 'source-c' '3' 'test' 'main' 'source' 'dsc')
 $(opa 'somearch' '3' 'test' 'main' 'abacus' 'deb')
 $(opa 'someindep' '3' 'test' 'main' 'abacus' 'deb')
+$(ota 'test' 'source-c')
 -v3*=deleting './i/onlyall_1_all.deb'...
 -v3*=deleting './i/onlyany_2_abacus.deb'...
 -v3*=deleting './i/somearch_3_abacus.deb'...
