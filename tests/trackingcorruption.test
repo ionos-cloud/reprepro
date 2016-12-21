@@ -28,7 +28,7 @@ $(ofa 'pool/something/a/aa/aa_1-1.dsc')
 -d1*=db: 'aa-addons' added to packages.db(breakme|something|coal).
 -d1*=db: 'aa' added to packages.db(breakme|something|abacus).
 -d1*=db: 'aa' added to packages.db(breakme|something|source).
--d1*=db: 'aa' added to tracking.db(breakme).
+$(ota 'breakme' 'aa')
 EOF
 rm aa_* aa-addons* test.changes
 

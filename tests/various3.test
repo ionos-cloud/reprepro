@@ -187,7 +187,7 @@ $(ofa 'pool/all/a/aa/aa_1-1.dsc')
 -d1*=db: 'aa-addons' added to packages.db(a|all|abacus).
 -d1*=db: 'aa' added to packages.db(a|all|abacus).
 -d1*=db: 'aa' added to packages.db(a|all|source).
--t1*=db: 'aa' added to tracking.db(a).
+$(otta 'a' 'aa')
 -v5*=Deleting 'test.changes'.
 EOF
 checklog logab << EOF
@@ -278,7 +278,7 @@ $(ofa 'pool/all/a/aa/aa_1-2.dsc')
 -d1*=db: 'aa' added to packages.db(a|all|abacus).
 -d1*=db: 'aa' removed from packages.db(a|all|source).
 -d1*=db: 'aa' added to packages.db(a|all|source).
--t1*=db: 'aa' added to tracking.db(a).
+$(otta 'a' 'aa')
 -t1*=db: 'aa' '1-1' removed from tracking.db(a).
 -v0*=Exporting indices...
 -v2*=Created directory "./dists/a"
@@ -373,7 +373,7 @@ $(ofa 'pool/all/a/aa/aa_1-3.dsc')
 -d1*=db: 'aa' added to packages.db(a|all|abacus).
 -d1*=db: 'aa' removed from packages.db(a|all|source).
 -d1*=db: 'aa' added to packages.db(a|all|source).
--t1*=db: 'aa' added to tracking.db(a).
+$(otta 'a' 'aa')
 -t1*=db: 'aa' '1-2' removed from tracking.db(a).
 -v0*=Deleting files no longer referenced...
 $(ofd 'pool/all/a/aa/aa_1-2.dsc')
@@ -421,7 +421,7 @@ $(ofa 'pool/all/a/ab/ab_2-1.dsc')
 -d1*=db: 'ab-addons' added to packages.db(a|all|abacus).
 -d1*=db: 'ab' added to packages.db(a|all|abacus).
 -d1*=db: 'ab' added to packages.db(a|all|source).
--t1*=db: 'ab' added to tracking.db(a).
+$(otta 'a' 'ab')
 -v5*=Deleting 'test.changes'.
 EOF
 checklog logab << EOF
@@ -515,7 +515,7 @@ $(ofa 'pool/all/a/ab/ab_3-1_abacus.deb')
 -d1*=db: 'ab-addons' added to packages.db(a|all|abacus).
 -d1*=db: 'ab' removed from packages.db(a|all|abacus).
 -d1*=db: 'ab' added to packages.db(a|all|abacus).
--t1*=db: 'ab' added to tracking.db(a).
+$(otta 'a' 'ab')
 -v0*=Exporting indices...
 -v2*=Created directory "./dists/a"
 -v2*=Created directory "./dists/a/all"

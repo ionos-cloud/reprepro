@@ -104,7 +104,7 @@ stdout
 $(ofa 'pool/main/p/package/package_1.0-1.dsc')
 $(ofa 'pool/main/p/package/package_1.0-1.tar.gz')
 -d1*=db: 'package' added to packages.db(bla|main|source).
--d1*=db: 'package' added to tracking.db(bla).
+$(ota 'bla' 'package')
 EOF
 rm package_1.0*
 
@@ -273,7 +273,7 @@ stdout
 $(ofa 'pool/main/o/onlyonearch/onlyonearch_1.0-1.dsc')
 $(ofa 'pool/main/o/onlyonearch/onlyonearch_1.0-1.tar.gz')
 -d1*=db: 'onlyonearch' added to packages.db(bla|main|source).
--d1*=db: 'onlyonearch' added to tracking.db(bla).
+$(ota 'bla' 'onlyonearch')
 EOF
 
 testrun empty build-needing test another
@@ -340,7 +340,7 @@ stdout
 $(ofa 'pool/main/o/onlyarchall/onlyarchall_1.0-1.dsc')
 $(ofa 'pool/main/o/onlyarchall/onlyarchall_1.0-1.tar.gz')
 -d1*=db: 'onlyarchall' added to packages.db(bla|main|source).
--d1*=db: 'onlyarchall' added to tracking.db(bla).
+$(ota 'bla' 'onlyarchall')
 EOF
 
 testrun empty build-needing test another
@@ -431,7 +431,7 @@ stdout
 $(ofa 'pool/main/a/allandany/allandany_1.0-1.dsc')
 $(ofa 'pool/main/a/allandany/allandany_1.0-1.tar.gz')
 -d1*=db: 'allandany' added to packages.db(bla|main|source).
--d1*=db: 'allandany' added to tracking.db(bla).
+$(ota 'bla' 'allandany')
 EOF
 
 testrun - build-needing test another 3<<EOF
@@ -534,7 +534,7 @@ stdout
 $(ofa 'pool/main/a/anyonly/anyonly_1.0-1.dsc')
 $(ofa 'pool/main/a/anyonly/anyonly_1.0-1.tar.gz')
 -d1*=db: 'anyonly' added to packages.db(bla|main|source).
--d1*=db: 'anyonly' added to tracking.db(bla).
+$(ota 'bla' 'anyonly')
 EOF
 
 testrun empty build-needing test all
@@ -601,7 +601,7 @@ stdout
 $(ofa 'pool/main/l/linuxwildcard/linuxwildcard_1.0-1.dsc')
 $(ofa 'pool/main/l/linuxwildcard/linuxwildcard_1.0-1.tar.gz')
 -d1*=db: 'linuxwildcard' added to packages.db(oses|main|source).
--d1*=db: 'linuxwildcard' added to tracking.db(oses).
+$(ota 'oses' 'linuxwildcard')
 EOF
 
 testrun - includedsc oses kfreebsdwildcard_1.0-1.dsc 3<<EOF
@@ -613,7 +613,7 @@ stdout
 $(ofa 'pool/main/k/kfreebsdwildcard/kfreebsdwildcard_1.0-1.dsc')
 $(ofa 'pool/main/k/kfreebsdwildcard/kfreebsdwildcard_1.0-1.tar.gz')
 -d1*=db: 'kfreebsdwildcard' added to packages.db(oses|main|source).
--d1*=db: 'kfreebsdwildcard' added to tracking.db(oses).
+$(ota 'oses' 'kfreebsdwildcard')
 EOF
 
 testrun empty build-needing oses all

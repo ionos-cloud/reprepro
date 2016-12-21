@@ -201,7 +201,7 @@ testrun - -b . retrack test 3<<EOF
 stdout
 *=Retracking test...
 #2 times:
--d1*=db: 'test' added to tracking.db(test).
+$(ota 'test' 'test')
 EOF
 fi
 
@@ -428,7 +428,7 @@ $(ofa 'pool/main/t/test/sibling_2_another.deb')
 -d1*=db: 'mytest' added to packages.db(two|main|another).
 -d1*=db: 'siblingtoo' added to packages.db(two|main|another).
 -d1*=db: 'sibling' added to packages.db(two|main|another).
--t1*=db: 'test' added to tracking.db(two).
+$(otta 'two' 'test')
 -v1*=deleting './i/mytest_2_all.deb'...
 -v1*=deleting './i/siblingtoo_3_another.deb'...
 -v1*=deleting './i/test-1.changes'...
@@ -535,7 +535,7 @@ stdout
 -d1*=db: 'mytest' added to packages.db(two|main|abacus).
 -d1*=db: 'siblingalso' added to packages.db(two|main|abacus).
 -d1*=db: 'sibling' added to packages.db(two|main|abacus).
--t1*=db: 'test' added to tracking.db(two).
+$(otta 'two' 'test')
 -v1*=deleting './i/mytest_2.4_all.deb'...
 -v1*=deleting './i/siblingalso_3.1_abacus.deb'...
 -v1*=deleting './i/sibling_2.2_abacus.deb'...

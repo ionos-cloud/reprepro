@@ -32,7 +32,7 @@ $(ofa 'pool/one/a/aa/aa_1-1.dsc')
 -d1*=db: 'aa-addons' added to packages.db(a|one|abacus).
 -d1*=db: 'aa' added to packages.db(a|one|abacus).
 -d1*=db: 'aa' added to packages.db(a|one|source).
--t1*=db: 'aa' added to tracking.db(a).
+$(otta 'a' 'aa')
 -v5*=Deleting 'test.changes'.
 EOF
 
@@ -52,7 +52,7 @@ $(ofa 'pool/two/a/aa/aa_1-2.dsc')
 -d1*=db: 'aa-addons' added to packages.db(a|two|abacus).
 -d1*=db: 'aa' added to packages.db(a|two|abacus).
 -d1*=db: 'aa' added to packages.db(a|two|source).
--t1*=db: 'aa' added to tracking.db(a).
+$(otta 'a' 'aa')
 -v5*=Deleting 'test.changes'.
 EOF
 

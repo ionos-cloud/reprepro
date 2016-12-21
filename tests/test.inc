@@ -183,6 +183,12 @@ odb() {
 	printf -- '-v2*=Created directory "./db"'
 }
 
+ota() {
+	printf -- "-d1*=db: '%s' added to tracking.db(%s)." "$2" "$1"
+}
+otta() {
+	printf -- "-t1*=db: '%s' added to tracking.db(%s)." "$2" "$1"
+}
 ofa() {
 	printf -- "-d1*=db: '%s' added to checksums.db(pool)." "$1"
 }
