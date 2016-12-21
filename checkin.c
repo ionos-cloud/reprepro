@@ -257,12 +257,18 @@ static retvalue newentry(struct fileentry **entry, const char *fileline, const s
 			 * be restricted to forcearchitectures when added */
 		} else if (!atomlist_in(forcearchitectures,
 					e->architecture_into)) {
-			if (verbose > 1)
-				fprintf(stderr,
+			if (verbose > 1) {
+				if (atom_defined(e->architecture_into))
+					fprintf(stderr,
 "Skipping '%s' as architecture '%s' is not in the requested set.\n",
 					e->basename,
 					atoms_architectures[
 					 e->architecture_into]);
+				else
+					fprintf(stderr,
+"Skipping '%s' as architecture is not in the requested set.\n",
+					e->basename);
+			}
 			freeentries(e);
 			*ignoredlines_p = true;
 			return RET_NOTHING;
