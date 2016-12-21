@@ -24,11 +24,11 @@ $(ofa 'pool/something/a/aa/aa-addons_1-1_all.deb')
 $(ofa 'pool/something/a/aa/aa_1-1_abacus.deb')
 $(ofa 'pool/something/a/aa/aa_1-1.tar.gz')
 $(ofa 'pool/something/a/aa/aa_1-1.dsc')
--d1*=db: 'aa-addons' added to packages.db(breakme|something|abacus).
--d1*=db: 'aa-addons' added to packages.db(breakme|something|coal).
--d1*=db: 'aa' added to packages.db(breakme|something|abacus).
--d1*=db: 'aa' added to packages.db(breakme|something|source).
--d1*=db: 'aa' added to tracking.db(breakme).
+$(opa 'aa-addons' x 'breakme' 'something' 'abacus' 'deb')
+$(opa 'aa-addons' x 'breakme' 'something' 'coal' 'deb')
+$(opa 'aa' x 'breakme' 'something' 'abacus' 'deb')
+$(opa 'aa' x 'breakme' 'something' 'source' 'dsc')
+$(ota 'breakme' 'aa')
 EOF
 rm aa_* aa-addons* test.changes
 
@@ -45,14 +45,10 @@ testrun - --keepunreferenced remove breakme aa aa-addons 3<<EOF
 stderr
 *=Could not found tracking data for aa_1-1 in breakme to remove old files from it.
 stdout
--v1*=removing 'aa' from 'breakme|something|abacus'...
--d1*=db: 'aa' removed from packages.db(breakme|something|abacus).
--v1*=removing 'aa-addons' from 'breakme|something|abacus'...
--d1*=db: 'aa-addons' removed from packages.db(breakme|something|abacus).
--v1*=removing 'aa-addons' from 'breakme|something|coal'...
--d1*=db: 'aa-addons' removed from packages.db(breakme|something|coal).
--v1*=removing 'aa' from 'breakme|something|source'...
--d1*=db: 'aa' removed from packages.db(breakme|something|source).
+$(opd 'aa' unset breakme something abacus deb)
+$(opd 'aa-addons' unset breakme something abacus deb)
+$(opd 'aa-addons' unset breakme something coal deb)
+$(opd 'aa' unset breakme something source dsc)
 EOF
 
 dodo mv tracking.db db/
@@ -68,7 +64,7 @@ stderr
 *='pool/something/a/aa/aa_1-1.dsc' has refcount > 0, but was nowhere found.
 *='pool/something/a/aa/aa_1-1.tar.gz' has refcount > 0, but was nowhere found.
 stdout
--d1*=db: 'aa' '1-1' removed from tracking.db(breakme).
+$(otd 'aa' '1-1' 'breakme')
 -v1*=4 files lost their last reference.
 -v1*=(dumpunreferenced lists such files, use deleteunreferenced to delete them.)
 EOF

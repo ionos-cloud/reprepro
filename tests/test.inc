@@ -183,18 +183,40 @@ odb() {
 	printf -- '-v2*=Created directory "./db"'
 }
 
+otd() {
+	local name="$1" version="$2" codename="$3"
+	printf -- "-d1*=db: '%s' '%s' removed from tracking.db(%s)." "$name" "$version" "$codename"
+}
+ottd() {
+	local name="$1" version="$2" codename="$3"
+	printf -- "-t1*=db: '%s' '%s' removed from tracking.db(%s)." "$name" "$version" "$codename"
+}
+ota() {
+	printf -- "-d1*=db: '%s' added to tracking.db(%s)." "$2" "$1"
+}
+otta() {
+	printf -- "-t1*=db: '%s' added to tracking.db(%s)." "$2" "$1"
+}
 ofa() {
 	printf -- "-d1*=db: '%s' added to checksums.db(pool)." "$1"
 }
 ofd() {
 	if ${2:-true} ; then
-		printf -- '-v1*=deleting and forgetting %s\n' "$1"
+		printf -- "-v1${3-*}"'=deleting and forgetting %s\n' "$1"
 	fi
-	printf -- "-d1*=db: '%s' removed from checksums.db(pool)." "$1"
+	printf -- "-d1${3-*}=db: '%s' removed from checksums.db(pool)." "$1"
 }
 opa() {
 	local name="$1" version="$2" codename="$3" component="$4" arch="$5" type="$6" u=""
 	if test "$type" = "udeb" ; then u='u|' ; fi
+	printf -- "-d1*=db: '%s' added to packages.db(%s%s|%s|%s)." \
+		"$name" "$u" "$codename" "$component" "$arch"
+}
+opu() {
+	local name="$1" oldversion="$2" version="$3" codename="$4" component="$5" arch="$6" type="$7" u=""
+	if test "$type" = "udeb" ; then u='u|' ; fi
+	printf -- "-d1*=db: '%s' removed from packages.db(%s%s|%s|%s).\n" \
+		"$name" "$u" "$codename" "$component" "$arch"
 	printf -- "-d1*=db: '%s' added to packages.db(%s%s|%s|%s)." \
 		"$name" "$u" "$codename" "$component" "$arch"
 }

@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2009,2012,2013 Bernhard R. Link
+ *  Copyright (C) 2009,2012,2013,2016 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -31,6 +31,7 @@
 #include "trackingt.h"
 #include "tracking.h"
 #include "globmatch.h"
+#include "package.h"
 #include "needbuild.h"
 
 /* list all source packages in a distribution that needs buildd action
@@ -90,7 +91,7 @@ static retvalue tracked_source_needs_build(architecture_t architecture, const ch
 			   so nothing is to be done */
 			return RET_NOTHING;
 		}
-		if (ft == ft_LOG || ft == ft_CHANGES) {
+		if (ft == ft_LOG || ft == ft_BUILDINFO || ft == ft_CHANGES) {
 			const char *a = strrchr(fk, '_');
 			const char *e;
 
@@ -149,21 +150,21 @@ struct needbuild_data { architecture_t architecture;
 	bool printarch;
 };
 
-static retvalue check_source_needs_build(struct distribution *distribution, struct target *target, const char *sourcename, const char *control, void *data) {
+static retvalue check_source_needs_build(struct package *package, void *data) {
+	struct target *target = package->target;
 	struct needbuild_data *d = data;
-	char *sourceversion;
 	struct strlist binary, architectures, filekeys;
 	const char *dscfilename = NULL;
 	int i;
 	retvalue r;
 
-	if (d->glob != NULL && !globmatch(sourcename, d->glob))
+	if (d->glob != NULL && !globmatch(package->name, d->glob))
 		return RET_NOTHING;
 
-	r = target->getversion(control, &sourceversion);
+	r = package_getversion(package);
 	if (!RET_IS_OK(r))
 		return r;
-	r = chunk_getwordlist(control, "Architecture", &architectures);
+	r = chunk_getwordlist(package->control, "Architecture", &architectures);
 	if (RET_IS_OK(r)) {
 		bool skip = true;
 		const char *req = atoms_architectures[d->architecture];
@@ -206,19 +207,16 @@ static retvalue check_source_needs_build(struct distribution *distribution, stru
 		}
 		strlist_done(&architectures);
 		if (skip) {
-			free(sourceversion);
 			return RET_NOTHING;
 		}
 	}
-	r = chunk_getwordlist(control, "Binary", &binary);
+	r = chunk_getwordlist(package->control, "Binary", &binary);
 	if (!RET_IS_OK(r)) {
-		free(sourceversion);
 		return r;
 	}
-	r = target->getfilekeys(control, &filekeys);
+	r = target->getfilekeys(package->control, &filekeys);
 	if (!RET_IS_OK(r)) {
 		strlist_done(&binary);
-		free(sourceversion);
 		return r;
 	}
 	for (i = 0 ; i < filekeys.count ; i++) {
@@ -230,8 +228,7 @@ static retvalue check_source_needs_build(struct distribution *distribution, stru
 	if (dscfilename == NULL) {
 		fprintf(stderr,
 "Warning: source package '%s' in '%s' without dsc file!\n",
-				sourcename, target->identifier);
-		free(sourceversion);
+				package->name, target->identifier);
 		strlist_done(&binary);
 		strlist_done(&filekeys);
 		return RET_NOTHING;
@@ -240,31 +237,28 @@ static retvalue check_source_needs_build(struct distribution *distribution, stru
 	if (d->tracks != NULL) {
 		struct trackedpackage *tp;
 
-		r = tracking_get(d->tracks, sourcename, sourceversion, &tp);
+		r = tracking_get(d->tracks, package->name, package->version, &tp);
 		if (RET_WAS_ERROR(r)) {
-			free(sourceversion);
 			strlist_done(&binary);
 			strlist_done(&filekeys);
 			return r;
 		}
 		if (RET_IS_OK(r)) {
 			r = tracked_source_needs_build(
-					d->architecture, sourcename,
-					sourceversion, dscfilename,
+					d->architecture, package->name,
+					package->version, dscfilename,
 					&binary, tp, d->printarch);
 			trackedpackage_free(tp);
-			free(sourceversion);
 			strlist_done(&binary);
 			strlist_done(&filekeys);
 			return r;
 		}
 		fprintf(stderr,
 "Warning: %s's tracking data of %s (%s) is out of date. Run retrack to repair!\n",
-				distribution->codename,
-				sourcename, sourceversion);
+				target->distribution->codename,
+				package->name, package->version);
 	}
 	// TODO: implement without tracking
-	free(sourceversion);
 	strlist_done(&binary);
 	strlist_done(&filekeys);
 	return RET_NOTHING;
@@ -299,7 +293,7 @@ retvalue find_needs_build(struct distribution *distribution, architecture_t arch
 	} else
 			d.tracks = NULL;
 
-	result = distribution_foreach_package_c(distribution,
+	result = package_foreach_c(distribution,
 			onlycomponents, architecture_source, pt_dsc,
 			check_source_needs_build, &d);
 

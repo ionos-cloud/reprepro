@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005,2007,2009,2012 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2007,2009,2012,2016 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -442,7 +442,7 @@ static retvalue release_usecached(struct release *release,
 		if (filename[ic] == NULL)
 			continue;
 		r = table_getrecord(release->cachedb, filename[ic],
-				&combinedchecksum);
+				&combinedchecksum, NULL);
 		if (!RET_IS_OK(r)) {
 			result = r;
 			break;

@@ -5,25 +5,37 @@ _reprepro()
 	confdir=""
 	basedir=""
 	outdir=""
+	distdir=""
+
+	# for parsing configs consider:
+	# - command line arguments take priority over <confdir>/options take priority over environment variables
+	# - all the ways to set confdir may start with '+b/' to denote the basedir to be used.
+	# - basedir might also be set in <confdir>/options (which obviously does not change where this file is)
 
 	function parse_config() {
 		local conffile distfile
 		if [[ -n "$confdir" ]] ; then
 			conffile="$confdir/options"
 			distfile="$confdir/distributions"
-		elif [[ -n "$basedir" ]] ; then
-			conffile="$basedir/conf/options"
-			distfile="$basedir/conf/distributions"
+		elif [[ -n "${REPREPRO_CONFIG_DIR:+set}" ]] ; then
+			conffile="$REPREPRO_CONFIG_DIR/options"
+			distfile="$REPREPRO_CONFIG_DIR/distributions"
 		else
-			conffile="./conf/options"
-			distfile="./conf/distributions"
+			conffile="+b/conf/options"
+			distfile="+b/conf/distributions"
 		fi
-		if [ -z "$confdir" ] && [[ -e "$conffile" ]] ; then
-			if grep -q '^confdir ' -- "$conffile" 2>/dev/null ; then
-				distfile="$(grep '^confdir ' -- "$conffile" 2>/dev/null | sed -e 's/^confdir *//')/distributions"
-			elif [ -z "$basedir" ] && grep -q '^basedir ' -- "$conffile" 2>/dev/null  ; then
-				distfile="$(grep '^basedir ' -- "$conffile" 2>/dev/null | sed -e 's/^basedir *//')/conf/distributions"
-			fi
+		confbasedir="${basedir:-${REPREPRO_BASE_DIR:-.}}"
+		if [ x"${conffile#+b/}" != x"${conffile}" ] ; then
+			conffile="$confbasedir/${conffile#+b/}"
+		fi
+		if [ -z "$basedir" ] && [[ -e "$conffile" ]] && grep -q '^basedir ' -- "$conffile" 2>/dev/null  ; then
+			confbasedir="$(grep '^basedir ' -- "$conffile" 2>/dev/null | sed -e 's/^basedir *//')"
+		fi
+		if [ -z "$confdir" ] && [[ -e "$conffile" ]] && grep -q '^confdir ' -- "$conffile" 2>/dev/null ; then
+			distfile="$(grep '^confdir ' -- "$conffile" 2>/dev/null | sed -e 's/^confdir *//')/distributions"
+		fi
+		if [ x"${distfile#+b/}" != x"${distfile}" ] ; then
+			distfile="$confbasedir/${distfile#+b/}"
 		fi
 		if [[ -d "$distfile" ]] ; then
 			codenames="$(awk -- '/^[Cc][Oo][Dd][Ee][Nn][Aa][Mm][Ee]: / {$1="";print}' "$distfile"/*.conf)"
@@ -34,7 +46,7 @@ _reprepro()
 			architectures="$(awk -- '/^[Aa][Rr][Cc][Hh][Ii][Tt][Ee][Cc][Tt][Uu][Rr][Ee][Ss]: / {$1="";print}' "$distfile")"
 			components="$(awk -- '/^[Cc][Oo][Mm][Pp][Oo][Nn][Ee][Nn][Tt][Ss]: / {$1="";print}' "$distfile")"
 		else
-			codenames="experimental woody sarge sid etch whatever-you-defined"
+			codenames="experimental sid whatever-you-defined"
 			architectures="source i386 abacus whatever-you-defined"
 			components="main contrib non-free whatever-you-defined"
 		fi
@@ -43,10 +55,13 @@ _reprepro()
 		local conffile
 		if [[ -n "$confdir" ]] ; then
 			conffile="$confdir/options"
-		elif [[ -n "$basedir" ]] ; then
-			conffile="$basedir/conf/options"
+		elif [[ -n "${REPREPRO_CONFIG_DIR:+set}" ]] ; then
+			conffile="$REPREPRO_CONFIG_DIR/options"
 		else
-			conffile="./conf/options"
+			conffile="+b/conf/options"
+		fi
+		if [ x"${conffile#+b/}" != x"${conffile}" ] ; then
+			conffile="${basedir:-${REPREPRO_BASE_DIR:-.}}/${conffile#+b/}"
 		fi
 		if [ -z "$basedir" ] && [[ -e "$conffile" ]] ; then
 			if grep -q '^basedir ' -- "$conffile" 2>/dev/null ; then
@@ -64,13 +79,21 @@ _reprepro()
 			fi
 		fi
 		if [ -z "$basedir" ] ; then
-			basedir="."
+			basedir="${REPREPRO_BASE_DIR:-.}"
 		fi
-		if [ -z "$outdir" ] && ! [ -z "$basedir" ] ; then
-			outdir="$basedir"
+		if [ -z "$outdir" ] ; then
+			outdir="${REPREPRO_OUT_DIR:-$basedir}"
 		fi
-		if [ -z "$distdir" ] && ! [ -z "$outdir" ] ; then
-			distdir="$outdir/dists"
+		if [ x"${outdir#+b/}" != x"${outdir}" ] ; then
+			outdir="$basedir/${outdir#+b/}"
+		fi
+		if [ -z "$distdir" ] ; then
+			distdir="${REPREPRO_DIST_DIR:-$outdir/dists}"
+		fi
+		if [ x"${distdir#+o/}" != x"${distdir}" ] ; then
+			distdir="$outdir/${distdir#+o/}"
+		elif [ x"${distdir#+b/}" != x"${distdir}" ] ; then
+			distdir="$basedir/${distdir#+b/}"
 		fi
 	}
 	function parse_incoming() {
@@ -78,19 +101,25 @@ _reprepro()
 		if [[ -n "$confdir" ]] ; then
 			conffile="$confdir/options"
 			incomingfile="$confdir/incoming"
-		elif [[ -n "$basedir" ]] ; then
-			conffile="$basedir/conf/options"
-			incomingfile="$basedir/conf/incoming"
+		elif [[ -n "${REPREPRO_CONFIG_DIR:+set}" ]] ; then
+			conffile="$REPREPRO_CONFIG_DIR/options"
+			incomingfile="$REPREPRO_CONFIG_DIR/incoming"
 		else
-			conffile="./conf/options"
-			incomingfile="./conf/incoming"
+			conffile="+b/conf/options"
+			incomingfile="+b/conf/incoming"
 		fi
-		if [ -z "$confdir" ] && [[ -e "$conffile" ]] ; then
-			if grep -q '^confdir ' -- "$conffile" 2>/dev/null ; then
-				incomingfile="$(grep '^confdir ' -- "$conffile" 2>/dev/null | sed -e 's/^confdir //')/incoming"
-			elif [ -z "$basedir" ] && grep -q '^basedir ' -- "$conffile" 2>/dev/null  ; then
-				incoming="$(grep '^basedir ' -- "$conffile" 2>/dev/null | sed -e 's/^basedir //')/conf/incoming"
-			fi
+		confbasedir="${basedir:-${REPREPRO_BASE_DIR:-.}}"
+		if [ x"${conffile#+b/}" != x"${conffile}" ] ; then
+			conffile="$confbasedir/${conffile#+b/}"
+		fi
+		if [ -z "$basedir" ] && [[ -e "$conffile" ]] && grep -q '^basedir ' -- "$conffile" 2>/dev/null  ; then
+			confbasedir="$(grep '^basedir ' -- "$conffile" 2>/dev/null | sed -e 's/^basedir *//')"
+		fi
+		if [ -z "$confdir" ] && [[ -e "$conffile" ]] && grep -q '^confdir ' -- "$conffile" 2>/dev/null ; then
+			incomingfile="$(grep '^confdir ' -- "$conffile" 2>/dev/null | sed -e 's/^confdir //')/incoming"
+		fi
+		if [ x"${incomingfile#+b/}" != x"${incomingfile}" ] ; then
+			incomingfile="$confbasedir/${incomingfile#+b/}"
 		fi
 		if [[ -d "$incomingfile" ]] ; then
 			importrules="$(awk -- '/^[Nn][Aa][Mm][Ee]: / {$1="";print}' "$incomingfile"/*.conf)"

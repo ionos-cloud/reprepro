@@ -10,9 +10,10 @@
 #endif
 
 struct indexfile;
+struct package;
 
 retvalue indexfile_open(/*@out@*/struct indexfile **, const char *, enum compression);
 retvalue indexfile_close(/*@only@*/struct indexfile *);
-bool indexfile_getnext(struct indexfile *, /*@out@*/char **, /*@out@*/char **, /*@out@*/const char **, /*@out@*/ architecture_t *, const struct target *, bool allowwrongarchitecture);
+bool indexfile_getnext(struct indexfile *, /*@out@*/struct package *, struct target *, bool allowwrongarchitecture);
 
 #endif

@@ -301,7 +301,7 @@ static retvalue find_key_and_add(struct uploaders *u, struct upload_conditions *
 			c -= 'a' - 'A';
 		else if (c == 'x' && len-i-1 == 1 && fingerprint[0] == '0')
 			break;
-		if ((c < '0' || c > '9') && (c <'A' && c > 'F')) {
+		if ((c < '0' || c > '9') && (c <'A' || c > 'F')) {
 			fprintf(stderr,
 "Strange character '%c'(=%hhu) in fingerprint '%s'.\n"
 "Search for appropriate rules in the uploaders file might fail.\n",
@@ -327,7 +327,7 @@ static retvalue find_key_and_add(struct uploaders *u, struct upload_conditions *
 		else if (c == 'x' && primary_len-i-1 == 1 &&
 				primary_fingerprint[0] == '0')
 			break;
-		if ((c < '0' || c > '9') && (c <'A' && c > 'F')) {
+		if ((c < '0' || c > '9') && (c <'A' || c > 'F')) {
 			fprintf(stderr,
 "Strange character '%c'(=%hhu) in fingerprint/key-id '%s'.\n"
 "Search for appropriate rules in the uploaders file might fail.\n",

@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2009 Bernhard R. Link
+ *  Copyright (C) 2009,2016 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -29,24 +29,25 @@
 #include "chunks.h"
 #include "target.h"
 #include "distribution.h"
-#include "printlistformat.h"
 #include "dirs.h"
+#include "package.h"
+#include "printlistformat.h"
 
-retvalue listformat_print(const char *listformat, const struct target *target, const char *package, const char *control) {
+retvalue listformat_print(const char *listformat, struct package *package) {
+	struct target *target = package->target;
 	retvalue r;
 	const char *p, *q;
 
 	if (listformat == NULL) {
-		char *version;
 
-		r = target->getversion(control, &version);
+		r = package_getversion(package);
 		if (RET_IS_OK(r)) {
 			printf( "%s: %s %s\n",
-					target->identifier, package, version);
-			free(version);
+					target->identifier, package->name,
+					package->version);
 		} else {
 			printf("Could not retrieve version from %s in %s\n",
-					package, target->identifier);
+					package->name, target->identifier);
 		}
 		return r;
 	}
@@ -101,7 +102,7 @@ retvalue listformat_print(const char *listformat, const struct target *target, c
 		           || (q - p == 14 && strncasecmp(p, "{$fullfilename", 14) == 0)
 		           || (q - p ==  9 && strncasecmp(p, "{$filekey", 9) == 0)) {
 			struct strlist filekeys;
-			r = target->getfilekeys(control, &filekeys);
+			r = target->getfilekeys(package->control, &filekeys);
 			if (RET_WAS_ERROR(r))
 				return r;
 			if (RET_IS_OK(r) && filekeys.count > 0) {
@@ -141,39 +142,36 @@ retvalue listformat_print(const char *listformat, const struct target *target, c
 			value = NULL;
 			v = atoms_components[target->component];
 		} else if (q - p == 8 && strncasecmp(p, "{$source", 8) == 0) {
-			char *dummy = NULL;
-			r = target->getsourceandversion(control, package,
-					&value, &dummy);
+			r = package_getsource(package);
 			if (RET_WAS_ERROR(r))
 				return r;
 			if (RET_IS_OK(r)) {
-				free(dummy);
-				v = value;
+				value = NULL;
+				v = package->source;
 			} else {
 				value = NULL;
 				v = "";
 			}
 		} else if (q - p == 15 && strncasecmp(p, "{$sourceversion", 15) == 0) {
-			char *dummy = NULL;
-			r = target->getsourceandversion(control, package,
-					&dummy, &value);
+			r = package_getsource(package);
 			if (RET_WAS_ERROR(r))
 				return r;
 			if (RET_IS_OK(r)) {
-				free(dummy);
-				v = value;
+				value = NULL;
+				v = package->sourceversion;
 			} else {
 				value = NULL;
 				v = "";
 			}
 		} else if (q - p == 8 && strncasecmp(p, "{package", 8) == 0) {
 			value = NULL;
-			v = package;
+			v = package->name;
 		} else {
 			char *variable = strndup(p + 1, q - (p + 1));
 			if (FAILEDTOALLOC(variable))
 				return RET_ERROR_OOM;
-			r = chunk_getwholedata(control, variable, &value);
+			r = chunk_getwholedata(package->control,
+					variable, &value);
 			free(variable);
 			if (RET_WAS_ERROR(r))
 				return r;

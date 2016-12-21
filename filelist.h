@@ -6,10 +6,11 @@
 #endif
 
 struct filelist_list;
+struct package;
 
 retvalue filelist_init(struct filelist_list **list);
 
-retvalue filelist_addpackage(struct filelist_list *, const char *package, const char *section, const char *filekey);
+retvalue filelist_addpackage(struct filelist_list *, struct package *);
 
 retvalue filelist_write(struct filelist_list *list, struct filetorelease *file);
 

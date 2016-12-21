@@ -1,3 +1,25 @@
+2016-12-21  Bernhard R. Link <brlink@debian.org>
+	* add support for .buildinfo files in .changes files:
+	- new tracking mode includebuildinfos to store them in pool/
+	- ignored by 'include' unless Tracking: includebuildinfos
+	- processincoming with LogDir set stores them like log files
+	- otherwise ignored by 'processincoming' if not used
+	- new Cleanup: unused_buildinfo_files for conf/incoming to
+	  remove used buildinfo files.
+
+2016-12-18  Bernhard R. Link <brlink@debian.org>
+	* fix some logical errors in some warnings.
+
+2016-10-22  Bernhard R. Link <brlink@debian.org>
+	* drop workaround for apt-method interface change:
+	  answer 103 is now always expected to end the method's doing
+	  (in other words the http apt method from squeeze and before is no
+	  longer supported)
+
+2016-03-*  Bernhard R. Link <brlink@debian.org>
+	* refactor code to use struct package and struct package_cursor
+	  most of the time package data is accessed.
+
 2016-03-13  Bernhard R. Link <brlink@debian.org>
 	* fix bug in flood that could get confused which binary package
 	  belongs to which source if a destination contains packages

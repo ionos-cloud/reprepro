@@ -65,7 +65,7 @@ stdout
 -v2*=Created directory "./pool/a/h"
 -v2*=Created directory "./pool/a/h/hello"
 $(ofa 'pool/a/h/hello/hello_1_abacus.deb')
--d1*=db: 'hello' added to packages.db(1234|a|abacus).
+$(opa 'hello' 1 '1234' 'a' 'abacus' 'deb')
 -v0*=Exporting indices...
 -v6*= looking for changes in '1234|a|abacus'...
 -v6*=  replacing './dists/1234/a/binary-abacus/Packages' (uncompressed)
@@ -80,7 +80,7 @@ testrun - -b . -T deb -A abacus -C a _addpackage 4321 i/mangled hello 3<<EOF
 stdout
 -v1*=Adding 'hello' '1' to '4321|a|abacus'.
 -v9*=Adding reference to 'pool/a/h/hello/hello_1_abacus.deb' by '4321|a|abacus'
--d1*=db: 'hello' added to packages.db(4321|a|abacus).
+$(opa 'hello' 1 '4321' 'a' 'abacus' 'deb')
 -v0*=Exporting indices...
 -v6*= looking for changes in '4321|a|abacus'...
 -v6*=  replacing './dists/4321/a/binary-abacus/Packages' (uncompressed)

@@ -61,9 +61,9 @@ $(ofa "pool/all/a/a${i}/a${i}_${i}.dsc")
 $(ofa "pool/all/a/a${i}/a${i}_${i}.tar.gz")
 $(ofa "pool/all/a/a${i}/a${i}_${i}_abacus.deb")
 $(ofa "pool/all/a/a${i}/a${i}-addons_${i}_all.deb")
--d1*=db: 'a${i}' added to packages.db(test|all|source).
--d1*=db: 'a${i}' added to packages.db(test|all|abacus).
--d1*=db: 'a${i}-addons' added to packages.db(test|all|abacus).
+$(opa "a${i}" unset 'test' 'all' 'source' 'dsc')
+$(opa "a${i}" x 'test' 'all' 'abacus' 'deb')
+$(opa "a${i}-addons" x 'test' 'all' 'abacus' 'deb')
 -v1*=deleting './i/a${i}.changes'...
 -v1*=deleting './i/a${i}_${i}.dsc'...
 -v1*=deleting './i/a${i}_${i}.tar.gz'...
@@ -97,9 +97,9 @@ EOF
 
 for i in $(seq 1 40) ; do
 cat >>pull.rules <<EOF
--d1*=db: 'a${i}' added to packages.db(copy|all|source).
--d1*=db: 'a${i}' added to packages.db(copy|all|abacus).
--d1*=db: 'a${i}-addons' added to packages.db(copy|all|abacus).
+$(opa "a${i}" unset 'copy' 'all' 'source' 'dsc')
+$(opa "a${i}" x 'copy' 'all' 'abacus' 'deb')
+$(opa "a${i}-addons" x 'copy' 'all' 'abacus' 'deb')
 EOF
 done
 

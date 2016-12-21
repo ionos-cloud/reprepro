@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005,2006,2007,2008,2009,2011,2012 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2006,2007,2008,2009,2011,2012,2016 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -74,6 +74,7 @@
 #include "filterlist.h"
 #include "descriptions.h"
 #include "outhook.h"
+#include "package.h"
 
 #ifndef STD_BASE_DIR
 #define STD_BASE_DIR "."
@@ -762,25 +763,21 @@ struct removesrcdata {
 	bool found;
 };
 
-static retvalue package_source_fits(UNUSED(struct distribution *di), struct target *target, const char *packagename, const char *control, void *data) {
+static retvalue package_source_fits(struct package *package, void *data) {
 	struct removesrcdata *d = data;
-	char *sourcename, *sourceversion;
 	retvalue r;
 
-	r = target->getsourceandversion(control, packagename,
-			&sourcename, &sourceversion);
+	r = package_getsource(package);
 	if (!RET_IS_OK(r))
 		return r;
 	for (; d->sourcename != NULL ; d++) {
-		if (strcmp(sourcename, d->sourcename) != 0)
+		if (strcmp(package->source, d->sourcename) != 0)
 			continue;
 		if (d->sourceversion == NULL)
 			break;
-		if (strcmp(sourceversion, d->sourceversion) == 0)
+		if (strcmp(package->sourceversion, d->sourceversion) == 0)
 			break;
 	}
-	free(sourcename);
-	free(sourceversion);
 	if (d->sourcename == NULL)
 		return RET_NOTHING;
 	else {
@@ -838,7 +835,7 @@ static retvalue remove_packages(struct distribution *distribution, struct remove
 		RET_ENDUPDATE(result, r);
 		return result;
 	}
-	return distribution_remove_packages(distribution,
+	return package_remove_each(distribution,
 			// TODO: why not arch comp pt here?
 			atom_unknown, atom_unknown, atom_unknown,
 			package_source_fits, NULL,
@@ -959,10 +956,10 @@ ACTION_D(n, n, y, removesrcs) {
 	return r;
 }
 
-static retvalue package_matches_condition(UNUSED(struct distribution *di), struct target *target, UNUSED(const char *pa), const char *control, void *data) {
+static retvalue package_matches_condition(struct package *package, void *data) {
 	term *condition = data;
 
-	return term_decidechunktarget(condition, control, target);
+	return term_decidepackage(condition, package, package->target);
 }
 
 ACTION_D(y, n, y, removefilter) {
@@ -1015,7 +1012,7 @@ ACTION_D(y, n, y, removefilter) {
 	} else
 		tracks = NULL;
 
-	result = distribution_remove_packages(distribution,
+	result = package_remove_each(distribution,
 			components, architectures, packagetypes,
 			package_matches_condition,
 			(tracks != NULL)?&trackingdata:NULL,
@@ -1029,8 +1026,8 @@ ACTION_D(y, n, y, removefilter) {
 	return result;
 }
 
-static retvalue package_matches_glob(UNUSED(struct distribution *di), UNUSED(struct target *ta), const char *packagename, UNUSED(const char *control), void *data) {
-	if (globmatch(packagename, data))
+static retvalue package_matches_glob(struct package *package, void *data) {
+	if (globmatch(package->name, data))
 		return RET_OK;
 	else
 		return RET_NOTHING;
@@ -1076,7 +1073,7 @@ ACTION_D(y, n, y, removematched) {
 	} else
 		tracks = NULL;
 
-	result = distribution_remove_packages(distribution,
+	result = package_remove_each(distribution,
 			components, architectures, packagetypes,
 			package_matches_glob,
 			(tracks != NULL)?&trackingdata:NULL,
@@ -1173,40 +1170,33 @@ ACTION_B(y, n, y, buildneeded) {
 
 static retvalue list_in_target(struct target *target, const char *packagename) {
 	retvalue r, result;
-	char *control;
+	struct package pkg;
 
 	if (listmax == 0)
 		return RET_NOTHING;
 
-	r = target_initpackagesdb(target, READONLY);
-	if (!RET_IS_OK(r))
-		return r;
-
-	result = table_getrecord(target->packages, packagename, &control);
+	result = package_get(target, packagename, NULL, &pkg);
 	if (RET_IS_OK(result)) {
 		if (listskip <= 0) {
-			r = listformat_print(listformat, target,
-					packagename, control);
+			r = listformat_print(listformat, &pkg);
 			RET_UPDATE(result, r);
 			if (listmax > 0)
 				listmax--;
 		} else
 			listskip--;
-		free(control);
+		package_done(&pkg);
 	}
-	r = target_closepackagesdb(target);
-	RET_ENDUPDATE(result, r);
 	return result;
 }
 
-static retvalue list_package(UNUSED(struct distribution *dummy2), struct target *target, const char *package, const char *control, UNUSED(void *dummy3)) {
+static retvalue list_package(struct package *package, UNUSED(void *dummy3)) {
 	if (listmax == 0)
 		return RET_NOTHING;
 
 	if (listskip <= 0) {
 		if (listmax > 0)
 			listmax--;
-		return listformat_print(listformat, target, package, control);
+		return listformat_print(listformat, package);
 	} else {
 		listskip--;
 		return RET_NOTHING;
@@ -1226,7 +1216,7 @@ ACTION_B(y, n, y, list) {
 		return r;
 
 	if (argc == 2)
-		return distribution_foreach_package(distribution,
+		return package_foreach(distribution,
 			components, architectures, packagetypes,
 			list_package, NULL, NULL);
 	else for (t = distribution->targets ; t != NULL ; t = t->next) {
@@ -1252,42 +1242,37 @@ struct lspart {
 	struct lsversion *versions;
 };
 
-static retvalue newlsversion(struct lsversion **versions_p, /*@only@*/char *version, architecture_t architecture) {
+static retvalue newlsversion(struct lsversion **versions_p, struct package *package, architecture_t architecture) {
 	struct lsversion *v, **v_p;
 
 	for (v_p = versions_p ; (v = *v_p) != NULL ; v_p = &v->next) {
-		if (strcmp(v->version, version) != 0)
+		if (strcmp(v->version, package->version) != 0)
 			continue;
-		free(version);
 		return atomlist_add_uniq(&v->architectures, architecture);
 	}
 	v = zNEW(struct lsversion);
 	if (FAILEDTOALLOC(v))
 		return RET_ERROR_OOM;
 	*v_p = v;
-	v->version = version;
+	v->version = package_dupversion(package);
+	if (FAILEDTOALLOC(v->version))
+		return RET_ERROR_OOM;
 	return atomlist_add(&v->architectures, architecture);
 }
 
 static retvalue ls_in_target(struct target *target, const char *packagename, struct lsversion **versions_p) {
 	retvalue r, result;
-	char *control, *version;
+	struct package pkg;
 
-	r = target_initpackagesdb(target, READONLY);
-	if (!RET_IS_OK(r))
-		return r;
-
-	result = table_getrecord(target->packages, packagename, &control);
+	result = package_get(target, packagename, NULL, &pkg);
 	if (RET_IS_OK(result)) {
-		r = target->getversion(control, &version);
+		r = package_getversion(&pkg);
 		if (RET_IS_OK(r))
-			r = newlsversion(versions_p, version,
+			r = newlsversion(versions_p, &pkg,
 					target->architecture);
-		free(control);
+		package_done(&pkg);
 		RET_UPDATE(result, r);
 	}
-	r = target_closepackagesdb(target);
-	RET_ENDUPDATE(result, r);
 	return result;
 }
 
@@ -1419,20 +1404,19 @@ ACTION_B(y, n, y, lsbycomponent) {
 	return printlsparts(argv[1], first);
 }
 
-static retvalue listfilterprint(UNUSED(struct distribution *di), struct target *target, const char *packagename, const char *control, void *data) {
+static retvalue listfilterprint(struct package *package, void *data) {
 	term *condition = data;
 	retvalue r;
 
 	if (listmax == 0)
 		return RET_NOTHING;
 
-	r = term_decidechunktarget(condition, control, target);
+	r = term_decidepackage(condition, package, package->target);
 	if (RET_IS_OK(r)) {
 		if (listskip <= 0) {
 			if (listmax > 0)
 				listmax--;
-			r = listformat_print(listformat, target,
-					packagename, control);
+			r = listformat_print(listformat, package);
 		} else {
 			listskip--;
 			r = RET_NOTHING;
@@ -1458,25 +1442,24 @@ ACTION_B(y, n, y, listfilter) {
 		return result;
 	}
 
-	result = distribution_foreach_package(distribution,
+	result = package_foreach(distribution,
 			components, architectures, packagetypes,
 			listfilterprint, NULL, condition);
 	term_free(condition);
 	return result;
 }
 
-static retvalue listmatchprint(UNUSED(struct distribution *di), struct target *target, const char *packagename, const char *control, void *data) {
+static retvalue listmatchprint(struct package *package, void *data) {
 	const char *glob = data;
 
 	if (listmax == 0)
 		return RET_NOTHING;
 
-	if (globmatch(packagename, glob)) {
+	if (globmatch(package->name, glob)) {
 		if (listskip <= 0) {
 			if (listmax > 0)
 				listmax--;
-			return listformat_print(listformat, target,
-					packagename, control);
+			return listformat_print(listformat, package);
 		} else {
 			listskip--;
 			return RET_NOTHING;
@@ -1496,7 +1479,7 @@ ACTION_B(y, n, y, listmatched) {
 	if (RET_WAS_ERROR(r)) {
 		return r;
 	}
-	result = distribution_foreach_package(distribution,
+	result = package_foreach(distribution,
 			components, architectures, packagetypes,
 			listmatchprint, NULL, (void*)argv[2]);
 	return result;
@@ -2439,7 +2422,7 @@ ACTION_RF(y, n, y, y, check) {
 			printf("Checking %s...\n", d->codename);
 		}
 
-		r = distribution_foreach_package(d,
+		r = package_foreach(d,
 				components, architectures, packagetypes,
 				package_check, NULL, NULL);
 		RET_UPDATE(result, r);
@@ -2521,9 +2504,8 @@ ACTION_F(y, n, y, y, reoverride) {
 /*****************retrieving Description data from .deb files***************/
 
 static retvalue repair_descriptions(struct target *target) {
-        struct target_cursor iterator;
+        struct package_cursor iterator;
         retvalue result, r;
-        const char *package, *controlchunk;
 
         assert(target->packages == NULL);
 	assert(target->packagetype == pt_deb || target->packagetype == pt_udeb);
@@ -2534,11 +2516,11 @@ static retvalue repair_descriptions(struct target *target) {
                                 target->identifier);
         }
 
-        r = target_openiterator(target, READWRITE, &iterator);
+        r = package_openiterator(target, READWRITE, &iterator);
         if (!RET_IS_OK(r))
                 return r;
         result = RET_NOTHING;
-        while (target_nextpackage(&iterator, &package, &controlchunk)) {
+        while (package_next(&iterator)) {
                 char *newcontrolchunk = NULL;
 
 		if (interrupted()) {
@@ -2546,17 +2528,19 @@ static retvalue repair_descriptions(struct target *target) {
 			break;
 		}
 		/* replace it by itself to normalize the Description field */
-                r = description_addpackage(target, package, controlchunk,
-				controlchunk, NULL, &newcontrolchunk);
+                r = description_addpackage(target, iterator.current.name,
+				iterator.current.control,
+				iterator.current.control, NULL,
+				&newcontrolchunk);
                 RET_UPDATE(result, r);
                 if (RET_WAS_ERROR(r))
                         break;
                 if (RET_IS_OK(r)) {
 			if (verbose >= 0) {
 				printf(
-"Fixing description for '%s'...\n", package);
+"Fixing description for '%s'...\n", iterator.current.name);
 			}
-                        r = cursor_replace(target->packages, iterator.cursor,
+			r = package_newcontrol_by_cursor(&iterator,
                                 newcontrolchunk, strlen(newcontrolchunk));
                         free(newcontrolchunk);
                         if (RET_WAS_ERROR(r)) {
@@ -2566,7 +2550,7 @@ static retvalue repair_descriptions(struct target *target) {
                         target->wasmodified = true;
                 }
         }
-        r = target_closeiterator(&iterator);
+        r = package_closeiterator(&iterator);
         RET_ENDUPDATE(result, r);
         return result;
 }
@@ -3463,16 +3447,11 @@ ACTION_D(n, n, n, clearvanished) {
 		if (interrupted())
 			return RET_ERROR_INTERRUPTED;
 		if (delete <= 0) {
-			struct table *packages;
-			r = database_openpackages(identifier, true, &packages);
+			r = database_haspackages(identifier);
 			if (RET_IS_OK(r)) {
-				if (!table_isempty(packages)) {
-					fprintf(stderr,
+				fprintf(stderr,
 "There are still packages in '%s', not removing (give --delete to do so)!\n", identifier);
-					(void)table_close(packages);
-					continue;
-				}
-				r = table_close(packages);
+				continue;
 			}
 		}
 		if (interrupted())
@@ -3663,8 +3642,8 @@ ACTION_R(n, n, y, y, gensnapshot) {
 
 
 /***********************rerunnotifiers********************************/
-static retvalue rerunnotifiersintarget(struct distribution *d, struct target *target, UNUSED(void *dummy)) {
-	if (!logger_rerun_needs_target(d->logger, target))
+static retvalue rerunnotifiersintarget(struct target *target, UNUSED(void *dummy)) {
+	if (!logger_rerun_needs_target(target->distribution->logger, target))
 		return RET_NOTHING;
 	return RET_OK;
 }
@@ -3694,7 +3673,7 @@ ACTION_B(y, n, y, rerunnotifiers) {
 		if (RET_WAS_ERROR(r))
 			break;
 
-		r = distribution_foreach_package(d,
+		r = package_foreach(d,
 				components, architectures, packagetypes,
 				package_rerunnotifiers,
 				rerunnotifiersintarget, NULL);
@@ -5200,3 +5179,7 @@ int main(int argc, char *argv[]) {
 	myexit(EXIT_FAILURE);
 }
 
+retvalue package_newcontrol_by_cursor(struct package_cursor *cursor, const char *newcontrol, size_t newcontrollen) {
+	return cursor_replace(cursor->target->packages, cursor->cursor,
+			newcontrol, newcontrollen);
+}

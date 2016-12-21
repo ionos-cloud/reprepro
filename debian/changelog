@@ -1,3 +1,12 @@
+reprepro (5.0.0-1) experimental; urgency=medium
+
+  * new release
+  - drop support for apt-methods of squeeze and before
+  - some code-refactoring (to prepare for future changes)
+  - add support for .buildinfo in .changes files (Closes: #843402)
+
+ -- Bernhard R. Link <brlink@debian.org>  Wed, 21 Dec 2016 21:22:52 +0100
+
 reprepro (4.17.1-1) unstable; urgency=medium
 
   * new bugfix release
