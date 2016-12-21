@@ -8,21 +8,11 @@
 DEB_HOST_GNU_TYPE   ?= $(shell dpkg-architecture -qDEB_HOST_GNU_TYPE)
 DEB_BUILD_GNU_TYPE  ?= $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
 
-ifneq (,$(shell which dpkg-buildflags))
-CFLAGS := $(shell dpkg-buildflags --get CFLAGS)
-CPPFLAGS := $(shell dpkg-buildflags --get CPPFLAGS)
-LDFLAGS := $(shell dpkg-buildflags --get LDFLAGS)
-else
-ifneq (,$(filter noopt,$(DEB_BUILD_OPTIONS)))
-        CFLAGS = -O0 -g
-else
-        CFLAGS = -O2 -g
-endif
-CPPFLAGS =
-LDFLAGS =
-endif
+CFLAGS := $(shell DEB_BUILD_MAINT_OPTIONS=hardening=+all dpkg-buildflags --get CFLAGS)
+CPPFLAGS := $(shell DEB_BUILD_MAINT_OPTIONS=hardening=+all dpkg-buildflags --get CPPFLAGS)
+LDFLAGS := $(shell DEB_BUILD_MAINT_OPTIONS=hardening=+all dpkg-buildflags --get LDFLAGS)
 
-CFLAGS += -Wall -Wextra -Wmissing-prototypes -Wstrict-prototypes
+CFLAGS += -Wall -Wextra -Wmissing-prototypes -Wstrict-prototypes -Wlogical-op -Wshadow
 LDFLAGS += -Wl,-z,defs
 ifneq (,$(filter reprepro-nolibarchive,$(DEB_BUILD_OPTIONS)))
 	ARCHIVEFLAGS= --without-libarchive
