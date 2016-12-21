@@ -6,6 +6,7 @@ reprepro (5.0.0-1) experimental; urgency=medium
   - add support for .buildinfo in .changes files (Closes: #843402)
   * change debhelper compatibility level to 9
   * remove jessie gnupg2 depencency workarounds
+  * change build-dependency from libgpgme11-dev to libgpgme-dev
 
  -- Bernhard R. Link <brlink@debian.org>  Wed, 21 Dec 2016 21:22:52 +0100
 
