@@ -70,6 +70,7 @@ struct distribution {
 	enum trackingtype { dt_NONE=0, dt_KEEP, dt_ALL, dt_MINIMAL } tracking;
 	struct trackingoptions { bool includechanges;
 		bool includebyhand;
+		bool includebuildinfos;
 		bool includelogs;
 		bool needsources;
 		bool keepsources;
@@ -120,16 +121,6 @@ retvalue distribution_get(struct distribution * /*all*/, const char *, bool /*lo
 
 /* set lookedat, start logger, ... */
 retvalue distribution_prepareforwriting(struct distribution *);
-
-typedef retvalue each_target_action(struct distribution *, struct target *, void *);
-typedef retvalue each_package_action(struct distribution *, struct target *, const char *, const char *, void *);
-
-/* call <action> for each package of <distribution> */
-retvalue distribution_foreach_package(struct distribution *, /*@null@*/const struct atomlist *, /*@null@*/const struct atomlist *, /*@null@*/const struct atomlist *, each_package_action, /*@null@*/each_target_action, void *);
-retvalue distribution_foreach_package_c(struct distribution *, /*@null@*/const struct atomlist *, architecture_t, packagetype_t, each_package_action, void *);
-
-/* delete every package decider returns RET_OK for */
-retvalue distribution_remove_packages(struct distribution *, const struct atomlist *, const struct atomlist *, const struct atomlist *, each_package_action decider, struct trackingdata *, void *);
 
 /*@dependent@*/struct target *distribution_getpart(const struct distribution *distribution, component_t, architecture_t, packagetype_t);
 

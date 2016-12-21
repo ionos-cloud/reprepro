@@ -106,9 +106,9 @@ $(ofa 'pool/everything/p/package/package-addons_9-2_all.deb')
 $(ofa 'pool/everything/p/package/package_9-2_abacus.deb')
 $(ofa 'pool/everything/p/package/package_9-2.tar.gz')
 $(ofa 'pool/everything/p/package/package_9-2.dsc')
--d1*=db: 'package-addons' added to packages.db(CTest|everything|abacus).
--d1*=db: 'package' added to packages.db(CTest|everything|abacus).
--d1*=db: 'package' added to packages.db(CTest|everything|source).
+$(opa 'package-addons' x 'CTest' 'everything' 'abacus' 'deb')
+$(opa 'package' x 'CTest' 'everything' 'abacus' 'deb')
+$(opa 'package' unset 'CTest' 'everything' 'source' 'dsc')
 -v0*=Exporting indices...
 -v2*=Created directory "./dists"
 -v2*=Created directory "./dists/CTest"
@@ -187,9 +187,9 @@ EOF
 
 testrun - -b . include BTest testsigned.changes 3<<EOF
 stdout
--d1*=db: 'package-addons' added to packages.db(BTest|everything|abacus).
--d1*=db: 'package' added to packages.db(BTest|everything|abacus).
--d1*=db: 'package' added to packages.db(BTest|everything|source).
+$(opa 'package-addons' x 'BTest' 'everything' 'abacus' 'deb')
+$(opa 'package' x 'BTest' 'everything' 'abacus' 'deb')
+$(opa 'package' unset 'BTest' 'everything' 'source' 'dsc')
 -v0*=Exporting indices...
 -v2*=Created directory "./dists/BTest"
 -v2*=Created directory "./dists/BTest/everything"

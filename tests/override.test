@@ -66,9 +66,9 @@ $(ofa 'pool/main/a/aa/aa-addons_1-1_all.deb')
 $(ofa 'pool/main/a/aa/aa_1-1_abacus.deb')
 $(ofa 'pool/main/a/aa/aa_1-1.tar.gz')
 $(ofa 'pool/main/a/aa/aa_1-1.dsc')
--d1*=db: 'aa-addons' added to packages.db(c|main|abacus).
--d1*=db: 'aa' added to packages.db(c|main|abacus).
--d1*=db: 'aa' added to packages.db(c|main|source).
+$(opa 'aa-addons' x 'c' 'main' 'abacus' 'deb')
+$(opa 'aa' x 'c' 'main' 'abacus' 'deb')
+$(opa 'aa' unset 'c' 'main' 'source' 'dsc')
 -v0*=Exporting indices...
 -v6*= looking for changes in 'c|main|abacus'...
 -v6*=  creating './dists/c/main/binary-abacus/Index' (uncompressed)
@@ -85,9 +85,9 @@ $(ofa 'pool/component/b/bb/bb-addons_1-1_all.deb')
 $(ofa 'pool/component/b/bb/bb_1-1_abacus.deb')
 $(ofa 'pool/component/b/bb/bb_1-1.tar.gz')
 $(ofa 'pool/component/b/bb/bb_1-1.dsc')
--d1*=db: 'bb-addons' added to packages.db(c|component|abacus).
--d1*=db: 'bb' added to packages.db(c|component|abacus).
--d1*=db: 'bb' added to packages.db(c|component|source).
+$(opa 'bb-addons' x 'c' 'component' 'abacus' 'deb')
+$(opa 'bb' x 'c' 'component' 'abacus' 'deb')
+$(opa 'bb' unset 'c' 'component' 'source' 'dsc')
 -v0*=Exporting indices...
 -v6*= looking for changes in 'c|main|abacus'...
 -v6*= looking for changes in 'c|component|abacus'...
@@ -112,9 +112,9 @@ $(ofa 'pool/component/a/aa/aa-addons_1-1_all.deb')
 $(ofa 'pool/component/a/aa/aa_1-1_abacus.deb')
 $(ofa 'pool/component/a/aa/aa_1-1.tar.gz')
 $(ofa 'pool/component/a/aa/aa_1-1.dsc')
--d1*=db: 'aa-addons' added to packages.db(d|component|abacus).
--d1*=db: 'aa' added to packages.db(d|component|abacus).
--d1*=db: 'aa' added to packages.db(d|component|source).
+$(opa 'aa-addons' x 'd' 'component' 'abacus' 'deb')
+$(opa 'aa' x 'd' 'component' 'abacus' 'deb')
+$(opa 'aa' unset 'd' 'component' 'source' 'dsc')
 -v0*=Exporting indices...
 -v6*= looking for changes in 'd|component|abacus'...
 -v6*=  creating './dists/d/component/binary-abacus/Index' (uncompressed)
@@ -131,9 +131,9 @@ $(ofa 'pool/main/b/bb/bb-addons_1-1_all.deb')
 $(ofa 'pool/main/b/bb/bb_1-1_abacus.deb')
 $(ofa 'pool/main/b/bb/bb_1-1.tar.gz')
 $(ofa 'pool/main/b/bb/bb_1-1.dsc')
--d1*=db: 'bb-addons' added to packages.db(d|main|abacus).
--d1*=db: 'bb' added to packages.db(d|main|abacus).
--d1*=db: 'bb' added to packages.db(d|main|source).
+$(opa 'bb-addons' x 'd' 'main' 'abacus' 'deb')
+$(opa 'bb' x 'd' 'main' 'abacus' 'deb')
+$(opa 'bb' unset 'd' 'main' 'source' 'dsc')
 -v0*=Exporting indices...
 -v6*= looking for changes in 'd|component|abacus'...
 -v6*= looking for changes in 'd|main|abacus'...

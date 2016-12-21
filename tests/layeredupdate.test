@@ -428,6 +428,7 @@ stderr
 -v1*=aptmethod error receiving 'file:$WORKDIR/testsource/dists/codename1/bb/source/Sources.lzma':
 -v1='File not found'
 -v1='File not found - $WORKDIR/testsource/dists/codename1/bb/source/Sources.lzma (2: No such file or directory)'
+-v1='<File not there, apt-method suggests '$WORKDIR/testsource/dists/codename1/bb/source/Sources' instead>'
 -v6=aptmethod start 'file:$WORKDIR/testsource/dists/codename1/bb/source/Sources'
 -v1*=aptmethod got 'file:$WORKDIR/testsource/dists/codename1/bb/source/Sources'
 -v2*=Copy file '$WORKDIR/testsource/dists/codename1/bb/source/Sources' to './lists/base_codename1_bb_Sources'...

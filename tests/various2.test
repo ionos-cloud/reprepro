@@ -329,10 +329,10 @@ $(ofa 'pool/stupid/s/simple/simple_1_abacus.deb')
 $(ofa 'pool/stupid/s/simple/simple_1.tar.gz')
 $(ofa 'pool/stupid/s/simple/simple_1.dsc')
 $(ofa 'pool/stupid/s/simple/simple_1_source+all+abacus.changes')
--d1*=db: 'simple-addons' added to packages.db(test1|stupid|abacus).
--d1*=db: 'simple' added to packages.db(test1|stupid|abacus).
--d1*=db: 'simple' added to packages.db(test1|stupid|source).
--d1*=db: 'simple' added to tracking.db(test1).
+$(opa 'simple-addons' x 'test1' 'stupid' 'abacus' 'deb')
+$(opa 'simple' x 'test1' 'stupid' 'abacus' 'deb')
+$(opa 'simple' unset 'test1' 'stupid' 'source' 'dsc')
+$(ota 'test1' 'simple')
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test1|stupid|abacus'...
 -v6*=  replacing './dists/test1/stupid/binary-abacus/Packages' (uncompressed,gzipped,bzip2ed)
@@ -360,10 +360,10 @@ $(ofa 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_abacus.d
 $(ofa 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.tar.gz')
 $(ofa 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc')
 $(ofa 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:0.9-A:Z+a:z-0+aA.9zZ_source+all+abacus.changes')
--d1*=db: 'bloat+-0a9z.app-addons' added to packages.db(test1|ugly|abacus).
--d1*=db: 'bloat+-0a9z.app' added to packages.db(test1|ugly|abacus).
--d1*=db: 'bloat+-0a9z.app' added to packages.db(test1|ugly|source).
--d1*=db: 'bloat+-0a9z.app' added to tracking.db(test1).
+$(opa 'bloat+-0a9z.app-addons' x 'test1' 'ugly' 'abacus' 'deb')
+$(opa 'bloat+-0a9z.app' x 'test1' 'ugly' 'abacus' 'deb')
+$(opa 'bloat+-0a9z.app' unset 'test1' 'ugly' 'source' 'dsc')
+$(ota 'test1' 'bloat+-0a9z.app')
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test1|stupid|abacus'...
 -v6*= looking for changes in 'test1|stupid|source'...
@@ -382,8 +382,7 @@ EOF
 
 testrun - -b . -Tdsc remove test1 simple 3<<EOF
 stdout
--v1*=removing 'simple' from 'test1|stupid|source'...
--d1*=db: 'simple' removed from packages.db(test1|stupid|source).
+$(opd 'simple' unset test1 stupid source dsc)
 =[tracking_get test1 simple 1]
 =[tracking_get found test1 simple 1]
 =[tracking_save test1 simple 1]
@@ -400,8 +399,7 @@ DATESTR remove test1 dsc stupid source simple 1
 EOF
 testrun - -b . -Tdeb remove test1 bloat+-0a9z.app 3<<EOF
 stdout
--v1*=removing 'bloat+-0a9z.app' from 'test1|ugly|abacus'...
--d1*=db: 'bloat+-0a9z.app' removed from packages.db(test1|ugly|abacus).
+$(opd 'bloat+-0a9z.app' unset test1 ugly abacus deb)
 =[tracking_get test1 bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ]
 =[tracking_get found test1 bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ]
 =[tracking_save test1 bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ]
@@ -418,8 +416,7 @@ DATESTR remove test1 deb ugly abacus bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
 EOF
 testrun - -b . -A source remove test1 bloat+-0a9z.app 3<<EOF
 stdout
--v1*=removing 'bloat+-0a9z.app' from 'test1|ugly|source'...
--d1*=db: 'bloat+-0a9z.app' removed from packages.db(test1|ugly|source).
+$(opd 'bloat+-0a9z.app' unset test1 ugly source dsc)
 =[tracking_get test1 bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ]
 =[tracking_get found test1 bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ]
 =[tracking_save test1 bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ]
@@ -436,8 +433,7 @@ DATESTR remove test1 dsc ugly source bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
 EOF
 testrun - -b . -A abacus remove test1 simple 3<<EOF
 stdout
--v1*=removing 'simple' from 'test1|stupid|abacus'...
--d1*=db: 'simple' removed from packages.db(test1|stupid|abacus).
+$(opd 'simple' unset test1 stupid abacus deb)
 =[tracking_get test1 simple 1]
 =[tracking_get found test1 simple 1]
 =[tracking_save test1 simple 1]
@@ -454,8 +450,7 @@ DATESTR remove test1 deb stupid abacus simple 1
 EOF
 testrun - -b . -C ugly remove test1 bloat+-0a9z.app-addons 3<<EOF
 stdout
--v1*=removing 'bloat+-0a9z.app-addons' from 'test1|ugly|abacus'...
--d1*=db: 'bloat+-0a9z.app-addons' removed from packages.db(test1|ugly|abacus).
+$(opd 'bloat+-0a9z.app-addons' unset test1 ugly abacus deb)
 =[tracking_get test1 bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ]
 =[tracking_get found test1 bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ]
 =[tracking_save test1 bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ]
@@ -472,8 +467,7 @@ DATESTR remove test1 deb ugly abacus bloat+-0a9z.app-addons 99:0.9-A:Z+a:z-0+aA.
 EOF
 testrun - -b . -C stupid remove test1 simple-addons 3<<EOF
 stdout
--v1*=removing 'simple-addons' from 'test1|stupid|abacus'...
--d1*=db: 'simple-addons' removed from packages.db(test1|stupid|abacus).
+$(opd 'simple-addons' unset test1 stupid abacus deb)
 =[tracking_get test1 simple 1]
 =[tracking_get found test1 simple 1]
 =[tracking_save test1 simple 1]
@@ -531,7 +525,7 @@ stdout
 -v2*=Created directory "./pool/ugly/s/simple"
 $(ofa 'pool/ugly/s/simple/simple_1.dsc')
 $(ofa 'pool/ugly/s/simple/simple_1.tar.gz')
--d1*=db: 'simple' added to packages.db(test2|ugly|source).
+$(opa 'simple' unset 'test2' 'ugly' 'source' 'dsc')
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test2|stupid|abacus'...
 -v11*=Exporthook successfully returned!
@@ -554,7 +548,7 @@ stdout
 -v2*=Created directory "./pool/stupid/b/bloat+-0a9z.app"
 $(ofa 'pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc')
 $(ofa 'pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.tar.gz')
--d1*=db: 'bloat+-0a9z.app' added to packages.db(test2|stupid|source).
+$(opa 'bloat+-0a9z.app' unset 'test2' 'stupid' 'source' 'dsc')
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test2|stupid|abacus'...
 -v11*=Exporthook successfully returned!
@@ -580,7 +574,7 @@ stderr
 -v1=simple_1_abacus.deb: component guessed as 'ugly'
 stdout
 $(ofa 'pool/ugly/s/simple/simple_1_abacus.deb')
--d1*=db: 'simple' added to packages.db(test2|ugly|abacus).
+$(opa 'simple' x 'test2' 'ugly' 'abacus' 'deb')
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test2|stupid|abacus'...
 -v11*=Exporthook successfully returned!
@@ -606,7 +600,7 @@ stderr
 -v1=simple-addons_1_all.deb: component guessed as 'ugly'
 stdout
 $(ofa 'pool/ugly/s/simple/simple-addons_1_all.deb')
--d1*=db: 'simple-addons' added to packages.db(test2|ugly|coal).
+$(opa 'simple-addons' x 'test2' 'ugly' 'coal' 'deb')
 -v0=Exporting indices...
 -v6*= looking for changes in 'test2|stupid|abacus'...
 -v11*=Exporthook successfully returned!
@@ -632,7 +626,7 @@ stderr
 -v1=bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_abacus.deb: component guessed as 'stupid'
 stdout
 $(ofa 'pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_abacus.deb')
--d1*=db: 'bloat+-0a9z.app' added to packages.db(test2|stupid|abacus).
+$(opa 'bloat+-0a9z.app' x 'test2' 'stupid' 'abacus' 'deb')
 -v0=Exporting indices...
 -v6*= looking for changes in 'test2|stupid|abacus'...
 -v6*=  replacing './dists/test2/stupid/binary-abacus/Packages' (uncompressed,gzipped,script: bzip.example,testhook)
@@ -658,7 +652,7 @@ stderr
 -v1=bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb: component guessed as 'stupid'
 stdout
 $(ofa 'pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb')
--d1*=db: 'bloat+-0a9z.app-addons' added to packages.db(test2|stupid|coal).
+$(opa 'bloat+-0a9z.app-addons' x 'test2' 'stupid' 'coal' 'deb')
 -v0=Exporting indices...
 -v6*= looking for changes in 'test2|stupid|abacus'...
 -v11*=Exporthook successfully returned!
@@ -901,12 +895,12 @@ stdout
 -v1=Freeing some memory...
 -v1*=Shutting down aptmethods...
 -v0*=Installing (and possibly deleting) packages...
--d1*=db: 'simple' added to packages.db(test1|ugly|source).
--d1*=db: 'simple' added to packages.db(test1|ugly|abacus).
--d1*=db: 'simple-addons' added to packages.db(test1|ugly|abacus).
--d1*=db: 'bloat+-0a9z.app' added to packages.db(test1|stupid|source).
--d1*=db: 'bloat+-0a9z.app' added to packages.db(test1|stupid|abacus).
--d1*=db: 'bloat+-0a9z.app-addons' added to packages.db(test1|stupid|abacus).
+$(opa 'simple' unset 'test1' 'ugly' 'source' 'dsc')
+$(opa 'simple' x 'test1' 'ugly' 'abacus' 'deb')
+$(opa 'simple-addons' x 'test1' 'ugly' 'abacus' 'deb')
+$(opa 'bloat+-0a9z.app' unset 'test1' 'stupid' 'source' 'dsc')
+$(opa 'bloat+-0a9z.app' x 'test1' 'stupid' 'abacus' 'deb')
+$(opa 'bloat+-0a9z.app-addons' x 'test1' 'stupid' 'abacus' 'deb')
 -v1*=Retracking test1...
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test1|stupid|abacus'...
@@ -1115,10 +1109,10 @@ $(ofa 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_abacus.d
 $(ofa 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.tar.gz')
 $(ofa 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc')
 $(ofa 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:0.9-A:Z+a:z-0+aA.9zZ_source+all+abacus.changes')
--d1*=db: 'bloat+-0a9z.app-addons' added to packages.db(test1|ugly|abacus).
--d1*=db: 'bloat+-0a9z.app' added to packages.db(test1|ugly|abacus).
--d1*=db: 'bloat+-0a9z.app' added to packages.db(test1|ugly|source).
--d1*=db: 'bloat+-0a9z.app' added to tracking.db(test1).
+$(opa 'bloat+-0a9z.app-addons' x 'test1' 'ugly' 'abacus' 'deb')
+$(opa 'bloat+-0a9z.app' x 'test1' 'ugly' 'abacus' 'deb')
+$(opa 'bloat+-0a9z.app' unset 'test1' 'ugly' 'source' 'dsc')
+$(ota 'test1' 'bloat+-0a9z.app')
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test1|stupid|abacus'...
 -v6*= looking for changes in 'test1|stupid|source'...
@@ -1142,13 +1136,10 @@ $(ofa 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ_abacus.d
 $(ofa 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.tar.gz')
 $(ofa 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.dsc')
 $(ofa 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:9.0-A:Z+a:z-0+aA.9zZ_source+all+abacus.changes')
--d1*=db: 'bloat+-0a9z.app-addons' removed from packages.db(test1|ugly|abacus).
--d1*=db: 'bloat+-0a9z.app-addons' added to packages.db(test1|ugly|abacus).
--d1*=db: 'bloat+-0a9z.app' removed from packages.db(test1|ugly|abacus).
--d1*=db: 'bloat+-0a9z.app' added to packages.db(test1|ugly|abacus).
--d1*=db: 'bloat+-0a9z.app' removed from packages.db(test1|ugly|source).
--d1*=db: 'bloat+-0a9z.app' added to packages.db(test1|ugly|source).
--d1*=db: 'bloat+-0a9z.app' added to tracking.db(test1).
+$(opu 'bloat+-0a9z.app-addons' x x 'test1' 'ugly' 'abacus' 'deb')
+$(opu 'bloat+-0a9z.app' x x 'test1' 'ugly' 'abacus' 'deb')
+$(opu 'bloat+-0a9z.app' x x 'test1' 'ugly' 'source' 'dsc')
+$(ota 'test1' 'bloat+-0a9z.app')
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test1|stupid|abacus'...
 -v6*= looking for changes in 'test1|stupid|source'...
@@ -1171,8 +1162,8 @@ stdout
 -v2*=Created directory "./pool/stupid/s"
 -v2*=Created directory "./pool/stupid/s/simple"
 $(ofa 'pool/stupid/s/simple/simple_1_abacus.deb')
--d1*=db: 'simple' added to packages.db(test1|stupid|abacus).
--d1*=db: 'simple' added to tracking.db(test1).
+$(opa 'simple' x 'test1' 'stupid' 'abacus' 'deb')
+$(ota 'test1' 'simple')
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test1|stupid|abacus'...
 -v6*=  replacing './dists/test1/stupid/binary-abacus/Packages' (uncompressed,gzipped,bzip2ed)
@@ -1193,7 +1184,7 @@ stderr
 stdout
 $(ofa 'pool/stupid/s/simple/simple_1.dsc')
 $(ofa 'pool/stupid/s/simple/simple_1.tar.gz')
--d1*=db: 'simple' added to packages.db(test1|stupid|source).
+$(opa 'simple' unset 'test1' 'stupid' 'source' 'dsc')
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test1|stupid|abacus'...
 -v6*= looking for changes in 'test1|stupid|source'...
@@ -1287,10 +1278,10 @@ $(ofa 'pool/stupid/t/test/test_1-2.diff.gz')
 $(ofa 'pool/stupid/t/test/test_1-2.dsc')
 $(ofa 'pool/stupid/t/test/test_1.orig.tar.gz')
 $(ofa 'pool/stupid/t/test/test_1-2_source+all+abacus.changes')
--d1*=db: 'test-addons' added to packages.db(test1|stupid|abacus).
--d1*=db: 'test' added to packages.db(test1|stupid|abacus).
--d1*=db: 'test' added to packages.db(test1|stupid|source).
--d1*=db: 'test' added to tracking.db(test1).
+$(opa 'test-addons' x 'test1' 'stupid' 'abacus' 'deb')
+$(opa 'test' x 'test1' 'stupid' 'abacus' 'deb')
+$(opa 'test' unset 'test1' 'stupid' 'source' 'dsc')
+$(ota 'test1' 'test')
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test1|stupid|abacus'...
 -v6*=  replacing './dists/test1/stupid/binary-abacus/Packages' (uncompressed,gzipped,bzip2ed)
@@ -1318,10 +1309,10 @@ $(ofa 'pool/stupid/t/testb/testb_2-2.diff.gz')
 $(ofa 'pool/stupid/t/testb/testb_2-2.dsc')
 $(ofa 'pool/stupid/t/testb/testb_2.orig.tar.gz')
 $(ofa 'pool/stupid/t/testb/testb_1:2-2_source+all+abacus.changes')
--d1*=db: 'testb-addons' added to packages.db(test1|stupid|abacus).
--d1*=db: 'testb' added to packages.db(test1|stupid|abacus).
--d1*=db: 'testb' added to packages.db(test1|stupid|source).
--d1*=db: 'testb' added to tracking.db(test1).
+$(opa 'testb-addons' x 'test1' 'stupid' 'abacus' 'deb')
+$(opa 'testb' x 'test1' 'stupid' 'abacus' 'deb')
+$(opa 'testb' unset 'test1' 'stupid' 'source' 'dsc')
+$(ota 'test1' 'testb')
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test1|stupid|abacus'...
 -v6*=  replacing './dists/test1/stupid/binary-abacus/Packages' (uncompressed,gzipped,bzip2ed)
@@ -1346,13 +1337,10 @@ $(ofa 'pool/stupid/t/testb/testb_2-3_abacus.deb')
 $(ofa 'pool/stupid/t/testb/testb_2-3.diff.gz')
 $(ofa 'pool/stupid/t/testb/testb_2-3.dsc')
 $(ofa 'pool/stupid/t/testb/testb_1:2-3_source+all+abacus.changes')
--d1*=db: 'testb-addons' removed from packages.db(test1|stupid|abacus).
--d1*=db: 'testb-addons' added to packages.db(test1|stupid|abacus).
--d1*=db: 'testb' removed from packages.db(test1|stupid|abacus).
--d1*=db: 'testb' added to packages.db(test1|stupid|abacus).
--d1*=db: 'testb' removed from packages.db(test1|stupid|source).
--d1*=db: 'testb' added to packages.db(test1|stupid|source).
--d1*=db: 'testb' added to tracking.db(test1).
+$(opu 'testb-addons' x x 'test1' 'stupid' 'abacus' 'deb')
+$(opu 'testb' x x 'test1' 'stupid' 'abacus' 'deb')
+$(opu 'testb' x x 'test1' 'stupid' 'source' 'dsc')
+$(ota 'test1' 'testb')
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test1|stupid|abacus'...
 -v6*=  replacing './dists/test1/stupid/binary-abacus/Packages' (uncompressed,gzipped,bzip2ed)
@@ -1383,10 +1371,10 @@ $(ofa 'pool/stupid/4/4test/4test_0b.1-1_abacus.deb')
 $(ofa 'pool/stupid/4/4test/4test_0b.1-1.tar.gz')
 $(ofa 'pool/stupid/4/4test/4test_0b.1-1.dsc')
 $(ofa 'pool/stupid/4/4test/4test_1:0b.1-1_source+all+abacus.changes')
--d1*=db: '4test-addons' added to packages.db(test1|stupid|abacus).
--d1*=db: '4test' added to packages.db(test1|stupid|abacus).
--d1*=db: '4test' added to packages.db(test1|stupid|source).
--d1*=db: '4test' added to tracking.db(test1).
+$(opa '4test-addons' x 'test1' 'stupid' 'abacus' 'deb')
+$(opa '4test' x 'test1' 'stupid' 'abacus' 'deb')
+$(opa '4test' unset 'test1' 'stupid' 'source' 'dsc')
+$(ota 'test1' '4test')
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test1|stupid|abacus'...
 -v6*=  replacing './dists/test1/stupid/binary-abacus/Packages' (uncompressed,gzipped,bzip2ed)
@@ -1506,8 +1494,8 @@ sed -i -e 's/^Tracking: keep/Tracking: all/' conf/distributions
 testrun -  -b . tidytracks 3<<EOF
 stdout
 -v0*=Looking for old tracks in test1...
--d1*=db: 'testb' '1:2-2' removed from tracking.db(test1).
--d1*=db: 'bloat+-0a9z.app' '99:0.9-A:Z+a:z-0+aA.9zZ' removed from tracking.db(test1).
+$(otd 'testb' '1:2-2' 'test1')
+$(otd 'bloat+-0a9z.app' '99:0.9-A:Z+a:z-0+aA.9zZ' 'test1')
 -v0*=Deleting files no longer referenced...
 $(ofd 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb')
 $(ofd 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_abacus.deb')
@@ -1669,7 +1657,7 @@ sed -i -e 's/^Tracking: minimal/Tracking: minimal includechanges/' conf/distribu
 testrun -  -b . retrack 3<<EOF
 stdout
 -v1*=Retracking test1...
--d1*=db: 'bloat+-0a9z.app' added to tracking.db(test1).
+$(ota 'test1' 'bloat+-0a9z.app')
 -x1*=  Tracking test1|stupid|abacus...
 -x1*=  Tracking test1|stupid|source...
 -x1*=  Tracking test1|ugly|abacus...
@@ -2153,14 +2141,10 @@ testrun - -b . remove test1 simple 3<<EOF
 # ???
 =Warning: tracking database of test1 missed files for simple_1.
 stdout
--v1*=removing 'simple' from 'test1|stupid|abacus'...
--v1*=removing 'simple' from 'test1|stupid|source'...
--v1*=removing 'simple' from 'test1|ugly|abacus'...
--v1*=removing 'simple' from 'test1|ugly|source'...
--d1*=db: 'simple' removed from packages.db(test1|stupid|abacus).
--d1*=db: 'simple' removed from packages.db(test1|stupid|source).
--d1*=db: 'simple' removed from packages.db(test1|ugly|abacus).
--d1*=db: 'simple' removed from packages.db(test1|ugly|source).
+$(opd 'simple' unset test1 stupid abacus deb)
+$(opd 'simple' unset test1 stupid source dsc)
+$(opd 'simple' unset test1 ugly abacus deb)
+$(opd 'simple' unset test1 ugly source dsc)
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test1|stupid|abacus'...
 -v6*=  replacing './dists/test1/stupid/binary-abacus/Packages' (uncompressed,gzipped,bzip2ed)
@@ -2182,10 +2166,8 @@ testrun - -b . remove test2 simple 3<<EOF
 *=Unable to forget unknown filekey 'pool/ugly/s/simple/simple_1_abacus.deb'.
 -v0*=There have been errors!
 stdout
--v1=removing 'simple' from 'test2|ugly|abacus'...
--d1*=db: 'simple' removed from packages.db(test2|ugly|abacus).
--v1=removing 'simple' from 'test2|ugly|source'...
--d1*=db: 'simple' removed from packages.db(test2|ugly|source).
+$(opd 'simple' unset test2 ugly abacus deb)
+$(opd 'simple' unset test2 ugly source dsc)
 -v0=Exporting indices...
 -v6*= looking for changes in 'test2|stupid|abacus'...
 -v6*= looking for changes in 'test2|stupid|coal'...
@@ -2339,8 +2321,8 @@ testrun - -b . --ignore=wrongsourceversion --ignore=wrongversion include test2 b
 *=Ignoring as --ignore=wrongversion given.
 stdout
 $(ofa 'pool/stupid/4/4test/4test_0orso.dsc')
--d1*=db: '4test' added to packages.db(test2|stupid|abacus).
--d1*=db: '4test' added to packages.db(test2|stupid|source).
+$(opa '4test' x 'test2' 'stupid' 'abacus' 'deb')
+$(opa '4test' unset 'test2' 'stupid' 'source' 'dsc')
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test2|stupid|abacus'...
 -v6*=  replacing './dists/test2/stupid/binary-abacus/Packages' (uncompressed,gzipped,script: bzip.example,testhook)
@@ -2364,10 +2346,8 @@ DATESTR add test2 dsc stupid source 4test 1:0b.1-1
 EOF
 testrun - -b . remove test2 4test 3<<EOF
 stdout
--v1*=removing '4test' from 'test2|stupid|abacus'...
--d1*=db: '4test' removed from packages.db(test2|stupid|abacus).
--v1*=removing '4test' from 'test2|stupid|source'...
--d1*=db: '4test' removed from packages.db(test2|stupid|source).
+$(opd '4test' unset test2 stupid abacus deb)
+$(opd '4test' unset test2 stupid source dsc)
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test2|stupid|abacus'...
 -v6*=  replacing './dists/test2/stupid/binary-abacus/Packages' (uncompressed,gzipped,script: bzip.example,testhook)

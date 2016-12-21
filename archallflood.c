@@ -29,6 +29,7 @@
 #include "distribution.h"
 #include "tracking.h"
 #include "files.h"
+#include "package.h"
 #include "archallflood.h"
 
 struct aa_source_name {
@@ -139,7 +140,7 @@ static void floodlist_free(struct floodlist *list) {
 	return;
 }
 
-static retvalue find_or_add_sourcename(struct floodlist *list, /*@only@*/char *source, /*@out@*/struct aa_source_name **src_p) {
+static retvalue find_or_add_sourcename(struct floodlist *list, struct package *pkg, /*@out@*/struct aa_source_name **src_p) {
 	struct aa_source_name *parent, **p, *n;
 	int c;
 
@@ -150,7 +151,7 @@ static retvalue find_or_add_sourcename(struct floodlist *list, /*@only@*/char *s
 	 * but it seems fast enough even as simple tree */
 
 	while (*p != NULL) {
-		c = strcmp(source, (*p)->name);
+		c = strcmp(pkg->source, (*p)->name);
 		if (c == 0)
 			break;
 		parent = *p;
@@ -163,27 +164,29 @@ static retvalue find_or_add_sourcename(struct floodlist *list, /*@only@*/char *s
 		/* there is not even something with this name */
 		n = zNEW(struct aa_source_name);
 		if (FAILEDTOALLOC(n)) {
-			free(source);
 			return RET_ERROR_OOM;
 		}
-		n->name = source;
+		n->name = strdup(pkg->source);
+		if (FAILEDTOALLOC(n->name)) {
+			free(n);
+			return RET_ERROR_OOM;
+		}
 		n->parent = parent;
 		*p = n;
 		*src_p = n;
 		return RET_OK;
 	}
-	free(source);
 	*src_p = *p;
 	return RET_OK;
 }
 
-static retvalue find_or_add_source(struct floodlist *list, /*@only@*/char *source, /*@only@*/char *sourceversion, /*@out@*/struct aa_source_version **src_p) {
+static retvalue find_or_add_source(struct floodlist *list, struct package *pkg, /*@out@*/struct aa_source_version **src_p) {
 	retvalue r;
 	struct aa_source_name *sn;
 	struct aa_source_version **p, *n;
 	int c;
 
-	r = find_or_add_sourcename(list, source, &sn);
+	r = find_or_add_sourcename(list, pkg, &sn);
 	if (RET_WAS_ERROR(r))
 		return r;
 
@@ -191,22 +194,25 @@ static retvalue find_or_add_source(struct floodlist *list, /*@only@*/char *sourc
 
 	p = &sn->versions;
 	c = -1;
-	while (*p != NULL && (c = strcmp(sourceversion, (*p)->version)) > 0) {
+	while (*p != NULL && (c = strcmp(pkg->sourceversion,
+					(*p)->version)) > 0) {
 		p = &(*p)->next;
 	}
 	if (c == 0) {
 		assert (*p != NULL);
-		free(sourceversion);
 		*src_p = *p;
 		return RET_OK;
 	}
 	n = zNEW(struct aa_source_version);
 	if (FAILEDTOALLOC(n)) {
-		free(sourceversion);
 		return RET_ERROR_OOM;
 	}
 	n->name = sn;
-	n->version = sourceversion;
+	n->version = strdup(pkg->sourceversion);
+	if (FAILEDTOALLOC(n->version)) {
+		free(n);
+		return RET_ERROR_OOM;
+	}
 	n->next = *p;
 	*p = n;
 	*src_p = n;
@@ -243,52 +249,48 @@ static struct aa_source_version *find_source(struct floodlist *list, const char 
 /* Before anything else is done the current state of one target is read into
  * the list: list->list points to the first in the sorted list,
  * list->last to the last one inserted */
-static retvalue save_package_version(struct floodlist *list, const char *packagename, const char *chunk) {
-	char *version, *source, *sourceversion;
-	architecture_t architecture;
+static retvalue save_package_version(struct floodlist *list, struct package *pkg) {
 	struct aa_source_version *src;
 	retvalue r;
 	struct aa_package_data *package;
 
-	r = list->target->getarchitecture(chunk, &architecture);
+	r = package_getarchitecture(pkg);
 	if (RET_WAS_ERROR(r))
 		return r;
 
-	r = list->target->getsourceandversion(chunk, packagename,
-			&source, &sourceversion);
+	r = package_getsource(pkg);
 	if (RET_WAS_ERROR(r))
 		return r;
 
-	r = find_or_add_source(list, source, sourceversion, &src);
-	source = NULL; sourceversion = NULL; // just to be sure
+	r = find_or_add_source(list, pkg, &src);
 	if (RET_WAS_ERROR(r))
 		return r;
 
-	r = list->target->getversion(chunk, &version);
-	if (RET_WAS_ERROR(r))
-		return r;
-
-
-	if (architecture != architecture_all) {
-		free(version);
+	if (pkg->architecture != architecture_all) {
 		src->has_sibling = true;
 		return RET_NOTHING;
 	}
 
+	r = package_getversion(pkg);
+	if (RET_WAS_ERROR(r))
+		return r;
+
 	package = zNEW(struct aa_package_data);
 	if (FAILEDTOALLOC(package)) {
-		free(version);
 		return RET_ERROR_OOM;
 	}
 
-	package->name = strdup(packagename);
+	package->name = strdup(pkg->name);
 	if (FAILEDTOALLOC(package->name)) {
 		free(package);
-		free(version);
 		return RET_ERROR_OOM;
 	}
-	package->old_version = version;
-	version = NULL; // just to be sure...
+	package->old_version = package_dupversion(pkg);
+	if (FAILEDTOALLOC(package->old_version)) {
+		free(package->name);
+		free(package);
+		return RET_ERROR_OOM;
+	}
 	package->old_source = src;
 
 	if (list->list == NULL) {
@@ -296,7 +298,7 @@ static retvalue save_package_version(struct floodlist *list, const char *package
 		list->list = package;
 		list->last = package;
 	} else {
-		if (strcmp(packagename, list->last->name) > 0) {
+		if (strcmp(pkg->name, list->last->name) > 0) {
 			list->last->next = package;
 			list->last = package;
 		} else {
@@ -315,8 +317,7 @@ static retvalue save_package_version(struct floodlist *list, const char *package
 static retvalue floodlist_initialize(struct floodlist **fl, struct target *t) {
 	struct floodlist *list;
 	retvalue r, r2;
-	const char *packagename, *controlchunk;
-	struct target_cursor iterator;
+	struct package_cursor iterator;
 
 	list = zNEW(struct floodlist);
 	if (FAILEDTOALLOC(list))
@@ -326,18 +327,18 @@ static retvalue floodlist_initialize(struct floodlist **fl, struct target *t) {
 
 	/* Begin with the packages currently in the archive */
 
-	r = target_openiterator(t, READONLY, &iterator);
+	r = package_openiterator(t, READONLY, &iterator);
 	if (RET_WAS_ERROR(r)) {
 		floodlist_free(list);
 		return r;
 	}
-	while (target_nextpackage(&iterator, &packagename, &controlchunk)) {
-		r2 = save_package_version(list, packagename, controlchunk);
+	while (package_next(&iterator)) {
+		r2 = save_package_version(list, &iterator.current);
 		RET_UPDATE(r, r2);
 		if (RET_WAS_ERROR(r2))
 			break;
 	}
-	r2 = target_closeiterator(&iterator);
+	r2 = package_closeiterator(&iterator);
 	RET_UPDATE(r, r2);
 
 	if (RET_WAS_ERROR(r)) {
@@ -349,9 +350,16 @@ static retvalue floodlist_initialize(struct floodlist **fl, struct target *t) {
 	return RET_OK;
 }
 
-static retvalue floodlist_trypackage(struct floodlist *list, const char *packagename_const, /*@only@*/char *version, const char *chunk) {
+static retvalue floodlist_trypackage(struct floodlist *list, struct package *package) {
 	retvalue r;
 	struct aa_package_data *current, *insertafter;
+
+	r = package_getversion(package);
+	if (!RET_IS_OK(r))
+		return r;
+	r = package_getsource(package);
+	if (!RET_IS_OK(r))
+		return r;
 
 	/* insertafter = NULL will mean insert before list */
 	insertafter = list->last;
@@ -373,7 +381,7 @@ static retvalue floodlist_trypackage(struct floodlist *list, const char *package
 		if (current == NULL)
 			cmp = -1; /* every package is before the end of list */
 		else
-			cmp = strcmp(packagename_const, current->name);
+			cmp = strcmp(package->name, current->name);
 
 		if (cmp == 0)
 			break;
@@ -387,7 +395,7 @@ static retvalue floodlist_trypackage(struct floodlist *list, const char *package
 				current = NULL;
 				break;
 			}
-			precmp = strcmp(packagename_const, insertafter->name);
+			precmp = strcmp(package->name, insertafter->name);
 			if (precmp == 0) {
 				current = insertafter;
 				break;
@@ -416,33 +424,27 @@ static retvalue floodlist_trypackage(struct floodlist *list, const char *package
 	if (current == NULL) {
 		/* adding a package not yet known */
 		struct aa_package_data *new;
-		char *source, *sourceversion;
 		struct aa_source_version *src;
 
-		r = list->target->getsourceandversion(chunk,
-				packagename_const, &source, &sourceversion);
-		if (! RET_IS_OK(r)) {
-			free(version);
-			return r;
-		}
-		src = find_source(list, source, sourceversion);
-		free(source); free(sourceversion);
+		src = find_source(list, package->source, package->sourceversion);
 		new = zNEW(struct aa_package_data);
 		if (FAILEDTOALLOC(new)) {
-			free(version);
 			return RET_ERROR_OOM;
 		}
 		new->new_source = src;
-		new->new_version = version;
-		version = NULL;
-		new->name = strdup(packagename_const);
+		new->new_version = package_dupversion(package);
+		if (FAILEDTOALLOC(new->new_version)) {
+			aa_package_data_free(new);
+			return RET_ERROR_OOM;
+		}
+		new->name = strdup(package->name);
 		if (FAILEDTOALLOC(new->name)) {
 			aa_package_data_free(new);
 			return RET_ERROR_OOM;
 		}
 		r = list->target->getinstalldata(list->target,
 				new->name, new->new_version,
-				architecture_all, chunk,
+				architecture_all, package->control,
 				&new->new_control, &new->new_filekeys,
 				&new->new_origfiles);
 		if (RET_WAS_ERROR(r)) {
@@ -462,7 +464,6 @@ static retvalue floodlist_trypackage(struct floodlist *list, const char *package
 		char *control;
 		struct strlist files;
 		struct checksumsarray origfiles;
-		char *source, *sourceversion;
 		struct aa_source_version *src;
 		int versioncmp;
 
@@ -472,78 +473,67 @@ static retvalue floodlist_trypackage(struct floodlist *list, const char *package
 			/* it has a new and that has a binary sibling,
 			 * which means this becomes the new version
 			 * exactly when it is newer than the old newest */
-			r = dpkgversions_cmp(version, current->new_version,
+			r = dpkgversions_cmp(package->version,
+					current->new_version,
 					&versioncmp);
 			if (RET_WAS_ERROR(r)) {
-				free(version);
 				return r;
 			}
 			if (versioncmp <= 0) {
-				free(version);
 				return RET_NOTHING;
 			}
 		} else if (current->old_version != NULL) {
 			/* if it is older than the old one, we will
 			 * always discard it */
-			r = dpkgversions_cmp(version, current->old_version,
+			r = dpkgversions_cmp(package->version,
+					current->old_version,
 					&versioncmp);
 			if (RET_WAS_ERROR(r)) {
-				free(version);
 				return r;
 			}
 			if (versioncmp <= 0) {
-				free(version);
 				return RET_NOTHING;
 			}
 		}
 		/* we need to get the source to know more */
 
-		r = list->target->getsourceandversion(chunk,
-				packagename_const, &source, &sourceversion);
-		if (! RET_IS_OK(r)) {
-			free(version);
-			return r;
-		}
-		src = find_source(list, source, sourceversion);
-		free(source); free(sourceversion);
+		src = find_source(list, package->source, package->sourceversion);
 		if (src == NULL || !src->has_sibling) {
 			/* the new one has no sibling, only allowed
 			 * to override those that have: */
 			if (current->new_version == NULL) {
-				if (current->old_source->has_sibling) {
-					free(version);
+				if (current->old_source->has_sibling)
 					return RET_NOTHING;
-				}
 			} else if (current->new_has_sibling) {
-				free(version);
 				return RET_NOTHING;
 			} else {
 				/* the new one has no sibling and the old one
 				 * has not too, take the newer one: */
-				r = dpkgversions_cmp(version,
+				r = dpkgversions_cmp(package->version,
 						current->new_version,
 						&versioncmp);
 				if (RET_WAS_ERROR(r)) {
-					free(version);
 					return r;
 				}
 				if (versioncmp <= 0) {
-					free(version);
 					return RET_NOTHING;
 				}
 			}
 		}
+		char *new_version = package_dupversion(package);
+		if (FAILEDTOALLOC(new_version))
+			return RET_ERROR_OOM;
 
 		r = list->target->getinstalldata(list->target,
-				packagename_const, version,
-				architecture_all, chunk,
+				package->name, package->version,
+				architecture_all, package->control,
 				&control, &files, &origfiles);
 		if (RET_WAS_ERROR(r)) {
-			free(version);
+			free(new_version);
 			return r;
 		}
 		free(current->new_version);
-		current->new_version = version;
+		current->new_version = new_version;
 		current->new_source = src;
 		current->new_has_sibling = src != NULL && src->has_sibling;
 		strlist_done(&current->new_filekeys);
@@ -558,37 +548,25 @@ static retvalue floodlist_trypackage(struct floodlist *list, const char *package
 
 static retvalue floodlist_pull(struct floodlist *list, struct target *source) {
 	retvalue result, r;
-	const char *package, *control;
-	struct target_cursor iterator;
+	struct package_cursor iterator;
 
 	list->last = NULL;
-	r = target_openiterator(source, READONLY, &iterator);
+	r = package_openiterator(source, READONLY, &iterator);
 	if (RET_WAS_ERROR(r))
 		return r;
 	result = RET_NOTHING;
-	while (target_nextpackage(&iterator, &package, &control)) {
-		char *version;
-		architecture_t package_architecture;
-
-		r = list->target->getarchitecture(control,
-				&package_architecture);
+	while (package_next(&iterator)) {
+		r = package_getarchitecture(&iterator.current);
 		if (r == RET_NOTHING)
 			continue;
 		if (!RET_IS_OK(r)) {
 			RET_UPDATE(result, r);
 			break;
 		}
-		if (package_architecture != architecture_all)
+		if (iterator.current.architecture != architecture_all)
 			continue;
 
-		r = list->target->getversion(control, &version);
-		if (r == RET_NOTHING)
-			continue;
-		if (!RET_IS_OK(r)) {
-			RET_UPDATE(result, r);
-			break;
-		}
-		r = floodlist_trypackage(list, package, version, control);
+		r = floodlist_trypackage(list, &iterator.current);
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(r))
 			break;
@@ -597,7 +575,7 @@ static retvalue floodlist_pull(struct floodlist *list, struct target *source) {
 			break;
 		}
 	}
-	r = target_closeiterator(&iterator);
+	r = package_closeiterator(&iterator);
 	RET_ENDUPDATE(result, r);
 	return result;
 }

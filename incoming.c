@@ -74,6 +74,8 @@ enum cleanupflags {
 	/* delete unused files after sucessfully
 	 * processing the used ones */
 	cuf_unused_files,
+	/* same but restricted to .buildinfo files */
+	cuf_unused_buildinfo_files,
 	cuf_COUNT /* must be last */
 };
 enum optionsflags {
@@ -275,6 +277,7 @@ CFfinishparse(incoming) {
 	}
 	if (i->morguedir != NULL && !i->cleanup[cuf_on_deny]
 			&& !i->cleanup[cuf_on_error]
+			&& !i->cleanup[cuf_unused_buildinfo_files]
 			&& !i->cleanup[cuf_unused_files]) {
 		fprintf(stderr,
 "Warning: There is a 'MorgueDir' but no 'Cleanup' to act on in rule '%s'\n"
@@ -357,6 +360,7 @@ CFSETPROC(incoming, cleanup) {
 	CFSETPROCVARS(incoming, i, d);
 	static const struct constant const cleanupconstants[] = {
 		{ "unused_files", cuf_unused_files},
+		{ "unused_buildinfo_files", cuf_unused_buildinfo_files},
 		{ "on_deny", cuf_on_deny},
 		/* not yet implemented
 		{ "on_deny_check_owner", cuf_on_deny_check_owner},
@@ -1116,6 +1120,79 @@ static retvalue candidate_read_files(struct incoming *i, struct candidate *c) {
 	return RET_OK;
 }
 
+static retvalue candidate_preparebuildinfos(const struct incoming *i, const struct candidate *c, struct candidate_perdistribution *per) {
+	retvalue r;
+	struct candidate_package *package;
+	struct candidate_file *firstbuildinfo = NULL, *file;
+	component_t component = component_strange;
+	int count = 0;
+
+	for (file = c->files ; file != NULL ; file = file->next) {
+		if (file->type == fe_BUILDINFO) {
+			count++;
+			if (firstbuildinfo == NULL)
+				firstbuildinfo = file;
+		}
+	}
+	if (count == 0)
+		return RET_NOTHING;
+
+	/* search for a component to use */
+	for (package = per->packages ; package != NULL ;
+	                               package = package->next) {
+		if (atom_defined(package->component)) {
+			component = package->component;
+			break;
+		}
+	}
+	if (!atom_defined(component)) {
+		/* How can this happen? */
+		fprintf(stderr,
+"Found no component to put %s into. (Why is there a buildinfo processed without an corresponding package?)\n", firstbuildinfo->name);
+		return RET_ERROR;
+	}
+
+	/* pseudo package containing buildinfo files */
+	package = candidate_newpackage(per, firstbuildinfo);
+	if (FAILEDTOALLOC(package))
+		return RET_ERROR_OOM;
+	r = strlist_init_n(count, &package->filekeys);
+	if (RET_WAS_ERROR(r))
+		return r;
+	package->files = nzNEW(count, const struct candidate_file *);
+	if (FAILEDTOALLOC(package->files))
+		return RET_ERROR_OOM;
+
+	for (file = c->files ; file != NULL ; file = file->next) {
+		char *filekey;
+
+		if (file->type != fe_BUILDINFO)
+			continue;
+
+		r = candidate_usefile(i, c, file);
+		if (RET_WAS_ERROR(r))
+			return r;
+
+		// TODO: add same checks on the basename contents?
+
+		filekey = calc_filekey(component, c->source, BASENAME(i, file->ofs));
+		if (FAILEDTOALLOC(filekey))
+			return RET_ERROR_OOM;
+
+		r = files_canadd(filekey, file->checksums);
+		if (RET_WAS_ERROR(r))
+			return r;
+		if (RET_IS_OK(r))
+			package->files[package->filekeys.count] = file;
+		r = strlist_add(&package->filekeys, filekey);
+		assert (r == RET_OK);
+	}
+	assert (package->filekeys.count == count);
+	return RET_OK;
+}
+
+
+
 static retvalue candidate_preparechangesfile(const struct candidate *c, struct candidate_perdistribution *per) {
 	retvalue r;
 	char *basefilename, *filekey;
@@ -1508,6 +1585,12 @@ static retvalue candidate_preparelogs(const struct incoming *i, const struct can
 			break;
 		}
 	}
+	/* if there somehow were no packages to get an component from,
+	   put in the main one of this distribution. */
+	if (!atom_defined(component)) {
+		assert (per->into->components.count > 0);
+		component = per->into->components.atoms[0];
+	}
 
 	/* pseudo package containing log files */
 	package = candidate_newpackage(per, firstlog);
@@ -1611,6 +1694,11 @@ static retvalue prepare_for_distribution(const struct incoming *i, const struct 
 		}
 		if (d->into->trackingoptions.includelogs) {
 			r = candidate_preparelogs(i, c, d);
+			if (RET_WAS_ERROR(r))
+				return r;
+		}
+		if (d->into->trackingoptions.includebuildinfos) {
+			r = candidate_preparebuildinfos(i, c, d);
 			if (RET_WAS_ERROR(r))
 				return r;
 		}
@@ -1795,6 +1883,12 @@ static retvalue candidate_add_into(const struct incoming *i, const struct candid
 			r = trackedpackage_adddupfilekeys(trackingdata.tracks,
 					trackingdata.pkg,
 					ft_XTRA_DATA, &p->filekeys, false);
+		} else if (p->master->type == fe_BUILDINFO) {
+			assert (tracks != NULL);
+
+			r = trackedpackage_adddupfilekeys(trackingdata.tracks,
+					trackingdata.pkg,
+					ft_BUILDINFO, &p->filekeys, false);
 		} else if (p->master->type == fe_LOG) {
 			assert (tracks != NULL);
 
@@ -1838,6 +1932,7 @@ static inline retvalue candidate_checkadd_into(const struct incoming *i, const s
 					i->permit[pmf_oldpackagenewer]);
 		} else if (p->master->type == fe_CHANGES
 				|| p->master->type == fe_BYHAND
+				|| p->master->type == fe_BUILDINFO
 				|| p->master->type == fe_LOG) {
 			continue;
 		} else
@@ -2044,6 +2139,7 @@ static retvalue candidate_prepare_logdir(struct incoming *i, struct candidate *c
 	count = 0;
 	for (file = c->files ; file != NULL ; file = file->next) {
 		if (file->ofs == c->ofs || file->type == fe_LOG
+				|| file->type == fe_BUILDINFO
 				|| (file->type == fe_BYHAND && !file->used))
 			count++;
 	}
@@ -2054,6 +2150,7 @@ static retvalue candidate_prepare_logdir(struct incoming *i, struct candidate *c
 	j = 0;
 	for (file = c->files ; file != NULL ; file = file->next) {
 		if (file->ofs == c->ofs || file->type == fe_LOG
+				|| file->type == fe_BUILDINFO
 				|| (file->type == fe_BYHAND && !file->used)) {
 			r = candidate_usefile(i, c, file);
 			if (RET_WAS_ERROR(r))
@@ -2192,6 +2289,10 @@ static retvalue candidate_add(struct incoming *i, struct candidate *c) {
 
 	}
 	for (file = c->files ; file != NULL ; file = file->next) {
+		/* silently ignore unused buildinfo files: */
+		if (file->type == fe_BUILDINFO)
+			continue;
+		/* otherwise complain unless unused_files is given */
 		if (!file->used && !i->permit[pmf_unused_files]) {
 			// TODO: find some way to mail such errors...
 			fprintf(stderr,
@@ -2229,7 +2330,9 @@ static retvalue candidate_add(struct incoming *i, struct candidate *c) {
 					BASENAME(i, c->ofs));
 		}
 		for (file = c->files ; file != NULL ; file = file->next) {
-			if (file->used || i->cleanup[cuf_unused_files])
+			if (file->used || i->cleanup[cuf_unused_files] ||
+					(file->type == fe_BUILDINFO &&
+					 i->cleanup[cuf_unused_buildinfo_files]))
 				i->delete[file->ofs] = true;
 		}
 		return RET_NOTHING;
@@ -2257,7 +2360,9 @@ static retvalue candidate_add(struct incoming *i, struct candidate *c) {
 	for (file = c->files ; file != NULL ; file = file->next) {
 		if (file->used)
 			i->processed[file->ofs] = true;
-		if (file->used || i->cleanup[cuf_unused_files]) {
+		if (file->used || i->cleanup[cuf_unused_files] ||
+				(file->type == fe_BUILDINFO &&
+				 i->cleanup[cuf_unused_buildinfo_files])) {
 			i->delete[file->ofs] = true;
 		}
 	}

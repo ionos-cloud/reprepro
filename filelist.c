@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2006,2007 Bernhard R. Link
+ *  Copyright (C) 2006,2007,2016 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -23,6 +23,8 @@
 #include "error.h"
 #include "database_p.h"
 #include "files.h"
+#include "chunks.h"
+#include "package.h"
 #include "debfile.h"
 #include "filelist.h"
 
@@ -427,25 +429,43 @@ static retvalue filelist_addfiles(struct filelist_list *list, const struct filel
 	return RET_OK;
 }
 
-retvalue filelist_addpackage(struct filelist_list *list, const char *packagename, const char *section, const char *filekey) {
+retvalue filelist_addpackage(struct filelist_list *list, struct package *pkg) {
 	const struct filelist_package *package;
 	char *debfilename, *contents = NULL;
 	retvalue r;
 	const char *c;
 	size_t len;
+	char *section, *filekey;
 
-	r = filelist_newpackage(list, packagename, section, &package);
-	assert (r != RET_NOTHING);
-	if (RET_WAS_ERROR(r))
+	r = chunk_getvalue(pkg->control, "Section", &section);
+	/* Ignoring packages without section, as they should not exist anyway */
+	if (!RET_IS_OK(r))
 		return r;
+	r = chunk_getvalue(pkg->control, "Filename", &filekey);
+	/* dito with filekey */
+	if (!RET_IS_OK(r)) {
+		free(section);
+		return r;
+	}
+
+	r = filelist_newpackage(list, pkg->name, section, &package);
+	assert (r != RET_NOTHING);
+	if (RET_WAS_ERROR(r)) {
+		free(filekey);
+		free(section);
+		return r;
+	}
 
 	r = table_gettemprecord(rdb_contents, filekey, &c, &len);
 	if (r == RET_NOTHING) {
 		if (verbose > 3)
 			printf("Reading filelist for %s\n", filekey);
 		debfilename = files_calcfullfilename(filekey);
-		if (FAILEDTOALLOC(debfilename))
+		if (FAILEDTOALLOC(debfilename)) {
+			free(filekey);
+			free(section);
 			return RET_ERROR_OOM;
+		}
 		r = getfilelist(&contents, &len, debfilename);
 		len--;
 		free(debfilename);
@@ -458,6 +478,8 @@ retvalue filelist_addpackage(struct filelist_list *list, const char *packagename
 					contents, len + 1, true, false);
 	}
 	free(contents);
+	free(filekey);
+	free(section);
 	return r;
 }
 

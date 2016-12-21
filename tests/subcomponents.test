@@ -459,7 +459,7 @@ stdout
 -v2*=Created directory "./pool/a/t"
 -v2*=Created directory "./pool/a/t/test"
 $(ofa 'pool/a/t/test/test_0.dsc')
--d1*=db: 'test' added to packages.db(foo|a|source).
+$(opa 'test' unset 'foo' 'a' 'source' 'dsc')
 -v0*=Exporting indices...
 -v2*=Created directory "./dists/foo/x"
 -v2*=Created directory "./dists/foo/x/binary-ooooooooooooooooooooooooooooooooooooooooo"
@@ -484,7 +484,7 @@ stdout
 -v3*=Not looking into 'foo|x|source' as no matching target in 'foo/updates'!
 -v3*=Not looking into 'foo|a|ooooooooooooooooooooooooooooooooooooooooo' as no matching target in 'foo/updates'!
 -v1*=Adding 'test' '0' to 'foo/updates|a|source'.
--d1*=db: 'test' added to packages.db(foo/updates|a|source).
+$(opa 'test' unset 'foo/updates' 'a' 'source' 'dsc')
 -v*=Exporting indices...
 -v6*= looking for changes in 'foo/updates|a|x'...
 -v6*= looking for changes in 'u|foo/updates|a|x'...

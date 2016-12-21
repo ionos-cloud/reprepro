@@ -184,10 +184,10 @@ $(ofa 'pool/all/a/aa/aa-addons_1-1_all.deb')
 $(ofa 'pool/all/a/aa/aa_1-1_abacus.deb')
 $(ofa 'pool/all/a/aa/aa_1-1.tar.gz')
 $(ofa 'pool/all/a/aa/aa_1-1.dsc')
--d1*=db: 'aa-addons' added to packages.db(a|all|abacus).
--d1*=db: 'aa' added to packages.db(a|all|abacus).
--d1*=db: 'aa' added to packages.db(a|all|source).
--t1*=db: 'aa' added to tracking.db(a).
+$(opa 'aa-addons' x 'a' 'all' 'abacus' 'deb')
+$(opa 'aa' x 'a' 'all' 'abacus' 'deb')
+$(opa 'aa' x 'a' 'all' 'source' 'dsc')
+$(otta 'a' 'aa')
 -v5*=Deleting 'test.changes'.
 EOF
 checklog logab << EOF
@@ -249,8 +249,8 @@ stdout
 -v3*=  pulling into 'b|all|abacus'
 -v5*=  looking what to get from 'a|all|abacus'
 -v0*=Installing (and possibly deleting) packages...
--d1*=db: 'aa' added to packages.db(b|all|abacus).
--d1*=db: 'aa-addons' added to packages.db(b|all|abacus).
+$(opa 'aa' x 'b' 'all' 'abacus' 'deb')
+$(opa 'aa-addons' x 'b' 'all' 'abacus' 'deb')
 -v0*=Exporting indices...
 -v2*=Created directory "./dists/b"
 -v2*=Created directory "./dists/b/all"
@@ -272,14 +272,11 @@ $(ofa 'pool/all/a/aa/aa-addons_1-2_all.deb')
 $(ofa 'pool/all/a/aa/aa_1-2_abacus.deb')
 $(ofa 'pool/all/a/aa/aa_1-2.tar.gz')
 $(ofa 'pool/all/a/aa/aa_1-2.dsc')
--d1*=db: 'aa-addons' removed from packages.db(a|all|abacus).
--d1*=db: 'aa-addons' added to packages.db(a|all|abacus).
--d1*=db: 'aa' removed from packages.db(a|all|abacus).
--d1*=db: 'aa' added to packages.db(a|all|abacus).
--d1*=db: 'aa' removed from packages.db(a|all|source).
--d1*=db: 'aa' added to packages.db(a|all|source).
--t1*=db: 'aa' added to tracking.db(a).
--t1*=db: 'aa' '1-1' removed from tracking.db(a).
+$(opu 'aa-addons' x x 'a' 'all' 'abacus' 'deb')
+$(opu 'aa' x x 'a' 'all' 'abacus' 'deb')
+$(opu 'aa' x x 'a' 'all' 'source' 'dsc')
+$(otta 'a' 'aa')
+$(ottd 'aa' '1-1' 'a')
 -v0*=Exporting indices...
 -v2*=Created directory "./dists/a"
 -v2*=Created directory "./dists/a/all"
@@ -336,10 +333,8 @@ stdout
 -v3*=  pulling into 'b|all|abacus'
 -v5*=  looking what to get from 'a|all|abacus'
 -v0*=Installing (and possibly deleting) packages...
--d1*=db: 'aa' removed from packages.db(b|all|abacus).
--d1*=db: 'aa' added to packages.db(b|all|abacus).
--d1*=db: 'aa-addons' removed from packages.db(b|all|abacus).
--d1*=db: 'aa-addons' added to packages.db(b|all|abacus).
+$(opu 'aa' x x 'b' 'all' 'abacus' 'deb')
+$(opu 'aa-addons' x x 'b' 'all' 'abacus' 'deb')
 -v0=Exporting indices...
 -v2*=Created directory "./dists/b"
 -v2*=Created directory "./dists/b/all"
@@ -367,14 +362,11 @@ $(ofa 'pool/all/a/aa/aa-addons_1-3_all.deb')
 $(ofa 'pool/all/a/aa/aa_1-3_abacus.deb')
 $(ofa 'pool/all/a/aa/aa_1-3.tar.gz')
 $(ofa 'pool/all/a/aa/aa_1-3.dsc')
--d1*=db: 'aa-addons' removed from packages.db(a|all|abacus).
--d1*=db: 'aa-addons' added to packages.db(a|all|abacus).
--d1*=db: 'aa' removed from packages.db(a|all|abacus).
--d1*=db: 'aa' added to packages.db(a|all|abacus).
--d1*=db: 'aa' removed from packages.db(a|all|source).
--d1*=db: 'aa' added to packages.db(a|all|source).
--t1*=db: 'aa' added to tracking.db(a).
--t1*=db: 'aa' '1-2' removed from tracking.db(a).
+$(opu 'aa-addons' x x 'a' 'all' 'abacus' 'deb')
+$(opu 'aa' x x 'a' 'all' 'abacus' 'deb')
+$(opu 'aa' x x 'a' 'all' 'source' 'dsc')
+$(otta 'a' 'aa')
+$(ottd 'aa' '1-2' 'a')
 -v0*=Deleting files no longer referenced...
 $(ofd 'pool/all/a/aa/aa_1-2.dsc')
 $(ofd 'pool/all/a/aa/aa_1-2.tar.gz')
@@ -418,10 +410,10 @@ $(ofa 'pool/all/a/ab/ab-addons_2-1_all.deb')
 $(ofa 'pool/all/a/ab/ab_2-1_abacus.deb')
 $(ofa 'pool/all/a/ab/ab_2-1.tar.gz')
 $(ofa 'pool/all/a/ab/ab_2-1.dsc')
--d1*=db: 'ab-addons' added to packages.db(a|all|abacus).
--d1*=db: 'ab' added to packages.db(a|all|abacus).
--d1*=db: 'ab' added to packages.db(a|all|source).
--t1*=db: 'ab' added to tracking.db(a).
+$(opa 'ab-addons' x 'a' 'all' 'abacus' 'deb')
+$(opa 'ab' x 'a' 'all' 'abacus' 'deb')
+$(opa 'ab' x 'a' 'all' 'source' 'dsc')
+$(otta 'a' 'ab')
 -v5*=Deleting 'test.changes'.
 EOF
 checklog logab << EOF
@@ -448,12 +440,10 @@ stdout
 -v3*=  pulling into 'b|all|abacus'
 -v5*=  looking what to get from 'a|all|abacus'
 -v0*=Installing (and possibly deleting) packages...
--d1*=db: 'aa' removed from packages.db(b|all|abacus).
--d1*=db: 'aa' added to packages.db(b|all|abacus).
--d1*=db: 'aa-addons' removed from packages.db(b|all|abacus).
--d1*=db: 'aa-addons' added to packages.db(b|all|abacus).
--d1*=db: 'ab' added to packages.db(b|all|abacus).
--d1*=db: 'ab-addons' added to packages.db(b|all|abacus).
+$(opu 'aa' x x 'b' 'all' 'abacus' 'deb')
+$(opu 'aa-addons' x x 'b' 'all' 'abacus' 'deb')
+$(opa 'ab' x 'b' 'all' 'abacus' 'deb')
+$(opa 'ab-addons' x 'b' 'all' 'abacus' 'deb')
 -v0=Exporting indices...
 -v6*= looking for changes in 'b|all|abacus'...
 -v6*=  replacing './dists/b/all/binary-abacus/Packages' (uncompressed,gzipped)
@@ -511,11 +501,9 @@ testrun - -b . --delete -T deb include a broken.changes 3<<EOF
 stdout
 $(ofa 'pool/all/a/ab/ab-addons_3-1_all.deb')
 $(ofa 'pool/all/a/ab/ab_3-1_abacus.deb')
--d1*=db: 'ab-addons' removed from packages.db(a|all|abacus).
--d1*=db: 'ab-addons' added to packages.db(a|all|abacus).
--d1*=db: 'ab' removed from packages.db(a|all|abacus).
--d1*=db: 'ab' added to packages.db(a|all|abacus).
--t1*=db: 'ab' added to tracking.db(a).
+$(opu 'ab-addons' x x 'a' 'all' 'abacus' 'deb')
+$(opu 'ab' x x 'a' 'all' 'abacus' 'deb')
+$(otta 'a' 'ab')
 -v0*=Exporting indices...
 -v2*=Created directory "./dists/a"
 -v2*=Created directory "./dists/a/all"
@@ -602,9 +590,8 @@ stdout
 $(ofa 'pool/all/a/ab/ab_3-1.tar.gz')
 $(ofa 'pool/all/a/ab/ab_3-1.diff.gz')
 $(ofa 'pool/all/a/ab/ab_3-1.dsc')
--d1*=db: 'ab' removed from packages.db(a|all|source).
--d1*=db: 'ab' added to packages.db(a|all|source).
--t1*=db: 'ab' '2-1' removed from tracking.db(a).
+$(opu 'ab' x x 'a' 'all' 'source' 'dsc')
+$(ottd 'ab' '2-1' 'a')
 -v0*=Deleting files just added to the pool but not used.
 -v0*=(to avoid use --keepunusednewfiles next time)
 $(ofd 'pool/all/a/ab/ab_3-1.diff.gz')
@@ -636,8 +623,7 @@ EOF
 dodiff /dev/null results || dodiff results.expected results
 testrun - -b . deleteunreferenced 3<<EOF
 stdout
--v1=deleting and forgetting pool/all/a/ab/ab_3-1.diff.gz
--d1=db: 'pool/all/a/ab/ab_3-1.diff.gz' removed from checksums.db(pool).
+$(ofd 'pool/all/a/ab/ab_3-1.diff.gz' true '')
 EOF
 
 DISTRI=b PACKAGE=ac EPOCH="" VERSION=1 REVISION="-1" SECTION="stupid/base" genpackage.sh
@@ -650,8 +636,8 @@ stdout
 -v2*=Created directory "./pool/all/a/ac"
 $(ofa 'pool/all/a/ac/ac-addons_1-1_all.deb')
 $(ofa 'pool/all/a/ac/ac_1-1_abacus.deb')
--d1*=db: 'ac-addons' added to packages.db(b|all|abacus).
--d1*=db: 'ac' added to packages.db(b|all|abacus).
+$(opa 'ac-addons' x 'b' 'all' 'abacus' 'deb')
+$(opa 'ac' x 'b' 'all' 'abacus' 'deb')
 -v5*=Deleting 'test.changes'.
 -v0*=Exporting indices...
 -v6*= looking for changes in 'b|all|abacus'...
@@ -706,14 +692,10 @@ stdout
 -v3*=  processing updates for 'b|all|abacus'
 -v5*=  marking everything to be deleted
 -v5*=  reading './lists/_b_all_abacus_froma_froma_a_all_abacus_Packages'
--d1*=db: 'ac-addons' removed from packages.db(b|all|abacus).
--v1*=removing 'ab' from 'b|all|abacus'...
--d1*=db: 'ab' removed from packages.db(b|all|abacus).
--v1*=removing 'ab-addons' from 'b|all|abacus'...
--d1*=db: 'ab-addons' removed from packages.db(b|all|abacus).
--v1*=removing 'ac' from 'b|all|abacus'...
--d1*=db: 'ac' removed from packages.db(b|all|abacus).
--v1*=removing 'ac-addons' from 'b|all|abacus'...
+$(opd 'ab' x b all abacus deb)
+$(opd 'ab-addons' x b all abacus deb)
+$(opd 'ac' x b all abacus deb)
+$(opd 'ac-addons' x b all abacus deb)
 -v0*=Exporting indices...
 -v6*= looking for changes in 'b|all|abacus'...
 -v6*=  replacing './dists/b/all/binary-abacus/Packages' (uncompressed,gzipped)
@@ -761,7 +743,7 @@ stdout
 -v9*=Adding reference to 'pool/all/a/ab/ab_3-1_abacus.deb' by 'b|all|abacus'
 -v1*=Adding 'ab' '3-1' to 'b|all|abacus'.
 -v3*=Not looking into 'a|all|source' as no matching target in 'b'!
--d1*=db: 'ab' added to packages.db(b|all|abacus).
+$(opa 'ab' x 'b' 'all' 'abacus' 'deb')
 -v0*=Exporting indices...
 -v6*= looking for changes in 'b|all|abacus'...
 -v6*=  replacing './dists/b/all/binary-abacus/Packages' (uncompressed,gzipped)
@@ -832,13 +814,10 @@ stdout
 EOF
 testrun - --keepunreferenced --dbdir ./db2 -b . removesrc a ab 3-1 3<<EOF
 stdout
--v1*=removing 'ab-addons' from 'a|all|abacus'...
--d1*=db: 'ab-addons' removed from packages.db(a|all|abacus).
--v1*=removing 'ab' from 'a|all|abacus'...
--d1*=db: 'ab' removed from packages.db(a|all|abacus).
--v1*=removing 'ab' from 'a|all|source'...
--d1*=db: 'ab' removed from packages.db(a|all|source).
--t1*=db: 'ab' '3-1' removed from tracking.db(a).
+$(opd 'ab-addons' x a all abacus deb)
+$(opd 'ab' x a all abacus deb)
+$(opd 'ab' x a all source dsc)
+$(ottd 'ab' '3-1' 'a')
 -v0*=Exporting indices...
 -v6*= looking for changes in 'a|all|abacus'...
 -v6*=  replacing './dists/a/all/binary-abacus/Packages' (uncompressed,gzipped)
@@ -864,13 +843,10 @@ rm -r db2
 cp -a db db2
 testrun - --keepunreferenced --dbdir ./db2 -b . removesrc a ab 3<<EOF
 stdout
--v1*=removing 'ab-addons' from 'a|all|abacus'...
--d1*=db: 'ab-addons' removed from packages.db(a|all|abacus).
--v1*=removing 'ab' from 'a|all|abacus'...
--d1*=db: 'ab' removed from packages.db(a|all|abacus).
--v1*=removing 'ab' from 'a|all|source'...
--d1*=db: 'ab' removed from packages.db(a|all|source).
--t1*=db: 'ab' '3-1' removed from tracking.db(a).
+$(opd 'ab-addons' unset a all abacus deb)
+$(opd 'ab' unset a all abacus deb)
+$(opd 'ab' unset a all source deb)
+$(ottd 'ab' '3-1' 'a')
 -v0*=Exporting indices...
 -v6*= looking for changes in 'a|all|abacus'...
 -v6*=  replacing './dists/a/all/binary-abacus/Packages' (uncompressed,gzipped)
@@ -902,8 +878,7 @@ EOF
 dodiff results.expected results
 testrun - --keepunreferenced --dbdir ./db2 -b . removefilter b "Version (== 1-3), Package (>> aa)" 3<<EOF
 stdout
--v1*=removing 'aa-addons' from 'b|all|abacus'...
--d1*=db: 'aa-addons' removed from packages.db(b|all|abacus).
+$(opd 'aa-addons' unset b all abacus deb)
 -v0*=Exporting indices...
 -v6*= looking for changes in 'b|all|abacus'...
 -v6*=  replacing './dists/b/all/binary-abacus/Packages' (uncompressed,gzipped)

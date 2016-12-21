@@ -90,8 +90,8 @@ $(odb)
 $(ofa 'pool/main/d/documentation/documentation_9876AD_all.deb')
 $(ofa 'pool/main/d/documentation/documentation_9876AD.tar.gz')
 $(ofa 'pool/main/d/documentation/documentation_9876AD.dsc')
--d1*=db: 'documentation' added to packages.db(test|main|coal).
--d1*=db: 'documentation' added to packages.db(test|main|source).
+$(opa 'documentation' x 'test' 'main' 'coal' 'deb')
+$(opa 'documentation' x 'test' 'main' 'source' 'dsc')
 -v0*=Exporting indices...
 -v2*=Created directory "./dists"
 -v2*=Created directory "./dists/test"
@@ -128,9 +128,9 @@ $(ofa 'pool/main/d/documentation/documentation_9876AD_byhand/manifesto.txt')
 $(ofa 'pool/main/d/documentation/documentation_9876AD_all.deb')
 $(ofa 'pool/main/d/documentation/documentation_9876AD.tar.gz')
 $(ofa 'pool/main/d/documentation/documentation_9876AD.dsc')
--d1*=db: 'documentation' added to packages.db(test|main|coal).
--d1*=db: 'documentation' added to packages.db(test|main|source).
--d1*=db: 'documentation' added to tracking.db(test).
+$(opa 'documentation' x 'test' 'main' 'coal' 'deb')
+$(opa 'documentation' x 'test' 'main' 'source' 'dsc')
+$(ota 'test' 'documentation')
 -v0*=Exporting indices...
 -v2*=Created directory "./dists"
 -v2*=Created directory "./dists/test"
@@ -176,16 +176,14 @@ EOF
 
 testrun - remove test documentation 3<<EOF
 stdout
--v1*=removing 'documentation' from 'test|main|coal'...
--d1*=db: 'documentation' removed from packages.db(test|main|coal).
--v1*=removing 'documentation' from 'test|main|source'...
--d1*=db: 'documentation' removed from packages.db(test|main|source).
+$(opd 'documentation' unset test main coal deb)
+$(opd 'documentation' unset test main source dsc)
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test|main|coal'...
 -v6*=  replacing './dists/test/main/binary-coal/Packages' (uncompressed,gzipped)
 -v6*= looking for changes in 'test|main|source'...
 -v6*=  replacing './dists/test/main/source/Sources' (gzipped)
--d1*=db: 'documentation' '9876AD' removed from tracking.db(test).
+$(otd 'documentation' '9876AD' 'test')
 -v0*=Deleting files no longer referenced...
 $(ofd 'pool/main/d/documentation/documentation_9876AD.dsc')
 $(ofd 'pool/main/d/documentation/documentation_9876AD.tar.gz')
@@ -223,9 +221,9 @@ $(ofa 'pool/main/d/documentation/documentation_9876AD_byhand/manifesto.txt')
 $(ofa 'pool/main/d/documentation/documentation_9876AD_all.deb')
 $(ofa 'pool/main/d/documentation/documentation_9876AD.tar.gz')
 $(ofa 'pool/main/d/documentation/documentation_9876AD.dsc')
--d1*=db: 'documentation' added to packages.db(test|main|coal).
--d1*=db: 'documentation' added to packages.db(test|main|source).
--d1*=db: 'documentation' added to tracking.db(test).
+$(opa 'documentation' x 'test' 'main' 'coal' 'deb')
+$(opa 'documentation' x 'test' 'main' 'source' 'dsc')
+$(ota 'test' 'documentation')
 -v0*=Exporting indices...
 -v2*=Created directory "./dists"
 -v2*=Created directory "./dists/test"
@@ -280,9 +278,9 @@ $(ofa 'pool/main/d/documentation/documentation_9876AD_byhand/manifesto.txt')
 $(ofa 'pool/main/d/documentation/documentation_9876AD_all.deb')
 $(ofa 'pool/main/d/documentation/documentation_9876AD.tar.gz')
 $(ofa 'pool/main/d/documentation/documentation_9876AD.dsc')
--d1*=db: 'documentation' added to packages.db(test|main|coal).
--d1*=db: 'documentation' added to packages.db(test|main|source).
--d1*=db: 'documentation' added to tracking.db(test).
+$(opa 'documentation' x 'test' 'main' 'coal' 'deb')
+$(opa 'documentation' x 'test' 'main' 'source' 'dsc')
+$(ota 'test' 'documentation')
 -v0*=Exporting indices...
 -v2*=Created directory "./dists"
 -v2*=Created directory "./dists/test"
@@ -325,16 +323,14 @@ EOF
 
 testrun - remove test documentation 3<<EOF
 stdout
--v1*=removing 'documentation' from 'test|main|coal'...
--d1*=db: 'documentation' removed from packages.db(test|main|coal).
--v1*=removing 'documentation' from 'test|main|source'...
--d1*=db: 'documentation' removed from packages.db(test|main|source).
+$(opd 'documentation' unset test main coal deb)
+$(opd 'documentation' unset test main source dsc)
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test|main|coal'...
 -v6*=  replacing './dists/test/main/binary-coal/Packages' (uncompressed,gzipped)
 -v6*= looking for changes in 'test|main|source'...
 -v6*=  replacing './dists/test/main/source/Sources' (gzipped)
--d1*=db: 'documentation' '9876AD' removed from tracking.db(test).
+$(otd 'documentation' '9876AD' 'test')
 -v0*=Deleting files no longer referenced...
 $(ofd 'pool/main/d/documentation/documentation_9876AD_source+all.changes')
 $(ofd 'pool/main/d/documentation/documentation_9876AD_coal+all.log')
@@ -377,9 +373,9 @@ $(ofa 'pool/main/d/documentation/documentation_9876AD_byhand/manifesto.txt')
 $(ofa 'pool/main/d/documentation/documentation_9876AD_all.deb')
 $(ofa 'pool/main/d/documentation/documentation_9876AD.tar.gz')
 $(ofa 'pool/main/d/documentation/documentation_9876AD.dsc')
--d1*=db: 'documentation' added to packages.db(test|main|coal).
--d1*=db: 'documentation' added to packages.db(test|main|source).
--d1*=db: 'documentation' added to tracking.db(test).
+$(opa 'documentation' x 'test' 'main' 'coal' 'deb')
+$(opa 'documentation' x 'test' 'main' 'source' 'dsc')
+$(ota 'test' 'documentation')
 -v3*=deleting './i/documentation_9876AD_all.deb'...
 -v3*=deleting './i/documentation_9876AD_coal+all.log'...
 -v3*=deleting './i/documentation_9876AD.tar.gz'...
@@ -454,9 +450,9 @@ stdout
 $(ofa 'pool/main/d/documentation/documentation_9876AD_all.deb')
 $(ofa 'pool/main/d/documentation/documentation_9876AD.tar.gz')
 $(ofa 'pool/main/d/documentation/documentation_9876AD.dsc')
--d1*=db: 'documentation' added to packages.db(test|main|coal).
--d1*=db: 'documentation' added to packages.db(test|main|source).
--d1*=db: 'documentation' added to tracking.db(test).
+$(opa 'documentation' x 'test' 'main' 'coal' 'deb')
+$(opa 'documentation' x 'test' 'main' 'source' 'dsc')
+$(ota 'test' 'documentation')
 -v3*=deleting './i/documentation_9876AD_all.deb'...
 -v3*=deleting './i/documentation_9876AD_coal+all.log'...
 -v3*=deleting './i/documentation_9876AD.tar.gz'...
@@ -513,9 +509,9 @@ $(ofa 'pool/main/d/documentation/documentation_9876AD_byhand/manifesto.txt')
 $(ofa 'pool/main/d/documentation/documentation_9876AD_all.deb')
 $(ofa 'pool/main/d/documentation/documentation_9876AD.tar.gz')
 $(ofa 'pool/main/d/documentation/documentation_9876AD.dsc')
--d1*=db: 'documentation' added to packages.db(test|main|coal).
--d1*=db: 'documentation' added to packages.db(test|main|source).
--d1*=db: 'documentation' added to tracking.db(test).
+$(opa 'documentation' x 'test' 'main' 'coal' 'deb')
+$(opa 'documentation' x 'test' 'main' 'source' 'dsc')
+$(ota 'test' 'documentation')
 -v3*=deleting './i/documentation_9876AD_all.deb'...
 -v3*=deleting './i/documentation_9876AD_coal+all.log'...
 -v3*=deleting './i/documentation_9876AD.tar.gz'...
@@ -594,9 +590,9 @@ $(ofa 'pool/main/d/documentation/documentation_9876AD_byhand/manifesto.txt')
 $(ofa 'pool/main/d/documentation/documentation_9876AD_all.deb')
 $(ofa 'pool/main/d/documentation/documentation_9876AD.tar.gz')
 $(ofa 'pool/main/d/documentation/documentation_9876AD.dsc')
--d1*=db: 'documentation' added to packages.db(test|main|coal).
--d1*=db: 'documentation' added to packages.db(test|main|source).
--d1*=db: 'documentation' added to tracking.db(test).
+$(opa 'documentation' x 'test' 'main' 'coal' 'deb')
+$(opa 'documentation' x 'test' 'main' 'source' 'dsc')
+$(ota 'test' 'documentation')
 -v3*=deleting './i/documentation_9876AD_all.deb'...
 -v3*=deleting './i/documentation_9876AD_coal+all.log'...
 -v3*=deleting './i/documentation_9876AD.tar.gz'...
@@ -649,9 +645,9 @@ $(odb)
 $(ofa 'pool/main/d/documentation/documentation_9876AD_all.deb')
 $(ofa 'pool/main/d/documentation/documentation_9876AD.tar.gz')
 $(ofa 'pool/main/d/documentation/documentation_9876AD.dsc')
--d1*=db: 'documentation' added to packages.db(test|main|coal).
--d1*=db: 'documentation' added to packages.db(test|main|source).
--d1*=db: 'documentation' added to tracking.db(test).
+$(opa 'documentation' x 'test' 'main' 'coal' 'deb')
+$(opa 'documentation' x 'test' 'main' 'source' 'dsc')
+$(ota 'test' 'documentation')
 -v3*=deleting './i/documentation_9876AD_all.deb'...
 -v3*=deleting './i/documentation_9876AD_coal+all.log'...
 -v3*=deleting './i/documentation_9876AD.tar.gz'...
@@ -702,8 +698,8 @@ $(odb)
 $(ofa 'pool/main/d/documentation/documentation_9876AD_all.deb')
 $(ofa 'pool/main/d/documentation/documentation_9876AD.tar.gz')
 $(ofa 'pool/main/d/documentation/documentation_9876AD.dsc')
--d1*=db: 'documentation' added to packages.db(test|main|coal).
--d1*=db: 'documentation' added to packages.db(test|main|source).
+$(opa 'documentation' x 'test' 'main' 'coal' 'deb')
+$(opa 'documentation' x 'test' 'main' 'source' 'dsc')
 -v3*=deleting './i/documentation_9876AD_all.deb'...
 -v3*=deleting './i/documentation_9876AD_coal+all.log'...
 -v3*=deleting './i/documentation_9876AD.tar.gz'...
@@ -776,8 +772,8 @@ stdout
 $(ofa 'pool/main/d/documentation/documentation_9876AD_all.deb')
 $(ofa 'pool/main/d/documentation/documentation_9876AD.tar.gz')
 $(ofa 'pool/main/d/documentation/documentation_9876AD.dsc')
--d1*=db: 'documentation' added to packages.db(test|main|coal).
--d1*=db: 'documentation' added to packages.db(test|main|source).
+$(opa 'documentation' x 'test' 'main' 'coal' 'deb')
+$(opa 'documentation' x 'test' 'main' 'source' 'dsc')
 -v3*=deleting './i/documentation_9876AD_all.deb'...
 -v3*=deleting './i/documentation_9876AD.tar.gz'...
 -v3*=deleting './i/history.txt'...
@@ -827,8 +823,8 @@ $(odb)
 $(ofa 'pool/main/d/documentation/documentation_9876AD_all.deb')
 $(ofa 'pool/main/d/documentation/documentation_9876AD.tar.gz')
 $(ofa 'pool/main/d/documentation/documentation_9876AD.dsc')
--d1*=db: 'documentation' added to packages.db(test|main|coal).
--d1*=db: 'documentation' added to packages.db(test|main|source).
+$(opa 'documentation' x 'test' 'main' 'coal' 'deb')
+$(opa 'documentation' x 'test' 'main' 'source' 'dsc')
 -v3*=deleting './i/documentation_9876AD_all.deb'...
 -v3*=deleting './i/documentation_9876AD.tar.gz'...
 -v3*=deleting './i/history.txt'...

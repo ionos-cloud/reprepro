@@ -103,8 +103,8 @@ stdout
 -v2*=Created directory "./pool/main/p/package"
 $(ofa 'pool/main/p/package/package_1.0-1.dsc')
 $(ofa 'pool/main/p/package/package_1.0-1.tar.gz')
--d1*=db: 'package' added to packages.db(bla|main|source).
--d1*=db: 'package' added to tracking.db(bla).
+$(opa 'package' '1.0-1' 'bla' 'main' 'source' 'dsc')
+$(ota 'bla' 'package')
 EOF
 rm package_1.0*
 
@@ -158,8 +158,8 @@ testrun - -C main includedeb test rumsrumsrums_1.0-1_all.deb 3<<EOF
 stderr
 stdout
 $(ofa 'pool/main/p/package/rumsrumsrums_1.0-1_all.deb')
--d1*=db: 'rumsrumsrums' added to packages.db(bla|main|abacus).
--d1*=db: 'rumsrumsrums' added to packages.db(bla|main|another).
+$(opa 'rumsrumsrums' '1.0-1' 'bla' 'main' 'abacus' 'deb')
+$(opa 'rumsrumsrums' x 'bla' 'main' 'another' 'deb')
 EOF
 
 testrun - build-needing test another 3<<EOF
@@ -186,7 +186,7 @@ testrun - -C main includedeb test troettroet_1.0-1_abacus.deb 3<<EOF
 stderr
 stdout
 $(ofa 'pool/main/p/package/troettroet_1.0-1_abacus.deb')
--d1*=db: 'troettroet' added to packages.db(bla|main|abacus).
+$(opa 'troettroet' x 'bla' 'main' 'abacus' 'deb')
 EOF
 
 testrun - build-needing test another 3<<EOF
@@ -204,6 +204,11 @@ echo "package_1.0-1_another.log - -" > package-1.0/debian/files
 cd package-1.0
 dpkg-genchanges -B > ../package_1.0-1_another.changes
 cd ..
+
+# work around dpkg-dev 1.18.15+ no longer adding Architectures of log files:
+if ! grep -q -s '^Architecture:' package_1.0-1_another.changes ; then
+	sed -e 's/^Version:/Architecture: another\n&/' -i package_1.0-1_another.changes
+fi
 
 testrun - -C main include test package_1.0-1_another.changes 3<<EOF
 stderr
@@ -267,8 +272,8 @@ stdout
 -v2*=Created directory "./pool/main/o/onlyonearch"
 $(ofa 'pool/main/o/onlyonearch/onlyonearch_1.0-1.dsc')
 $(ofa 'pool/main/o/onlyonearch/onlyonearch_1.0-1.tar.gz')
--d1*=db: 'onlyonearch' added to packages.db(bla|main|source).
--d1*=db: 'onlyonearch' added to tracking.db(bla).
+$(opa 'onlyonearch' x 'bla' 'main' 'source' 'dsc')
+$(ota 'bla' 'onlyonearch')
 EOF
 
 testrun empty build-needing test another
@@ -287,7 +292,7 @@ testrun - --delete -C main includedeb test onearch_1.0-1_abacus.deb 3<<EOF
 stderr
 stdout
 $(ofa 'pool/main/o/onlyonearch/onearch_1.0-1_abacus.deb')
--d1*=db: 'onearch' added to packages.db(bla|main|abacus).
+$(opa 'onearch' x 'bla' 'main' 'abacus' 'deb')
 EOF
 
 testrun empty build-needing test another
@@ -334,8 +339,8 @@ stdout
 -v2*=Created directory "./pool/main/o/onlyarchall"
 $(ofa 'pool/main/o/onlyarchall/onlyarchall_1.0-1.dsc')
 $(ofa 'pool/main/o/onlyarchall/onlyarchall_1.0-1.tar.gz')
--d1*=db: 'onlyarchall' added to packages.db(bla|main|source).
--d1*=db: 'onlyarchall' added to tracking.db(bla).
+$(opa 'onlyarchall' x 'bla' 'main' 'source' 'dsc')
+$(ota 'bla' 'onlyarchall')
 EOF
 
 testrun empty build-needing test another
@@ -353,8 +358,8 @@ testrun - --delete -C main includedeb test archall_1.0-1_all.deb 3<<EOF
 stderr
 stdout
 $(ofa 'pool/main/o/onlyarchall/archall_1.0-1_all.deb')
--d1*=db: 'archall' added to packages.db(bla|main|abacus).
--d1*=db: 'archall' added to packages.db(bla|main|another).
+$(opa 'archall' x 'bla' 'main' 'abacus' 'deb')
+$(opa 'archall' x 'bla' 'main' 'another' 'deb')
 EOF
 
 testrun empty build-needing test another
@@ -412,6 +417,11 @@ dpkg-genchanges -B > ../allandany_1.0-1_another.changes
 cd ..
 rm -r allandany-1.0
 
+# work around dpkg-dev 1.18.15+ no longer adding Architectures of log files:
+if ! grep -q -s '^Architecture:' allandany_1.0-1_another.changes ; then
+	sed -e 's/^Version:/Architecture: another\n&/' -i allandany_1.0-1_another.changes
+fi
+
 testrun - --delete includedsc test allandany_1.0-1.dsc 3<<EOF
 stderr
 -v1*=allandany_1.0-1.dsc: component guessed as 'main'
@@ -420,8 +430,8 @@ stdout
 -v2*=Created directory "./pool/main/a/allandany"
 $(ofa 'pool/main/a/allandany/allandany_1.0-1.dsc')
 $(ofa 'pool/main/a/allandany/allandany_1.0-1.tar.gz')
--d1*=db: 'allandany' added to packages.db(bla|main|source).
--d1*=db: 'allandany' added to tracking.db(bla).
+$(opa 'allandany' x 'bla' 'main' 'source' 'dsc')
+$(ota 'bla' 'allandany')
 EOF
 
 testrun - build-needing test another 3<<EOF
@@ -447,7 +457,7 @@ testrun - --delete -C main includedeb test anypart_1.0-1_abacus.deb 3<<EOF
 stderr
 stdout
 $(ofa 'pool/main/a/allandany/anypart_1.0-1_abacus.deb')
--d1*=db: 'anypart' added to packages.db(bla|main|abacus).
+$(opa 'anypart' x 'bla' 'main' 'abacus' 'deb')
 EOF
 
 testrun empty build-needing test abacus
@@ -465,8 +475,8 @@ testrun - --delete -C main includedeb test allpart_1.0-1_all.deb 3<<EOF
 stderr
 stdout
 $(ofa 'pool/main/a/allandany/allpart_1.0-1_all.deb')
--d1*=db: 'allpart' added to packages.db(bla|main|abacus).
--d1*=db: 'allpart' added to packages.db(bla|main|another).
+$(opa 'allpart' x 'bla' 'main' 'abacus' 'deb')
+$(opa 'allpart' x 'bla' 'main' 'another' 'deb')
 EOF
 
 testrun empty build-needing test abacus
@@ -523,8 +533,8 @@ stdout
 -v2*=Created directory "./pool/main/a/anyonly"
 $(ofa 'pool/main/a/anyonly/anyonly_1.0-1.dsc')
 $(ofa 'pool/main/a/anyonly/anyonly_1.0-1.tar.gz')
--d1*=db: 'anyonly' added to packages.db(bla|main|source).
--d1*=db: 'anyonly' added to tracking.db(bla).
+$(opa 'anyonly' x 'bla' 'main' 'source' 'dsc')
+$(ota 'bla' 'anyonly')
 EOF
 
 testrun empty build-needing test all
@@ -590,8 +600,8 @@ stdout
 -v2*=Created directory "./pool/main/l/linuxwildcard"
 $(ofa 'pool/main/l/linuxwildcard/linuxwildcard_1.0-1.dsc')
 $(ofa 'pool/main/l/linuxwildcard/linuxwildcard_1.0-1.tar.gz')
--d1*=db: 'linuxwildcard' added to packages.db(oses|main|source).
--d1*=db: 'linuxwildcard' added to tracking.db(oses).
+$(opa 'linuxwildcard' x 'oses' 'main' 'source' 'dsc')
+$(ota 'oses' 'linuxwildcard')
 EOF
 
 testrun - includedsc oses kfreebsdwildcard_1.0-1.dsc 3<<EOF
@@ -602,8 +612,8 @@ stdout
 -v2*=Created directory "./pool/main/k/kfreebsdwildcard"
 $(ofa 'pool/main/k/kfreebsdwildcard/kfreebsdwildcard_1.0-1.dsc')
 $(ofa 'pool/main/k/kfreebsdwildcard/kfreebsdwildcard_1.0-1.tar.gz')
--d1*=db: 'kfreebsdwildcard' added to packages.db(oses|main|source).
--d1*=db: 'kfreebsdwildcard' added to tracking.db(oses).
+$(opa 'kfreebsdwildcard' x 'oses' 'main' 'source' 'dsc')
+$(ota 'oses' 'kfreebsdwildcard')
 EOF
 
 testrun empty build-needing oses all

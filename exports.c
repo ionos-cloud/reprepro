@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2005,2007,2008,2009 Bernhard R. Link
+ *  Copyright (C) 2005,2007,2008,2009,2016 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -37,6 +37,7 @@
 #include "configparser.h"
 #include "filecntl.h"
 #include "hooks.h"
+#include "package.h"
 
 static const char *exportdescription(const struct exportmode *mode, char *buffer, size_t buffersize) {
 	char *result = buffer;
@@ -462,9 +463,7 @@ retvalue export_target(const char *relativedir, struct target *target,  const st
 	const char *status;
 	char *relfilename;
 	char buffer[100];
-	const char *chunk;
-	size_t chunk_len;
-	struct target_cursor iterator;
+	struct package_cursor iterator;
 
 	relfilename = calc_dirconcat(relativedir, exportmode->filename);
 	if (FAILEDTOALLOC(relfilename))
@@ -490,22 +489,22 @@ retvalue export_target(const char *relativedir, struct target *target,  const st
 					exportdescription(exportmode, buffer, 100));
 			status = "new";
 		}
-		r = target_openiterator(target, READONLY, &iterator);
+		r = package_openiterator(target, READONLY, &iterator);
 		if (RET_WAS_ERROR(r)) {
 			release_abortfile(file);
 			free(relfilename);
 			return r;
 		}
-		while (target_nextpackage_len(&iterator, NULL,
-					&chunk, &chunk_len)) {
-			if (chunk_len == 0)
+		while (package_next(&iterator)) {
+			if (iterator.current.controllen == 0)
 				continue;
-			(void)release_writedata(file, chunk, chunk_len);
+			(void)release_writedata(file, iterator.current.control,
+					iterator.current.controllen);
 			(void)release_writestring(file, "\n");
-			if (chunk[chunk_len-1] != '\n')
+			if (iterator.current.control[iterator.current.controllen-1] != '\n')
 				(void)release_writestring(file, "\n");
 		}
-		r = target_closeiterator(&iterator);
+		r = package_closeiterator(&iterator);
 		if (RET_WAS_ERROR(r)) {
 			release_abortfile(file);
 			free(relfilename);

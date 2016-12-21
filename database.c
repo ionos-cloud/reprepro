@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2007,2008 Bernhard R. Link
+ *  Copyright (C) 2007,2008,2016 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -990,7 +990,7 @@ retvalue table_close(struct table *table) {
 	return result;
 }
 
-retvalue table_getrecord(struct table *table, const char *key, char **data_p) {
+retvalue table_getrecord(struct table *table, const char *key, char **data_p, size_t *datalen_p) {
 	int dbret;
 	DBT Key, Data;
 
@@ -1029,6 +1029,8 @@ retvalue table_getrecord(struct table *table, const char *key, char **data_p) {
 		return RET_ERROR;
 	}
 	*data_p = Data.data;
+	if (datalen_p != NULL)
+		*datalen_p = Data.size-1;
 	return RET_OK;
 }
 
@@ -1657,7 +1659,7 @@ retvalue cursor_delete(struct table *table, struct cursor *cursor, const char *k
 	return RET_OK;
 }
 
-bool table_isempty(struct table *table) {
+static bool table_isempty(struct table *table) {
 	DBC *cursor;
 	DBT Key, Data;
 	int dbret;
@@ -1685,6 +1687,19 @@ bool table_isempty(struct table *table) {
 	if (dbret != 0)
 		table_printerror(table, dbret, "c_close");
 	return false;
+}
+
+retvalue database_haspackages(const char *identifier) {
+	struct table *packages;
+	retvalue r;
+	bool empty;
+
+	r = database_openpackages(identifier, true, &packages);
+	if (RET_WAS_ERROR(r))
+		return r;
+	empty = table_isempty(packages);
+	(void)table_close(packages);
+	return empty?RET_NOTHING:RET_OK;
 }
 
 /****************************************************************************

@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005,2007,2008,2010 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2007,2008,2010,2016 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -26,6 +26,7 @@
 #include "chunks.h"
 #include "names.h"
 #include "uncompression.h"
+#include "package.h"
 #include "indexfile.h"
 
 /* the purpose of this code is to read index files, either from a snapshot
@@ -184,10 +185,10 @@ static retvalue indexfile_get(struct indexfile *f) {
 	return RET_OK;
 }
 
-bool indexfile_getnext(struct indexfile *f, char **name_p, char **version_p, const char **control_p, architecture_t *architecture_p, const struct target *target, bool allowwrongarchitecture) {
+bool indexfile_getnext(struct indexfile *f, struct package *pkgout, struct target *target, bool allowwrongarchitecture) {
 	retvalue r;
 	bool ignorecruft = false; // TODO
-	char *packagename, *version, *architecture;
+	char *packagename, *version;
 	const char *control;
 	architecture_t atom;
 
@@ -227,15 +228,17 @@ bool indexfile_getnext(struct indexfile *f, char **name_p, char **version_p, con
 		}
 		if (RET_WAS_ERROR(r))
 			break;
-		r = chunk_getvalue(control, "Architecture", &architecture);
-		if (RET_WAS_ERROR(r))
-			break;
-		if (r == RET_NOTHING)
-			architecture = NULL;
 		if (target->packagetype == pt_dsc) {
-			free(architecture);
 			atom = architecture_source;
 		} else {
+			char *architecture;
+
+			r = chunk_getvalue(control, "Architecture", &architecture);
+			if (RET_WAS_ERROR(r))
+				break;
+			if (r == RET_NOTHING)
+				architecture = NULL;
+
 			/* check if architecture fits for target and error
 			    out if not ignorewrongarchitecture */
 			if (architecture == NULL) {
@@ -285,10 +288,13 @@ bool indexfile_getnext(struct indexfile *f, char **name_p, char **version_p, con
 		}
 		if (RET_WAS_ERROR(r))
 			break;
-		*control_p = control;
-		*name_p = packagename;
-		*version_p = version;
-		*architecture_p = atom;
+		pkgout->target = target;
+		pkgout->control = control;
+		pkgout->pkgname = packagename;
+		pkgout->name = pkgout->pkgname;
+		pkgout->pkgversion = version;
+		pkgout->version = pkgout->pkgversion;
+		pkgout->architecture = atom;
 		return true;
 	} while (true);
 	free(packagename);
