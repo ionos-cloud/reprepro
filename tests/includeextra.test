@@ -183,7 +183,7 @@ $(opd 'documentation' unset test main source dsc)
 -v6*=  replacing './dists/test/main/binary-coal/Packages' (uncompressed,gzipped)
 -v6*= looking for changes in 'test|main|source'...
 -v6*=  replacing './dists/test/main/source/Sources' (gzipped)
--d1*=db: 'documentation' '9876AD' removed from tracking.db(test).
+$(otd 'documentation' '9876AD' 'test')
 -v0*=Deleting files no longer referenced...
 $(ofd 'pool/main/d/documentation/documentation_9876AD.dsc')
 $(ofd 'pool/main/d/documentation/documentation_9876AD.tar.gz')
@@ -330,7 +330,7 @@ $(opd 'documentation' unset test main source dsc)
 -v6*=  replacing './dists/test/main/binary-coal/Packages' (uncompressed,gzipped)
 -v6*= looking for changes in 'test|main|source'...
 -v6*=  replacing './dists/test/main/source/Sources' (gzipped)
--d1*=db: 'documentation' '9876AD' removed from tracking.db(test).
+$(otd 'documentation' '9876AD' 'test')
 -v0*=Deleting files no longer referenced...
 $(ofd 'pool/main/d/documentation/documentation_9876AD_source+all.changes')
 $(ofd 'pool/main/d/documentation/documentation_9876AD_coal+all.log')

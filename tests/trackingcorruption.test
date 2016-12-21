@@ -64,7 +64,7 @@ stderr
 *='pool/something/a/aa/aa_1-1.dsc' has refcount > 0, but was nowhere found.
 *='pool/something/a/aa/aa_1-1.tar.gz' has refcount > 0, but was nowhere found.
 stdout
--d1*=db: 'aa' '1-1' removed from tracking.db(breakme).
+$(otd 'aa' '1-1' 'breakme')
 -v1*=4 files lost their last reference.
 -v1*=(dumpunreferenced lists such files, use deleteunreferenced to delete them.)
 EOF

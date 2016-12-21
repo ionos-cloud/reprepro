@@ -1494,8 +1494,8 @@ sed -i -e 's/^Tracking: keep/Tracking: all/' conf/distributions
 testrun -  -b . tidytracks 3<<EOF
 stdout
 -v0*=Looking for old tracks in test1...
--d1*=db: 'testb' '1:2-2' removed from tracking.db(test1).
--d1*=db: 'bloat+-0a9z.app' '99:0.9-A:Z+a:z-0+aA.9zZ' removed from tracking.db(test1).
+$(otd 'testb' '1:2-2' 'test1')
+$(otd 'bloat+-0a9z.app' '99:0.9-A:Z+a:z-0+aA.9zZ' 'test1')
 -v0*=Deleting files no longer referenced...
 $(ofd 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb')
 $(ofd 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_abacus.deb')

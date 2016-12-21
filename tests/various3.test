@@ -276,7 +276,7 @@ $(opu 'aa-addons' x x 'a' 'all' 'abacus' 'deb')
 $(opu 'aa' x x 'a' 'all' 'abacus' 'deb')
 $(opu 'aa' x x 'a' 'all' 'source' 'dsc')
 $(otta 'a' 'aa')
--t1*=db: 'aa' '1-1' removed from tracking.db(a).
+$(ottd 'aa' '1-1' 'a')
 -v0*=Exporting indices...
 -v2*=Created directory "./dists/a"
 -v2*=Created directory "./dists/a/all"
@@ -366,7 +366,7 @@ $(opu 'aa-addons' x x 'a' 'all' 'abacus' 'deb')
 $(opu 'aa' x x 'a' 'all' 'abacus' 'deb')
 $(opu 'aa' x x 'a' 'all' 'source' 'dsc')
 $(otta 'a' 'aa')
--t1*=db: 'aa' '1-2' removed from tracking.db(a).
+$(ottd 'aa' '1-2' 'a')
 -v0*=Deleting files no longer referenced...
 $(ofd 'pool/all/a/aa/aa_1-2.dsc')
 $(ofd 'pool/all/a/aa/aa_1-2.tar.gz')
@@ -591,7 +591,7 @@ $(ofa 'pool/all/a/ab/ab_3-1.tar.gz')
 $(ofa 'pool/all/a/ab/ab_3-1.diff.gz')
 $(ofa 'pool/all/a/ab/ab_3-1.dsc')
 $(opu 'ab' x x 'a' 'all' 'source' 'dsc')
--t1*=db: 'ab' '2-1' removed from tracking.db(a).
+$(ottd 'ab' '2-1' 'a')
 -v0*=Deleting files just added to the pool but not used.
 -v0*=(to avoid use --keepunusednewfiles next time)
 $(ofd 'pool/all/a/ab/ab_3-1.diff.gz')
@@ -623,8 +623,7 @@ EOF
 dodiff /dev/null results || dodiff results.expected results
 testrun - -b . deleteunreferenced 3<<EOF
 stdout
--v1=deleting and forgetting pool/all/a/ab/ab_3-1.diff.gz
--d1=db: 'pool/all/a/ab/ab_3-1.diff.gz' removed from checksums.db(pool).
+$(ofd 'pool/all/a/ab/ab_3-1.diff.gz' true '')
 EOF
 
 DISTRI=b PACKAGE=ac EPOCH="" VERSION=1 REVISION="-1" SECTION="stupid/base" genpackage.sh
@@ -818,7 +817,7 @@ stdout
 $(opd 'ab-addons' x a all abacus deb)
 $(opd 'ab' x a all abacus deb)
 $(opd 'ab' x a all source dsc)
--t1*=db: 'ab' '3-1' removed from tracking.db(a).
+$(ottd 'ab' '3-1' 'a')
 -v0*=Exporting indices...
 -v6*= looking for changes in 'a|all|abacus'...
 -v6*=  replacing './dists/a/all/binary-abacus/Packages' (uncompressed,gzipped)
@@ -847,7 +846,7 @@ stdout
 $(opd 'ab-addons' unset a all abacus deb)
 $(opd 'ab' unset a all abacus deb)
 $(opd 'ab' unset a all source deb)
--t1*=db: 'ab' '3-1' removed from tracking.db(a).
+$(ottd 'ab' '3-1' 'a')
 -v0*=Exporting indices...
 -v6*= looking for changes in 'a|all|abacus'...
 -v6*=  replacing './dists/a/all/binary-abacus/Packages' (uncompressed,gzipped)
