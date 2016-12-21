@@ -274,10 +274,15 @@ or have a buggy rmdir call deleting non-empty directories.)
 .TP
 .B \-\-ask\-passphrase
 Ask for passphrases when signing things and one is needed. This is a quick
-and dirty implementation using the obsolete \fBgetpass(3)\fP function
-with the description gpgme is supplying. So the prompt will look quite
-funny and support for passphrases with more than 8 characters depend on your libc.
-I suggest using gpg\-agent or something like that instead.
+and dirty and unsafe implementation using the obsolete \fBgetpass(3)\fP
+function with the description gpgme is supplying.
+So the prompt will look quite funny and support for passphrases with
+more than 8 characters depend on your libc.
+Use of this option is not recommended. Use gpg-agent with pinentry instead.
+
+(With current versions of gnupg you need to set \fBpinentry-mode loopback\fP
+in your .gnupg/gpg.conf file to use \fB\-\-ask\-passphrase\fP.
+Without that option gnupg uses the much safer and recommended pinentry instead).
 .TP
 .B \-\-noskipold
 When updating do not skip targets where no new index files and no files
