@@ -134,7 +134,7 @@ EOF
 testrun - -b . -C main -A coal -T deb _addpackage sourcedistribution fakes/1 a  3<<EOF
 stdout
 -v1*=Adding 'a' '1' to 'sourcedistribution|main|coal'.
--d1*=db: 'a' added to packages.db(sourcedistribution|main|coal).
+$(opa 'a' x 'sourcedistribution' 'main' 'coal' 'deb')
 -v0*=Exporting indices...
 -v6*= looking for changes in 'sourcedistribution|main|coal'...
 -v6*=  replacing './dists/sourcedistribution/main/binary-coal/Packages' (uncompressed,script: pdiff.py)
@@ -145,7 +145,7 @@ sleep 1
 testrun - -b . -C main -A coal -T deb _addpackage sourcedistribution fakes/1 5dchess  3<<EOF
 stdout
 -v1*=Adding '5dchess' '0.0-1' to 'sourcedistribution|main|coal'.
--d1*=db: '5dchess' added to packages.db(sourcedistribution|main|coal).
+$(opa '5dchess' x 'sourcedistribution' 'main' 'coal' 'deb')
 -v0*=Exporting indices...
 -v6*= looking for changes in 'sourcedistribution|main|coal'...
 -v6*=  replacing './dists/sourcedistribution/main/binary-coal/Packages' (uncompressed,script: pdiff.py)
@@ -160,8 +160,7 @@ stderr
 *=./pool/main/a/a/a_1_all.deb not found, forgetting anyway
 stdout
 -v1*=Adding 'a' '2' to 'sourcedistribution|main|coal'.
--d1*=db: 'a' removed from packages.db(sourcedistribution|main|coal).
--d1*=db: 'a' added to packages.db(sourcedistribution|main|coal).
+$(opu 'a' x x 'sourcedistribution' 'main' 'coal' 'deb')
 -v0*=Exporting indices...
 -v6*= looking for changes in 'sourcedistribution|main|coal'...
 -v6*=  replacing './dists/sourcedistribution/main/binary-coal/Packages' (uncompressed,script: pdiff.py)
@@ -176,7 +175,7 @@ sleep 1
 testrun - -b . -C main -A coal -T deb _addpackage sourcedistribution fakes/1 b 3<<EOF
 stdout
 -v1*=Adding 'b' '2' to 'sourcedistribution|main|coal'.
--d1*=db: 'b' added to packages.db(sourcedistribution|main|coal).
+$(opa 'b' x 'sourcedistribution' 'main' 'coal' 'deb')
 -v0*=Exporting indices...
 -v6*= looking for changes in 'sourcedistribution|main|coal'...
 -v6*=  replacing './dists/sourcedistribution/main/binary-coal/Packages' (uncompressed,script: pdiff.py)
@@ -225,9 +224,9 @@ stdout
 -v0*=Getting packages...
 -v1*=Shutting down aptmethods...
 -v0*=Installing (and possibly deleting) packages...
--d1*=db: '5dchess' added to packages.db(test|main|coal).
--d1*=db: 'a' added to packages.db(test|main|coal).
--d1*=db: 'b' added to packages.db(test|main|coal).
+$(opa '5dchess' x 'test' 'main' 'coal' 'deb')
+$(opa 'a' x 'test' 'main' 'coal' 'deb')
+$(opa 'b' x 'test' 'main' 'coal' 'deb')
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test|main|coal'...
 -v6*=  creating './dists/test/main/binary-coal/Packages' (uncompressed,gzipped)

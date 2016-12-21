@@ -122,7 +122,7 @@ $(odb)
 -v2*=Created directory "./pool/main/t/test"
 $(ofa 'pool/main/t/test/test_1.dsc')
 $(ofa 'pool/main/t/test/test_1.tar.gz')
--d1*=db: 'test' added to packages.db(test|main|source).
+$(opa 'test' 1 'test' 'main' 'source' 'dsc')
 -v0*=Exporting indices...
 -v2*=Created directory "./dists"
 -v2*=Created directory "./dists/test"
@@ -140,7 +140,7 @@ stdout
 -v2*=Created directory "./pool/main/p/pre"
 $(ofa 'pool/main/p/pre/pre_1.dsc')
 $(ofa 'pool/main/p/pre/pre_1.tar.gz')
--d1*=db: 'pre' added to packages.db(test|main|source).
+$(opa 'pre' 1 'test' 'main' 'source' 'dsc')
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test|main|source'...
 -v6*=  replacing './dists/test/main/source/Sources' (uncompressed,gzipped,script: rredtool)
@@ -152,8 +152,7 @@ testrun - includedsc test pre_2.dsc 3<<EOF
 stdout
 $(ofa 'pool/main/p/pre/pre_2.dsc')
 $(ofa 'pool/main/p/pre/pre_2.tar.gz')
--d1*=db: 'pre' removed from packages.db(test|main|source).
--d1*=db: 'pre' added to packages.db(test|main|source).
+$(opu 'pre' 1 2 'test' 'main' 'source' 'dsc')
 -v0*=Exporting indices...
 -v0*=Deleting files no longer referenced...
 $(ofd 'pool/main/p/pre/pre_1.dsc')
@@ -168,8 +167,7 @@ testrun - includedsc test pre_3.dsc 3<<EOF
 stdout
 $(ofa 'pool/main/p/pre/pre_3.dsc')
 $(ofa 'pool/main/p/pre/pre_3.tar.gz')
--d1*=db: 'pre' removed from packages.db(test|main|source).
--d1*=db: 'pre' added to packages.db(test|main|source).
+$(opu 'pre' 2 3 'test' 'main' 'source' 'dsc')
 -v0*=Exporting indices...
 -v0*=Deleting files no longer referenced...
 $(ofd 'pool/main/p/pre/pre_2.dsc')

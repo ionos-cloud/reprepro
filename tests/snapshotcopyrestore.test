@@ -229,7 +229,7 @@ stderr
 *=Strange control data for 'foo': no Description at all
 stdout
 -v1*=Adding 'foo' '0' to 'B|dog|abacus'.
--d1*=db: 'foo' added to packages.db(B|dog|abacus).
+$(opa 'foo' x 'B' 'dog' 'abacus' 'deb')
 -v0*=Exporting indices...
 -v6*= looking for changes in 'B|dog|abacus'...
 -v6*=  replacing './dists/B/dog/binary-abacus/Packages' (uncompressed,gzipped)
@@ -304,7 +304,7 @@ testrun - -b . -T dsc -C dog _addpackage B importindex bar foo 3<<EOF
 stderr
 stdout
 -v1*=Adding 'foo' '1' to 'B|dog|source'.
--d1*=db: 'foo' added to packages.db(B|dog|source).
+$(opa 'foo' x 'B' 'dog' 'source' 'dsc')
 -v0*=Exporting indices...
 -v6*= looking for changes in 'B|dog|abacus'...
 -v6*= looking for changes in 'B|dog|source'...
@@ -430,11 +430,9 @@ stderr
 *=Warning: replacing 'foo' version '1' with equal version '1' in 'B|dog|source'!
 stdout
 -v1*=Adding 'foo' '0' to 'B|dog|abacus'.
--d1*=db: 'foo' removed from packages.db(B|dog|abacus).
--d1*=db: 'foo' added to packages.db(B|dog|abacus).
+$(opu 'foo' x x 'B' 'dog' 'abacus' 'deb')
 -v1*=Adding 'foo' '1' to 'B|dog|source'.
--d1*=db: 'foo' removed from packages.db(B|dog|source).
--d1*=db: 'foo' added to packages.db(B|dog|source).
+$(opu 'foo' x x 'B' 'dog' 'source' 'dsc')
 -v0*=Exporting indices...
 -v6*= looking for changes in 'B|dog|abacus'...
 -v6*=  replacing './dists/B/dog/binary-abacus/Packages' (uncompressed,gzipped)
@@ -463,11 +461,9 @@ stderr
 *=Warning: replacing 'foo' version '1' with equal version '1' in 'B|dog|source'!
 stdout
 -v1*=Adding 'foo' '0' to 'B|dog|abacus'.
--d1*=db: 'foo' removed from packages.db(B|dog|abacus).
--d1*=db: 'foo' added to packages.db(B|dog|abacus).
+$(opu 'foo' x x 'B' 'dog' 'abacus' 'deb')
 -v1*=Adding 'foo' '1' to 'B|dog|source'.
--d1*=db: 'foo' removed from packages.db(B|dog|source).
--d1*=db: 'foo' added to packages.db(B|dog|source).
+$(opu 'foo' x x 'B' 'dog' 'source' 'dsc')
 -v0*=Exporting indices...
 -v6*= looking for changes in 'B|dog|abacus'...
 -v6*=  replacing './dists/B/dog/binary-abacus/Packages' (uncompressed,gzipped)
@@ -484,8 +480,7 @@ stderr
 *=Warning: replacing 'foo' version '0' with equal version '0' in 'B|dog|abacus'!
 stdout
 -v1*=Adding 'foo' '0' to 'B|dog|abacus'.
--d1*=db: 'foo' removed from packages.db(B|dog|abacus).
--d1*=db: 'foo' added to packages.db(B|dog|abacus).
+$(opu 'foo' x x 'B' 'dog' 'abacus' 'deb')
 -v0*=Exporting indices...
 -v6*= looking for changes in 'B|dog|abacus'...
 -v6*=  replacing './dists/B/dog/binary-abacus/Packages' (uncompressed,gzipped)
@@ -500,8 +495,7 @@ stderr
 *=Warning: replacing 'foo' version '1' with equal version '1' in 'B|dog|source'!
 stdout
 -v1*=Adding 'foo' '1' to 'B|dog|source'.
--d1*=db: 'foo' removed from packages.db(B|dog|source).
--d1*=db: 'foo' added to packages.db(B|dog|source).
+$(opu 'foo' x x 'B' 'dog' 'source' 'dsc')
 -v0*=Exporting indices...
 -v6*= looking for changes in 'B|dog|abacus'...
 -v6*= looking for changes in 'B|dog|source'...
@@ -514,8 +508,7 @@ stderr
 *=Warning: replacing 'foo' version '1' with equal version '1' in 'B|dog|source'!
 stdout
 -v1*=Adding 'foo' '1' to 'B|dog|source'.
--d1*=db: 'foo' removed from packages.db(B|dog|source).
--d1*=db: 'foo' added to packages.db(B|dog|source).
+$(opu 'foo' x x 'B' 'dog' 'source' 'dsc')
 -v0*=Exporting indices...
 -v6*= looking for changes in 'B|dog|abacus'...
 -v6*= looking for changes in 'B|dog|source'...
@@ -528,10 +521,8 @@ testrun - -b . remove B bar foo 3<<EOF
 stderr
 -v0*=Not removed as not found: bar
 stdout
--v1*=removing 'foo' from 'B|dog|abacus'...
--d1*=db: 'foo' removed from packages.db(B|dog|abacus).
--v1*=removing 'foo' from 'B|dog|source'...
--d1*=db: 'foo' removed from packages.db(B|dog|source).
+$(opd 'foo' unset B dog abacus deb)
+$(opd 'foo' unset B dog source dsc)
 -v0*=Exporting indices...
 -v6*= looking for changes in 'B|dog|abacus'...
 -v6*=  replacing './dists/B/dog/binary-abacus/Packages' (uncompressed,gzipped)
@@ -558,9 +549,9 @@ stderr
 *=Strange control data for 'foo': no Description at all
 stdout
 -v1*=Adding 'foo' '0' to 'B|dog|abacus'.
--d1*=db: 'foo' added to packages.db(B|dog|abacus).
+$(opa 'foo' x 'B' 'dog' 'abacus' 'deb')
 -v1*=Adding 'foo' '1' to 'B|dog|source'.
--d1*=db: 'foo' added to packages.db(B|dog|source).
+$(opa 'foo' x 'B' 'dog' 'source' 'dsc')
 -v0*=Exporting indices...
 -v6*= looking for changes in 'B|dog|abacus'...
 -v6*=  replacing './dists/B/dog/binary-abacus/Packages' (uncompressed,gzipped)
@@ -579,10 +570,8 @@ testrun - -b . remove B bar foo 3<<EOF
 stderr
 -v0*=Not removed as not found: bar
 stdout
--v1*=removing 'foo' from 'B|dog|abacus'...
--d1*=db: 'foo' removed from packages.db(B|dog|abacus).
--v1*=removing 'foo' from 'B|dog|source'...
--d1*=db: 'foo' removed from packages.db(B|dog|source).
+$(opd 'foo' unset B dog abacus deb)
+$(opd 'foo' unset B dog source dsc)
 -v0*=Exporting indices...
 -v6*= looking for changes in 'B|dog|abacus'...
 -v6*=  replacing './dists/B/dog/binary-abacus/Packages' (uncompressed,gzipped)

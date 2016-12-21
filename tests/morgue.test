@@ -32,13 +32,12 @@ $(odb)
 -v2*=Created directory "./pool/main/b"
 -v2*=Created directory "./pool/main/b/bla"
 $(ofa 'pool/main/b/bla/bla_1.7.dsc')
--d1*=db: 'bla' added to packages.db(test|main|source).
+$(opa 'bla' unset 'test' 'main' 'source' 'dsc')
 EOF
 
 testrun - remove test bla 3<<EOF
 stdout
--v1*=removing 'bla' from 'test|main|source'...
--d1*=db: 'bla' removed from packages.db(test|main|source).
+$(opd 'bla' unset test main source dsc)
 -v0*=Deleting files no longer referenced...
 -v2*=Created directory "./morgue"
 -v2*=removed now empty directory ./pool/main/b/bla
@@ -64,13 +63,12 @@ stdout
 -v2*=Created directory "./pool/main/b"
 -v2*=Created directory "./pool/main/b/bla"
 $(ofa 'pool/main/b/bla/bla_1.7.dsc')
--d1*=db: 'bla' added to packages.db(test|main|source).
+$(opa 'bla' unset 'test' 'main' 'source' 'dsc')
 EOF
 
 testrun - remove test bla 3<<EOF
 stdout
--v1*=removing 'bla' from 'test|main|source'...
--d1*=db: 'bla' removed from packages.db(test|main|source).
+$(opd 'bla' unset test main source dsc)
 -v0*=Deleting files no longer referenced...
 -v1*=deleting and forgetting pool/main/b/bla/bla_1.7.dsc
 stderr
@@ -140,15 +138,14 @@ stdout
 -v2*=Created directory "./pool/main/b"
 -v2*=Created directory "./pool/main/b/bla"
 $(ofa 'pool/main/b/bla/bla_1.7.dsc')
--d1*=db: 'bla' added to packages.db(test|main|source).
+$(opa 'bla' unset 'test' 'main' 'source' 'dsc')
 EOF
 
 dodo rm pool/main/b/bla/bla_1.7.dsc
 
 testrun - remove test bla 3<<EOF
 stdout
--v1*=removing 'bla' from 'test|main|source'...
--d1*=db: 'bla' removed from packages.db(test|main|source).
+$(opd 'bla' unset test main source dsc)
 -v0*=Deleting files no longer referenced...
 stderr
 *=./pool/main/b/bla/bla_1.7.dsc not found, forgetting anyway
@@ -167,15 +164,14 @@ dodiff results.expected results
 testrun - -C main includedsc test fake.dsc 3<<EOF
 stdout
 $(ofa 'pool/main/b/bla/bla_1.7.dsc')
--d1*=db: 'bla' added to packages.db(test|main|source).
+$(opa 'bla' unset 'test' 'main' 'source' 'dsc')
 EOF
 
 dodo chmod a-w pool/main/b/bla
 
 testrun - remove test bla 3<<EOF
 stdout
--v1*=removing 'bla' from 'test|main|source'...
--d1*=db: 'bla' removed from packages.db(test|main|source).
+$(opd 'bla' unset test main source dsc)
 -v0*=Deleting files no longer referenced...
 -v1*=deleting and forgetting pool/main/b/bla/bla_1.7.dsc
 stderr
@@ -222,7 +218,7 @@ stdout
 -v2*=Created directory "./pool/main/b"
 -v2*=Created directory "./pool/main/b/bla"
 $(ofa 'pool/main/b/bla/bla_1.7.dsc')
--d1*=db: 'bla' added to packages.db(test|main|source).
+$(opa 'bla' unset 'test' 'main' 'source' 'dsc')
 EOF
 
 dodo mv pool/main/b/bla/bla_1.7.dsc pool/main/b/bla/bla_1.7.dscc
@@ -230,8 +226,7 @@ dodo ln -s bla_1.7.dscc pool/main/b/bla/bla_1.7.dsc
 
 testrun - remove test bla 3<<EOF
 stdout
--v1*=removing 'bla' from 'test|main|source'...
--d1*=db: 'bla' removed from packages.db(test|main|source).
+$(opd 'bla' unset test main source dsc)
 -v0*=Deleting files no longer referenced...
 $(ofd 'pool/main/b/bla/bla_1.7.dsc')
 EOF

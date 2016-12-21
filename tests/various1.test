@@ -364,9 +364,9 @@ $(ofa 'pool/dog/b/bird/bird_1.dsc')
 $(ofa 'pool/dog/b/bird/bird_1.tar.gz')
 $(ofa 'pool/dog/b/bird/bird_1_abacus.deb')
 $(ofa 'pool/dog/b/bird/bird-addons_1_all.deb')
--d1*=db: 'bird' added to packages.db(B|dog|source).
--d1*=db: 'bird' added to packages.db(B|dog|abacus).
--d1*=db: 'bird-addons' added to packages.db(B|dog|abacus).
+$(opa 'bird' x 'B' 'dog' 'source' 'dsc')
+$(opa 'bird' x 'B' 'dog' 'abacus' 'deb')
+$(opa 'bird-addons' x 'B' 'dog' 'abacus' 'deb')
 -v3*=deleting './i/bird_1.dsc'...
 -v3*=deleting './i/bird_1.tar.gz'...
 -v3*=deleting './i/bird_1_abacus.deb'...
@@ -473,9 +473,9 @@ $(ofa 'pool/cat/b/bird/bird_1.dsc')
 $(ofa 'pool/cat/b/bird/bird_1.tar.gz')
 $(ofa 'pool/cat/b/bird/bird_1_abacus.deb')
 $(ofa 'pool/cat/b/bird/bird-addons_1_all.deb')
--d1*=db: 'bird' added to packages.db(B|cat|source).
--d1*=db: 'bird' added to packages.db(B|cat|abacus).
--d1*=db: 'bird-addons' added to packages.db(B|cat|abacus).
+$(opa 'bird' x 'B' 'cat' 'source' 'dsc')
+$(opa 'bird' x 'B' 'cat' 'abacus' 'deb')
+$(opa 'bird-addons' x 'B' 'cat' 'abacus' 'deb')
 -v3*=deleting './i/bird_1.dsc'...
 -v3*=deleting './i/bird_1.tar.gz'...
 -v3*=deleting './i/bird_1_abacus.deb'...
@@ -933,8 +933,8 @@ stdout
 -v2*=Created directory "./pool/dog/s"
 -v2*=Created directory "./pool/dog/s/sourceindeb"
 $(ofa 'pool/dog/s/sourceindeb/indebname_0versionindeb~1_all.deb')
--d1*=db: 'indebname' added to packages.db(A|dog|abacus).
--d1*=db: 'indebname' added to packages.db(A|dog|calculator).
+$(opa 'indebname' x 'A' 'dog' 'abacus' 'deb')
+$(opa 'indebname' x 'A' 'dog' 'calculator' 'deb')
 -v3*=deleting './i/indebname_debfileversion~2_all.deb'...
 -v3*=deleting './i/test.changes'...
 -v0*=Exporting indices...
@@ -1125,7 +1125,7 @@ stdout
 -v2*=Created directory "./pool/dog/d"
 -v2*=Created directory "./pool/dog/d/dscfilename"
 $(ofa 'pool/dog/d/dscfilename/dscfilename_0versionindsc.dsc')
--d1*=db: 'dscfilename' added to packages.db(B|dog|source).
+$(opa 'dscfilename' x 'B' 'dog' 'source' 'dsc')
 -v3*=deleting './i/dscfilename_fileversion~.dsc'...
 -v3*=deleting './i/test.changes'...
 -v0=Exporting indices...
@@ -1345,8 +1345,7 @@ stderr
 stdout
 $(ofa 'pool/dog/d/dscfilename/dscfilename_newversion~.dsc')
 $(ofa 'pool/dog/d/dscfilename/strangefile_xyz')
--d1*=db: 'dscfilename' removed from packages.db(B|dog|source).
--d1*=db: 'dscfilename' added to packages.db(B|dog|source).
+$(opu 'dscfilename' x x 'B' 'dog' 'source' 'dsc')
 -v3*=deleting './i/dscfilename_fileversion~.dsc'...
 -v3*=deleting './i/test.changes'...
 -v3*=deleting './i/strangefile_xyz'...

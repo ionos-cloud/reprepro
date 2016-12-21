@@ -29,9 +29,9 @@ $(ofa 'pool/one/a/aa/aa-addons_4-2_all.deb')
 $(ofa 'pool/one/a/aa/aa_1-1_abacus.deb')
 $(ofa 'pool/one/a/aa/aa_1-1.tar.gz')
 $(ofa 'pool/one/a/aa/aa_1-1.dsc')
--d1*=db: 'aa-addons' added to packages.db(a|one|abacus).
--d1*=db: 'aa' added to packages.db(a|one|abacus).
--d1*=db: 'aa' added to packages.db(a|one|source).
+$(opa 'aa-addons' '4-2' 'a' 'one' 'abacus' 'deb')
+$(opa 'aa' '1-1' 'a' 'one' 'abacus' 'deb')
+$(opa 'aa' '1-1' 'a' 'one' 'source' 'dsc')
 $(otta 'a' 'aa')
 -v5*=Deleting 'test.changes'.
 EOF
@@ -49,9 +49,9 @@ $(ofa 'pool/two/a/aa/aa-addons_3-2_all.deb')
 $(ofa 'pool/two/a/aa/aa_1-2_abacus.deb')
 $(ofa 'pool/two/a/aa/aa_1-2.tar.gz')
 $(ofa 'pool/two/a/aa/aa_1-2.dsc')
--d1*=db: 'aa-addons' added to packages.db(a|two|abacus).
--d1*=db: 'aa' added to packages.db(a|two|abacus).
--d1*=db: 'aa' added to packages.db(a|two|source).
+$(opa 'aa-addons' '3-2' 'a' 'two' 'abacus' 'deb')
+$(opa 'aa' 1-2 'a' 'two' 'abacus' 'deb')
+$(opa 'aa' 1-2 'a' 'two' 'source' 'dsc')
 $(otta 'a' 'aa')
 -v5*=Deleting 'test.changes'.
 EOF
@@ -98,9 +98,9 @@ stdout
 -v3*=Not looking into 'a|three|abacus' as no matching target in 'b'!
 -v3*=Not looking into 'a|three|source' as no matching target in 'b'!
 -v1*=Adding 'aa-addons' '4-2' to 'b|one|abacus'.
--d1*=db: 'aa-addons' added to packages.db(b|one|abacus).
+$(opa 'aa-addons' '4-2' 'b' 'one' 'abacus' 'deb')
 -v1*=Adding 'aa-addons' '3-2' to 'b|two|abacus'.
--d1*=db: 'aa-addons' added to packages.db(b|two|abacus).
+$(opa 'aa-addons' '3-2' 'b' 'two' 'abacus' 'deb')
 stderr
 *=Warning: database 'b|one|abacus' was modified but no index file was exported.
 *=Warning: database 'b|two|abacus' was modified but no index file was exported.
@@ -131,10 +131,8 @@ EOF
 
 testrun - -b . --export=never remove b aa-addons 3<<EOF
 stdout
--v1*=removing 'aa-addons' from 'b|one|abacus'...
--d1*=db: 'aa-addons' removed from packages.db(b|one|abacus).
--v1*=removing 'aa-addons' from 'b|two|abacus'...
--d1*=db: 'aa-addons' removed from packages.db(b|two|abacus).
+$(opd 'aa-addons' unset b one abacus deb)
+$(opd 'aa-addons' unset b two abacus deb)
 stderr
 *=Warning: database 'b|one|abacus' was modified but no index file was exported.
 *=Warning: database 'b|two|abacus' was modified but no index file was exported.
@@ -175,9 +173,9 @@ stdout
 -v3*=Not looking into 'a|three|abacus' as no matching target in 'b'!
 -v3*=Not looking into 'a|three|source' as no matching target in 'b'!
 -v1*=Adding 'aa-addons' '4-2' to 'b|one|abacus'.
--d1*=db: 'aa-addons' added to packages.db(b|one|abacus).
+$(opa 'aa-addons' 4-2 'b' 'one' 'abacus' 'deb')
 -v1*=Adding 'aa' '1-1' to 'b|one|abacus'.
--d1*=db: 'aa' added to packages.db(b|one|abacus).
+$(opa 'aa' 1-1 'b' 'one' 'abacus' 'deb')
 stderr
 -v0*=Will not copy as not found: 2-2.
 -v6*=Found versions are: 1-1.
@@ -192,15 +190,13 @@ stdout
 -v3*=Not looking into 'a|three|abacus' as no matching target in 'b'!
 -v3*=Not looking into 'a|three|source' as no matching target in 'b'!
 -v1*=Adding 'aa-addons' '4-2' to 'b|one|abacus'.
--d1*=db: 'aa-addons' removed from packages.db(b|one|abacus).
--d1*=db: 'aa-addons' added to packages.db(b|one|abacus).
+$(opu 'aa-addons' 4-2 4-2 'b' 'one' 'abacus' 'deb')
 -v1*=Adding 'aa' '1-1' to 'b|one|abacus'.
--d1*=db: 'aa' removed from packages.db(b|one|abacus).
--d1*=db: 'aa' added to packages.db(b|one|abacus).
+$(opu 'aa' 1-1 1-1 'b' 'one' 'abacus' 'deb')
 -v1*=Adding 'aa-addons' '3-2' to 'b|two|abacus'.
--d1*=db: 'aa-addons' added to packages.db(b|two|abacus).
+$(opa 'aa-addons' 3-2 'b' 'two' 'abacus' 'deb')
 -v1*=Adding 'aa' '1-2' to 'b|two|abacus'.
--d1*=db: 'aa' added to packages.db(b|two|abacus).
+$(opa 'aa' 1-2 'b' 'two' 'abacus' 'deb')
 stderr
 -v6*=Found versions are: 1-1, 1-2.
 *=Warning: replacing 'aa-addons' version '4-2' with equal version '4-2' in 'b|one|abacus'!

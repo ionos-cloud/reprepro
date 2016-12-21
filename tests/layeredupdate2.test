@@ -355,20 +355,20 @@ $(ofa 'pool/main/a/aa/aa_1-1000.dsc')
 $(ofa 'pool/main/a/aa/aa_1-1000.tar.gz')
 -v1*=Shutting down aptmethods...
 -v0*=Installing (and possibly deleting) packages...
--d1*=db: 'dd-addons' added to packages.db(boring|firmware|coal).
--d1*=db: 'dd' added to packages.db(boring|firmware|abacus).
--d1*=db: 'dd-addons' added to packages.db(boring|firmware|abacus).
--d1*=db: 'cc-addons' added to packages.db(boring|main|coal).
--d1*=db: 'cc' added to packages.db(boring|main|source).
--d1*=db: 'cc' added to packages.db(boring|main|abacus).
--d1*=db: 'cc-addons' added to packages.db(boring|main|abacus).
--d1*=db: 'bb-addons' added to packages.db(boring|firmware|coal).
--d1*=db: 'bb' added to packages.db(boring|firmware|abacus).
--d1*=db: 'bb-addons' added to packages.db(boring|firmware|abacus).
--d1*=db: 'aa-addons' added to packages.db(boring|main|coal).
--d1*=db: 'aa' added to packages.db(boring|main|source).
--d1*=db: 'aa' added to packages.db(boring|main|abacus).
--d1*=db: 'aa-addons' added to packages.db(boring|main|abacus).
+$(opa 'dd-addons' x 'boring' 'firmware' 'coal' 'deb')
+$(opa 'dd' x 'boring' 'firmware' 'abacus' 'deb')
+$(opa 'dd-addons' x 'boring' 'firmware' 'abacus' 'deb')
+$(opa 'cc-addons' x 'boring' 'main' 'coal' 'deb')
+$(opa 'cc' x 'boring' 'main' 'source' 'dsc')
+$(opa 'cc' x 'boring' 'main' 'abacus' 'deb')
+$(opa 'cc-addons' x 'boring' 'main' 'abacus' 'deb')
+$(opa 'bb-addons' x 'boring' 'firmware' 'coal' 'deb')
+$(opa 'bb' x 'boring' 'firmware' 'abacus' 'deb')
+$(opa 'bb-addons' x 'boring' 'firmware' 'abacus' 'deb')
+$(opa 'aa-addons' x 'boring' 'main' 'coal' 'deb')
+$(opa 'aa' x 'boring' 'main' 'source' 'dsc')
+$(opa 'aa' x 'boring' 'main' 'abacus' 'deb')
+$(opa 'aa-addons' x 'boring' 'main' 'abacus' 'deb')
 EOF
 
 DISTRI=dummy PACKAGE=aa EPOCH="" VERSION=2 REVISION=-1 SECTION="base" genpackage.sh -sa
@@ -461,14 +461,10 @@ $(ofa 'pool/main/a/aa/aa_2-1.dsc')
 $(ofa 'pool/main/a/aa/aa_2-1.tar.gz')
 -v1*=Shutting down aptmethods...
 -v0*=Installing (and possibly deleting) packages...
--d1*=db: 'aa-addons' removed from packages.db(boring|main|coal).
--d1*=db: 'aa-addons' added to packages.db(boring|main|coal).
--d1*=db: 'aa' removed from packages.db(boring|main|source).
--d1*=db: 'aa' added to packages.db(boring|main|source).
--d1*=db: 'aa' removed from packages.db(boring|main|abacus).
--d1*=db: 'aa' added to packages.db(boring|main|abacus).
--d1*=db: 'aa-addons' removed from packages.db(boring|main|abacus).
--d1*=db: 'aa-addons' added to packages.db(boring|main|abacus).
+$(opu 'aa-addons' x x 'boring' 'main' 'coal' 'deb')
+$(opu 'aa' x x 'boring' 'main' 'source' 'dsc')
+$(opu 'aa' x x 'boring' 'main' 'abacus' 'deb')
+$(opu 'aa-addons' x x 'boring' 'main' 'abacus' 'deb')
 -v1*=4 files lost their last reference.
 -v1*=(dumpunreferenced lists such files, use deleteunreferenced to delete them.)
 EOF
@@ -533,9 +529,9 @@ $(ofa 'pool/firmware/e/ee/ee-addons_2-1_all.deb')
 $(ofa 'pool/firmware/e/ee/ee_2-1_abacus.deb')
 -v1*=Shutting down aptmethods...
 -v0*=Installing (and possibly deleting) packages...
--d1*=db: 'ee-addons' added to packages.db(boring|firmware|coal).
--d1*=db: 'ee' added to packages.db(boring|firmware|abacus).
--d1*=db: 'ee-addons' added to packages.db(boring|firmware|abacus).
+$(opa 'ee-addons' x 'boring' 'firmware' 'coal' 'deb')
+$(opa 'ee' x 'boring' 'firmware' 'abacus' 'deb')
+$(opa 'ee-addons' x 'boring' 'firmware' 'abacus' 'deb')
 EOF
 
 #  reinsert delete rule, this should cause a downgrade of bb
@@ -583,12 +579,9 @@ $(ofa 'pool/firmware/b/bb/bb-addons_1-1_all.deb')
 $(ofa 'pool/firmware/b/bb/bb_1-1_abacus.deb')
 -v1*=Shutting down aptmethods...
 -v0*=Installing (and possibly deleting) packages...
--d1*=db: 'bb-addons' removed from packages.db(boring|firmware|coal).
--d1*=db: 'bb' removed from packages.db(boring|firmware|abacus).
--d1*=db: 'bb-addons' removed from packages.db(boring|firmware|abacus).
--d1*=db: 'bb-addons' added to packages.db(boring|firmware|coal).
--d1*=db: 'bb' added to packages.db(boring|firmware|abacus).
--d1*=db: 'bb-addons' added to packages.db(boring|firmware|abacus).
+$(opu 'bb-addons' x x 'boring' 'firmware' 'coal' 'deb')
+$(opu 'bb' x x 'boring' 'firmware' 'abacus' 'deb')
+$(opu 'bb-addons' x x 'boring' 'firmware' 'abacus' 'deb')
 stdout
 -v1*=2 files lost their last reference.
 -v1*=(dumpunreferenced lists such files, use deleteunreferenced to delete them.)

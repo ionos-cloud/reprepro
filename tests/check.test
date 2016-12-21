@@ -88,7 +88,7 @@ EOF
 
 testrun - -b . -C c -A a -T deb _addpackage n fakeindex fake  3<<EOF
 stdout
--d1*=db: 'fake' added to packages.db(n|c|a).
+$(opa 'fake' '0' 'n' 'c' 'a' 'deb')
 -v1*=Adding 'fake' '0' to 'n|c|a'.
 EOF
 

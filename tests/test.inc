@@ -204,6 +204,14 @@ opa() {
 	printf -- "-d1*=db: '%s' added to packages.db(%s%s|%s|%s)." \
 		"$name" "$u" "$codename" "$component" "$arch"
 }
+opu() {
+	local name="$1" oldversion="$2" version="$3" codename="$4" component="$5" arch="$6" type="$7" u=""
+	if test "$type" = "udeb" ; then u='u|' ; fi
+	printf -- "-d1*=db: '%s' removed from packages.db(%s%s|%s|%s).\n" \
+		"$name" "$u" "$codename" "$component" "$arch"
+	printf -- "-d1*=db: '%s' added to packages.db(%s%s|%s|%s)." \
+		"$name" "$u" "$codename" "$component" "$arch"
+}
 opd() {
 	local name="$1" version="$2" codename="$3" component="$4" arch="$5" type="$6" u=""
 	if test "$type" = "udeb" ; then u='u|' ; fi
