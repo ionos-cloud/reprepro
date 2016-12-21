@@ -2192,6 +2192,10 @@ static retvalue candidate_add(struct incoming *i, struct candidate *c) {
 
 	}
 	for (file = c->files ; file != NULL ; file = file->next) {
+		/* silently ignore unused buildinfo files: */
+		if (file->type == fe_BUILDINFO)
+			continue;
+		/* otherwise complain unless unused_files is given */
 		if (!file->used && !i->permit[pmf_unused_files]) {
 			// TODO: find some way to mail such errors...
 			fprintf(stderr,

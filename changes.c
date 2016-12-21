@@ -237,6 +237,9 @@ retvalue changes_parsefileline(const char *fileline, /*@out@*/filetype *result_t
 		} else if (l > 6 && strncmp(p-6, ".build", 6) == 0) {
 			type = fe_LOG;
 			eoi = p - 6;
+		} else if (l > 10 && strncmp(p-10, ".buildinfo", 10) == 0) {
+			type = fe_BUILDINFO;
+			eoi = p - 10;
 		}
 		if (type != fe_UNKNOWN) {
 			/* check for a proper version */
@@ -255,7 +258,7 @@ retvalue changes_parsefileline(const char *fileline, /*@out@*/filetype *result_t
 					return RET_ERROR;
 				}
 				checkfilename = true;
-			} else if (type == fe_LOG) {
+			} else if (type == fe_LOG || type == fe_BUILDINFO) {
 				if (*p == '_') {
 					archstart = p + 1;
 					archend = eoi;

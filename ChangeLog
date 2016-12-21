@@ -1,3 +1,8 @@
+2016-12-21  Bernhard R. Link <brlink@debian.org>
+	* add support for .buildinfo files in .changes files:
+	- ignored by 'include' unless Tracking: includebuildinfos
+	- ignored by 'processincoming', unless stored by tracking.
+
 2016-12-18  Bernhard R. Link <brlink@debian.org>
 	* fix some logical errors in some warnings.
 

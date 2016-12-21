@@ -10,7 +10,8 @@ typedef enum {
 	fe_DEB, fe_UDEB,
 	fe_DSC, fe_DIFF, fe_ORIG, fe_TAR,
 	fe_ALTSRC,
-	fe_BYHAND, fe_LOG, fe_CHANGES
+	fe_BYHAND, fe_LOG, fe_CHANGES,
+	fe_BUILDINFO
 } filetype;
 
 #define FE_PACKAGE(ft) ((ft) == fe_DEB || (ft) == fe_UDEB || (ft) == fe_DSC)
