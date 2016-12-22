@@ -554,6 +554,7 @@ struct compressedfile {
 			enum uncompression_error {
 				ue_NO_ERROR = 0,
 				ue_TRAILING_GARBAGE,
+				ue_WRONG_LENGTH,
 				ue_UNCOMPRESSION_ERROR,
 			} error;
 			/* compression stream ended */
@@ -1054,8 +1055,12 @@ static inline int read_gz(struct compressedfile *f, void *buffer, int size) {
 			r = uncompression_read_internal_buffer(f);
 			if (RET_WAS_ERROR(r)) {
 				assert (f->error != 0);
-			} else if (f->len != 0)
-				f->uncompress.error = ue_TRAILING_GARBAGE;
+			} else if (f->len != 0) {
+				f->uncompress.error =
+					(f->uncompress.available == 0)
+					? ue_WRONG_LENGTH
+					: ue_TRAILING_GARBAGE;
+			}
 		}
 		f->uncompress.hadeos = true;
 		return size - f->uncompress.gz.avail_out;
@@ -1124,8 +1129,12 @@ static inline int read_bz2(struct compressedfile *f, void *buffer, int size) {
 			r = uncompression_read_internal_buffer(f);
 			if (RET_WAS_ERROR(r)) {
 				assert (f->error != 0);
-			} else if (f->len != 0)
-				f->uncompress.error = ue_TRAILING_GARBAGE;
+                       } else if (f->len != 0) {
+                               f->uncompress.error =
+                                       (f->uncompress.available == 0)
+                                       ? ue_WRONG_LENGTH
+                                       : ue_TRAILING_GARBAGE;
+                       }
 		}
 		f->uncompress.hadeos = true;
 		return size - f->uncompress.bz2.avail_out;
@@ -1192,8 +1201,12 @@ static inline int read_lzma(struct compressedfile *f, void *buffer, int size) {
 			r = uncompression_read_internal_buffer(f);
 			if (RET_WAS_ERROR(r)) {
 				assert (f->error != 0);
-			} else if (f->len != 0)
-				f->uncompress.error = ue_TRAILING_GARBAGE;
+			} else if (f->len != 0) {
+				f->uncompress.error =
+					(f->uncompress.available == 0)
+					? ue_WRONG_LENGTH
+					: ue_TRAILING_GARBAGE;
+			}
 		}
 		f->uncompress.hadeos = true;
 		return size - f->uncompress.lzma.avail_out;
@@ -1230,6 +1243,9 @@ int uncompress_read(struct compressedfile *file, void *buffer, int size) {
 
 	assert (!file->external);
 
+	if (file->error != 0 || file->uncompress.error != ue_NO_ERROR)
+		return -1;
+
 	/* libbz2 does not like being called after returning end of stream,
 	 * so cache that: */
 	if (file->uncompress.hadeos)
@@ -1259,7 +1275,7 @@ int uncompress_read(struct compressedfile *file, void *buffer, int size) {
 #endif
 		default:
 			assert (false);
-			return RET_ERROR_INTERNAL;
+			return -1;
 	}
 }
 
@@ -1340,6 +1356,8 @@ static retvalue uncompress_commonclose(struct compressedfile *file, int *errno_p
 		*errno_p = -EINVAL;
 		if (file->uncompress.error == ue_TRAILING_GARBAGE)
 			*msg_p = "Trailing garbage after compressed data";
+		else if (file->uncompress.error == ue_WRONG_LENGTH)
+			*msg_p = "Compressed data of unexpected length";
 		else
 			*msg_p = "Uncompression error";
 		result = RET_ERROR;
@@ -1456,6 +1474,10 @@ retvalue uncompress_error(struct compressedfile *file) {
 		if (file->uncompress.error == ue_TRAILING_GARBAGE)
 			fprintf(stderr,
 "Trailing garbage after compressed data in %s",
+					file->filename);
+		else if (file->uncompress.error == ue_WRONG_LENGTH)
+			fprintf(stderr,
+"Compressed data of different length than expected in %s",
 					file->filename);
 		return RET_ERROR;
 	}
