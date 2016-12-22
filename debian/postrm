@@ -1,0 +1,20 @@
+#!/bin/sh
+
+set -e
+
+case "$1" in
+    purge)
+        # if purging the package in a failed-upgrade scenerio, also get rid of the temporary file:
+        rm -f /etc/bash_completion.d/reprepro.dpkg-remove
+    ;;
+    abort-install|abort-upgrade)
+        # if the upgrade failed, revert the old /etc/bash_completion.d/reprepro file
+        if test -f /etc/bash_completion.d/reprepro.dpkg-remove && ! test -e /etc/bash_completion.d/reprepro; then
+            mv -n /etc/bash_completion.d/reprepro.dpkg-remove /etc/bash_completion.d/reprepro
+        fi
+    ;;
+esac
+
+#DEBHELPER#
+
+exit 0
