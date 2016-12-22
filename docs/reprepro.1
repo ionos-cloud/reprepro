@@ -184,7 +184,7 @@ Overrides the section of inclusions. (Also override possible override files)
 .B \-P, \-\-priority \fIpriority\fP
 Overrides the priority of inclusions. (Also override possible override files)
 .TP
-.BR \-\-export= ( never | changed | lookedat | force )
+.BR \-\-export= ( silent\-never | never | changed | lookedat | force )
 This option specify whether and how the high level actions
 (e.g. install, update, pull, delete)
 should export the index files of the distributions they work with.
@@ -220,6 +220,9 @@ No index files are exported. You will have to call \fBexport\fP later.
 \fINote\fP that you most likely additionally need the \fB\-\-keepunreferencedfiles\fP
 option, if you do not want some of the files pointed to by the untouched index
 files to vanish.
+.TP
+.BR \-\-export=silent-never
+Like never, but supress most output about that.
 .TP
 .B \-\-ignore=\fIwhat\fP
 Ignore errors of type \fIwhat\fP. See the section \fBERROR IGNORING\fP
