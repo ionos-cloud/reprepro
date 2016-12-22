@@ -3,5 +3,4 @@
 0003-document-what-is-needed-to-use-ask-passphrase-with-n.patch
 0004-changelogs.example-be-less-verbose-by-default.patch
 0005-add-unreferencesnapshot-and-removereference-commands.patch
-0006-testsuite-use-silent-never-instead-of-never-for-expo.patch
-0007-document-export-silent-never.patch
+0006-document-export-silent-never.patch

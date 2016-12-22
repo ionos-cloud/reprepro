@@ -1,4 +1,4 @@
-From 4c24ff68728047c7ebed3506e782a1c592966a92 Mon Sep 17 00:00:00 2001
+From c7b4f294da299f2fd8938370a876dea9589f604f Mon Sep 17 00:00:00 2001
 From: "Bernhard R. Link" <brlink@debian.org>
 Date: Thu, 22 Dec 2016 15:50:34 +0100
 Subject: add unreferencesnapshot and removereference commands

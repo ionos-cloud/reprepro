@@ -1,4 +1,4 @@
-From 1b97716b76ca2ab56dc517f5fddeaf992a6e5fbb Mon Sep 17 00:00:00 2001
+From 1e5e825bb5cfd6da2275f6e17806fb48c8713aa6 Mon Sep 17 00:00:00 2001
 From: "Bernhard R. Link" <brlink@debian.org>
 Date: Thu, 22 Dec 2016 16:22:10 +0100
 Subject: document --export=silent-never
