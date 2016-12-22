@@ -1,0 +1,22 @@
+From b73d301e69a4be2abfe144be540e1069b86aebd2 Mon Sep 17 00:00:00 2001
+From: "Bernhard R. Link" <brlink@debian.org>
+Date: Thu, 22 Dec 2016 14:45:39 +0100
+Subject: [changelogs.example] be less verbose by default
+
+---
+ docs/changelogs.example | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/docs/changelogs.example b/docs/changelogs.example
+index 4897dc0..436e580 100755
+--- a/docs/changelogs.example
++++ b/docs/changelogs.example
+@@ -101,7 +101,7 @@ addsource() {
+ 	SUBDIR="$(basename $TARGETDIR)"
+ 	BASEDIR="$(dirname $TARGETDIR)"
+ 	if ! [ -d "$TARGETDIR" ] ; then
+-		echo "extract $CANONDSCFILE information to $TARGETDIR"
++		#echo "extract $CANONDSCFILE information to $TARGETDIR"
+ 		mkdir -p -- "$TARGETDIR"
+ 		EXTRACTDIR="$(mktemp -d)"
+ 		(cd -- "$EXTRACTDIR" && dpkg-source --no-copy -x "$CANONDSCFILE" > /dev/null)

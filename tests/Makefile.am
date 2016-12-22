@@ -5,6 +5,7 @@ test.inc \
 test.sh \
 atoms.test \
 buildneeding.test \
+buildinfo.test \
 check.test \
 copy.test \
 descriptions.test \

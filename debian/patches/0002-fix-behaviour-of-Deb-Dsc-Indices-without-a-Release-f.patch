@@ -1,0 +1,63 @@
+From 69143e0044e3dd8ed81321b735aa86c7a8ba83de Mon Sep 17 00:00:00 2001
+From: "Bernhard R. Link" <brlink@debian.org>
+Date: Wed, 21 Dec 2016 22:42:16 +0100
+Subject: fix behaviour of (Deb|Dsc)Indices without a Release file
+
+---
+ ChangeLog              | 5 +++++
+ exports.c              | 3 ++-
+ tests/exporthooks.test | 2 --
+ 3 files changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/ChangeLog b/ChangeLog
+index 2d1de99..379e32a 100644
+--- a/ChangeLog
++++ b/ChangeLog
+@@ -1,4 +1,9 @@
+ 2016-12-21  Bernhard R. Link <brlink@debian.org>
++	* fix behaviour of (Deb|Dsc)Indices without a Release file
++	  (if no Release filename was given the default was used
++	   instead of not creating a file)
++
++2016-12-21  Bernhard R. Link <brlink@debian.org>
+ 	* add support for .buildinfo files in .changes files:
+ 	- new tracking mode includebuildinfos to store them in pool/
+ 	- ignored by 'include' unless Tracking: includebuildinfos
+diff --git a/exports.c b/exports.c
+index f970dad..8ae1e75 100644
+--- a/exports.c
++++ b/exports.c
+@@ -168,6 +168,8 @@ retvalue exportmode_set(struct exportmode *mode, struct configiterator *iter) {
+ 		return RET_ERROR;
+ 	}
+ 
++	free(mode->release);
++	mode->release = NULL;
+ 	free(mode->filename);
+ 	mode->filename = word;
+ 
+@@ -178,7 +180,6 @@ retvalue exportmode_set(struct exportmode *mode, struct configiterator *iter) {
+ 		word = NULL;
+ 	if (r != RET_NOTHING && word[0] != '.') {
+ 		assert (word[0] != '\0');
+-		free(mode->release);
+ 		mode->release = word;
+ 		r = config_getword(iter, &word);
+ 		if (RET_WAS_ERROR(r))
+diff --git a/tests/exporthooks.test b/tests/exporthooks.test
+index f03e29a..5d7c9c2 100644
+--- a/tests/exporthooks.test
++++ b/tests/exporthooks.test
+@@ -52,12 +52,10 @@ EOF
+ find dists -type f | sort > results
+ cat > results.expected <<EOF
+ dists/o/Release
+-dists/o/e/binary-a/Release
+ dists/o/e/binary-a/X.bz2
+ dists/o/e/binary-a/X.gz
+ dists/o/e/binary-a/X.something
+ dists/o/e/binary-a/X.something.hidden
+-dists/o/e/binary-b/Release
+ dists/o/e/binary-b/X.bz2
+ dists/o/e/binary-b/X.gz
+ dists/o/e/binary-b/X.something

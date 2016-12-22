@@ -1,0 +1,21 @@
+From a5abb6a3a561f5fcbb2d25011bc444ce3999331c Mon Sep 17 00:00:00 2001
+From: "Bernhard R. Link" <brlink@debian.org>
+Date: Wed, 21 Dec 2016 22:20:16 +0100
+Subject: include buildinfo.test in tarball
+
+---
+ tests/Makefile.am | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/tests/Makefile.am b/tests/Makefile.am
+index ad7f589..f113101 100644
+--- a/tests/Makefile.am
++++ b/tests/Makefile.am
+@@ -5,6 +5,7 @@ test.inc \
+ test.sh \
+ atoms.test \
+ buildneeding.test \
++buildinfo.test \
+ check.test \
+ copy.test \
+ descriptions.test \
