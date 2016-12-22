@@ -1,6 +1,8 @@
 2016-12-22  Bernhard R. Link <brlink@debian.org>
 	* add unreferencesnapshot and removereference commands
 	* document --export=silent-never
+	* when using the builtin .bz2 uncompressor,
+	  support concatenated streams
 
 2016-12-21  Bernhard R. Link <brlink@debian.org>
 	* fix behaviour of (Deb|Dsc)Indices without a Release file
