@@ -168,6 +168,8 @@ retvalue exportmode_set(struct exportmode *mode, struct configiterator *iter) {
 		return RET_ERROR;
 	}
 
+	free(mode->release);
+	mode->release = NULL;
 	free(mode->filename);
 	mode->filename = word;
 
@@ -178,7 +180,6 @@ retvalue exportmode_set(struct exportmode *mode, struct configiterator *iter) {
 		word = NULL;
 	if (r != RET_NOTHING && word[0] != '.') {
 		assert (word[0] != '\0');
-		free(mode->release);
 		mode->release = word;
 		r = config_getword(iter, &word);
 		if (RET_WAS_ERROR(r))
