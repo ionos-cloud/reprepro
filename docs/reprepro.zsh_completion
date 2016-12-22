@@ -254,6 +254,7 @@ commands=(
 	tidytracks:"look for files referened by tracks but no longer needed"
 	translatefilelists:"translate pre-3.0.0 contents.cache.db into new format"
 	translatelegacychecksums:"get rid of obsolete files.db"
+	unreferencesnapshot:"no longer mark files used by an snapshot"
 	unusedsources:"list source packages with no binary packages"
 	update:"update from external source"
    	)
@@ -275,6 +276,7 @@ hiddencommands=(
 	_listconfidentifiers:"list parts of the repository in the configuration"
 	_listdbidentifiers:"list parts of the repository in the database"
 	_listmd5sums:"print a list of filekeys and their md5 hashes"
+	_removereference:"manuall remove a reference"
 	_removereferences:"remove all references by an identifer"
     	)
 
@@ -393,6 +395,13 @@ case "$state" in
 			_reprepro_identifiers
 		fi
 		;;
+	  (_removereference)
+		if [[ "$state" = "first argument" ]] ; then
+			_reprepro_identifiers
+		elif [[ "$state" = "second argument" ]] ; then
+			_reprepro_filekeys
+		fi
+		;;
 	 (list|listfilter|listmatched)
 		if [[ "$state" = "first argument" ]] ; then
 			_reprepro_codenames
@@ -418,7 +427,8 @@ case "$state" in
 			_reprepro_codenames
 		fi
 		;;
-	 (gensnapshot)
+	 (gensnapshot|unreferencesnapshot)
+		# TODO: for unreferencesnapshot get instead a list of existing ones
 		if [[ "$state" = "first argument" ]] ; then
 			_reprepro_codenames
 		elif [[ "$state" = "second argument" ]] ; then

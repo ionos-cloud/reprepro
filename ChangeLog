@@ -1,3 +1,6 @@
+2016-12-22  Bernhard R. Link <brlink@debian.org>
+	* add unreferencesnapshot and removereference commands
+
 2016-12-21  Bernhard R. Link <brlink@debian.org>
 	* fix behaviour of (Deb|Dsc)Indices without a Release file
 	  (if no Release filename was given the default was used

@@ -562,7 +562,7 @@ $(opa 'foo' x 'B' 'dog' 'source' 'dsc')
 -v1*= generating dog/Contents-abacus...
 EOF
 
-testrun empty -b . _removereferences s=B=now
+testrun empty -b . unreferencesnapshot B now
 
 testrun empty -b . dumpunreferenced
 
