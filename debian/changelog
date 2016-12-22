@@ -5,6 +5,8 @@ reprepro (5.0.0-2) UNRELEASED; urgency=medium
   - change changelogs.example to be less verbose (Closes: #827947)
   - fix (Deb|Dsc)Indices without a Release filename (Closes: #820460)
   - document --ask-passphrase vs current gnupg (Closes: #789608)
+  - document --export=silent-never (Closes: #820462)
+  - add unferencesnapshot and _removereference commands (Closes: #827749)
 
  -- Bernhard R. Link <brlink@debian.org>  Thu, 22 Dec 2016 10:43:39 +0100
 

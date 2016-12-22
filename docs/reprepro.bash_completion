@@ -300,6 +300,7 @@ _reprepro()
 			flood\
 			generatefilelists\
 			gensnapshot\
+			unreferencesnapshot\
 			include\
 			includedeb\
 			includedsc\
@@ -353,6 +354,7 @@ _reprepro()
 		       	_listconfidentifiers\
 		       	_listdbidentifiers\
 			_listmd5sums\
+			_removereference\
 			_removereferences\
 		       	_versioncompare'
 
@@ -522,7 +524,7 @@ _reprepro()
 			fi
 			return 0
 			;;
-		gensnapshot)
+		gensnapshot|unreferencesnapshot)
 			# first argument is a codename
 			if [[ $i -eq $COMP_CWORD ]] ; then
 				parse_config
