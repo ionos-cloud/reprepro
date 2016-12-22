@@ -525,6 +525,10 @@ ACTION_R(n, n, n, y, removereferences) {
 	return references_remove(argv[1]);
 }
 
+ACTION_R(n, n, n, y, removereference) {
+	assert (argc == 3);
+	return references_decrement(argv[2], argv[1]);
+}
 
 ACTION_R(n, n, n, n, dumpreferences) {
 	return references_dump();
@@ -3640,6 +3644,22 @@ ACTION_R(n, n, y, y, gensnapshot) {
 	return distribution_snapshot(distribution, argv[2]);
 }
 
+ACTION_R(n, n, n, y, unreferencesnapshot) {
+	retvalue result;
+	char *id;
+
+	assert (argc == 3);
+
+	id = mprintf("s=%s=%s", argv[1], argv[2]);
+	if (FAILEDTOALLOC(id))
+		return RET_ERROR_OOM;
+
+	result = references_remove(id);
+
+	free(id);
+
+	return result;
+}
 
 /***********************rerunnotifiers********************************/
 static retvalue rerunnotifiersintarget(struct target *target, UNUSED(void *dummy)) {
@@ -3869,6 +3889,8 @@ static const struct action {
 		1, 1, "_dumpcontents <identifier>"},
 	{"_removereferences", 	A__R(removereferences),
 		1, 1, "_removereferences <identifier>"},
+	{"_removereference", 	A__R(removereference),
+		2, 2, "_removereferences <identifier>"},
 	{"_addreference", 	A__R(addreference),
 		2, 2, "_addreference <reference> <referee>"},
 	{"_addreferences", 	A__R(addreferences),
@@ -3991,6 +4013,8 @@ static const struct action {
 		1, 2, "processincoming <rule-name> [<.changes file>]"},
 	{"gensnapshot",		A_R(gensnapshot),
 		2, 2, "gensnapshot <distribution> <date or other name>"},
+	{"unreferencesnapshot",	A__R(unreferencesnapshot),
+		2, 2, "gensnapshot <distribution> <name of snapshot>"},
 	{"rerunnotifiers",	A_Bact(rerunnotifiers),
 		0, -1, "rerunnotifiers [<distributions>]"},
 	{"cleanlists",		A_L(cleanlists),
