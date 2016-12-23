@@ -72,16 +72,26 @@ echo bzip2 -c testfile \> testfile.bz2
 bzip2 -c testfile > testfile.bz2
 echo lzma -c testfile \> testfile.lzma
 lzma -c testfile > testfile.lzma
-if test -x /usr/bin/xz ; then
-	echo xz -c testfile \> testfile.xz
-	xz -c testfile > testfile.xz
-fi
+echo xz -c testfile \> testfile.xz
+xz -c testfile > testfile.xz
+
 echo gzip -c smallfile \> smallfile.gz
 gzip -c smallfile > smallfile.gz
 echo bzip2 -c smallfile \> smallfile.bz2
 bzip2 -c smallfile > smallfile.bz2
 echo lzma -c smallfile \> smallfile.lzma
 lzma -c smallfile > smallfile.lzma
+echo xz -c smallfile \> smallfile.xz
+xz -c smallfile > smallfile.xz
+
+echo gzip -c \< /dev/null \> emptyfile.gz
+gzip -c < /dev/null > emptyfile.gz
+echo bzip2 -c \< /dev/null \> emptyfile.bz2
+bzip2 -c < /dev/null > emptyfile.bz2
+echo lzma -c \< /dev/null \> emptyfile.lzma
+lzma -c < /dev/null > emptyfile.lzma
+echo xz -c \< /dev/null \> emptyfile.xz
+xz -c < /dev/null > emptyfile.xz
 
 testrun - __uncompress .lz notexists.lz notexists.lz.uncompressed 3<<EOF
 -v2*=Uncompress 'notexists.lz' into 'notexists.lz.uncompressed' using '/usr/bin/lunzip'...
@@ -91,6 +101,7 @@ returns 254
 EOF
 
 if test -x /usr/bin/lzip ; then
+# uncompression message is different as this is no builtin.
 echo lzip -c testfile \> testfile.lz
 lzip -c testfile > testfile.lz
 echo lzip -c smallfile \> smallfile.lz
@@ -107,51 +118,39 @@ dodiff smallfile smallfile.lz.uncompressed
 rm *.uncompressed
 fi
 
-if test -x /usr/bin/xz ; then
-echo xz -c smallfile \> smallfile.xz
-xz -c smallfile > smallfile.xz
-testrun - __uncompress .xz testfile.xz testfile.xz.uncompressed 3<<EOF
--v2*=Uncompress 'testfile.xz' into 'testfile.xz.uncompressed'...
+for ext in gz bz2 lzma xz ; do
+	testrun - __uncompress .${ext} testfile.${ext} testfile.${ext}.uncompressed 3<<EOF
+-v2*=Uncompress 'testfile.${ext}' into 'testfile.${ext}.uncompressed'...
 EOF
-dodiff testfile testfile.xz.uncompressed
-rm *.uncompressed
-testrun - __uncompress .xz smallfile.xz smallfile.xz.uncompressed 3<<EOF
--v2*=Uncompress 'smallfile.xz' into 'smallfile.xz.uncompressed'...
-EOF
-dodiff smallfile smallfile.xz.uncompressed
-rm *.uncompressed
-fi
+	dodiff testfile testfile.${ext}.uncompressed
+	rm *.uncompressed
 
-testrun - __uncompress .gz testfile.gz testfile.gz.uncompressed 3<<EOF
--v2*=Uncompress 'testfile.gz' into 'testfile.gz.uncompressed'...
+	testrun - __uncompress .${ext} smallfile.${ext} smallfile.${ext}.uncompressed 3<<EOF
+-v2*=Uncompress 'smallfile.${ext}' into 'smallfile.${ext}.uncompressed'...
 EOF
-dodiff testfile testfile.gz.uncompressed
-rm *.uncompressed
-testrun - __uncompress .bz2 testfile.bz2 testfile.bz2.uncompressed 3<<EOF
--v2*=Uncompress 'testfile.bz2' into 'testfile.bz2.uncompressed'...
+	dodiff smallfile smallfile.${ext}.uncompressed
+	rm *.uncompressed
+done
+
+# unlzma does not support concatenated files, so we do neither. xz also not supported yet.
+# TODO: add gz
+for ext in bz2 ; do
+	cat testfile.${ext} emptyfile.${ext} > concatenatedtestfile.${ext}
+	testrun - __uncompress .${ext} concatenatedtestfile.${ext} concatenatedtestfile.${ext}.uncompressed 3<<EOF
+-v2*=Uncompress 'concatenatedtestfile.${ext}' into 'concatenatedtestfile.${ext}.uncompressed'...
 EOF
-dodiff testfile testfile.bz2.uncompressed
-rm *.uncompressed
-testrun - __uncompress .lzma testfile.lzma testfile.lzma.uncompressed 3<<EOF
--v2*=Uncompress 'testfile.lzma' into 'testfile.lzma.uncompressed'...
+	dodiff testfile concatenatedtestfile.${ext}.uncompressed
+	rm concatenated*
+
+	cat testfile testfile > concatenatedtestfile
+	cat testfile.${ext} testfile.${ext} > concatenatedtestfile.${ext}
+	testrun - __uncompress .${ext} concatenatedtestfile.${ext} concatenatedtestfile.${ext}.uncompressed 3<<EOF
+-v2*=Uncompress 'concatenatedtestfile.${ext}' into 'concatenatedtestfile.${ext}.uncompressed'...
 EOF
-dodiff testfile testfile.lzma.uncompressed
-rm *.uncompressed
-testrun - __uncompress .gz smallfile.gz smallfile.gz.uncompressed 3<<EOF
--v2*=Uncompress 'smallfile.gz' into 'smallfile.gz.uncompressed'...
-EOF
-dodiff smallfile smallfile.gz.uncompressed
-rm *.uncompressed
-testrun - __uncompress .bz2 smallfile.bz2 smallfile.bz2.uncompressed 3<<EOF
--v2*=Uncompress 'smallfile.bz2' into 'smallfile.bz2.uncompressed'...
-EOF
-dodiff smallfile smallfile.bz2.uncompressed
-rm *.uncompressed
-testrun - __uncompress .lzma smallfile.lzma smallfile.lzma.uncompressed 3<<EOF
--v2*=Uncompress 'smallfile.lzma' into 'smallfile.lzma.uncompressed'...
-EOF
-dodiff smallfile smallfile.lzma.uncompressed
-rm *.uncompressed
+	dodiff concatenatedtestfile concatenatedtestfile.${ext}.uncompressed
+	rm concatenated*
+done
+
 
 touch fake.lz
 testrun - --lunzip=false __uncompress .lz fake.lz fake.lz.uncompressed 3<<EOF
@@ -400,7 +399,7 @@ fi
 
 done
 
-rm testfile* smallfile*
+rm testfile* smallfile* emptyfile*
 
 cat > fake_1-2.diff <<EOF
 --- bla/Makefile

@@ -1,7 +1,7 @@
 #!/bin/dash
 
 # This needs installed:
-# apt, dpkg-dev, ed, python3-apt, lzma, python3, dbX.Y-util
+# apt, dpkg-dev, ed, python3-apt, xz, lzma, python3, dbX.Y-util
 # it will fail if run over a changing hour
 
 set -e -u
