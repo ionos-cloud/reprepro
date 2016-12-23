@@ -157,7 +157,7 @@ for ext in gz bz2 lzma ; do
 stderr
 -v2*=Uncompress 'invalidtestfile.${ext}' into 'invalidtestfile.${ext}.uncompressed'...
 *=Error reading from invalidtestfile.${ext}: Trailing garbage after compressed data!
-*=There have been errors!
+-v0*=There have been errors!
 returns 255
 EOF
 	dodo test ! -e invalidtestfile.${ext}.uncompressed
@@ -171,7 +171,7 @@ stderr
 -v2*=Uncompress 'invalidtestfile.xz' into 'invalidtestfile.xz.uncompressed'...
 *=Error 10 decompressing lzma data
 *=Error reading from invalidtestfile.xz: Uncompression error!
-*=There have been errors!
+-v0*=There have been errors!
 returns 255
 EOF
 dodo test ! -e invalidtestfile.xz.uncompressed
@@ -199,25 +199,48 @@ EOF
 # long for the old ar format dpkg-deb needs...
 echo tar -cf - ./control \| bzip2 \> control.tar.bz2
 tar -cf - ./control | bzip2 > control.tar.bz2
-rm control
 echo tar -cf - testfile\* \| lzma \> data.tar.lzma
 tar -cf - testfile* | lzma > data.tar.lzma
+echo tar -cf - testfile\* \| bzip2 \> data.tar.bz2
+tar -cf - testfile* | bzip2 > data.tar.bz2
+echo tar -cf - testfile\* \| gzip \> data.tar.gz
+tar -cf - testfile* | gzip > data.tar.gz
+echo tar -cf - testfile\* \| xz \> data.tar.xz
+tar -cf - testfile* | xz > data.tar.xz
 echo 2.0 > debian-binary
-dodo ar qcfS fake.deb debian-binary control.tar.bz2 data.tar.lzma
-rm *.tar.bz2 *.tar.lzma debian-binary
+datatestlist="gz bz2 lzma xz"
+for ext in $datatestlist ; do
+	dodo ar qcfS fake_${ext}.deb debian-binary control.tar.bz2 data.tar.${ext}
+	# one .deb with trailing garbage at the end of the data tar:
+	echo "trailing garbage" >> data.tar.${ext}
+	dodo ar qcfS fake_${ext}_t.deb debian-binary control.tar.bz2 data.tar.${ext}
+	# and one .deb where the the length is correct but the .ar header differs
+	cp fake_${ext}_t.deb fake_${ext}_w.deb
+	origlength=$(stat -c '%s' fake_${ext}.deb)
+	newlength=$(stat -c '%s' fake_${ext}_w.deb)
+	if test $((origlength + 18)) -eq $((newlength)) ; then
+		# new length is 17 + one padding, so original did not have padding:
+		truncate -s "$origlength" fake_${ext}_w.deb
+	else
+		# also remove the padding byte:
+		truncate -s "$((origlength - 1))" fake_${ext}_w.deb
+	fi
+done
+rm debian-binary control *.tar.*
 
 # TODO: there could be a problem here with .deb files that have data after the
 # ./control file in data.tar and using an external uncompressor.
 # But how to test this when there is no way to trigger it in the default built?
 
-testrun - __extractcontrol fake.deb 3<<EOF
+testrun - __extractcontrol fake_gz.deb 3<<EOF
 stdout
 *=Package: fake
 *=Version: fake
 *=Architecture: all
 *=
 EOF
-testrun - __extractfilelist fake.deb 3<<EOF
+for ext in $datatestlist ; do
+testrun - __extractfilelist fake_${ext}.deb 3<<EOF
 stdout
 *=/testfile
 *=/testfile.bz2
@@ -226,8 +249,34 @@ stdout
 =/testfile.xz
 =/testfile.lz
 EOF
+	if test $ext = xz ; then
+testrun - __extractfilelist fake_${ext}_t.deb 3<<EOF
+stderr
+*=Error 9 decompressing lzma data
+*=Error reading data.tar from fake_xz_t.deb: Uncompression error
+-v0*=There have been errors!
+return 255
+EOF
+	else
+testrun - __extractfilelist fake_${ext}_t.deb 3<<EOF
+stderr
+*=Error reading data.tar from fake_${ext}_t.deb: Trailing garbage after compressed data
+-v0*=There have been errors!
+return 255
+EOF
+	fi
+	if test $ext = xz ; then
+		: # xz has too large blocks to trigger this (tar is done before this is read)
+	else
+testrun - __extractfilelist fake_${ext}_w.deb 3<<EOF
+*=Error reading data.tar from fake_${ext}_w.deb: Compressed data of unexpected length
+-v0*=There have been errors!
+return 255
+EOF
+	fi
+done
 
-rm fake.deb
+rm fake_*.deb
 
 for compressor in lz lzma ; do
 case $compressor in

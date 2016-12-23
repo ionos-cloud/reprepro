@@ -1196,7 +1196,7 @@ static inline int restart_bz2_if_needed(struct compressedfile *f) {
 				f->error = ENOMEM;
 				return false;
 			}
-			f->uncompress.error = ue_UNCOMPRESSION_ERROR;
+			f->uncompress.error = ue_TRAILING_GARBAGE;
 			f->uncompress.hadeos = true;
 			return false;
 		}
@@ -1329,19 +1329,25 @@ static inline int read_lzma(struct compressedfile *f, void *buffer, int size) {
 		/* repeat if no output was produced: */
 	} while (ret == LZMA_OK && f->uncompress.lzma.avail_out == (size_t)size);
 	if (ret == LZMA_STREAM_END) {
-		if (f->uncompress.lzma.avail_in > 0 || f->len > 0) {
+		if (f->uncompress.lzma.avail_in > 0) {
 			f->uncompress.error = ue_TRAILING_GARBAGE;
+			return -1;
+		} else if (f->len > 0) {
+			f->uncompress.error = ue_WRONG_LENGTH;
+			return -1;
 		} else {
 			/* check if this is the end of the file: */
 			f->uncompress.available = 0;
 			r = uncompression_read_internal_buffer(f);
 			if (RET_WAS_ERROR(r)) {
 				assert (f->error != 0);
+				return -1;
 			} else if (f->len != 0) {
 				f->uncompress.error =
 					(f->uncompress.available == 0)
 					? ue_WRONG_LENGTH
 					: ue_TRAILING_GARBAGE;
+				return -1;
 			}
 		}
 		f->uncompress.hadeos = true;
