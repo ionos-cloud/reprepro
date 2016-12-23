@@ -711,8 +711,7 @@ static inline retvalue start_xz(struct compressedfile *f, int *errno_p, const ch
 	f->uncompress.lzma.next_in = f->uncompress.buffer;
 	f->uncompress.lzma.avail_in = f->uncompress.available;
 
-	// TODO: some logic to allow LZMA_CONCATENATED in flags?
-	ret = lzma_stream_decoder(&f->uncompress.lzma, UINT64_MAX, 0);
+	ret = lzma_stream_decoder(&f->uncompress.lzma, UINT64_MAX, LZMA_CONCATENATED);
 	if (ret != LZMA_OK) {
 		if (ret == LZMA_MEM_ERROR) {
 			*errno_p = ENOMEM;

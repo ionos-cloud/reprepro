@@ -132,9 +132,9 @@ EOF
 	rm *.uncompressed
 done
 
-# unlzma does not support concatenated files, so we do neither. xz also not supported yet.
+# unlzma does not support concatenated files, so we do neither.
 # TODO: add gz
-for ext in bz2 ; do
+for ext in bz2 xz ; do
 	cat testfile.${ext} emptyfile.${ext} > concatenatedtestfile.${ext}
 	testrun - __uncompress .${ext} concatenatedtestfile.${ext} concatenatedtestfile.${ext}.uncompressed 3<<EOF
 -v2*=Uncompress 'concatenatedtestfile.${ext}' into 'concatenatedtestfile.${ext}.uncompressed'...
@@ -152,7 +152,7 @@ EOF
 done
 
 # Test for trailing garbage detection
-for ext in gz bz2 lzma xz; do
+for ext in gz bz2 lzma ; do
 	cat testfile.${ext} smallfile > invalidtestfile.${ext}
 	testrun - __uncompress .${ext} invalidtestfile.${ext} invalidtestfile.${ext}.uncompressed 3<<EOF
 stderr
@@ -164,6 +164,19 @@ EOF
 	dodo test ! -e invalidtestfile.${ext}.uncompressed
 	rm invalid*
 done
+
+# .xz does not see the trailing stuff, but an end of file while reading the header:
+cat testfile.xz smallfile > invalidtestfile.xz
+testrun - __uncompress .xz invalidtestfile.xz invalidtestfile.xz.uncompressed 3<<EOF
+stderr
+-v2*=Uncompress 'invalidtestfile.xz' into 'invalidtestfile.xz.uncompressed'...
+*=Error 10 decompressing lzma data
+*=Error reading from invalidtestfile.xz: Uncompression error!
+*=There have been errors!
+returns 255
+EOF
+dodo test ! -e invalidtestfile.xz.uncompressed
+rm invalid*
 
 touch fake.lz
 testrun - --lunzip=false __uncompress .lz fake.lz fake.lz.uncompressed 3<<EOF
