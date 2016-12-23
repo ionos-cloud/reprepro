@@ -652,3 +652,5 @@ dodiff log/source-a_1_source.0000000/source-a_1_source.buildinfo j/source-a_1_so
 dodiff log/source-b_2_abacus.0000000/source-b_2_abacus.buildinfo j/source-b_2_abacus.buildinfo
 dodiff log/source-b_2_source.0000000/source-b_2_source.buildinfo j/source-b_2_source.buildinfo
 dodiff log/source-c_3_source+abacus+all.0000000/source-c_3_abacus.buildinfo j/source-c_3_abacus.buildinfo
+
+testsuccess
