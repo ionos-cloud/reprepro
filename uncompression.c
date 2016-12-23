@@ -1006,6 +1006,82 @@ static inline int pipebackforth(struct compressedfile *file, void *buffer, int s
 	} while (true);
 }
 
+static inline int restart_gz_if_needed(struct compressedfile *f) {
+	retvalue r;
+	int ret;
+
+	/* first mark end of stream, will be reset if restarted */
+	f->uncompress.hadeos = true;
+
+	if (f->uncompress.gz.avail_in == 0 && f->len != 0) {
+		/* Input buffer consumed and (possibly) more data, so
+		 * read more data to check:  */
+		f->uncompress.available = 0;
+		r = uncompression_read_internal_buffer(f);
+		if (RET_WAS_ERROR(r))
+			return false;
+		f->uncompress.gz.next_in = f->uncompress.buffer;
+		f->uncompress.gz.avail_in = f->uncompress.available;
+		if (f->uncompress.available == 0 && f->len > 0) {
+			/* stream ends, file ends, but we are
+			 * still expecting data? */
+			f->uncompress.error = ue_WRONG_LENGTH;
+			return false;
+		}
+		assert (f->uncompress.gz.avail_in > 0 || f->len == 0);
+	}
+	if (f->uncompress.gz.avail_in > 0 &&
+			f->uncompress.gz.next_in[0] == 0x1F) {
+		/* might be concatenated files, so try to restart */
+		ret = inflateEnd(&f->uncompress.gz);
+		if (ret != Z_OK) {
+			f->uncompress.error = ue_UNCOMPRESSION_ERROR;
+			return false;
+		}
+
+		unsigned int avail_in = f->uncompress.gz.avail_in;
+		unsigned char *next_in =  f->uncompress.gz.next_in;
+		memset(&f->uncompress.gz, 0, sizeof(f->uncompress.gz));
+		f->uncompress.gz.zalloc = Z_NULL; /* use default */
+		f->uncompress.gz.zfree = Z_NULL; /* use default */
+		f->uncompress.gz.next_in = next_in;
+		f->uncompress.gz.avail_in = avail_in;
+		/* 32 means accept zlib and gz header
+		 * 15 means accept any windowSize */
+		ret = inflateInit2(&f->uncompress.gz, 32 + 15);
+		if (ret != BZ_OK) {
+			if (ret == BZ_MEM_ERROR) {
+				f->error = ENOMEM;
+				return false;
+			}
+			f->uncompress.error = ue_UNCOMPRESSION_ERROR;
+			return false;
+		}
+		if (ret != Z_OK) {
+			if (ret == Z_MEM_ERROR) {
+				f->error = ENOMEM;
+				return false;
+			}
+			f->uncompress.error = ue_TRAILING_GARBAGE;
+			return false;
+		}
+		f->uncompress.hadeos = false;
+		/* successful restarted */
+		return true;
+	} else {
+		/* mark End Of Stream, so bzDecompress is not called again */
+		f->uncompress.hadeos = true;
+		if (f->uncompress.gz.avail_in > 0) {
+			/* trailing garbage */
+			f->uncompress.error = ue_TRAILING_GARBAGE;
+			return false;
+		} else
+			/* normal end of stream, no error and
+			 * no restart necessary: */
+			return true;
+	}
+}
+
 static inline int read_gz(struct compressedfile *f, void *buffer, int size) {
 	int ret;
 	int flush = Z_SYNC_FLUSH;
@@ -1038,32 +1114,32 @@ static inline int read_gz(struct compressedfile *f, void *buffer, int size) {
 
 		ret = inflate(&f->uncompress.gz, flush);
 
-		/* use Z_FINISH on second try, unless there is new data */
-		flush = Z_FINISH;
+		if (ret == Z_STREAM_END) {
+			size_t gotdata = size - f->uncompress.gz.avail_out;
+
+			f->uncompress.gz.next_out = NULL;
+			f->uncompress.gz.avail_out = 0;
+
+			if (!restart_gz_if_needed(f))
+				return -1;
+			if (gotdata > 0 || f->uncompress.hadeos)
+				return gotdata;
+
+			/* read the restarted stream for data */
+			ret = Z_OK;
+			flush = Z_SYNC_FLUSH;
+			f->uncompress.gz.next_out = buffer;
+			f->uncompress.gz.avail_out = size;
+		} else {
+			/* use Z_FINISH on second try, unless there is new data */
+			flush = Z_FINISH;
+		}
 
 		/* repeat if no output was produced,
 		 * assuming zlib will consume all input otherwise,
 		 * as the documentation says: */
 	} while (ret == Z_OK && f->uncompress.gz.avail_out == (size_t)size);
-	if (ret == Z_STREAM_END) {
-		if (f->uncompress.gz.avail_in > 0 || f->len > 0) {
-			f->uncompress.error = ue_TRAILING_GARBAGE;
-		} else {
-			/* check if this is the end of the file: */
-			f->uncompress.available = 0;
-			r = uncompression_read_internal_buffer(f);
-			if (RET_WAS_ERROR(r)) {
-				assert (f->error != 0);
-			} else if (f->len != 0) {
-				f->uncompress.error =
-					(f->uncompress.available == 0)
-					? ue_WRONG_LENGTH
-					: ue_TRAILING_GARBAGE;
-			}
-		}
-		f->uncompress.hadeos = true;
-		return size - f->uncompress.gz.avail_out;
-	} else if (ret == Z_OK ||
+	if (ret == Z_OK ||
   	    (ret == Z_BUF_ERROR && f->uncompress.gz.avail_out != (size_t)size)) {
 		return size - f->uncompress.gz.avail_out;
 	} else if (ret == Z_MEM_ERROR) {

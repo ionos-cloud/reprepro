@@ -133,8 +133,7 @@ EOF
 done
 
 # unlzma does not support concatenated files, so we do neither.
-# TODO: add gz
-for ext in bz2 xz ; do
+for ext in gz bz2 xz ; do
 	cat testfile.${ext} emptyfile.${ext} > concatenatedtestfile.${ext}
 	testrun - __uncompress .${ext} concatenatedtestfile.${ext} concatenatedtestfile.${ext}.uncompressed 3<<EOF
 -v2*=Uncompress 'concatenatedtestfile.${ext}' into 'concatenatedtestfile.${ext}.uncompressed'...

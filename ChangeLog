@@ -2,6 +2,8 @@
 	* properly report errors of the internal xz and lzma decompressors
 	* when using the builtin .xz uncompressor,
 	  support concatenated streams
+	* when using the builtin .gz uncompressor,
+	  support concatenated streams
 
 2016-12-22  Bernhard R. Link <brlink@debian.org>
 	* add unreferencesnapshot and removereference commands
