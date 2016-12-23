@@ -1,3 +1,6 @@
+2016-12-23  Bernhard R. Link <brlink@debian.org>
+	* properly report errors of the internal xz and lzma decompressors
+
 2016-12-22  Bernhard R. Link <brlink@debian.org>
 	* add unreferencesnapshot and removereference commands
 	* document --export=silent-never

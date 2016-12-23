@@ -151,6 +151,19 @@ EOF
 	rm concatenated*
 done
 
+# Test for trailing garbage detection
+for ext in gz bz2 lzma xz; do
+	cat testfile.${ext} smallfile > invalidtestfile.${ext}
+	testrun - __uncompress .${ext} invalidtestfile.${ext} invalidtestfile.${ext}.uncompressed 3<<EOF
+stderr
+-v2*=Uncompress 'invalidtestfile.${ext}' into 'invalidtestfile.${ext}.uncompressed'...
+*=Error reading from invalidtestfile.${ext}: Trailing garbage after compressed data!
+*=There have been errors!
+returns 255
+EOF
+	dodo test ! -e invalidtestfile.${ext}.uncompressed
+	rm invalid*
+done
 
 touch fake.lz
 testrun - --lunzip=false __uncompress .lz fake.lz fake.lz.uncompressed 3<<EOF

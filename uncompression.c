@@ -1463,6 +1463,8 @@ static retvalue uncompress_commonclose(struct compressedfile *file, int *errno_p
 		case c_lzma:
 		case c_xz:
 			lzma_end(&file->uncompress.lzma);
+			if (RET_WAS_ERROR(result))
+				return result;
 			return RET_OK;
 #endif
 		default:
