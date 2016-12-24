@@ -1,0 +1,656 @@
+set -u
+. "$TESTSDIR"/test.inc
+
+
+gensource() {
+	srcname="$1"
+	version="$2"
+	build="$3"
+	mkdir "${srcname}-${version}"
+	cd "${srcname}-${version}"
+	mkdir debian
+	cat > debian/rules <<'EOF'
+#!/usr/bin/make -f
+tmp = $(CURDIR)/debian/tmp
+build-indep build-arch:
+binary-indep binary-arch:
+	rm -f debian/files # prep
+	# wrong directory, but not relevant for the test
+	install -m 755 -d $(tmp)/DEBIAN $(tmp)/usr/share/doc/documentation
+	echo "I have told you so" > $(tmp)/usr/share/doc/documentation/NEWS
+	gzip -c9 debian/changelog > $(tmp)/usr/share/doc/documentation/changelog.gz
+	chown -R root.root $(tmp) && chmod -R go=rX $(tmp)
+	dpkg-gencontrol -isp
+	dpkg --build $(tmp) ..
+clean:
+	rm -f debian/files
+.PHONY: clean binary-arch binary-indep binary build build-indep buil-arch
+EOF
+	chmod a+x debian/rules
+	cat > debian/changelog <<EOF
+${srcname} (${version}) test; urgency=low
+
+  * everything fixed
+
+ -- Sky.NET <nowhere@example.com>  Sat, 15 Jan 2011 17:12:05 +2700
+EOF
+
+	cat > debian/control <<EOF
+Source: ${srcname}
+Section: doc
+Priority: standard
+Maintainer: Sky.NET <nowhere@example.com>
+Standards-Version: Aleph_17
+
+EOF
+	cat >> debian/control
+	# sadly dpkg-buildinfo does not allow faking the architecture, so this gets more ugly:
+	echo simulating: dpkg-buildpackage -rfakeroot -us -uc -S
+	fakeroot debian/rules clean
+	(cd .. && dpkg-source -b "${srcname}-${version}")
+	dpkg-genchanges --build=source > "../${srcname}_${version}_source.changes"
+	dpkg-genbuildinfo --build=source
+	dpkg-genchanges --build=source > "../${srcname}_${version}_sourceandbuild.changes"
+	if ! grep buildinfo "../${srcname}_${version}_sourceandbuild.changes" ; then
+		ed -s "../${srcname}_${version}_sourceandbuild.changes" <<EOF
+/^Checksums-Sha1:/a
+ $(sha1andsize "../${srcname}_${version}_source.buildinfo") ${srcname}_${version}_source.buildinfo
+.
+/^Checksums-Sha256:/a
+ $(sha2andsize "../${srcname}_${version}_source.buildinfo") ${srcname}_${version}_source.buildinfo
+.
+/^Files:/a
+ $(mdandsize "../${srcname}_${version}_source.buildinfo") doc standard ${srcname}_${version}_source.buildinfo
+.
+w
+q
+EOF
+	fi
+	echo simulating dpkg-buildpackage -rfakeroot -us -uc --build="$build"
+	fakeroot debian/rules clean
+	case $build in
+		any) debian/rules build-arch ; fakeroot debian/rules binary-arch ;;
+		all) debian/rules build-indep ; fakeroot debian/rules binary-indep ;;
+		*) echo "unknown build type" ; exit 1 ;;
+	esac
+	dpkg-genbuildinfo --build="$build"
+	dpkg-genchanges --build="$build" > "../${srcname}_${version}_binary.changes"
+	cd ..
+}
+
+gensource 'source-a' '1' all << EOF
+Package: onlyall
+Architecture: all
+Description: documentation
+ documentation
+EOF
+gensource 'source-b' '2' any << EOF
+Package: onlyany
+Architecture: any
+Description: binaries
+ binaries
+EOF
+
+mkdir "source-c-3"
+cd "source-c-3"
+mkdir debian
+cat > debian/rules <<'EOF'
+#!/usr/bin/make -f
+build-indep build-arch:
+binary-indep binary-arch: binary-%:
+	rm -rf debian/tmp #prep
+	install -m 755 -d debian/tmp/DEBIAN debian/tmp/usr/share/doc/some$*
+	echo "I have told you so" > debian/tmp/usr/share/doc/some$*/NEWS
+	gzip -c9 debian/changelog > debian/tmp/usr/share/doc/some$*/changelog.gz
+	chown -R root.root debian/tmp && chmod -R go=rX debian/tmp
+	dpkg-gencontrol -isp -psome$* -Pdebian/tmp
+	dpkg --build debian/tmp ..
+clean:
+	rm -f debian/files -r debian/tmp
+.PHONY: clean binary-arch binary-indep binary build build-indep buil-arch
+EOF
+chmod a+x debian/rules
+cat > debian/changelog <<EOF
+source-c (3) test; urgency=low
+
+  * everything fixed
+
+ -- Sky.NET <nowhere@example.com>  Sat, 15 Jan 2011 17:12:05 +2700
+EOF
+
+cat > debian/control <<EOF
+Source: source-c
+Section: shells
+Priority: required
+Maintainer: Sky.NET <nowhere@example.com>
+Standards-Version: Aleph_17
+
+Package: somearch
+Architecture: any
+Description: binaries
+ binaries
+
+Package: someindep
+Architecture: all
+Description: scripts
+ scripts
+EOF
+# sadly dpkg-buildinfo does not allow faking the architecture, so this gets more ugly:
+echo simulating dpkg-buildpackage -rfakeroot -us -uc --build="full"
+fakeroot debian/rules clean
+(cd .. && dpkg-source -b source-c-3)
+debian/rules build-arch ; debian/rules build-indep
+fakeroot debian/rules binary-arch
+fakeroot debian/rules binary-indep
+dpkg-genbuildinfo --build=full
+dpkg-genchanges --build=full > "../source-c_3_full.changes"
+cd ..
+
+rm -r source-a-1 source-b-2 source-c-3
+
+# first check include:
+mkdir conf
+cat > conf/options <<EOF
+export silent-never
+EOF
+cat > conf/distributions <<EOF
+Codename: test
+Architectures: coal source
+Components: main
+EOF
+
+mkdir -p pool/main/s/source-a pool/main/s/source-b
+
+echo Check that include properly ignores a .buildinfo file
+testrun - include test source-a_1_binary.changes 3<<EOF
+stderr
+-v3*=Ignoring buildinfo file: 'source-a_1_all.buildinfo'!
+stdout
+$(odb)
+$(ofa 'pool/main/s/source-a/onlyall_1_all.deb')
+$(opa 'onlyall' '1' 'test' 'main' 'coal' 'deb')
+EOF
+rm -r pool db
+
+mkdir pool
+testrun - -A coal include test source-b_2_binary.changes 3<<EOF
+stderr
+-v3*=Ignoring buildinfo file: 'source-b_2_abacus.buildinfo'!
+-v1*=Skipping 'onlyany_2_abacus.deb' as architecture is not in the requested set.
+*=source-b_2_binary.changes: Not enough files in .changes!
+-v0*=There have been errors!
+returns 255
+stdout
+$(odb)
+EOF
+rm -r pool db
+
+mkdir pool
+testrun - -A coal include test source-b_2_source.changes 3<<EOF
+stderr
+-v1*=Skipping 'source-b_2.dsc' as architecture 'source' is not in the requested set.
+-v1*=Skipping 'source-b_2.tar.gz' as architecture 'source' is not in the requested set.
+*=source-b_2_source.changes: Not enough files in .changes!
+-v0*=There have been errors!
+returns 255
+stdout
+$(odb)
+EOF
+rm -r pool db
+
+mkdir pool
+testrun - -A coal include test source-b_2_sourceandbuild.changes 3<<EOF
+stderr
+-v3*=Ignoring buildinfo file: 'source-b_2_source.buildinfo'!
+-v1*=Skipping 'source-b_2.dsc' as architecture 'source' is not in the requested set.
+-v1*=Skipping 'source-b_2.tar.gz' as architecture 'source' is not in the requested set.
+*=source-b_2_sourceandbuild.changes: Not enough files in .changes!
+-v0*=There have been errors!
+returns 255
+stdout
+$(odb)
+EOF
+rm -r pool db
+
+mkdir -p pool/main/s/source-a pool/main/s/source-b
+testrun - include test source-b_2_sourceandbuild.changes 3<<EOF
+stderr
+-v3*=Ignoring buildinfo file: 'source-b_2_source.buildinfo'!
+stdout
+$(odb)
+$(ofa 'pool/main/s/source-b/source-b_2.dsc')
+$(ofa 'pool/main/s/source-b/source-b_2.tar.gz')
+$(opa 'source-b' '2' 'test' 'main' 'source' 'dsc')
+EOF
+rm -r pool db
+
+cat > conf/distributions <<EOF
+Codename: test
+Architectures: abacus source
+Components: main
+EOF
+
+mkdir -p pool/main/s/source-a pool/main/s/source-b pool/main/s/source-c
+
+echo Check that include properly ignores a .buildinfo file
+testrun - include test source-a_1_binary.changes 3<<EOF
+stderr
+-v3*=Ignoring buildinfo file: 'source-a_1_all.buildinfo'!
+stdout
+$(odb)
+$(ofa 'pool/main/s/source-a/onlyall_1_all.deb')
+$(opa 'onlyall' '1' 'test' 'main' 'abacus' 'deb')
+EOF
+
+testrun - include test source-b_2_binary.changes 3<<EOF
+stderr
+-v3*=Ignoring buildinfo file: 'source-b_2_abacus.buildinfo'!
+stdout
+$(ofa 'pool/main/s/source-b/onlyany_2_abacus.deb')
+$(opa 'onlyany' '2' 'test' 'main' 'abacus' 'deb')
+EOF
+
+testrun - include test source-b_2_sourceandbuild.changes 3<<EOF
+stderr
+-v3*=Ignoring buildinfo file: 'source-b_2_source.buildinfo'!
+stdout
+$(ofa 'pool/main/s/source-b/source-b_2.dsc')
+$(ofa 'pool/main/s/source-b/source-b_2.tar.gz')
+$(opa 'source-b' '2' 'test' 'main' 'source' 'dsc')
+EOF
+
+testrun - include test source-c_3_full.changes 3<<EOF
+stderr
+-v3*=Ignoring buildinfo file: 'source-c_3_abacus.buildinfo'!
+stdout
+$(ofa 'pool/main/s/source-c/source-c_3.dsc')
+$(ofa 'pool/main/s/source-c/source-c_3.tar.gz')
+$(ofa 'pool/main/s/source-c/somearch_3_abacus.deb')
+$(ofa 'pool/main/s/source-c/someindep_3_all.deb')
+$(opa 'source-c' '3' 'test' 'main' 'source' 'dsc')
+$(opa 'somearch' '3' 'test' 'main' 'abacus' 'deb')
+$(opa 'someindep' '3' 'test' 'main' 'abacus' 'deb')
+EOF
+rm -r pool db
+
+echo now the same with tracking information:
+
+cat > conf/distributions <<EOF
+Codename: test
+Architectures: coal source
+Components: main
+Tracking: minimal includebuildinfos
+EOF
+
+mkdir -p pool/main/s/source-a pool/main/s/source-b
+
+echo Check that include properly ignores a .buildinfo file
+testrun - include test source-a_1_binary.changes 3<<EOF
+stderr
+stdout
+$(odb)
+$(ofa 'pool/main/s/source-a/onlyall_1_all.deb')
+$(ofa 'pool/main/s/source-a/source-a_1_all.buildinfo')
+$(opa 'onlyall' '1' 'test' 'main' 'coal' 'deb')
+$(ota 'test' 'source-a')
+EOF
+rm -r pool db
+
+mkdir pool
+testrun - -A coal include test source-b_2_binary.changes 3<<EOF
+stderr
+-v1*=Skipping 'source-b_2_abacus.buildinfo' as architecture is not in the requested set.
+-v1*=Skipping 'onlyany_2_abacus.deb' as architecture is not in the requested set.
+*=source-b_2_binary.changes: Not enough files in .changes!
+-v0*=There have been errors!
+returns 255
+stdout
+$(odb)
+EOF
+rm -r pool db
+
+mkdir pool
+testrun - -A coal include test source-b_2_source.changes 3<<EOF
+stderr
+-v1*=Skipping 'source-b_2.dsc' as architecture 'source' is not in the requested set.
+-v1*=Skipping 'source-b_2.tar.gz' as architecture 'source' is not in the requested set.
+*=source-b_2_source.changes: Not enough files in .changes!
+-v0*=There have been errors!
+returns 255
+stdout
+$(odb)
+EOF
+rm -r pool db
+
+mkdir pool
+testrun - -A coal include test source-b_2_sourceandbuild.changes 3<<EOF
+stderr
+-v1*=Skipping 'source-b_2_source.buildinfo' as architecture 'source' is not in the requested set.
+-v1*=Skipping 'source-b_2.dsc' as architecture 'source' is not in the requested set.
+-v1*=Skipping 'source-b_2.tar.gz' as architecture 'source' is not in the requested set.
+*=source-b_2_sourceandbuild.changes: Not enough files in .changes!
+-v0*=There have been errors!
+returns 255
+stdout
+$(odb)
+EOF
+rm -r pool db
+
+mkdir -p pool/main/s/source-a pool/main/s/source-b
+testrun - include test source-b_2_sourceandbuild.changes 3<<EOF
+stderr
+stdout
+$(odb)
+$(ofa 'pool/main/s/source-b/source-b_2_source.buildinfo')
+$(ofa 'pool/main/s/source-b/source-b_2.dsc')
+$(ofa 'pool/main/s/source-b/source-b_2.tar.gz')
+$(opa 'source-b' '2' 'test' 'main' 'source' 'dsc')
+$(ota 'test' 'source-b')
+EOF
+rm -r pool db
+
+cat > conf/distributions <<EOF
+Codename: test
+Architectures: abacus source
+Components: main
+Tracking: minimal includebuildinfos
+EOF
+
+mkdir -p pool/main/s/source-a pool/main/s/source-b pool/main/s/source-c
+
+echo Check that include properly ignores a .buildinfo file
+testrun - include test source-a_1_binary.changes 3<<EOF
+stderr
+stdout
+$(odb)
+$(ofa 'pool/main/s/source-a/source-a_1_all.buildinfo')
+$(ofa 'pool/main/s/source-a/onlyall_1_all.deb')
+$(opa 'onlyall' '1' 'test' 'main' 'abacus' 'deb')
+$(ota 'test' 'source-a')
+EOF
+
+testrun - include test source-b_2_binary.changes 3<<EOF
+stderr
+stdout
+$(ofa 'pool/main/s/source-b/source-b_2_abacus.buildinfo')
+$(ofa 'pool/main/s/source-b/onlyany_2_abacus.deb')
+$(opa 'onlyany' '2' 'test' 'main' 'abacus' 'deb')
+$(ota 'test' 'source-b')
+EOF
+
+testrun - include test source-b_2_sourceandbuild.changes 3<<EOF
+stderr
+stdout
+$(ofa 'pool/main/s/source-b/source-b_2_source.buildinfo')
+$(ofa 'pool/main/s/source-b/source-b_2.dsc')
+$(ofa 'pool/main/s/source-b/source-b_2.tar.gz')
+$(opa 'source-b' '2' 'test' 'main' 'source' 'dsc')
+EOF
+
+testrun - include test source-c_3_full.changes 3<<EOF
+stderr
+stdout
+$(ofa 'pool/main/s/source-c/source-c_3_abacus.buildinfo')
+$(ofa 'pool/main/s/source-c/source-c_3.dsc')
+$(ofa 'pool/main/s/source-c/source-c_3.tar.gz')
+$(ofa 'pool/main/s/source-c/somearch_3_abacus.deb')
+$(ofa 'pool/main/s/source-c/someindep_3_all.deb')
+$(opa 'source-c' '3' 'test' 'main' 'source' 'dsc')
+$(opa 'somearch' '3' 'test' 'main' 'abacus' 'deb')
+$(opa 'someindep' '3' 'test' 'main' 'abacus' 'deb')
+$(ota 'test' 'source-c')
+EOF
+rm -r pool db
+
+mkdir -p pool/main/s/source-a pool/main/s/source-b pool/main/s/source-c
+mkdir i j tmp
+mv source-?_* *.deb j/
+cp j/* i/
+cat > conf/incoming <<EOF
+Name: foo
+IncomingDir: i
+TempDir: tmp
+Default: test
+EOF
+
+# avoid problems with the order of files:
+rm './i/source-b_2_source.changes'
+rm './i/source-a_1_source.changes'
+
+echo check to process all .changes at the same time with tracking:
+testrun - processincoming foo 3<<EOF
+stderr
+stdout
+$(odb)
+$(ofa 'pool/main/s/source-a/source-a_1_all.buildinfo')
+$(ofa 'pool/main/s/source-a/onlyall_1_all.deb')
+$(opa 'onlyall' '1' 'test' 'main' 'abacus' 'deb')
+$(ofa 'pool/main/s/source-a/source-a_1_source.buildinfo')
+$(ofa 'pool/main/s/source-a/source-a_1.dsc')
+$(ofa 'pool/main/s/source-a/source-a_1.tar.gz')
+$(opa 'source-a' '1' 'test' 'main' 'source' 'dsc')
+$(ota 'test' 'source-a')
+$(ofa 'pool/main/s/source-b/source-b_2_abacus.buildinfo')
+$(ofa 'pool/main/s/source-b/onlyany_2_abacus.deb')
+$(opa 'onlyany' '2' 'test' 'main' 'abacus' 'deb')
+$(ofa 'pool/main/s/source-b/source-b_2_source.buildinfo')
+$(ofa 'pool/main/s/source-b/source-b_2.dsc')
+$(ofa 'pool/main/s/source-b/source-b_2.tar.gz')
+$(opa 'source-b' '2' 'test' 'main' 'source' 'dsc')
+$(ota 'test' 'source-b')
+$(ofa 'pool/main/s/source-c/source-c_3_abacus.buildinfo')
+$(ofa 'pool/main/s/source-c/source-c_3.dsc')
+$(ofa 'pool/main/s/source-c/source-c_3.tar.gz')
+$(ofa 'pool/main/s/source-c/somearch_3_abacus.deb')
+$(ofa 'pool/main/s/source-c/someindep_3_all.deb')
+$(opa 'source-c' '3' 'test' 'main' 'source' 'dsc')
+$(opa 'somearch' '3' 'test' 'main' 'abacus' 'deb')
+$(opa 'someindep' '3' 'test' 'main' 'abacus' 'deb')
+$(ota 'test' 'source-c')
+-v3*=deleting './i/onlyall_1_all.deb'...
+-v3*=deleting './i/onlyany_2_abacus.deb'...
+-v3*=deleting './i/somearch_3_abacus.deb'...
+-v3*=deleting './i/someindep_3_all.deb'...
+-v3*=deleting './i/source-a_1.dsc'...
+-v3*=deleting './i/source-a_1.tar.gz'...
+-v3*=deleting './i/source-a_1_all.buildinfo'...
+-v3*=deleting './i/source-a_1_binary.changes'...
+-v3*=deleting './i/source-a_1_source.buildinfo'...
+-v3*=deleting './i/source-a_1_sourceandbuild.changes'...
+-v3*=deleting './i/source-b_2.dsc'...
+-v3*=deleting './i/source-b_2.tar.gz'...
+-v3*=deleting './i/source-b_2_abacus.buildinfo'...
+-v3*=deleting './i/source-b_2_binary.changes'...
+-v3*=deleting './i/source-b_2_source.buildinfo'...
+-v3*=deleting './i/source-b_2_sourceandbuild.changes'...
+-v3*=deleting './i/source-c_3.dsc'...
+-v3*=deleting './i/source-c_3.tar.gz'...
+-v3*=deleting './i/source-c_3_abacus.buildinfo'...
+-v3*=deleting './i/source-c_3_full.changes'...
+EOF
+
+rm -r db pool
+mkdir -p pool/main/s/source-a pool/main/s/source-b pool/main/s/source-c
+
+cp j/* i/
+rm './i/source-b_2_source.changes'
+rm './i/source-a_1_source.changes'
+ed -s conf/distributions <<EOF
+g/^Tracking: /s/include[^ ]*//g
+w
+q
+EOF
+
+echo check to process all .changes at the same time without storing buildinfo:
+testrun - processincoming foo 3<<EOF
+stderr
+stdout
+$(odb)
+$(ofa 'pool/main/s/source-a/onlyall_1_all.deb')
+$(opa 'onlyall' '1' 'test' 'main' 'abacus' 'deb')
+$(ofa 'pool/main/s/source-a/source-a_1.dsc')
+$(ofa 'pool/main/s/source-a/source-a_1.tar.gz')
+$(opa 'source-a' '1' 'test' 'main' 'source' 'dsc')
+$(ota 'test' 'source-a')
+$(ofa 'pool/main/s/source-b/onlyany_2_abacus.deb')
+$(opa 'onlyany' '2' 'test' 'main' 'abacus' 'deb')
+$(ofa 'pool/main/s/source-b/source-b_2.dsc')
+$(ofa 'pool/main/s/source-b/source-b_2.tar.gz')
+$(opa 'source-b' '2' 'test' 'main' 'source' 'dsc')
+$(ota 'test' 'source-b')
+$(ofa 'pool/main/s/source-c/source-c_3.dsc')
+$(ofa 'pool/main/s/source-c/source-c_3.tar.gz')
+$(ofa 'pool/main/s/source-c/somearch_3_abacus.deb')
+$(ofa 'pool/main/s/source-c/someindep_3_all.deb')
+$(opa 'source-c' '3' 'test' 'main' 'source' 'dsc')
+$(opa 'somearch' '3' 'test' 'main' 'abacus' 'deb')
+$(opa 'someindep' '3' 'test' 'main' 'abacus' 'deb')
+$(ota 'test' 'source-c')
+-v3*=deleting './i/onlyall_1_all.deb'...
+-v3*=deleting './i/onlyany_2_abacus.deb'...
+-v3*=deleting './i/somearch_3_abacus.deb'...
+-v3*=deleting './i/someindep_3_all.deb'...
+-v3*=deleting './i/source-a_1.dsc'...
+-v3*=deleting './i/source-a_1.tar.gz'...
+-v3*=deleting './i/source-a_1_binary.changes'...
+-v3*=deleting './i/source-a_1_sourceandbuild.changes'...
+-v3*=deleting './i/source-b_2.dsc'...
+-v3*=deleting './i/source-b_2.tar.gz'...
+-v3*=deleting './i/source-b_2_binary.changes'...
+-v3*=deleting './i/source-b_2_sourceandbuild.changes'...
+-v3*=deleting './i/source-c_3.dsc'...
+-v3*=deleting './i/source-c_3.tar.gz'...
+-v3*=deleting './i/source-c_3_full.changes'...
+EOF
+
+echo check to process all .changes at the same time without storing buildinfo but deleting them:
+cat >> conf/incoming <<EOF
+Cleanup: unused_buildinfo_files
+EOF
+
+rm -r db pool
+mkdir -p pool/main/s/source-a pool/main/s/source-b pool/main/s/source-c
+
+rm -r i
+mkdir i
+cp j/* i/
+rm './i/source-b_2_source.changes'
+rm './i/source-a_1_source.changes'
+
+testrun - processincoming foo 3<<EOF
+stderr
+stdout
+$(odb)
+$(ofa 'pool/main/s/source-a/onlyall_1_all.deb')
+$(opa 'onlyall' '1' 'test' 'main' 'abacus' 'deb')
+$(ofa 'pool/main/s/source-a/source-a_1.dsc')
+$(ofa 'pool/main/s/source-a/source-a_1.tar.gz')
+$(opa 'source-a' '1' 'test' 'main' 'source' 'dsc')
+$(ota 'test' 'source-a')
+$(ofa 'pool/main/s/source-b/onlyany_2_abacus.deb')
+$(opa 'onlyany' '2' 'test' 'main' 'abacus' 'deb')
+$(ofa 'pool/main/s/source-b/source-b_2.dsc')
+$(ofa 'pool/main/s/source-b/source-b_2.tar.gz')
+$(opa 'source-b' '2' 'test' 'main' 'source' 'dsc')
+$(ota 'test' 'source-b')
+$(ofa 'pool/main/s/source-c/source-c_3.dsc')
+$(ofa 'pool/main/s/source-c/source-c_3.tar.gz')
+$(ofa 'pool/main/s/source-c/somearch_3_abacus.deb')
+$(ofa 'pool/main/s/source-c/someindep_3_all.deb')
+$(opa 'source-c' '3' 'test' 'main' 'source' 'dsc')
+$(opa 'somearch' '3' 'test' 'main' 'abacus' 'deb')
+$(opa 'someindep' '3' 'test' 'main' 'abacus' 'deb')
+$(ota 'test' 'source-c')
+-v3*=deleting './i/onlyall_1_all.deb'...
+-v3*=deleting './i/onlyany_2_abacus.deb'...
+-v3*=deleting './i/somearch_3_abacus.deb'...
+-v3*=deleting './i/someindep_3_all.deb'...
+-v3*=deleting './i/source-a_1.dsc'...
+-v3*=deleting './i/source-a_1.tar.gz'...
+-v3*=deleting './i/source-a_1_all.buildinfo'...
+-v3*=deleting './i/source-a_1_binary.changes'...
+-v3*=deleting './i/source-a_1_source.buildinfo'...
+-v3*=deleting './i/source-a_1_sourceandbuild.changes'...
+-v3*=deleting './i/source-b_2.dsc'...
+-v3*=deleting './i/source-b_2.tar.gz'...
+-v3*=deleting './i/source-b_2_abacus.buildinfo'...
+-v3*=deleting './i/source-b_2_binary.changes'...
+-v3*=deleting './i/source-b_2_source.buildinfo'...
+-v3*=deleting './i/source-b_2_sourceandbuild.changes'...
+-v3*=deleting './i/source-c_3.dsc'...
+-v3*=deleting './i/source-c_3.tar.gz'...
+-v3*=deleting './i/source-c_3_abacus.buildinfo'...
+-v3*=deleting './i/source-c_3_full.changes'...
+EOF
+
+echo Now check storing the .buildinfo files in a logdir:
+sed -e 's/^Cleanup:.*/LogDir: log/' -i conf/incoming
+mkdir log
+
+rm -r db pool
+mkdir -p pool/main/s/source-a pool/main/s/source-b pool/main/s/source-c
+
+rm -r i
+mkdir i
+cp j/* i/
+rm './i/source-b_2_source.changes'
+rm './i/source-a_1_source.changes'
+
+testrun - processincoming foo 3<<EOF
+stderr
+stdout
+$(odb)
+$(ofa 'pool/main/s/source-a/onlyall_1_all.deb')
+$(opa 'onlyall' '1' 'test' 'main' 'abacus' 'deb')
+$(ofa 'pool/main/s/source-a/source-a_1.dsc')
+$(ofa 'pool/main/s/source-a/source-a_1.tar.gz')
+$(opa 'source-a' '1' 'test' 'main' 'source' 'dsc')
+$(ota 'test' 'source-a')
+$(ofa 'pool/main/s/source-b/onlyany_2_abacus.deb')
+$(opa 'onlyany' '2' 'test' 'main' 'abacus' 'deb')
+$(ofa 'pool/main/s/source-b/source-b_2.dsc')
+$(ofa 'pool/main/s/source-b/source-b_2.tar.gz')
+$(opa 'source-b' '2' 'test' 'main' 'source' 'dsc')
+$(ota 'test' 'source-b')
+$(ofa 'pool/main/s/source-c/source-c_3.dsc')
+$(ofa 'pool/main/s/source-c/source-c_3.tar.gz')
+$(ofa 'pool/main/s/source-c/somearch_3_abacus.deb')
+$(ofa 'pool/main/s/source-c/someindep_3_all.deb')
+$(opa 'source-c' '3' 'test' 'main' 'source' 'dsc')
+$(opa 'somearch' '3' 'test' 'main' 'abacus' 'deb')
+$(opa 'someindep' '3' 'test' 'main' 'abacus' 'deb')
+$(ota 'test' 'source-c')
+-v2*=Created directory "./log/source-c_3_source+abacus+all.0000000"
+-v2*=Created directory "./log/source-b_2_source.0000000"
+-v2*=Created directory "./log/source-b_2_abacus.0000000"
+-v2*=Created directory "./log/source-a_1_all.0000000"
+-v2*=Created directory "./log/source-a_1_source.0000000"
+-v3*=deleting './i/onlyall_1_all.deb'...
+-v3*=deleting './i/onlyany_2_abacus.deb'...
+-v3*=deleting './i/somearch_3_abacus.deb'...
+-v3*=deleting './i/someindep_3_all.deb'...
+-v3*=deleting './i/source-a_1.dsc'...
+-v3*=deleting './i/source-a_1.tar.gz'...
+-v3*=deleting './i/source-a_1_all.buildinfo'...
+-v3*=deleting './i/source-a_1_binary.changes'...
+-v3*=deleting './i/source-a_1_source.buildinfo'...
+-v3*=deleting './i/source-a_1_sourceandbuild.changes'...
+-v3*=deleting './i/source-b_2.dsc'...
+-v3*=deleting './i/source-b_2.tar.gz'...
+-v3*=deleting './i/source-b_2_abacus.buildinfo'...
+-v3*=deleting './i/source-b_2_binary.changes'...
+-v3*=deleting './i/source-b_2_source.buildinfo'...
+-v3*=deleting './i/source-b_2_sourceandbuild.changes'...
+-v3*=deleting './i/source-c_3.dsc'...
+-v3*=deleting './i/source-c_3.tar.gz'...
+-v3*=deleting './i/source-c_3_abacus.buildinfo'...
+-v3*=deleting './i/source-c_3_full.changes'...
+EOF
+
+dodiff log/source-a_1_all.0000000/source-a_1_all.buildinfo j/source-a_1_all.buildinfo
+dodiff log/source-a_1_source.0000000/source-a_1_source.buildinfo j/source-a_1_source.buildinfo
+dodiff log/source-b_2_abacus.0000000/source-b_2_abacus.buildinfo j/source-b_2_abacus.buildinfo
+dodiff log/source-b_2_source.0000000/source-b_2_source.buildinfo j/source-b_2_source.buildinfo
+dodiff log/source-c_3_source+abacus+all.0000000/source-c_3_abacus.buildinfo j/source-c_3_abacus.buildinfo
+
+testsuccess

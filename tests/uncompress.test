@@ -72,16 +72,26 @@ echo bzip2 -c testfile \> testfile.bz2
 bzip2 -c testfile > testfile.bz2
 echo lzma -c testfile \> testfile.lzma
 lzma -c testfile > testfile.lzma
-if test -x /usr/bin/xz ; then
-	echo xz -c testfile \> testfile.xz
-	xz -c testfile > testfile.xz
-fi
+echo xz -c testfile \> testfile.xz
+xz -c testfile > testfile.xz
+
 echo gzip -c smallfile \> smallfile.gz
 gzip -c smallfile > smallfile.gz
 echo bzip2 -c smallfile \> smallfile.bz2
 bzip2 -c smallfile > smallfile.bz2
 echo lzma -c smallfile \> smallfile.lzma
 lzma -c smallfile > smallfile.lzma
+echo xz -c smallfile \> smallfile.xz
+xz -c smallfile > smallfile.xz
+
+echo gzip -c \< /dev/null \> emptyfile.gz
+gzip -c < /dev/null > emptyfile.gz
+echo bzip2 -c \< /dev/null \> emptyfile.bz2
+bzip2 -c < /dev/null > emptyfile.bz2
+echo lzma -c \< /dev/null \> emptyfile.lzma
+lzma -c < /dev/null > emptyfile.lzma
+echo xz -c \< /dev/null \> emptyfile.xz
+xz -c < /dev/null > emptyfile.xz
 
 testrun - __uncompress .lz notexists.lz notexists.lz.uncompressed 3<<EOF
 -v2*=Uncompress 'notexists.lz' into 'notexists.lz.uncompressed' using '/usr/bin/lunzip'...
@@ -91,6 +101,7 @@ returns 254
 EOF
 
 if test -x /usr/bin/lzip ; then
+# uncompression message is different as this is no builtin.
 echo lzip -c testfile \> testfile.lz
 lzip -c testfile > testfile.lz
 echo lzip -c smallfile \> smallfile.lz
@@ -107,51 +118,64 @@ dodiff smallfile smallfile.lz.uncompressed
 rm *.uncompressed
 fi
 
-if test -x /usr/bin/xz ; then
-echo xz -c smallfile \> smallfile.xz
-xz -c smallfile > smallfile.xz
-testrun - __uncompress .xz testfile.xz testfile.xz.uncompressed 3<<EOF
--v2*=Uncompress 'testfile.xz' into 'testfile.xz.uncompressed'...
+for ext in gz bz2 lzma xz ; do
+	testrun - __uncompress .${ext} testfile.${ext} testfile.${ext}.uncompressed 3<<EOF
+-v2*=Uncompress 'testfile.${ext}' into 'testfile.${ext}.uncompressed'...
 EOF
-dodiff testfile testfile.xz.uncompressed
-rm *.uncompressed
-testrun - __uncompress .xz smallfile.xz smallfile.xz.uncompressed 3<<EOF
--v2*=Uncompress 'smallfile.xz' into 'smallfile.xz.uncompressed'...
-EOF
-dodiff smallfile smallfile.xz.uncompressed
-rm *.uncompressed
-fi
+	dodiff testfile testfile.${ext}.uncompressed
+	rm *.uncompressed
 
-testrun - __uncompress .gz testfile.gz testfile.gz.uncompressed 3<<EOF
--v2*=Uncompress 'testfile.gz' into 'testfile.gz.uncompressed'...
+	testrun - __uncompress .${ext} smallfile.${ext} smallfile.${ext}.uncompressed 3<<EOF
+-v2*=Uncompress 'smallfile.${ext}' into 'smallfile.${ext}.uncompressed'...
 EOF
-dodiff testfile testfile.gz.uncompressed
-rm *.uncompressed
-testrun - __uncompress .bz2 testfile.bz2 testfile.bz2.uncompressed 3<<EOF
--v2*=Uncompress 'testfile.bz2' into 'testfile.bz2.uncompressed'...
+	dodiff smallfile smallfile.${ext}.uncompressed
+	rm *.uncompressed
+done
+
+# unlzma does not support concatenated files, so we do neither.
+for ext in gz bz2 xz ; do
+	cat testfile.${ext} emptyfile.${ext} > concatenatedtestfile.${ext}
+	testrun - __uncompress .${ext} concatenatedtestfile.${ext} concatenatedtestfile.${ext}.uncompressed 3<<EOF
+-v2*=Uncompress 'concatenatedtestfile.${ext}' into 'concatenatedtestfile.${ext}.uncompressed'...
 EOF
-dodiff testfile testfile.bz2.uncompressed
-rm *.uncompressed
-testrun - __uncompress .lzma testfile.lzma testfile.lzma.uncompressed 3<<EOF
--v2*=Uncompress 'testfile.lzma' into 'testfile.lzma.uncompressed'...
+	dodiff testfile concatenatedtestfile.${ext}.uncompressed
+	rm concatenated*
+
+	cat testfile testfile > concatenatedtestfile
+	cat testfile.${ext} testfile.${ext} > concatenatedtestfile.${ext}
+	testrun - __uncompress .${ext} concatenatedtestfile.${ext} concatenatedtestfile.${ext}.uncompressed 3<<EOF
+-v2*=Uncompress 'concatenatedtestfile.${ext}' into 'concatenatedtestfile.${ext}.uncompressed'...
 EOF
-dodiff testfile testfile.lzma.uncompressed
-rm *.uncompressed
-testrun - __uncompress .gz smallfile.gz smallfile.gz.uncompressed 3<<EOF
--v2*=Uncompress 'smallfile.gz' into 'smallfile.gz.uncompressed'...
+	dodiff concatenatedtestfile concatenatedtestfile.${ext}.uncompressed
+	rm concatenated*
+done
+
+# Test for trailing garbage detection
+for ext in gz bz2 lzma ; do
+	cat testfile.${ext} smallfile > invalidtestfile.${ext}
+	testrun - __uncompress .${ext} invalidtestfile.${ext} invalidtestfile.${ext}.uncompressed 3<<EOF
+stderr
+-v2*=Uncompress 'invalidtestfile.${ext}' into 'invalidtestfile.${ext}.uncompressed'...
+*=Error reading from invalidtestfile.${ext}: Trailing garbage after compressed data!
+-v0*=There have been errors!
+returns 255
 EOF
-dodiff smallfile smallfile.gz.uncompressed
-rm *.uncompressed
-testrun - __uncompress .bz2 smallfile.bz2 smallfile.bz2.uncompressed 3<<EOF
--v2*=Uncompress 'smallfile.bz2' into 'smallfile.bz2.uncompressed'...
+	dodo test ! -e invalidtestfile.${ext}.uncompressed
+	rm invalid*
+done
+
+# .xz does not see the trailing stuff, but an end of file while reading the header:
+cat testfile.xz smallfile > invalidtestfile.xz
+testrun - __uncompress .xz invalidtestfile.xz invalidtestfile.xz.uncompressed 3<<EOF
+stderr
+-v2*=Uncompress 'invalidtestfile.xz' into 'invalidtestfile.xz.uncompressed'...
+*=Error 10 decompressing lzma data
+*=Error reading from invalidtestfile.xz: Uncompression error!
+-v0*=There have been errors!
+returns 255
 EOF
-dodiff smallfile smallfile.bz2.uncompressed
-rm *.uncompressed
-testrun - __uncompress .lzma smallfile.lzma smallfile.lzma.uncompressed 3<<EOF
--v2*=Uncompress 'smallfile.lzma' into 'smallfile.lzma.uncompressed'...
-EOF
-dodiff smallfile smallfile.lzma.uncompressed
-rm *.uncompressed
+dodo test ! -e invalidtestfile.xz.uncompressed
+rm invalid*
 
 touch fake.lz
 testrun - --lunzip=false __uncompress .lz fake.lz fake.lz.uncompressed 3<<EOF
@@ -175,25 +199,48 @@ EOF
 # long for the old ar format dpkg-deb needs...
 echo tar -cf - ./control \| bzip2 \> control.tar.bz2
 tar -cf - ./control | bzip2 > control.tar.bz2
-rm control
 echo tar -cf - testfile\* \| lzma \> data.tar.lzma
 tar -cf - testfile* | lzma > data.tar.lzma
+echo tar -cf - testfile\* \| bzip2 \> data.tar.bz2
+tar -cf - testfile* | bzip2 > data.tar.bz2
+echo tar -cf - testfile\* \| gzip \> data.tar.gz
+tar -cf - testfile* | gzip > data.tar.gz
+echo tar -cf - testfile\* \| xz \> data.tar.xz
+tar -cf - testfile* | xz > data.tar.xz
 echo 2.0 > debian-binary
-dodo ar qcfS fake.deb debian-binary control.tar.bz2 data.tar.lzma
-rm *.tar.bz2 *.tar.lzma debian-binary
+datatestlist="gz bz2 lzma xz"
+for ext in $datatestlist ; do
+	dodo ar qcfS fake_${ext}.deb debian-binary control.tar.bz2 data.tar.${ext}
+	# one .deb with trailing garbage at the end of the data tar:
+	echo "trailing garbage" >> data.tar.${ext}
+	dodo ar qcfS fake_${ext}_t.deb debian-binary control.tar.bz2 data.tar.${ext}
+	# and one .deb where the the length is correct but the .ar header differs
+	cp fake_${ext}_t.deb fake_${ext}_w.deb
+	origlength=$(stat -c '%s' fake_${ext}.deb)
+	newlength=$(stat -c '%s' fake_${ext}_w.deb)
+	if test $((origlength + 18)) -eq $((newlength)) ; then
+		# new length is 17 + one padding, so original did not have padding:
+		truncate -s "$origlength" fake_${ext}_w.deb
+	else
+		# also remove the padding byte:
+		truncate -s "$((origlength - 1))" fake_${ext}_w.deb
+	fi
+done
+rm debian-binary control *.tar.*
 
 # TODO: there could be a problem here with .deb files that have data after the
 # ./control file in data.tar and using an external uncompressor.
 # But how to test this when there is no way to trigger it in the default built?
 
-testrun - __extractcontrol fake.deb 3<<EOF
+testrun - __extractcontrol fake_gz.deb 3<<EOF
 stdout
 *=Package: fake
 *=Version: fake
 *=Architecture: all
 *=
 EOF
-testrun - __extractfilelist fake.deb 3<<EOF
+for ext in $datatestlist ; do
+testrun - __extractfilelist fake_${ext}.deb 3<<EOF
 stdout
 *=/testfile
 *=/testfile.bz2
@@ -202,8 +249,34 @@ stdout
 =/testfile.xz
 =/testfile.lz
 EOF
+	if test $ext = xz ; then
+testrun - __extractfilelist fake_${ext}_t.deb 3<<EOF
+stderr
+*=Error 9 decompressing lzma data
+*=Error reading data.tar from fake_xz_t.deb: Uncompression error
+-v0*=There have been errors!
+return 255
+EOF
+	else
+testrun - __extractfilelist fake_${ext}_t.deb 3<<EOF
+stderr
+*=Error reading data.tar from fake_${ext}_t.deb: Trailing garbage after compressed data
+-v0*=There have been errors!
+return 255
+EOF
+	fi
+	if test $ext = xz ; then
+		: # xz has too large blocks to trigger this (tar is done before this is read)
+	else
+testrun - __extractfilelist fake_${ext}_w.deb 3<<EOF
+*=Error reading data.tar from fake_${ext}_w.deb: Compressed data of unexpected length
+-v0*=There have been errors!
+return 255
+EOF
+	fi
+done
 
-rm fake.deb
+rm fake_*.deb
 
 for compressor in lz lzma ; do
 case $compressor in
@@ -400,7 +473,7 @@ fi
 
 done
 
-rm testfile* smallfile*
+rm testfile* smallfile* emptyfile*
 
 cat > fake_1-2.diff <<EOF
 --- bla/Makefile

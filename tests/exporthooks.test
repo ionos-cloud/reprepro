@@ -52,12 +52,10 @@ EOF
 find dists -type f | sort > results
 cat > results.expected <<EOF
 dists/o/Release
-dists/o/e/binary-a/Release
 dists/o/e/binary-a/X.bz2
 dists/o/e/binary-a/X.gz
 dists/o/e/binary-a/X.something
 dists/o/e/binary-a/X.something.hidden
-dists/o/e/binary-b/Release
 dists/o/e/binary-b/X.bz2
 dists/o/e/binary-b/X.gz
 dists/o/e/binary-b/X.something

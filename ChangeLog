@@ -1,3 +1,23 @@
+2016-12-23  Bernhard R. Link <brlink@debian.org>
+	* properly report errors of the internal xz and lzma decompressors
+	* when using the builtin .xz uncompressor,
+	  support concatenated streams
+	* when using the builtin .gz uncompressor,
+	  support concatenated streams
+
+2016-12-22  Bernhard R. Link <brlink@debian.org>
+	* add unreferencesnapshot and removereference commands
+	* document --export=silent-never
+	* when using the builtin .bz2 uncompressor,
+	  support concatenated streams
+
+2016-12-21  Bernhard R. Link <brlink@debian.org>
+	* fix behaviour of (Deb|Dsc)Indices without a Release file
+	  (if no Release filename was given the default was used
+	   instead of not creating a file)
+	* document what is needed to use --ask-passphrase with newer
+	  gnupg versions in the manpage
+
 2016-12-21  Bernhard R. Link <brlink@debian.org>
 	* add support for .buildinfo files in .changes files:
 	- new tracking mode includebuildinfos to store them in pool/

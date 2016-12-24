@@ -101,7 +101,7 @@ addsource() {
 	SUBDIR="$(basename $TARGETDIR)"
 	BASEDIR="$(dirname $TARGETDIR)"
 	if ! [ -d "$TARGETDIR" ] ; then
-		echo "extract $CANONDSCFILE information to $TARGETDIR"
+		#echo "extract $CANONDSCFILE information to $TARGETDIR"
 		mkdir -p -- "$TARGETDIR"
 		EXTRACTDIR="$(mktemp -d)"
 		(cd -- "$EXTRACTDIR" && dpkg-source --no-copy -x "$CANONDSCFILE" > /dev/null)
