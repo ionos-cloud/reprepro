@@ -621,7 +621,7 @@ static inline retvalue verify_signature(const struct signature_requirement *requ
 	}
 
 	for (req = requirements ; req != NULL ; req = req->next) {
-		bool fullfilled = false;
+		bool fulfilled = false;
 
 		/* check first for good signatures, and then for good enough
 		   signatures, to not pester the user with warnings of one
@@ -630,28 +630,28 @@ static inline retvalue verify_signature(const struct signature_requirement *requ
 		for (i = 0 ; (size_t)i < req->num_keys ; i++) {
 
 			if (key_good(&req->keys[i], result->signatures)) {
-				fullfilled = true;
+				fulfilled = true;
 				break;
 			}
 		}
-		for (i = 0 ; !fullfilled && (size_t)i < req->num_keys ; i++) {
+		for (i = 0 ; !fulfilled && (size_t)i < req->num_keys ; i++) {
 
 			if (key_good_enough(&req->keys[i], result->signatures,
 						releasegpg, releasename)) {
-				fullfilled = true;
+				fulfilled = true;
 				break;
 			}
 		}
-		if (!fullfilled) {
+		if (!fulfilled) {
 			fprintf(stderr,
-"ERROR: Condition '%s' not fullfilled for '%s'.\n",
+"ERROR: Condition '%s' not fulfilled for '%s'.\n",
 					req->condition, releasegpg);
 			print_signatures(stderr, result->signatures,
 					releasegpg);
 			return RET_ERROR_BADSIG;
 		}
 		if (verbose > 10) {
-			fprintf(stdout, "Condition '%s' fullfilled for '%s'.\n",
+			fprintf(stdout, "Condition '%s' fulfilled for '%s'.\n",
 					req->condition, releasegpg);
 		}
 	}

@@ -82,7 +82,7 @@ enum optionsflags {
 	/* only put _all.deb comes with those of some architecture,
 	 * only put in those architectures */
 	iof_limit_arch_all = 0,
-	/* allow .changes file to specify multipe distributions */
+	/* allow .changes file to specify multiple distributions */
 	iof_multiple_distributions,
 	iof_COUNT /* must be last */
 };

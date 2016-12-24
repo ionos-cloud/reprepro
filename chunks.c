@@ -418,7 +418,7 @@ retvalue chunk_getnameandversion(const char *chunk, const char *name, char **pkg
 						name);
 			else
 				fprintf(stderr,
-"Error: Field '%s' has multipe words after '('!\n",
+"Error: Field '%s' has multiple words after '('!\n",
 						name);
 			return RET_ERROR;
 		}

@@ -55,7 +55,7 @@ dodo mv tracking.db db/
 
 testrun - --keepunreferenced removesrc breakme aa 3<<EOF
 stderr
-*=Warning: tracking data might be incosistent:
+*=Warning: tracking data might be inconsistent:
 *=cannot find 'aa' in 'breakme|something|abacus', but 'pool/something/a/aa/aa_1-1_abacus.deb' should be there.
 *=cannot find 'aa' in 'breakme|something|source', but 'pool/something/a/aa/aa_1-1.dsc' should be there.
 *=There was an inconsistency in the tracking data of 'breakme':

@@ -271,7 +271,7 @@ bool indexfile_getnext(struct indexfile *f, struct package *pkgout, struct targe
 						f->linenumber);
 				if (ignored[IGN_wrongarchitecture] == 0) {
 					fprintf(stderr,
-"This either mean the repository you get packages from is of an extremly\n"
+"This either mean the repository you get packages from is of an extremely\n"
 "low quality, or something went wrong. Trying to ignore it now, though.\n"
 "To no longer get this message use '--ignore=wrongarchitecture'.\n");
 				}
