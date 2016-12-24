@@ -1,6 +1,0 @@
-0001-include-buildinfo.test-in-tarball.patch
-0002-fix-behaviour-of-Deb-Dsc-Indices-without-a-Release-f.patch
-0003-document-what-is-needed-to-use-ask-passphrase-with-n.patch
-0004-changelogs.example-be-less-verbose-by-default.patch
-0005-add-unreferencesnapshot-and-removereference-commands.patch
-0006-document-export-silent-never.patch

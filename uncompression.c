@@ -554,6 +554,7 @@ struct compressedfile {
 			enum uncompression_error {
 				ue_NO_ERROR = 0,
 				ue_TRAILING_GARBAGE,
+				ue_WRONG_LENGTH,
 				ue_UNCOMPRESSION_ERROR,
 			} error;
 			/* compression stream ended */
@@ -710,8 +711,7 @@ static inline retvalue start_xz(struct compressedfile *f, int *errno_p, const ch
 	f->uncompress.lzma.next_in = f->uncompress.buffer;
 	f->uncompress.lzma.avail_in = f->uncompress.available;
 
-	// TODO: some logic to allow LZMA_CONCATENATED in flags?
-	ret = lzma_stream_decoder(&f->uncompress.lzma, UINT64_MAX, 0);
+	ret = lzma_stream_decoder(&f->uncompress.lzma, UINT64_MAX, LZMA_CONCATENATED);
 	if (ret != LZMA_OK) {
 		if (ret == LZMA_MEM_ERROR) {
 			*errno_p = ENOMEM;
@@ -1006,6 +1006,82 @@ static inline int pipebackforth(struct compressedfile *file, void *buffer, int s
 	} while (true);
 }
 
+static inline int restart_gz_if_needed(struct compressedfile *f) {
+	retvalue r;
+	int ret;
+
+	/* first mark end of stream, will be reset if restarted */
+	f->uncompress.hadeos = true;
+
+	if (f->uncompress.gz.avail_in == 0 && f->len != 0) {
+		/* Input buffer consumed and (possibly) more data, so
+		 * read more data to check:  */
+		f->uncompress.available = 0;
+		r = uncompression_read_internal_buffer(f);
+		if (RET_WAS_ERROR(r))
+			return false;
+		f->uncompress.gz.next_in = f->uncompress.buffer;
+		f->uncompress.gz.avail_in = f->uncompress.available;
+		if (f->uncompress.available == 0 && f->len > 0) {
+			/* stream ends, file ends, but we are
+			 * still expecting data? */
+			f->uncompress.error = ue_WRONG_LENGTH;
+			return false;
+		}
+		assert (f->uncompress.gz.avail_in > 0 || f->len == 0);
+	}
+	if (f->uncompress.gz.avail_in > 0 &&
+			f->uncompress.gz.next_in[0] == 0x1F) {
+		/* might be concatenated files, so try to restart */
+		ret = inflateEnd(&f->uncompress.gz);
+		if (ret != Z_OK) {
+			f->uncompress.error = ue_UNCOMPRESSION_ERROR;
+			return false;
+		}
+
+		unsigned int avail_in = f->uncompress.gz.avail_in;
+		unsigned char *next_in =  f->uncompress.gz.next_in;
+		memset(&f->uncompress.gz, 0, sizeof(f->uncompress.gz));
+		f->uncompress.gz.zalloc = Z_NULL; /* use default */
+		f->uncompress.gz.zfree = Z_NULL; /* use default */
+		f->uncompress.gz.next_in = next_in;
+		f->uncompress.gz.avail_in = avail_in;
+		/* 32 means accept zlib and gz header
+		 * 15 means accept any windowSize */
+		ret = inflateInit2(&f->uncompress.gz, 32 + 15);
+		if (ret != BZ_OK) {
+			if (ret == BZ_MEM_ERROR) {
+				f->error = ENOMEM;
+				return false;
+			}
+			f->uncompress.error = ue_UNCOMPRESSION_ERROR;
+			return false;
+		}
+		if (ret != Z_OK) {
+			if (ret == Z_MEM_ERROR) {
+				f->error = ENOMEM;
+				return false;
+			}
+			f->uncompress.error = ue_TRAILING_GARBAGE;
+			return false;
+		}
+		f->uncompress.hadeos = false;
+		/* successful restarted */
+		return true;
+	} else {
+		/* mark End Of Stream, so bzDecompress is not called again */
+		f->uncompress.hadeos = true;
+		if (f->uncompress.gz.avail_in > 0) {
+			/* trailing garbage */
+			f->uncompress.error = ue_TRAILING_GARBAGE;
+			return false;
+		} else
+			/* normal end of stream, no error and
+			 * no restart necessary: */
+			return true;
+	}
+}
+
 static inline int read_gz(struct compressedfile *f, void *buffer, int size) {
 	int ret;
 	int flush = Z_SYNC_FLUSH;
@@ -1038,28 +1114,32 @@ static inline int read_gz(struct compressedfile *f, void *buffer, int size) {
 
 		ret = inflate(&f->uncompress.gz, flush);
 
-		/* use Z_FINISH on second try, unless there is new data */
-		flush = Z_FINISH;
+		if (ret == Z_STREAM_END) {
+			size_t gotdata = size - f->uncompress.gz.avail_out;
+
+			f->uncompress.gz.next_out = NULL;
+			f->uncompress.gz.avail_out = 0;
+
+			if (!restart_gz_if_needed(f))
+				return -1;
+			if (gotdata > 0 || f->uncompress.hadeos)
+				return gotdata;
+
+			/* read the restarted stream for data */
+			ret = Z_OK;
+			flush = Z_SYNC_FLUSH;
+			f->uncompress.gz.next_out = buffer;
+			f->uncompress.gz.avail_out = size;
+		} else {
+			/* use Z_FINISH on second try, unless there is new data */
+			flush = Z_FINISH;
+		}
 
 		/* repeat if no output was produced,
 		 * assuming zlib will consume all input otherwise,
 		 * as the documentation says: */
 	} while (ret == Z_OK && f->uncompress.gz.avail_out == (size_t)size);
-	if (ret == Z_STREAM_END) {
-		if (f->uncompress.gz.avail_in > 0 || f->len > 0) {
-			f->uncompress.error = ue_TRAILING_GARBAGE;
-		} else {
-			/* check if this is the end of the file: */
-			f->uncompress.available = 0;
-			r = uncompression_read_internal_buffer(f);
-			if (RET_WAS_ERROR(r)) {
-				assert (f->error != 0);
-			} else if (f->len != 0)
-				f->uncompress.error = ue_TRAILING_GARBAGE;
-		}
-		f->uncompress.hadeos = true;
-		return size - f->uncompress.gz.avail_out;
-	} else if (ret == Z_OK ||
+	if (ret == Z_OK ||
   	    (ret == Z_BUF_ERROR && f->uncompress.gz.avail_out != (size_t)size)) {
 		return size - f->uncompress.gz.avail_out;
 	} else if (ret == Z_MEM_ERROR) {
@@ -1077,6 +1157,67 @@ static inline int read_gz(struct compressedfile *f, void *buffer, int size) {
 }
 
 #ifdef HAVE_LIBBZ2
+static inline int restart_bz2_if_needed(struct compressedfile *f) {
+	retvalue r;
+	int ret;
+
+	/* first mark end of stream, will be reset if restarted */
+	f->uncompress.hadeos = true;
+
+	if (f->uncompress.bz2.avail_in == 0 && f->len != 0) {
+		/* Input buffer consumed and (possibly) more data, so
+		 * read more data to check:  */
+		f->uncompress.available = 0;
+		r = uncompression_read_internal_buffer(f);
+		if (RET_WAS_ERROR(r))
+			return false;
+		f->uncompress.bz2.next_in = (char*)f->uncompress.buffer;
+		f->uncompress.bz2.avail_in = f->uncompress.available;
+		if (f->uncompress.available == 0 && f->len > 0) {
+			/* stream ends, file ends, but we are
+			 * still expecting data? */
+			f->uncompress.error = ue_WRONG_LENGTH;
+			return false;
+		}
+		assert (f->uncompress.bz2.avail_in > 0 || f->len == 0);
+	}
+	if (f->uncompress.bz2.avail_in > 0 &&
+			f->uncompress.bz2.next_in[0] == 'B') {
+
+		/* might be concatenated files, so restart */
+		ret = BZ2_bzDecompressEnd(&f->uncompress.bz2);
+		if (ret != BZ_OK) {
+			f->uncompress.error = ue_UNCOMPRESSION_ERROR;
+			return false;
+		}
+		ret = BZ2_bzDecompressInit(&f->uncompress.bz2, 0, 0);
+		if (ret != BZ_OK) {
+			if (ret == BZ_MEM_ERROR) {
+				f->error = ENOMEM;
+				return false;
+			}
+			f->uncompress.error = ue_TRAILING_GARBAGE;
+			f->uncompress.hadeos = true;
+			return false;
+		}
+		f->uncompress.hadeos = false;
+		/* successful restarted */
+		return true;
+	} else {
+		/* mark End Of Stream, so bzDecompress is not called again */
+		f->uncompress.hadeos = true;
+		if (f->uncompress.bz2.avail_in > 0) {
+			/* trailing garbage */
+			f->uncompress.error = ue_TRAILING_GARBAGE;
+			return false;
+		} else
+			/* normal end of stream, no error and
+			 * no restart necessary: */
+			return true;
+	}
+}
+
+
 static inline int read_bz2(struct compressedfile *f, void *buffer, int size) {
 	int ret;
 	retvalue r;
@@ -1113,23 +1254,27 @@ static inline int read_bz2(struct compressedfile *f, void *buffer, int size) {
 			ret = BZ_UNEXPECTED_EOF;
 		}
 
+		if (ret == BZ_STREAM_END) {
+			size_t gotdata = size - f->uncompress.bz2.avail_out;
+
+			f->uncompress.bz2.next_out = NULL;
+			f->uncompress.bz2.avail_out = 0;
+
+			if (!restart_bz2_if_needed(f))
+				return -1;
+			if (gotdata > 0 || f->uncompress.hadeos)
+				return gotdata;
+
+			/* read the restarted stream for data */
+			ret = BZ_OK;
+			f->uncompress.bz2.next_out = buffer;
+			f->uncompress.bz2.avail_out = size;
+		}
+
 		/* repeat if no output was produced: */
 	} while (ret == BZ_OK && f->uncompress.bz2.avail_out == (size_t)size);
-	if (ret == BZ_STREAM_END) {
-		if (f->uncompress.bz2.avail_in > 0 || f->len > 0) {
-			f->uncompress.error = ue_TRAILING_GARBAGE;
-		} else {
-			/* check if this is the end of the file: */
-			f->uncompress.available = 0;
-			r = uncompression_read_internal_buffer(f);
-			if (RET_WAS_ERROR(r)) {
-				assert (f->error != 0);
-			} else if (f->len != 0)
-				f->uncompress.error = ue_TRAILING_GARBAGE;
-		}
-		f->uncompress.hadeos = true;
-		return size - f->uncompress.bz2.avail_out;
-	} else if (ret == BZ_OK) {
+
+	if (ret == BZ_OK) {
 		return size - f->uncompress.bz2.avail_out;
 	} else if (ret == BZ_MEM_ERROR) {
 		fputs("Out of memory!", stderr);
@@ -1184,16 +1329,26 @@ static inline int read_lzma(struct compressedfile *f, void *buffer, int size) {
 		/* repeat if no output was produced: */
 	} while (ret == LZMA_OK && f->uncompress.lzma.avail_out == (size_t)size);
 	if (ret == LZMA_STREAM_END) {
-		if (f->uncompress.lzma.avail_in > 0 || f->len > 0) {
+		if (f->uncompress.lzma.avail_in > 0) {
 			f->uncompress.error = ue_TRAILING_GARBAGE;
+			return -1;
+		} else if (f->len > 0) {
+			f->uncompress.error = ue_WRONG_LENGTH;
+			return -1;
 		} else {
 			/* check if this is the end of the file: */
 			f->uncompress.available = 0;
 			r = uncompression_read_internal_buffer(f);
 			if (RET_WAS_ERROR(r)) {
 				assert (f->error != 0);
-			} else if (f->len != 0)
-				f->uncompress.error = ue_TRAILING_GARBAGE;
+				return -1;
+			} else if (f->len != 0) {
+				f->uncompress.error =
+					(f->uncompress.available == 0)
+					? ue_WRONG_LENGTH
+					: ue_TRAILING_GARBAGE;
+				return -1;
+			}
 		}
 		f->uncompress.hadeos = true;
 		return size - f->uncompress.lzma.avail_out;
@@ -1230,6 +1385,9 @@ int uncompress_read(struct compressedfile *file, void *buffer, int size) {
 
 	assert (!file->external);
 
+	if (file->error != 0 || file->uncompress.error != ue_NO_ERROR)
+		return -1;
+
 	/* libbz2 does not like being called after returning end of stream,
 	 * so cache that: */
 	if (file->uncompress.hadeos)
@@ -1259,7 +1417,7 @@ int uncompress_read(struct compressedfile *file, void *buffer, int size) {
 #endif
 		default:
 			assert (false);
-			return RET_ERROR_INTERNAL;
+			return -1;
 	}
 }
 
@@ -1340,6 +1498,8 @@ static retvalue uncompress_commonclose(struct compressedfile *file, int *errno_p
 		*errno_p = -EINVAL;
 		if (file->uncompress.error == ue_TRAILING_GARBAGE)
 			*msg_p = "Trailing garbage after compressed data";
+		else if (file->uncompress.error == ue_WRONG_LENGTH)
+			*msg_p = "Compressed data of unexpected length";
 		else
 			*msg_p = "Uncompression error";
 		result = RET_ERROR;
@@ -1384,6 +1544,8 @@ static retvalue uncompress_commonclose(struct compressedfile *file, int *errno_p
 		case c_lzma:
 		case c_xz:
 			lzma_end(&file->uncompress.lzma);
+			if (RET_WAS_ERROR(result))
+				return result;
 			return RET_OK;
 #endif
 		default:
@@ -1456,6 +1618,10 @@ retvalue uncompress_error(struct compressedfile *file) {
 		if (file->uncompress.error == ue_TRAILING_GARBAGE)
 			fprintf(stderr,
 "Trailing garbage after compressed data in %s",
+					file->filename);
+		else if (file->uncompress.error == ue_WRONG_LENGTH)
+			fprintf(stderr,
+"Compressed data of different length than expected in %s",
 					file->filename);
 		return RET_ERROR;
 	}
