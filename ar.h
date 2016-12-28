@@ -13,7 +13,7 @@ retvalue ar_nextmember(struct ar_archive *, /*@out@*/char ** /*filename*/);
 void ar_archivemember_setcompression(struct ar_archive *, enum compression);
 
 /* the following can be used for libarchive to read an file in the ar
- * after ar_nextmember returned sucessfully.
+ * after ar_nextmember returned successfully.
  * All references get invalid after the ar_nextmember is called again.  */
 int ar_archivemember_close(struct archive *, void *);
 int ar_archivemember_open(struct archive *, void *);

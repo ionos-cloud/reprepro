@@ -1,0 +1,555 @@
+set -u
+. "$TESTSDIR"/test.inc
+
+dodo test ! -d db
+mkdir -p conf
+cat > conf/distributions <<EOF
+Codename: 1234
+Components: component
+Architectures: something source
+DebIndices: Packages .xz
+DscIndices: Sources .xz
+Update: test
+EOF
+cat > conf/updates <<EOF
+Name: test
+GetInRelease: no
+VerifyRelease: blindtrust
+Method: file:$WORKDIR/in
+FilterList: error filterlist
+FilterSrcList: error filtersrclist
+Suite: 4321
+EOF
+echo > conf/filterlist
+echo > conf/filtersrclist
+
+testrun - -b . export 1234 3<<EOF
+stderr
+stdout
+$(odb)
+-v1*=Exporting 1234...
+-v2*=Created directory "./dists"
+-v2*=Created directory "./dists/1234"
+-v2*=Created directory "./dists/1234/component"
+-v2*=Created directory "./dists/1234/component/binary-something"
+-v6*= exporting '1234|component|something'...
+-v6*=  creating './dists/1234/component/binary-something/Packages' (xzed)
+-v2*=Created directory "./dists/1234/component/source"
+-v6*= exporting '1234|component|source'...
+-v6*=  creating './dists/1234/component/source/Sources' (xzed)
+EOF
+
+mkdir lists
+mkdir -p in/dists/4321
+touch in/dists/4321/Release
+
+testrun - -b . update 1234 3<<EOF
+returns 255
+stderr
+-v6=aptmethod start 'file:$WORKDIR/in/dists/4321/Release'
+-v1*=aptmethod got 'file:$WORKDIR/in/dists/4321/Release'
+-v2*=Copy file '$WORKDIR/in/dists/4321/Release' to './lists/test_4321_Release'...
+*=Missing checksums in Release file './lists/test_4321_Release'!
+-v0*=There have been errors!
+stdout
+EOF
+
+echo "SHA256:" > in/dists/4321/Release
+
+testrun - -b . update 1234 3<<EOF
+returns 254
+stderr
+-v6=aptmethod start 'file:$WORKDIR/in/dists/4321/Release'
+-v1*=aptmethod got 'file:$WORKDIR/in/dists/4321/Release'
+-v2*=Copy file '$WORKDIR/in/dists/4321/Release' to './lists/test_4321_Release'...
+*=Could not find 'component/binary-something/Packages' within './lists/test_4321_Release'
+-v0*=There have been errors!
+stdout
+EOF
+
+mkdir -p in/dists/4321/component/source in/dists/4321/component/binary-something
+xz -c < /dev/null > in/dists/4321/component/source/Sources.xz
+xz -c < /dev/null > in/dists/4321/component/binary-something/Packages.xz
+cat > in/dists/4321/Release <<EOF
+SHA256:
+ $EMPTYSHA2 component/source/Sources
+ $(sha2andsize in/dists/4321/component/source/Sources.xz) component/source/Sources.xz
+ $(sha2andsize in/dists/4321/component/binary-something/Packages.xz) component/binary-something/Packages.xz
+EOF
+
+testrun - -b . update 1234 3<<EOF
+stderr
+-v6=aptmethod start 'file:$WORKDIR/in/dists/4321/Release'
+-v1*=aptmethod got 'file:$WORKDIR/in/dists/4321/Release'
+-v2*=Copy file '$WORKDIR/in/dists/4321/Release' to './lists/test_4321_Release'...
+-v6=aptmethod start 'file:$WORKDIR/in/dists/4321/component/source/Sources.xz'
+-v1*=aptmethod got 'file:$WORKDIR/in/dists/4321/component/source/Sources.xz'
+-v2*=Uncompress '$WORKDIR/in/dists/4321/component/source/Sources.xz' into './lists/test_4321_component_Sources' using '/usr/bin/unxz'...
+-v6=aptmethod start 'file:$WORKDIR/in/dists/4321/component/binary-something/Packages.xz'
+-v1*=aptmethod got 'file:$WORKDIR/in/dists/4321/component/binary-something/Packages.xz'
+-v2*=Uncompress '$WORKDIR/in/dists/4321/component/binary-something/Packages.xz' into './lists/test_4321_component_something_Packages' using '/usr/bin/unxz'...
+stdout
+-v0*=Calculating packages to get...
+-v3*=  processing updates for '1234|component|source'
+-v5*=  reading './lists/test_4321_component_Sources'
+-v3*=  processing updates for '1234|component|something'
+-v5*=  reading './lists/test_4321_component_something_Packages'
+EOF
+
+# an extremely manually built package to ensure only some things are there:
+mkdir -p build/test-1/src
+echo a > build/test-1/src/sourcefile
+srcorigname=test_1.orig.tar.xz
+tar -cJf build/${srcorigname} -C build test-1
+srcorigsha=$(sha2andsize build/${srcorigname})
+mkdir -p build/test-1/debian
+cat > build/test-1/debian/control <<EOF
+Source: test
+Maintainer: <me@me>
+
+Package: name
+Architecture: all
+EOF
+touch build/test-1/debian/changelog
+srcdebname=test_1-1.debian.tar.xz
+tar -cJf build/${srcdebname} -C build/test-1 debian
+srcdebsha=$(sha2andsize build/${srcdebname})
+srcdscname=test_1-1.dsc
+cat > build/${srcdscname} <<EOF
+Source: test
+EOF
+srcdscsha=$(sha2andsize build/${srcdscname})
+mkdir -p build/name/opt/
+echo trash > build/name/opt/trash
+mkdir -p build/name/DEBIAN
+cat > build/name/DEBIAN/control <<EOF
+Package: name
+Architecture: all
+Version: 17-2
+Source: test (1-1)
+Maintainer: <me@me>
+Description: some
+ description
+EOF
+bindebname=name_17-2_all.deb
+dpkg-deb -Z xz -b build/name build/${bindebname}
+bindebsha=$(sha2only build/${bindebname})
+bindebsize=$(sizeonly build/${bindebname})
+
+rm in/dists/4321/component/binary-something/Packages.xz
+cat > in/dists/4321/component/binary-something/Packages <<EOF
+Package: name
+Version: 17-2
+Source: test (1-1)
+Maintainer: <me@me>
+Architecture: all
+Size: ${bindebsize}
+SHA256: ${bindebsha}
+Filename: ../build/${bindebname}
+Description: some
+ description
+EOF
+packagessha=$(sha2andsize in/dists/4321/component/binary-something/Packages)
+xz in/dists/4321/component/binary-something/Packages
+packagesxzsha=$(sha2andsize in/dists/4321/component/binary-something/Packages.xz)
+
+rm in/dists/4321/component/source/Sources.xz
+cat > in/dists/4321/component/source/Sources <<EOF
+Package: test
+Version: 1-1
+Maintainer: <me@me>
+Directory: ../build
+Checksums-Sha256:
+ ${srcdscsha} ${srcdscname}
+ ${srcdebsha} ${srcdebname}
+ ${srcorigsha} ${srcorigname}
+EOF
+sourcessha=$(sha2andsize in/dists/4321/component/source/Sources)
+xz in/dists/4321/component/source/Sources
+sourcesxzsha=$(sha2andsize in/dists/4321/component/source/Sources.xz)
+
+cat > in/dists/4321/Release <<EOF
+SHA256:
+ $sourcessha component/source/Sources
+ $sourcesxzsha component/source/Sources.xz
+ $packagessha component/binary-something/Packages
+ $packagesxzsha component/binary-something/Packages.xz
+EOF
+
+mkdir -p pool/component/t/test
+
+testrun - -b . update 1234 3<<EOF
+stderr
+-v6=aptmethod start 'file:$WORKDIR/in/dists/4321/Release'
+-v1*=aptmethod got 'file:$WORKDIR/in/dists/4321/Release'
+-v2*=Copy file '$WORKDIR/in/dists/4321/Release' to './lists/test_4321_Release'...
+-v6=aptmethod start 'file:$WORKDIR/in/dists/4321/component/source/Sources.xz'
+-v1*=aptmethod got 'file:$WORKDIR/in/dists/4321/component/source/Sources.xz'
+-v2*=Uncompress '$WORKDIR/in/dists/4321/component/source/Sources.xz' into './lists/test_4321_component_Sources' using '/usr/bin/unxz'...
+-v6=aptmethod start 'file:$WORKDIR/in/dists/4321/component/binary-something/Packages.xz'
+-v1*=aptmethod got 'file:$WORKDIR/in/dists/4321/component/binary-something/Packages.xz'
+-v2*=Uncompress '$WORKDIR/in/dists/4321/component/binary-something/Packages.xz' into './lists/test_4321_component_something_Packages' using '/usr/bin/unxz'...
+*=Package name marked to be unexpected('error'): 'test'!
+*=Stop reading further chunks from './lists/test_4321_component_Sources' due to previous errors.
+*=There have been errors!
+returns 255
+stdout
+-v0*=Calculating packages to get...
+-v3*=  processing updates for '1234|component|source'
+-v5*=  reading './lists/test_4321_component_Sources'
+EOF
+
+echo "test =1-1" > conf/filtersrclist
+
+testrun - -b . update 1234 3<<EOF
+stderr
+-v6=aptmethod start 'file:$WORKDIR/in/dists/4321/Release'
+-v1*=aptmethod got 'file:$WORKDIR/in/dists/4321/Release'
+-v2*=Copy file '$WORKDIR/in/dists/4321/Release' to './lists/test_4321_Release'...
+*=Package name marked to be unexpected('error'): 'name'!
+*=Stop reading further chunks from './lists/test_4321_component_something_Packages' due to previous errors.
+*=There have been errors!
+returns 255
+stdout
+-v0*=Calculating packages to get...
+-v3*=  processing updates for '1234|component|source'
+-v5*=  reading './lists/test_4321_component_Sources'
+-v3*=  processing updates for '1234|component|something'
+-v5*=  reading './lists/test_4321_component_something_Packages'
+EOF
+
+echo "name =17-2" > conf/filterlist
+
+testrun - -b . update 1234 3<<EOF
+stderr
+-v6=aptmethod start 'file:$WORKDIR/in/dists/4321/Release'
+-v1*=aptmethod got 'file:$WORKDIR/in/dists/4321/Release'
+-v2*=Copy file '$WORKDIR/in/dists/4321/Release' to './lists/test_4321_Release'...
+-v6=aptmethod start 'file:$WORKDIR/in/../build/${srcdscname}'
+-v1*=aptmethod got 'file:$WORKDIR/in/../build/${srcdscname}'
+-v2*=Linking file '$WORKDIR/in/../build/${srcdscname}' to './pool/component/t/test/${srcdscname}'...
+-v6=aptmethod start 'file:$WORKDIR/in/../build/${srcdebname}'
+-v1*=aptmethod got 'file:$WORKDIR/in/../build/${srcdebname}'
+-v2*=Linking file '$WORKDIR/in/../build/${srcdebname}' to './pool/component/t/test/${srcdebname}'...
+-v6=aptmethod start 'file:$WORKDIR/in/../build/${srcorigname}'
+-v1*=aptmethod got 'file:$WORKDIR/in/../build/${srcorigname}'
+-v2*=Linking file '$WORKDIR/in/../build/${srcorigname}' to './pool/component/t/test/${srcorigname}'...
+-v6=aptmethod start 'file:$WORKDIR/in/../build/${bindebname}'
+-v1*=aptmethod got 'file:$WORKDIR/in/../build/${bindebname}'
+-v2*=Linking file '$WORKDIR/in/../build/${bindebname}' to './pool/component/t/test/${bindebname}'...
+stdout
+$(ofa pool/component/t/test/${srcdscname})
+$(ofa pool/component/t/test/${srcdebname})
+$(ofa pool/component/t/test/${srcorigname})
+$(ofa pool/component/t/test/${bindebname})
+-v0*=Calculating packages to get...
+-v3*=  processing updates for '1234|component|source'
+-v5*=  reading './lists/test_4321_component_Sources'
+-v3*=  processing updates for '1234|component|something'
+-v5*=  reading './lists/test_4321_component_something_Packages'
+-v0*=Getting packages...
+-v1*=Shutting down aptmethods...
+-v0*=Installing (and possibly deleting) packages...
+$(opa 'test' unset '1234' 'component' 'source' 'dsc')
+$(opa 'name' x '1234' 'component' 'something' 'deb')
+-v0*=Exporting indices...
+-v6*= looking for changes in '1234|component|something'...
+-v6*=  replacing './dists/1234/component/binary-something/Packages' (xzed)
+-v6*= looking for changes in '1234|component|source'...
+-v6*=  replacing './dists/1234/component/source/Sources' (xzed)
+EOF
+
+rm -r build in lists
+echo "update-rules done, now pull-rules"
+
+cat >> conf/distributions <<EOF
+
+Codename: dest
+Components: component
+Architectures: something source
+DebIndices: Packages .xz
+DscIndices: Sources .xz
+Pull: test
+EOF
+cat > conf/pulls <<EOF
+Name: test
+From: 1234
+FilterList: error filterlist
+FilterSrcList: error filtersrclist
+EOF
+echo > conf/filterlist
+echo > conf/filtersrclist
+
+testrun - -b . export dest 3<<EOF
+stderr
+stdout
+-v1*=Exporting dest...
+-v2*=Created directory "./dists/dest"
+-v2*=Created directory "./dists/dest/component"
+-v2*=Created directory "./dists/dest/component/binary-something"
+-v6*= exporting 'dest|component|something'...
+-v6*=  creating './dists/dest/component/binary-something/Packages' (xzed)
+-v2*=Created directory "./dists/dest/component/source"
+-v6*= exporting 'dest|component|source'...
+-v6*=  creating './dists/dest/component/source/Sources' (xzed)
+EOF
+
+testrun - -b . pull dest 3<<EOF
+stderr
+*=Package name marked to be unexpected('error'): 'test'!
+*=There have been errors!
+returns 255
+stdout
+-v0*=Calculating packages to pull...
+-v3*=  pulling into 'dest|component|source'
+-v5*=  looking what to get from '1234|component|source'
+EOF
+
+echo "test =1-1" > conf/filtersrclist
+
+testrun - -b . pull dest 3<<EOF
+stderr
+*=Package name marked to be unexpected('error'): 'name'!
+*=There have been errors!
+returns 255
+stdout
+-v0*=Calculating packages to pull...
+-v3*=  pulling into 'dest|component|source'
+-v5*=  looking what to get from '1234|component|source'
+-v3*=  pulling into 'dest|component|something'
+-v5*=  looking what to get from '1234|component|something'
+EOF
+
+echo "name =17-2" > conf/filterlist
+
+testrun - -b . pull dest 3<<EOF
+stdout
+-v0*=Calculating packages to pull...
+-v3*=  pulling into 'dest|component|source'
+-v5*=  looking what to get from '1234|component|source'
+-v3*=  pulling into 'dest|component|something'
+-v5*=  looking what to get from '1234|component|something'
+-v0*=Installing (and possibly deleting) packages...
+$(opa 'test' unset 'dest' 'component' 'source' 'dsc')
+$(opa 'name' x 'dest' 'component' 'something' 'deb')
+-v0*=Exporting indices...
+-v6*= looking for changes in 'dest|component|something'...
+-v6*=  replacing './dists/dest/component/binary-something/Packages' (xzed)
+-v6*= looking for changes in 'dest|component|source'...
+-v6*=  replacing './dists/dest/component/source/Sources' (xzed)
+EOF
+
+echo "and now the same again with a new version"
+
+mkdir -p build/test-1/debian
+cat > build/test-1/debian/control <<EOF
+Source: test
+Maintainer: <me@me>
+
+Package: name
+Architecture: all
+EOF
+echo "2" > build/test-1/debian/changelog
+src2debname=test_1-2.debian.tar.xz
+tar -cJf build/${src2debname} -C build/test-1 debian
+src2debsha=$(sha2andsize build/${src2debname})
+src2dscname=test_1-2.dsc
+cat > build/${src2dscname} <<EOF
+Source: test
+Maintainer: <me@me>
+EOF
+src2dscsha=$(sha2andsize build/${src2dscname})
+mkdir -p build/name/opt/
+echo trash > build/name/opt/trash
+mkdir -p build/name/DEBIAN
+cat > build/name/DEBIAN/control <<EOF
+Package: name
+Architecture: all
+Version: 17-3
+Source: test (1-2)
+Maintainer: <me@me>
+Description: some
+ description
+EOF
+bin2debname=name_17-3_all.deb
+dpkg-deb -Z xz -b build/name build/${bin2debname}
+bin2debsha=$(sha2only build/${bin2debname})
+bin2debsize=$(sizeonly build/${bin2debname})
+
+mkdir -p in/dists/4321/component/binary-something in/dists/4321/component/source
+cat > in/dists/4321/component/binary-something/Packages <<EOF
+Package: name
+Version: 17-3
+Source: test (1-2)
+Maintainer: <me@me>
+Architecture: all
+Size: ${bin2debsize}
+SHA256: ${bin2debsha}
+Filename: ../build/${bin2debname}
+Description: some
+ description
+EOF
+packagessha=$(sha2andsize in/dists/4321/component/binary-something/Packages)
+xz in/dists/4321/component/binary-something/Packages
+packagesxzsha=$(sha2andsize in/dists/4321/component/binary-something/Packages.xz)
+
+cat > in/dists/4321/component/source/Sources <<EOF
+Package: test
+Version: 1-2
+Maintainer: <me@me>
+Directory: ../build
+Checksums-Sha256:
+ ${src2dscsha} ${src2dscname}
+ ${src2debsha} ${src2debname}
+ ${srcorigsha} ${srcorigname}
+EOF
+sourcessha=$(sha2andsize in/dists/4321/component/source/Sources)
+xz in/dists/4321/component/source/Sources
+sourcesxzsha=$(sha2andsize in/dists/4321/component/source/Sources.xz)
+
+cat > in/dists/4321/Release <<EOF
+SHA256:
+ $sourcessha component/source/Sources
+ $sourcesxzsha component/source/Sources.xz
+ $packagessha component/binary-something/Packages
+ $packagesxzsha component/binary-something/Packages.xz
+EOF
+
+echo "test warning" > conf/filtersrclist
+echo "name warning" > conf/filterlist
+dodo mkdir lists
+
+testrun - -b . update 1234 3<<EOF
+stderr
+-v6=aptmethod start 'file:$WORKDIR/in/dists/4321/Release'
+-v1*=aptmethod got 'file:$WORKDIR/in/dists/4321/Release'
+-v2*=Copy file '$WORKDIR/in/dists/4321/Release' to './lists/test_4321_Release'...
+-v6=aptmethod start 'file:$WORKDIR/in/dists/4321/component/source/Sources.xz'
+-v1*=aptmethod got 'file:$WORKDIR/in/dists/4321/component/source/Sources.xz'
+-v2*=Uncompress '$WORKDIR/in/dists/4321/component/source/Sources.xz' into './lists/test_4321_component_Sources' using '/usr/bin/unxz'...
+-v6=aptmethod start 'file:$WORKDIR/in/dists/4321/component/binary-something/Packages.xz'
+-v1*=aptmethod got 'file:$WORKDIR/in/dists/4321/component/binary-something/Packages.xz'
+-v2*=Uncompress '$WORKDIR/in/dists/4321/component/binary-something/Packages.xz' into './lists/test_4321_component_something_Packages' using '/usr/bin/unxz'...
+*=Loudly rejecting 'name' '17-3' to enter '1234|component|something'!
+*=Loudly rejecting 'test' '1-2' to enter '1234|component|source'!
+stdout
+-v0*=Calculating packages to get...
+-v3*=  processing updates for '1234|component|source'
+-v5*=  reading './lists/test_4321_component_Sources'
+-v3*=  processing updates for '1234|component|something'
+-v5*=  reading './lists/test_4321_component_something_Packages'
+EOF
+
+dodo echo check if the fallback to filtersrclist works:
+sed -e 's/^FilterList/#&/' -i conf/updates
+rm conf/filterlist
+
+testrun - -b . --noskipold update 1234 3<<EOF
+stderr
+-v6=aptmethod start 'file:$WORKDIR/in/dists/4321/Release'
+-v1*=aptmethod got 'file:$WORKDIR/in/dists/4321/Release'
+-v2*=Copy file '$WORKDIR/in/dists/4321/Release' to './lists/test_4321_Release'...
+*=Loudly rejecting 'name' '17-3' to enter '1234|component|something'!
+*=Loudly rejecting 'test' '1-2' to enter '1234|component|source'!
+stdout
+-v0*=Calculating packages to get...
+-v3*=  processing updates for '1234|component|source'
+-v5*=  reading './lists/test_4321_component_Sources'
+-v3*=  processing updates for '1234|component|something'
+-v5*=  reading './lists/test_4321_component_something_Packages'
+EOF
+
+echo "test =1-2" > conf/filtersrclist
+
+testrun - -b . --noskipold update 1234 3<<EOF
+stderr
+-v6=aptmethod start 'file:$WORKDIR/in/dists/4321/Release'
+-v1*=aptmethod got 'file:$WORKDIR/in/dists/4321/Release'
+-v2*=Copy file '$WORKDIR/in/dists/4321/Release' to './lists/test_4321_Release'...
+-v6=aptmethod start 'file:$WORKDIR/in/../build/${src2dscname}'
+-v1*=aptmethod got 'file:$WORKDIR/in/../build/${src2dscname}'
+-v2*=Linking file '$WORKDIR/in/../build/${src2dscname}' to './pool/component/t/test/${src2dscname}'...
+-v6=aptmethod start 'file:$WORKDIR/in/../build/${src2debname}'
+-v1*=aptmethod got 'file:$WORKDIR/in/../build/${src2debname}'
+-v2*=Linking file '$WORKDIR/in/../build/${src2debname}' to './pool/component/t/test/${src2debname}'...
+-v6=aptmethod start 'file:$WORKDIR/in/../build/${bin2debname}'
+-v1*=aptmethod got 'file:$WORKDIR/in/../build/${bin2debname}'
+-v2*=Linking file '$WORKDIR/in/../build/${bin2debname}' to './pool/component/t/test/${bin2debname}'...
+stdout
+$(ofa pool/component/t/test/${src2dscname})
+$(ofa pool/component/t/test/${src2debname})
+$(ofa pool/component/t/test/${bin2debname})
+-v0*=Calculating packages to get...
+-v3*=  processing updates for '1234|component|source'
+-v5*=  reading './lists/test_4321_component_Sources'
+-v3*=  processing updates for '1234|component|something'
+-v5*=  reading './lists/test_4321_component_something_Packages'
+-v0*=Getting packages...
+-v1*=Shutting down aptmethods...
+-v0*=Installing (and possibly deleting) packages...
+$(opu 'test' x x '1234' 'component' 'source' 'dsc')
+$(opu 'name' x x '1234' 'component' 'something' 'deb')
+-v0*=Exporting indices...
+-v6*= looking for changes in '1234|component|something'...
+-v6*=  replacing './dists/1234/component/binary-something/Packages' (xzed)
+-v6*= looking for changes in '1234|component|source'...
+-v6*=  replacing './dists/1234/component/source/Sources' (xzed)
+EOF
+
+rm -r lists build in
+
+echo "test warning" > conf/filtersrclist
+echo "name warning" > conf/filterlist
+
+testrun - -b . pull dest 3<<EOF
+*=Loudly rejecting 'name' '17-3' to enter 'dest|component|something'!
+*=Loudly rejecting 'test' '1-2' to enter 'dest|component|source'!
+stdout
+-v0*=Calculating packages to pull...
+-v3*=  pulling into 'dest|component|source'
+-v5*=  looking what to get from '1234|component|source'
+-v3*=  pulling into 'dest|component|something'
+-v5*=  looking what to get from '1234|component|something'
+-v0*=Installing (and possibly deleting) packages...
+EOF
+
+sed -e 's/^FilterList/#&/' -i conf/pulls
+rm conf/filterlist
+
+testrun - -b . pull dest 3<<EOF
+*=Loudly rejecting 'name' '17-3' to enter 'dest|component|something'!
+*=Loudly rejecting 'test' '1-2' to enter 'dest|component|source'!
+stdout
+-v0*=Calculating packages to pull...
+-v3*=  pulling into 'dest|component|source'
+-v5*=  looking what to get from '1234|component|source'
+-v3*=  pulling into 'dest|component|something'
+-v5*=  looking what to get from '1234|component|something'
+-v0*=Installing (and possibly deleting) packages...
+EOF
+
+echo "test =1-2" > conf/filtersrclist
+
+testrun - -b . pull dest 3<<EOF
+stdout
+-v0*=Calculating packages to pull...
+-v3*=  pulling into 'dest|component|source'
+-v5*=  looking what to get from '1234|component|source'
+-v3*=  pulling into 'dest|component|something'
+-v5*=  looking what to get from '1234|component|something'
+-v0*=Installing (and possibly deleting) packages...
+$(opu 'test' x x 'dest' 'component' 'source' 'dsc')
+$(opu 'name' x x 'dest' 'component' 'something' 'deb')
+-v0*=Exporting indices...
+-v6*= looking for changes in 'dest|component|something'...
+-v6*=  replacing './dists/dest/component/binary-something/Packages' (xzed)
+-v6*= looking for changes in 'dest|component|source'...
+-v6*=  replacing './dists/dest/component/source/Sources' (xzed)
+-v0*=Deleting files no longer referenced...
+$(ofd pool/component/t/test/${srcdscname})
+$(ofd pool/component/t/test/${srcdebname})
+$(ofd pool/component/t/test/${bindebname})
+EOF
+
+rm -r -f db conf dists pool
+testsuccess

@@ -71,7 +71,7 @@ enum cleanupflags {
 	/* delete everything referenced by a .changes on errors
 	 * after accepting that .changes file*/
 	cuf_on_error,
-	/* delete unused files after sucessfully
+	/* delete unused files after successfully
 	 * processing the used ones */
 	cuf_unused_files,
 	/* same but restricted to .buildinfo files */
@@ -82,7 +82,7 @@ enum optionsflags {
 	/* only put _all.deb comes with those of some architecture,
 	 * only put in those architectures */
 	iof_limit_arch_all = 0,
-	/* allow .changes file to specify multipe distributions */
+	/* allow .changes file to specify multiple distributions */
 	iof_multiple_distributions,
 	iof_COUNT /* must be last */
 };
@@ -2265,9 +2265,9 @@ static retvalue candidate_add(struct incoming *i, struct candidate *c) {
 			return r;
 	}
 
-	// TODO: once uploaderlist allows to look for package names or existing
-	// override entries or such things, check package names here enable
-	// checking for content name with outer name
+	// TODO: once uploaderlist allows one to look for package names or
+	// existing override entries or such things, check package names here
+	// enable checking for content name with outer name
 
 	/* when we get here, the package is allowed in, now we have to
 	 * read the parts and check all stuff we only know now */

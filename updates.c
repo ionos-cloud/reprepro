@@ -14,7 +14,7 @@
  *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1301  USA
  */
 
-/* This module handles the updating of distribtions from remote repositories.
+/* This module handles the updating of distributions from remote repositories.
  * It's using apt's methods (the files in /usr/lib/apt/methods) for the
  * actuall getting of needed lists and package files.
  *
@@ -2057,7 +2057,7 @@ static retvalue updates_preparelists(struct aptmethodrun *run, struct update_dis
 		/* we need anything that is needed in a target
 		 * where something is new (as new might mean
 		 * a package is left hiding leftmore packages,
-		 * and everthing in rightmore packages is needed
+		 * and everything in rightmore packages is needed
 		 * to see what in the new takes effect) */
 		for (ut = d->targets; ut != NULL ; ut = ut->next) {
 			if (ut->nothingnew)

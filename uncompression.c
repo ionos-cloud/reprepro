@@ -304,7 +304,7 @@ static void search_binary(/*@null@*/const char *setting, const char *default_pro
 		return;
 	/* look for the file, look in $PATH if not qualified,
 	 * only check existence, if someone it putting files not executable
-	 * by us there it is their fault (as being executeable by us is hard
+	 * by us there it is their fault (as being executable by us is hard
 	 * to check) */
 	if (strchr(setting, '/') != NULL) {
 		if (!isregularfile(setting))

@@ -181,7 +181,7 @@ static const char *formaterror(const char *format, ...) {
 	return data;
 }
 
-/* check if this is something that can be used as directory *and* identifer safely */
+/* check if this is something that can be used as directory *and* identifier safely */
 const char *checkfordirectoryandidentifier(const char *string) {
 	const char *s;
 

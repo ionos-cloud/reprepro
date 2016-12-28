@@ -50,7 +50,7 @@
 
 things to do with .dsc's checkin by hand: (by comparison with apt-ftparchive)
 * Get all from .dsc (search the chunk with
-  the Source:-field. end the chunk artifical
+  the Source:-field. end the chunk artificial
   before the pgp-end-block.(in case someone
   missed the newline there))
 
@@ -59,7 +59,7 @@ things to do with .dsc's checkin by hand: (by comparison with apt-ftparchive)
   at binary, architecture and build*, as
   described in policy 5.4
 
-* Get overwrite information, ecspecially
+* Get overwrite information, especially
   the priority(if there is a binaries field,
   check the one with the highest) and the section
   (...what else...?)

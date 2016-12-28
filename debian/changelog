@@ -1,3 +1,9 @@
+reprepro (5.1.1-1) unstable; urgency=medium
+
+  * new bugfix release
+
+ -- Bernhard R. Link <brlink@debian.org>  Wed, 28 Dec 2016 16:49:06 +0100
+
 reprepro (5.1.0-1) experimental; urgency=medium
 
   * new release

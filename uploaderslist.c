@@ -437,7 +437,7 @@ enum upload_condition_type uploaders_nextcondition(struct upload_conditions *c) 
 					return uc_ACCEPTED;
 				c->current = c->current->next_if_true;
 			} else {
-				/* empty set fullfills all conditions,
+				/* empty set fulfills all conditions,
 				   but not an exists condition */
 				switch (c->current->needs) {
 					case needs_any:
@@ -922,7 +922,7 @@ static retvalue parse_condition(const struct filebeingparsed *fbp, int column, c
 			/* everything in current scope that made it fail
 			 * now makes it check this: (currently that will
 			 * only be true at most for c == last, but with
-			 * parantheses this all will be needed) */
+			 * parentheses this all will be needed) */
 			for (c = or_scope ; c != NULL ; c = c->next) {
 				if (c->next_if_true == fallback)
 					c->next_if_true = n;

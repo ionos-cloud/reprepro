@@ -576,7 +576,7 @@ _reprepro()
 			return 0
 			;;
 		deleteifunreferenced)
-			# less usefull than the output of dumpunreferenced,
+			# less useful than the output of dumpunreferenced,
 			# but this way it should be massively faster:
 			parse_config_for_distdir
 			COMPREPLY=( $(cd "$outdir" && compgen -o filenames -f -- $cur) )

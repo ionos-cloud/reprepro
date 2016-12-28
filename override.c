@@ -341,7 +341,7 @@ const char *override_get(const struct overridedata *override, const char *field)
 		return NULL;
 
 	for (i = 0 ; i+1 < override->fields.count ; i+=2) {
-		// TODO curently case-sensitiv. warn if otherwise?
+		// TODO currently case-sensitiv. warn if otherwise?
 		if (strcmp(override->fields.values[i], field) == 0)
 			return override->fields.values[i+1];
 	}

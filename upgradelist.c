@@ -251,7 +251,7 @@ static retvalue upgradelist_trypackage(struct upgradelist *upgrade, void *privda
 				current = NULL;
 				break;
 			}
-			// I only hope noone creates indices anti-sorted:
+			// I only hope no one creates indices anti-sorted:
 			precmp = strcmp(package->name, insertafter->name);
 			if (precmp == 0) {
 				current = insertafter;

@@ -37,7 +37,7 @@ class EnumInternException(Exception):
 
 class _EnumType(type):
 	"""
-	Metaclass for Enum. Allows to set values as parameters.
+	Metaclass for Enum. Allows one to set values as parameters.
 	"""
 	def __new__(cls, name, bases, namespace, **values):
 		return type.__new__(cls, name, bases, namespace)
@@ -99,7 +99,7 @@ class Enum(metaclass=_EnumType):
 
 class _BitmaskType(type):
 	"""
-	Metaclass for Bitmask types. Allows to set values as parameters.
+	Metaclass for Bitmask types. Allows one to set values as parameters.
 	"""
 	@classmethod
 	def __prepare__(cls, name, bases, **values):
@@ -624,7 +624,7 @@ class Connection:
 		commandline = [sshcommand]
 		if ssh_options:
 			commandline.extend(ssh_options)
-		# those defaults are after the user-supplied ones so they can be overriden.
+		# those defaults are after the user-supplied ones so they can be overridden.
 		# (earlier ones win with ssh).
 		commandline.extend(["-oProtocol 2", # "-oLogLevel DEBUG",
 		                    "-oForwardX11 no", "-oForwardAgent no",

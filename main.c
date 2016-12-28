@@ -2487,8 +2487,8 @@ ACTION_F(y, n, y, y, reoverride) {
 					continue;
 				r = target_reoverride(t, d);
 				RET_UPDATE(result, r);
-				// TODO: how to seperate this in those affecting d
-				// and those that do not?
+				// TODO: how to separate this in those
+				// affecting d and those that do not?
 				RET_UPDATE(d->status, r);
 			}
 			distribution_unloadoverrides(d);

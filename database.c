@@ -412,7 +412,7 @@ static inline bool targetisdefined(const char *identifier, struct distribution *
 	return false;
 }
 
-static retvalue warnidentifers(const struct strlist *identifiers, struct distribution *distributions, bool readonly) {
+static retvalue warnidentifiers(const struct strlist *identifiers, struct distribution *distributions, bool readonly) {
 	struct distribution *d;
 	struct target *t;
 	const char *identifier;
@@ -577,7 +577,7 @@ static retvalue readline(/*@out@*/char **result, FILE *f, const char *versionfil
 		buffer[--l] = '\0';
 	}
 	if (l == 0) {
-		fprintf(stderr, "Error reading '%s': unexpcted empty line.\n",
+		fprintf(stderr, "Error reading '%s': unexpected empty line.\n",
 				versionfilename);
 		return RET_ERROR;
 	}
@@ -902,7 +902,7 @@ retvalue database_create(struct distribution *alldistributions, bool fast, bool 
 		}
 		if (r == RET_NOTHING)
 			strlist_init(&identifiers);
-		r = warnidentifers(&identifiers,
+		r = warnidentifiers(&identifiers,
 				alldistributions, readonly);
 		if (RET_WAS_ERROR(r)) {
 			strlist_done(&identifiers);

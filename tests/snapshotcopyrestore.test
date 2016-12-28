@@ -23,7 +23,7 @@ mkdir logs
 
 testrun - -b . export 3<<EOF
 stderr
-*=Warning: unknown architecture 'nonexistant', ignoring notificator line line 5 in ./conf/distributions
+*=Warning: unknown architecture 'nonexistant', ignoring notificator line at line 5 in ./conf/distributions
 stdout
 $(odb)
 -v1*=Exporting B...
@@ -76,7 +76,7 @@ touch importindex
 testrun - -b . _addpackage B importindex bar foo 3<<EOF
 returns 255
 stderr
-*=Warning: unknown component 'nocomponent', ignoring notificator line line 5 in ./conf/distributions
+*=Warning: unknown component 'nocomponent', ignoring notificator line at line 5 in ./conf/distributions
 *=_addpackage needs -C and -A and -T set!
 -v0*=There have been errors!
 EOF
@@ -90,7 +90,7 @@ EOF
 testrun - -b . -A source -T dsc _addpackage B importindex bar foo 3<<EOF
 returns 255
 stderr
-*=Warning: unknown packagetype 'none', ignoring notificator line line 5 in ./conf/distributions
+*=Warning: unknown packagetype 'none', ignoring notificator line at line 5 in ./conf/distributions
 *=_addpackage needs -C and -A and -T set!
 -v0*=There have been errors!
 EOF
