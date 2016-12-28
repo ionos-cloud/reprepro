@@ -166,12 +166,31 @@ retvalue getfilelist(/*@out@*/char **filelist, size_t *size, const char *debfile
 			ar_archivemember_setcompression(ar, c);
 			if (uncompression_supported(c)) {
 				struct archive *tar;
+				int a;
 
 				tar = archive_read_new();
 				r = read_data_tar(filelist, size,
 						debfile, ar, tar);
-				// TODO: check how to get an error message here..
-				archive_read_free(tar);
+				a = archive_read_close(tar);
+				if (a != ARCHIVE_OK && !RET_WAS_ERROR(r)) {
+					int e = archive_errno(tar);
+					if (e == -EINVAL)
+						fprintf(stderr,
+"reading data.tar within '%s' failed: %s\n",
+							debfile,
+							archive_error_string(
+								tar));
+					else
+						fprintf(stderr,
+"reading data.tar within '%s' failed: %d:%d:%s\n", debfile, a, e,
+							archive_error_string(
+								tar));
+					r = RET_ERROR;
+				}
+				a = archive_read_free(tar);
+				if (a != ARCHIVE_OK && !RET_WAS_ERROR(r)) {
+					r = RET_ERROR;
+				}
 				if (r != RET_NOTHING) {
 					ar_close(ar);
 					free(filename);
