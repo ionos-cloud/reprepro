@@ -222,7 +222,7 @@ option, if you do not want some of the files pointed to by the untouched index
 files to vanish.
 .TP
 .BR \-\-export=silent-never
-Like never, but supress most output about that.
+Like never, but suppress most output about that.
 .TP
 .B \-\-ignore=\fIwhat\fP
 Ignore errors of type \fIwhat\fP. See the section \fBERROR IGNORING\fP
@@ -241,7 +241,7 @@ If nothing was done, return with exitcode 1 instead of the usual 0.
 
 Note that "nothing was done" means the primary purpose of the action
 in question.
-Auxilary actions (opening and closeing the database, exporting missing
+Auxiliary actions (opening and closing the database, exporting missing
 files with \-\-export=lookedat, ...) usually do not count.
 Also note that this is not very well tested.
 If you find an action that claims to have done something in some cases
@@ -658,7 +658,7 @@ lists all packages with names starting with \fBlinux\-\fP and later
 having an \fB\-2.6\fP.
 .TP
 .B ls \fIpackage-name\fP
-List the versions of the the specified package in all distributions.
+List the versions of the specified package in all distributions.
 .TP
 .B lsbycomponent \fIpackage-name\fP
 Like ls, but group by component (and print component names).
@@ -1869,7 +1869,7 @@ Reprepro will try the first supported variant in the list given:
 Only compressions compiled in or for which an uncompressor was found
 are used.
 Unless the value starts with \fBforce.\fP,
-it is only tried if if is found in the Release or InRelease file.
+it is only tried if is found in the Release or InRelease file.
 
 The default value is \fB.diff .xz .lzma .bz2 .gz .\fP, i.e.
 download Packages.diff if listed in the Release file,
@@ -2466,7 +2466,7 @@ Changes files can have files with section 'byhand' (Debian) or 'raw\-' (Ubuntu).
 Those files are not packages but other data generated (usually together with
 packages) and then uploaded together with this changes files.
 
-With reprepro those can be stored in the pool next to their packages whith
+With reprepro those can be stored in the pool next to their packages with
 tracking, put in some log directory when using processincoming, or given to
 an hook script (currently only possible with processincoming).
 .TP

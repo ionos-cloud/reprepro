@@ -1148,7 +1148,7 @@ static retvalue dsc_prepare(struct changes *changes, struct fileentry *dsc,  str
 	if (RET_WAS_ERROR(r))
 		return r;
 
-	/* noone else might have looked yet, if we have them: */
+	/* no one else might have looked yet, if we have them: */
 
 	assert (dsc->pkg.dsc.files.names.count == dsc->needed_filekeys.count);
 	for (i = 1 ; i < dsc->pkg.dsc.files.names.count ; i ++) {

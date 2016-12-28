@@ -47,9 +47,9 @@
 Things to do with .deb's checkin by hand: (by comparison with apt-ftparchive)
 - extract the control file (that's the hard part -> extractcontrol.c )
 - check for Package, Version, Architecture, Maintainer, Description
-- apply overwrite if neccesary (section, priority and perhaps maintainer).
+- apply overwrite if necessary (section, priority and perhaps maintainer).
 - add Size, MD5sum, Filename, Priority, Section
-- remove Status (warning if existant?)
+- remove Status (warning if existent?)
 - check for Optional-field and reject then..
 */
 

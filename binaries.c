@@ -343,7 +343,7 @@ retvalue binaries_retrack(const char *packagename, const char *chunk, trackingdb
 	enum filetype filetype;
 	struct trackedpackage *pkg;
 
-	//TODO: elliminate duplicate code!
+	//TODO: eliminate duplicate code!
 	assert(packagename!=NULL);
 
 	if (interrupted())
@@ -426,7 +426,7 @@ retvalue binaries_getsourceandversion(const char *chunk, const char *packagename
 	retvalue r;
 	char *sourcename, *sourceversion;
 
-	//TODO: elliminate duplicate code!
+	//TODO: eliminate duplicate code!
 	assert(packagename!=NULL);
 
 	/* is there a sourcename */

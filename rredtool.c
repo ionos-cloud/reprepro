@@ -1116,7 +1116,7 @@ static retvalue handle_diff(const char *directory, const char *mode, const char 
 
 	/* if the diff is bigger than the new file,
 	 * there is no point in not getting the full file.
-	 * And as in all but extremly strange situations this
+	 * And as in all but extremely strange situations this
 	 * also means all older patches will get bigger when merged,
 	 * do not even bother to calculate them but remove all. */
 	if (root->hash.len > newhash.len) {

@@ -1255,7 +1255,7 @@ static retvalue targetremovesourcepackage(trackingdb t, struct trackedpackage *p
 			if (pkg->filetypes[i] != ft_ALL_BINARY
 			    && verbose >= -1) {
 				fprintf(stderr,
-"Warning: tracking data might be incosistent:\n"
+"Warning: tracking data might be inconsistent:\n"
 "cannot find '%s' in '%s', but '%s' should be there.\n",
 						packagename, target->identifier,
 						filekey);
@@ -1277,7 +1277,7 @@ static retvalue targetremovesourcepackage(trackingdb t, struct trackedpackage *p
 			if (pkg->filetypes[i] != ft_ALL_BINARY
 			    && verbose >= -1) {
 				fprintf(stderr,
-"Warning: tracking data might be incosistent:\n"
+"Warning: tracking data might be inconsistent:\n"
 "'%s' has '%s' of source '%s', but source '%s' contains '%s'.\n",
 						target->identifier, package.name,
 						package.source, pkg->sourcename,
@@ -1290,7 +1290,7 @@ static retvalue targetremovesourcepackage(trackingdb t, struct trackedpackage *p
 			if (pkg->filetypes[i] != ft_ALL_BINARY
 			    && verbose >= -1) {
 				fprintf(stderr,
-"Warning: tracking data might be incosistent:\n"
+"Warning: tracking data might be inconsistent:\n"
 "'%s' has '%s' of source version '%s', but version '%s' contains '%s'.\n",
 						target->identifier, package.name,
 						package.sourceversion,

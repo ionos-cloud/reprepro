@@ -30,6 +30,7 @@ template.test \
 trackingcorruption.test \
 uncompress.test \
 updatecorners.test \
+updatepullreject.test \
 uploaders.test \
 various1.test \
 various2.test \

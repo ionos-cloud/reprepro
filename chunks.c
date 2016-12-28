@@ -418,7 +418,7 @@ retvalue chunk_getnameandversion(const char *chunk, const char *name, char **pkg
 						name);
 			else
 				fprintf(stderr,
-"Error: Field '%s' has multipe words after '('!\n",
+"Error: Field '%s' has multiple words after '('!\n",
 						name);
 			return RET_ERROR;
 		}
@@ -745,7 +745,7 @@ const char *chunk_over(const char *e) {
 	return e;
 }
 
-/* this is a bit wastefull, as with normally perfect formated input, it just
+/* this is a bit wastefull, as with normally perfect formatted input, it just
  * writes everything to itself in a inefficent way. But when there are \r
  * in it or spaces before it or stuff like that, it will be in perfect
  * form afterwards. */

@@ -88,7 +88,7 @@ retvalue references_decrement(const char *needed, const char *neededby) {
 	return r;
 }
 
-/* Add an reference by <identifer> for the given <files>,
+/* Add an reference by <identifier> for the given <files>,
  * excluding <exclude>, if it is nonNULL. */
 retvalue references_insert(const char *identifier,
 		const struct strlist *files, const struct strlist *exclude) {
@@ -123,7 +123,7 @@ retvalue references_add(const char *identifier, const struct strlist *files) {
 	return RET_OK;
 }
 
-/* Remove reference by <identifer> for the given <oldfiles>,
+/* Remove reference by <identifier> for the given <oldfiles>,
  * excluding <exclude>, if it is nonNULL. */
 retvalue references_delete(const char *identifier, struct strlist *files, const struct strlist *exclude) {
 	retvalue result, r;

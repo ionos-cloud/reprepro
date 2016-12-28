@@ -1,3 +1,6 @@
+2016-12-28  Bernhard R. Link <brlink@debian.org>
+	* improve error handling when extracting .deb file contents
+
 2016-12-23  Bernhard R. Link <brlink@debian.org>
 	* properly report errors of the internal xz and lzma decompressors
 	* when using the builtin .xz uncompressor,
@@ -520,7 +523,7 @@
 	IgnoreRelease.
 	* Handle apt transport methods returning missing files as
 	success with alternate filename suggestion more gracefully.
-	* when getting packages from an other architecture while updating,
+	* when getting packages from another architecture while updating,
 	ignore all packages with architecture not fitting into the target.
 	(Fixes a regression introduced in 3.8.0)
 2009-10-21

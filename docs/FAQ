@@ -1,7 +1,7 @@
 This is a list of "frequently" asked questions.
 
 1.1) What can I do when reprepro complains about a missing .orig.tar.gz?
-1.2) Why does it refuse a file when one in an other suite has the same name?
+1.2) Why does it refuse a file when one in another suite has the same name?
 1.4) The key to sign my Release files needs a passphrase, what to do?
 1.5) How do I change how files are downloaded.
 1.6) How to omit packages missing files when updating.
@@ -32,7 +32,7 @@ You are facing the choice:
   it calls dpkg-genchanges with -sa which then always lists .orig.tar.gz
   and not only if it ends in -0 or -1.
 
-1.2) Why does it refuse a file when one in an other suite has the same name?
+1.2) Why does it refuse a file when one in another suite has the same name?
 ----------------------------------------------------------------------------
 Reprepro uses Debian's way to organize the pool hierarchy, which means
 that the directory and name a file is saved under is only determined by

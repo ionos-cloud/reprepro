@@ -22,7 +22,7 @@
 #   report some errors properly
 # - uncompress this file if it is compressed
 # - copy this file to your conf/ directory as "pdiff"
-# - make it executeable
+# - make it executable
 # - add something like the following to the every distribution
 #   in conf/distributions you want to have diffs for:
 #
@@ -246,7 +246,7 @@ def main():
         f = open(outdir + "/Index.new", "w")
         upd.dump(f)
         f.close()
-# Specifing the index should be enough, it contains checksums for the diffs
+# Specifying the index should be enough, it contains checksums for the diffs
         os.write(3,(oldrelfile + ".diff/Index.new\n").encode("utf-8"))
 
 ################################################################################

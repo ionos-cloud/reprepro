@@ -362,7 +362,7 @@ static retvalue notificator_parse(struct notificator *n, struct configiterator *
 			*value_p = atom_find(value_type, argument);
 			if (!atom_defined(*value_p)) {
 				fprintf(stderr,
-"Warning: unknown %s '%s', ignoring notificator line line %u in %s\n",
+"Warning: unknown %s '%s', ignoring notificator line at line %u in %s\n",
 					atomtypes[value_type],
 					argument, config_line(iter),
 					config_filename(iter));

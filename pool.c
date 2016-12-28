@@ -193,7 +193,7 @@ retvalue pool_markadded(const char *filekey) {
 	return remember_filekey(filekey, pl_ADDED, ~pl_DELETED);
 };
 
-/* so much code, just for the case the morguedir is on an other partition than
+/* so much code, just for the case the morguedir is on another partition than
  * the pool dir... */
 
 static inline retvalue copyfile(const char *source, const char *destination, int outfd, off_t length) {
