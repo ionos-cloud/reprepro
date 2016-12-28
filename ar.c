@@ -278,7 +278,7 @@ int ar_archivemember_open(struct archive *a, void *d) {
 	return ARCHIVE_FATAL;
 }
 
-int ar_archivemember_close(UNUSED(struct archive *a), void *d) {
+int ar_archivemember_close(struct archive *a, void *d) {
 	struct ar_archive *ar = d;
 	retvalue r;
 	const char *msg;
