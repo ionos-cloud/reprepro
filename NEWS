@@ -1,3 +1,7 @@
+Updates between 5.1.0 and 5.1.1:
+- improve error handling when extracting .deb file contents
+- fix many spelling mistakes
+
 Updates between 5.0.0 and 5.1.0:
 - .gz, .bz2 and .lzma built-in uncompressors now also support
   concatenated files (as gunzip, bunzip2 and unxz).
