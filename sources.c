@@ -370,7 +370,7 @@ retvalue sources_retrack(const char *sourcename, const char *chunk, trackingdb t
 	struct strlist filekeys;
 	int i;
 
-	//TODO: elliminate duplicate code!
+	//TODO: eliminate duplicate code!
 	assert(sourcename!=NULL);
 
 	if (interrupted())
@@ -425,7 +425,7 @@ retvalue sources_getsourceandversion(const char *chunk, const char *packagename,
 	char *sourceversion;
 	char *sourcename;
 
-	//TODO: elliminate duplicate code!
+	//TODO: eliminate duplicate code!
 	assert(packagename!=NULL);
 
 	r = chunk_getvalue(chunk, "Version", &sourceversion);

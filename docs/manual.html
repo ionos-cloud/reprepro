@@ -189,7 +189,7 @@ VerifyRelease: A70DAF536070D3A1|B5D0C804ADB11277
 reprepro -b $YOURBASEDIR update etch
 </pre>
 </li>
-<li>Take a look at at the generated <tt>pool</tt> and <tt>dists</tt>
+<li>Take a look at the generated <tt>pool</tt> and <tt>dists</tt>
 directories. They contain everything needed to apt-get from.
 Tell apt to include it by adding the following to your <tt>sources.list</tt>:
 <pre class="shell">
@@ -374,7 +374,7 @@ reprepro):
 
 <dl class="dir">
 <dt class="dir">pool</dt><dd>
-	The directory all this resides is is normally called <tt class="dir">pool</tt>.
+	The directory all this resides in is normally called <tt class="dir">pool</tt>.
 	That's nowhere hard coded in apt but that only looks at the relative
 	directory names in the index files. But there is also no reason to name
 	it differently.
@@ -495,13 +495,13 @@ option, the generated index files may be permanently out of date.
 </dd><dt>silent-never</dt><dd>Like never, but be more silent about it.
 </dd><dt>changed</dt><dd>This is the default behaviour since 3.0.1.
 Only export distributions where something changed
-(and no error occoured that makes an inconsistent state likely).
+(and no error occurred that makes an inconsistent state likely).
 And in those distributions only (re-)generate files which content should have been changed
 by the current action or which are missing.
 </dd><dt>lookedat</dt><dd>New name for <tt>normal</tt> since 3.0.1.
 </dd><dt>normal</dt><dd>This was the default behaviour until 3.0.0 (changed in 3.0.1).
 In this mode all distributions are processed that were looked at without error
-(where error means only errors hapening while the package was open so have a chance
+(where error means only errors happening while the package was open so have a chance
 to cause strange contents).
 This ensures that even after a operation that had nothing to do the looked at
 distribution has all the files exported needed to access it. (But still only files
@@ -561,7 +561,7 @@ supports, which might include most that gpg supports to select a key).
 The best way to deal with keys needing passphrases is to use
 <a href="http://packages.debian.org/gnupg-agent">gpg-agent</a>.
 The only way to specify which keyring to use is to set the
-<tt class="env">GNUPGHOME</tt> enviroment variable, which will effect all
+<tt class="env">GNUPGHOME</tt> environment variable, which will effect all
 distributions.
 <h4><a name="contents">Contents files</a></h4>
 Reprepro can generate files called
@@ -628,7 +628,7 @@ for just some small changes.
 To use it, copy <tt class="file">pdiff.example</tt> from the examples directory
 into your <tt class="dir">conf</tt> directory.
 (or any other directory, then you will need to give an absolute path later).
-Unpack, if needed. Rename it to pdiff.py and make it executeable.
+Unpack, if needed. Rename it to pdiff.py and make it executable.
 Make sure you have
 <a href="http://packages.debian.org/python3-apt">python3-apt</a>,
 <a href="http://packages.debian.org/diff">diff</a> and
@@ -651,7 +651,7 @@ with no <tt>libbz2-dev</tt> installed.
 To use it, copy <tt class="file">bzip.example</tt> from the examples directory
 into your <tt class="dir">conf</tt> directory.
 (or any other directory, then you will need to give an absolute path later).
-Unpack, if needed. Rename it to bzip2.sh and make it executeable.
+Unpack, if needed. Rename it to bzip2.sh and make it executable.
 Then add something like the following to the headers of the distributions
 that should use this in <tt class="file">conf/distributions</tt>:
 <pre class="config">
@@ -673,7 +673,7 @@ These are for including packages at the command line.
 Many options are available to control what actually happens.
 You can easily force components, section and priority and/or choose to
 include only some files or only in specific architectures.
-(Can be quite usefull for architecture all packages depending on some
+(Can be quite useful for architecture all packages depending on some
 packages you will some time before building for some of your architectures).
 Files can be moved instead of copied and most sanity checks overwritten.
 They are also optimized towards being fast and simply try things instead of
@@ -695,7 +695,7 @@ There are three commands to directly include packages into your repository:
 <tt class="command">includedeb</tt>, <tt class="command">includedsc</tt>
 and <tt class="command">includechanges</tt>.
 Each needs to codename of the distribution you want to put your package into
-as first argument and a file of the appropiate type
+as first argument and a file of the appropriate type
 (<tt class="suffix">.deb</tt>, <tt class="suffix">.dsc</tt> or
  <tt class="suffix">.changes</tt>, respectively) as second argument.
 <br>
@@ -814,7 +814,7 @@ A list of options to allow things otherwise causing errors.
 <br>This field os optional.</dd>
 <dt>Cleanup</dt><dd>
 Determines when and what files to delete from the incoming queue.
-By default only sucessfully processed <tt class="suffix">.changes</tt> files
+By default only successfully processed <tt class="suffix">.changes</tt> files
 and the files references by those are deleted.
 For a list of possible options take a look into the man page.
 <br>This field os optional.</dd>
@@ -839,7 +839,7 @@ and <tt class="field">Default</tt> fields.
 <h4>Getting <tt class="command">processincoming</tt> called.</h4></a>
 While you can just call <tt class="command">reprepro processincoming</tt> manually,
 having an incoming queue needing manual intervention takes all the fun out of
-having an incoming queue, so usually so automatic way is choosen:
+having an incoming queue, so usually so automatic way is chosen:
 <ul>
 <li>Dupload and dput have ways to call an hook after an package was uploaded.
 This can be an ssh to the host calling reprepro.
@@ -1020,7 +1020,7 @@ command:
 <pre class="shell">
 reprepro copy bla development name1 name2 name3
 </pre>
-If you do not want to copy all pakages of a given name, but only some
+If you do not want to copy all packages of a given name, but only some
 of them, you can use <tt>-A</tt>, <tt>-T</tt> and <tt>-C</tt>:
 <pre class="shell">
 reprepro -T deb -A i386 copy bla development name1
@@ -1036,7 +1036,7 @@ TO BE DOCUMENTED
 TO BE DOCUMENTED
 <h2><a name="hooks">Extending reprepro / Hooks and more</a></h2>
 When reprepro misses some functionality,
-it often can be be added by some kind of hook.
+it often can be added by some kind of hook.
 <br>
 Currently you can execute your own scripts at the following occasions:
 <ul>
@@ -1058,7 +1058,7 @@ but despite the name, it is not restricted to logging.
 <h4>Automatically extracting changelog and copyright information</h4>
 reprepro ships with an example script to extract <tt class="file">debian/changelog</tt>
 and <tt class="file">debian/copyright</tt>
-files from source packages into a hierachy loosely resembling the way changelogs
+files from source packages into a hierarchy loosely resembling the way changelogs
 are made available at
 <a href="http://packages.debian.org/changelogs/">http://packages.debian.org/changelogs/</a>.
 <br>
@@ -1108,7 +1108,7 @@ of the distribution.
 The second kind is marked with <tt class="option">--changes</tt> and is
 called when a <tt class="suffix">.changes</tt>-file was added with
 <tt class="command">include</tt> or <tt class="command">processincoming</tt>.
-Both are called asynchonous in the background <emph>after</emph> everything was done,
+Both are called asynchronous in the background <emph>after</emph> everything was done,
 but before no longer referenced files are deleted (so the files of the
 replaced or deleted package are still around).
 <h5>Calling conventions for package addition/removal scripts</h5>
@@ -1221,7 +1221,7 @@ any changes done to the out dir and calls the hook script given as argument with
 file as argument.
 
 The <tt class="suffix">.outlog</tt> file consists of lines each starting with a keyword
-and then some arguments seperated by tab characters.
+and then some arguments separated by tab characters.
 
 The possible keywords are:
 <ul>
@@ -1278,7 +1278,7 @@ reprepro -b $YOURBASEDIR dumpunreferenced
 </pre>
 This lists all files reprepro knows about that are not marked as needed by anything.
 Unless you called reprepro with the <tt class="option">--keepunreferenced</tt>
-option, those should never occour. Though if reprepro is confused or interupted it
+option, those should never occur. Though if reprepro is confused or interrupted it
 may sometimes prefer keeping files around instead of deleting them.
 <pre class="command">
 reprepro -b $YOURBASEDIR deleteunreferenced

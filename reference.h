@@ -20,15 +20,15 @@ struct references;
 /* remove all references from a given identifier */
 retvalue references_remove(const char *neededby);
 
-/* Add an reference by <identifer> for the given <files>,
+/* Add an reference by <identifier> for the given <files>,
  * excluding <exclude>, if it is nonNULL. */
 retvalue references_insert(const char *, const struct strlist *, const struct strlist * /*exclude*/);
 
-/* Add an reference by <identifer> for the given <files>,
+/* Add an reference by <identifier> for the given <files>,
  * do not error out if reference already exists */
 retvalue references_add(const char *, const struct strlist *);
 
-/* Remove reference by <identifer> for the given <oldfiles>,
+/* Remove reference by <identifier> for the given <oldfiles>,
  * excluding <exclude>, if it is nonNULL. */
 retvalue references_delete(const char *, struct strlist *, /*@null@*/const struct strlist * /*exclude*/);
 

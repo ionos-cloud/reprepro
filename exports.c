@@ -350,7 +350,7 @@ static retvalue callexporthook(/*@null@*/const char *hook, const char *relfilena
 		if (io[1] != 3)
 			(void)close(io[1]);
 		closefrom(4);
-		/* backward compatibilty */
+		/* backward compatibility */
 		reltmpfilename = calc_addsuffix(relfilename, "new");
 		if (reltmpfilename == NULL) {
 			exit(255);

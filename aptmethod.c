@@ -360,7 +360,7 @@ inline static retvalue aptmethod_startup(struct aptmethod *method) {
 			exit(255);
 
 		/* not really useful here, unless someone write reprepro
-		 * specific modules (which I hope noone will) */
+		 * specific modules (which I hope no one will) */
 		sethookenvironment(NULL, NULL, NULL, NULL);
 		/* actually call the method without any arguments: */
 		(void)execl(methodname, methodname, ENDOFARGUMENTS);

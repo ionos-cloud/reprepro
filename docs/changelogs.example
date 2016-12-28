@@ -1,6 +1,6 @@
 #!/bin/sh
 # This is an example script that can be hooked into reprepro
-# to either generate a hierachy like packages.debian.org/changelogs/
+# to either generate a hierarchy like packages.debian.org/changelogs/
 # or to generate changelog files in the "third party sites"
 # location apt-get changelogs looks if it is not found in
 # Apt::Changelogs::Server.
@@ -33,7 +33,7 @@ else
 	exit 1
 fi
 
-# CHANGELOGDIR set means generate full hierachy
+# CHANGELOGDIR set means generate full hierarchy
 # (clients need to set Apt::Changelogs::Server to use that)
 CHANGELOGDIR=changelogs
 

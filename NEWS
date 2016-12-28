@@ -20,7 +20,7 @@ Updates between 4.17.0 and 4.17.1:
 Updates between 4.16.1 and 4.17.0:
 - some manpage fixes
 - '#' in filterlists are comments
-- fix parsing of strangly formated control files
+- fix parsing of strangly formatted control files
 - add Exportoptions: noexport option in conf/distributions
 - add Permit: unlisted_binary option in conf/incoming
 - -dbgsym are not differently looked for in changes' Binary field
@@ -93,7 +93,7 @@ Updates between 4.9.0 and 4.10.0:
 - improve changelogs.example (CHANGELOGDIR empty stored directly in pool/)
 
 Updates between 4.8.2 and 4.9.0:
-- build-needing now allows to look for things for 'all' and 'any'
+- build-needing now allows one to look for things for 'all' and 'any'
 - improve error messages when parsing config files
 - uploader files now can 'include' other files.
 
@@ -222,7 +222,7 @@ Updates between 3.10.0 and 3.11.0:
 Updates between 3.9.2 and 3.10.0:
 - fix bug of ListHook not used if in the From: rule of a rule.
 - add ListShelllHook
-- add _listdbidentifers and _listconfidentifiers
+- add _listdbidentifiers and _listconfidentifiers
 - add --list-format to change format of list and listfilter
 + rewrite Release.gpg verification code:
 - more hops needed to use expired or revoked keys
@@ -255,7 +255,7 @@ Updates between 3.8.2 and 3.9.0:
 - new 'warning' state for FilterList
 - set REPREPRO_FROM and REPREPRO_CAUSING_RULE in some log notifiers
 + bug fixes:
-- reenable workaround for apt-methods having problem with existing
+- re-enable workaround for apt-methods having problem with existing
   files which got lost in 3.8
 - fix bug not looking at DownloadListsAs in all cases
 - bugfix in misparsing some .diff files for section/priority retrieval
@@ -447,7 +447,7 @@ Updates between 2.2.4 and 3.0.0:
 - added db/version file to document database format
   (so future versions can warn about incompatibilities)
 - cleaned up tracking handling a bit:
-  * retrack no longer created tracking data for distribtions without tracking
+  * retrack no longer created tracking data for distributions without tracking
   * retrack only recreates usage data, not all data
     (so .changes files and old versions are no longer lost when run)
     also references from tracking data are now refreshed by rereferences instead
@@ -535,14 +535,14 @@ Updates between 1.2.0 and 1.3.0:
   Unless the new --ignore=wrongversion is specified, a dsc must
   have the same version, and a .deb must have this source version
   unless --ignore=wrongsourceversion is given. A .deb must also
-  contain a package listed in the Binary: header unless 
-  --ignore=surprisingbinary is given. (A .dsc with an other name
-  or a .deb with an other Source than the Source-header if the
+  contain a package listed in the Binary: header unless
+  --ignore=surprisingbinary is given. (A .dsc with an different name
+  or a .deb with an different Source than the Source-header if the
   .changes file is still not ignoreable due to file naming issues)
 - FilterList in update and pull rules now has a space separated list
   of filenames instead of only a single filename.
 - new Uploaders field in conf/distributions:
-  allows to specify what a .changes file has to be signed with to be allowed in
+  specifies what a .changes file has to be signed with to be allowed in
 - new helper program "changestool" to preprocess .changes files.
 
 Updates between 1.1.0 and 1.2.0:

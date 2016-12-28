@@ -688,7 +688,7 @@ static retvalue read_dscfile(const char *fullfilename, struct dscfile **dsc) {
 		return r;
 	}
 
-	/* unusally not here, but hidden in the contents */
+	/* usually not here, but hidden in the contents */
 	r = chunk_getvalue(n->controlchunk, "Section", &n->section);
 	if (RET_WAS_ERROR(r)) {
 		dscfile_free(n);

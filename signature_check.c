@@ -287,7 +287,7 @@ void free_known_keys(void) {
 struct signature_requirement {
 	/* next condition */
 	struct signature_requirement *next;
-	/* the original desription for error messages */
+	/* the original description for error messages */
 	char *condition;
 	/* an array of or-connected conditions */
 	size_t num_keys;

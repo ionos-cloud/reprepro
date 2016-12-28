@@ -755,7 +755,7 @@ retvalue checksumsarray_parse(struct checksumsarray *out, const struct strlist l
 		return RET_OK;
 	}
 #if 0
-// TODO: reenable this once apt-utils is fixed for a long enough time...
+// TODO: re-enable this once apt-utils is fixed for a long enough time...
 	for (i = 0 ; i < filenames.count ; i++) {
 		for (cs = cs_md5sum ; cs < cs_hashCOUNT ; cs++) {
 			if (!foundhashtype[cs])

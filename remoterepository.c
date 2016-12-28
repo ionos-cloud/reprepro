@@ -1848,7 +1848,7 @@ static retvalue queue_next_diff(struct remote_index *ri) {
 					&improves))
 			continue;
 		/* p->frompackages should only have sha1 and oldchecksums
-		 * should definitly list a sha1 hash */
+		 * should definitely list a sha1 hash */
 		assert (!improves);
 
 		p->done = true;

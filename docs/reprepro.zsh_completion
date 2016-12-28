@@ -230,7 +230,7 @@ commands=(
 	list:"list packages"
 	ls:"list versions of package"
 	lsbycomponent:"list versions of package (grouped by component)"
-	predelete:"delete what would be removed or superseeded by an update"
+	predelete:"delete what would be removed or superseded by an update"
 	processincoming:"process files from an incoming directory"
 	pull:"update from another local distribtuion"
 	removealltracks:"remove tracking information"
@@ -277,7 +277,7 @@ hiddencommands=(
 	_listdbidentifiers:"list parts of the repository in the database"
 	_listmd5sums:"print a list of filekeys and their md5 hashes"
 	_removereference:"manuall remove a reference"
-	_removereferences:"remove all references by an identifer"
+	_removereferences:"remove all references by an identifier"
     	)
 
 _arguments \
@@ -314,7 +314,7 @@ _arguments \
 		brokenold\:"ignore broken packages in database"\
 		brokenversioncmp\:"ignore versions not parseable"\
 		extension\:"ignore unexpected suffixes of files"\
-		unusedarch\:"allow changes files to list achitectures not used"\
+		unusedarch\:"allow changes files to list architectures not used"\
 		unusedoption\:"ignore command line options not used by an action"\
 		undefinedtarget\:"allow unspecified package databases"\
 		undefinedtracking\:"allow unspecified tracking databases"\

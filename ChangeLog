@@ -523,7 +523,7 @@
 	IgnoreRelease.
 	* Handle apt transport methods returning missing files as
 	success with alternate filename suggestion more gracefully.
-	* when getting packages from an other architecture while updating,
+	* when getting packages from another architecture while updating,
 	ignore all packages with architecture not fitting into the target.
 	(Fixes a regression introduced in 3.8.0)
 2009-10-21
