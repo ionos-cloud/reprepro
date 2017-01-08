@@ -1,2 +1,5 @@
-version=3
-http://alioth.debian.org/project/showfiles.php?group_id=30039 .*/reprepro_(.*).orig.tar.gz
+version=4
+opts="pgpmode=next" http://alioth.debian.org/project/showfiles.php?group_id=30039 \
+	/frs/download.php/file/.*/reprepro@ANY_VERSION@\.orig\.tar\.gz debian
+opts="pgpmode=previous" http://alioth.debian.org/project/showfiles.php?group_id=30039 \
+	/frs/download.php/file/.*/reprepro@ANY_VERSION@\.orig\.tar\.gz\.(?:gpg|sign) previous uupdate
