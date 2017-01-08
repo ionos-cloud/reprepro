@@ -553,7 +553,7 @@ static struct uploader *addfingerprint(struct uploaders *u, const char *fingerpr
 		char c = fingerprint[len-i-1];
 		if (c >= 'a' && c <= 'f')
 			c -= 'a' - 'A';
-		assert ((c >= '0' && c <= '9') || (c >= 'A' || c <= 'F'));
+		assert ((c >= '0' && c <= '9') || (c >= 'A' && c <= 'F'));
 		reversed[i] = c;
 	}
 	reversed[len] = '\0';
