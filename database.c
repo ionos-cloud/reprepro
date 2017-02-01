@@ -953,15 +953,38 @@ struct table {
 };
 
 static void table_printerror(struct table *table, int dbret, const char *action) {
-	if (table->subname != NULL)
-		table->berkeleydb->err(table->berkeleydb, dbret,
-				"%sWithin %s subtable %s at %s",
-				databaseerror, table->name, table->subname,
-				action);
-	else
-		table->berkeleydb->err(table->berkeleydb, dbret,
-				"%sWithin %s at %s",
-				databaseerror, table->name, action);
+	char *error_msg;
+
+	switch (dbret) {
+	case RET_ERROR_OOM:
+		error_msg = "RET_ERROR_OOM: Out of memory.";
+		break;
+	default:
+		error_msg = NULL;
+		break;
+	}
+
+	if (error_msg == NULL) {
+		if (table->subname != NULL)
+			table->berkeleydb->err(table->berkeleydb, dbret,
+					"%sWithin %s subtable %s at %s",
+					databaseerror, table->name, table->subname,
+					action);
+		else
+			table->berkeleydb->err(table->berkeleydb, dbret,
+					"%sWithin %s at %s",
+					databaseerror, table->name, action);
+	} else {
+		if (table->subname != NULL)
+			table->berkeleydb->errx(table->berkeleydb,
+					"%sWithin %s subtable %s at %s: %s",
+					databaseerror, table->name, table->subname,
+					action, error_msg);
+		else
+			table->berkeleydb->errx(table->berkeleydb,
+					"%sWithin %s at %s: %s",
+					databaseerror, table->name, action, error_msg);
+	}
 }
 
 retvalue table_close(struct table *table) {
