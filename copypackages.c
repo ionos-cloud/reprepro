@@ -376,30 +376,37 @@ struct namelist {
 };
 
 static retvalue by_name(struct package_list *list, struct target *desttarget, struct target *fromtarget, void *data) {
-	struct namelist *d = data;
+	struct nameandversion *nameandversion = data;
+	struct nameandversion *prev;
 	retvalue result, r;
-	int i, j;
 
 	result = RET_NOTHING;
-	for (i = 0 ; i < d->argc ; i++) {
+	for (struct nameandversion *d = nameandversion; d->name != NULL ; d++) {
 		struct package package;
-		const char *name = d->argv[i];
 
-		for (j = 0 ; j < i ; j++)
-			if (strcmp(d->argv[i], d->argv[j]) == 0)
+		for (prev = nameandversion ; prev < d ; prev++) {
+			if (strcmp(prev->name, d->name) == 0 && strcmp2(prev->version, d->version) == 0)
 				break;
-		if (j < i) {
-			if (verbose >= 0 && ! d->warnedabout[j])
-				fprintf(stderr,
+		}
+		if (prev < d) {
+			if (verbose >= 0 && ! prev->warnedabout) {
+				if (d->version == NULL) {
+					fprintf(stderr,
 "Hint: '%s' was listed multiple times, ignoring all but first!\n",
-						d->argv[i]);
-			d->warnedabout[j] = true;
+							d->name);
+				} else {
+					fprintf(stderr,
+"Hint: '%s=%s' was listed multiple times, ignoring all but first!\n",
+							d->name, d->version);
+				}
+			}
+			prev->warnedabout = true;
 			/* do not complain second is missing if we ignore it: */
-			d->found[i] = true;
+			d->found = true;
 			continue;
 		}
 
-		r = package_get(fromtarget, name, NULL, &package);
+		r = package_get(fromtarget, d->name, d->version, &package);
 		if (r == RET_NOTHING)
 			continue;
 		RET_ENDUPDATE(result, r);
@@ -410,7 +417,7 @@ static retvalue by_name(struct package_list *list, struct target *desttarget, st
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(r))
 			break;
-		d->found[i] = true;
+		d->found = true;
 	}
 	return result;
 }
@@ -431,30 +438,23 @@ static void packagelist_done(struct package_list *list) {
 	}
 }
 
-retvalue copy_by_name(struct distribution *into, struct distribution *from, int argc, const char **argv, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes) {
+retvalue copy_by_name(struct distribution *into, struct distribution *from, struct nameandversion *nameandversion, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes) {
 	struct package_list list;
-	struct namelist names = {
-		argc, argv, nzNEW(argc, bool), nzNEW(argc, bool)
-	};
 	retvalue r;
 
-	if (FAILEDTOALLOC(names.warnedabout) || FAILEDTOALLOC(names.found)) {
-		free(names.found);
-		free(names.warnedabout);
-		return RET_ERROR_OOM;
+	for (struct nameandversion *d = nameandversion; d->name != NULL; d++) {
+		d->found = false;
+		d->warnedabout = false;
 	}
 
 	memset(&list, 0, sizeof(list));
 	r = copy_by_func(&list, into, from, components,
-			architectures, packagetypes, by_name, &names);
-	free(names.warnedabout);
+			architectures, packagetypes, by_name, nameandversion);
 	if (verbose >= 0 && !RET_WAS_ERROR(r)) {
-		int i;
 		bool first = true;
 
-		assert(names.found != NULL);
-		for (i = 0 ; i < argc ; i++) {
-			if (names.found[i])
+		for (struct nameandversion *d = nameandversion; d->name != NULL; d++) {
+			if (d->found)
 				continue;
 			if (first)
 				(void)fputs(
@@ -462,14 +462,17 @@ retvalue copy_by_name(struct distribution *into, struct distribution *from, int 
 			else
 				(void)fputs(", ", stderr);
 			first = false;
-			(void)fputs(argv[i], stderr);
+			(void)fputs(d->name, stderr);
+			if (d->version != NULL) {
+				(void)fputs("=", stderr);
+				(void)fputs(d->version, stderr);
+			}
 		}
 		if (!first) {
 			(void)fputc('.', stderr);
 			(void)fputc('\n', stderr);
 		}
 	}
-	free(names.found);
 	if (!RET_IS_OK(r))
 		return r;
 	r = packagelist_add(into, &list, from->codename);
