@@ -650,7 +650,7 @@ ACTION_R(n, n, n, y, addreferences) {
 	return ret;
 }
 
-static retvalue remove_from_target(struct distribution *distribution, struct trackingdata *trackingdata, struct target *target, int count, const char * const *names, int *todo, bool *gotremoved) {
+static retvalue remove_from_target(struct distribution *distribution, struct trackingdata *trackingdata, struct target *target, int count, const char * const *names, int *remaining, bool *gotremoved) {
 	retvalue result, r;
 	int i;
 
@@ -661,7 +661,7 @@ static retvalue remove_from_target(struct distribution *distribution, struct tra
 		RET_UPDATE(distribution->status, r);
 		if (RET_IS_OK(r)) {
 			if (!gotremoved[i])
-				(*todo)--;
+				(*remaining)--;
 			gotremoved[i] = true;
 		}
 		RET_UPDATE(result, r);
@@ -674,7 +674,7 @@ ACTION_D(y, n, y, remove) {
 	struct distribution *distribution;
 	struct target *t;
 	bool *gotremoved;
-	int todo;
+	int remaining;
 
 	trackingdb tracks;
 	struct trackingdata trackingdata;
@@ -707,7 +707,7 @@ ACTION_D(y, n, y, remove) {
 		}
 	}
 
-	todo = argc-2;
+	remaining = argc-2;
 	gotremoved = nzNEW(argc - 2, bool);
 	result = RET_NOTHING;
 	if (FAILEDTOALLOC(gotremoved))
@@ -724,7 +724,7 @@ ACTION_D(y, n, y, remove) {
 				 	? &trackingdata
 					: NULL,
 				 t, argc-2, argv+2,
-				 &todo, gotremoved);
+				 &remaining, gotremoved);
 		 RET_UPDATE(result, r);
 		 r = target_closepackagesdb(t);
 		 RET_UPDATE(distribution->status, r);
@@ -741,7 +741,7 @@ ACTION_D(y, n, y, remove) {
 		r = tracking_done(tracks);
 		RET_ENDUPDATE(result, r);
 	}
-	if (verbose >= 0 && !RET_WAS_ERROR(result) && todo > 0) {
+	if (verbose >= 0 && !RET_WAS_ERROR(result) && remaining > 0) {
 		int i = argc - 2;
 
 		(void)fputs("Not removed as not found: ", stderr);
@@ -750,8 +750,8 @@ ACTION_D(y, n, y, remove) {
 			assert(gotremoved != NULL);
 			if (!gotremoved[i]) {
 				(void)fputs(argv[2 + i], stderr);
-				todo--;
-				if (todo > 0)
+				remaining--;
+				if (remaining > 0)
 					(void)fputs(", ", stderr);
 			}
 		}
