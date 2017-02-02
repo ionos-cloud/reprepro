@@ -1957,6 +1957,8 @@ ACTION_B(y, n, y, dumppull) {
 
 ACTION_D(y, n, y, copy) {
 	struct distribution *destination, *source;
+	struct nameandversion data[argc-2];
+	int i;
 	retvalue result;
 
 	result = distribution_get(alldistributions, argv[1], true, &destination);
@@ -1978,8 +1980,16 @@ ACTION_D(y, n, y, copy) {
 	if (RET_WAS_ERROR(result))
 		return result;
 
-	return copy_by_name(destination, source, argc-3, argv+3,
+	for (i = 0; i < argc-3; i++) {
+		data[i].name = argv[3 + i];
+		data[i].version = NULL;
+	}
+	data[i].name = NULL;
+	data[i].version = NULL;
+
+	result = copy_by_name(destination, source, data,
 			components, architectures, packagetypes);
+	return result;
 }
 
 ACTION_D(y, n, y, copysrc) {
