@@ -1325,6 +1325,9 @@ static retvalue newcursor(struct table *table, uint32_t flags, struct cursor **c
 	struct cursor *cursor;
 	int dbret;
 
+	if (verbose >= 15)
+		fprintf(stderr, "trace: newcursor(table={name: %s}) called.\n", table->name);
+
 	if (table->berkeleydb == NULL) {
 		assert (table->readonly);
 		*cursor_p = NULL;
