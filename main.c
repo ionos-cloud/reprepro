@@ -657,7 +657,7 @@ static retvalue remove_from_target(struct distribution *distribution, struct tra
 	result = RET_NOTHING;
 	for (i = 0 ; i < count ; i++){
 		r = target_removepackage(target, distribution->logger,
-				names[i], trackingdata);
+				names[i], NULL, trackingdata);
 		RET_UPDATE(distribution->status, r);
 		if (RET_IS_OK(r)) {
 			if (!gotremoved[i])
