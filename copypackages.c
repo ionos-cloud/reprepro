@@ -59,6 +59,18 @@ struct package_list {
 	/*@null@*/struct target_package_list *targets;
 };
 
+// cascade_strcmp compares the two strings s1 and s2. If the strings are equal, the strings
+// t1 and t2 are compared.
+static int cascade_strcmp(const char *s1, const char *s2, const char *t1, const char *t2) {
+	int result;
+
+	result = strcmp(s1, s2);
+	if (result == 0) {
+		result = strcmp(t1, t2);
+	}
+	return result;
+}
+
 static retvalue list_newpackage(struct package_list *list, struct target *target, const char *sourcename, const char *sourceversion, const char *packagename, const char *packageversion, /*@out@*/struct selectedpackage **package_p) {
 	struct target_package_list *t, **t_p;
 	struct selectedpackage *package, **p_p;
