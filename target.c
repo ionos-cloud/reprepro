@@ -223,6 +223,20 @@ retvalue target_closepackagesdb(struct target *target) {
 	return r;
 }
 
+static inline char *package_primarykey(const char *packagename, const char *version) {
+	char *key;
+
+	assert (packagename != NULL);
+	assert (version != NULL);
+	key = malloc(strlen(packagename) + 1 + strlen(version) + 1);
+	if (key != NULL) {
+		strcpy(key, packagename);
+		strcat(key, "|");
+		strcat(key, version);
+	}
+	return key;
+}
+
 /* Remove a package from the given target. */
 retvalue package_remove(struct package *old, struct logger *logger, struct trackingdata *trackingdata) {
 	struct strlist files;
