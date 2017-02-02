@@ -609,7 +609,7 @@ retvalue upgradelist_predelete(struct upgradelist *upgrade, struct logger *logge
 				r = RET_ERROR_INTERRUPTED;
 			else
 				r = target_removepackage(upgrade->target,
-						logger, pkg->name, NULL);
+						logger, pkg->name, NULL, NULL);
 			RET_UPDATE(result, r);
 			if (RET_WAS_ERROR(r))
 				break;
@@ -713,7 +713,7 @@ retvalue upgradelist_install(struct upgradelist *upgrade, struct logger *logger,
 				r = RET_ERROR_INTERRUPTED;
 			else
 				r = target_removepackage(upgrade->target,
-						logger, pkg->name, NULL);
+						logger, pkg->name, NULL, NULL);
 			RET_UPDATE(result, r);
 			if (RET_WAS_ERROR(r))
 				break;
