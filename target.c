@@ -268,20 +268,25 @@ retvalue package_remove(struct package *old, struct logger *logger, struct track
 }
 
 /* Remove a package from the given target. */
-retvalue target_removepackage(struct target *target, struct logger *logger, const char *name, struct trackingdata *trackingdata) {
+retvalue target_removepackage(struct target *target, struct logger *logger, const char *name, const char *version, struct trackingdata *trackingdata) {
 	struct package old;
 	retvalue r;
 
 	assert(target != NULL && target->packages != NULL && name != NULL);
 
-	r = package_get(target, name, NULL, &old);
+	r = package_get(target, name, version, &old);
 	if (RET_WAS_ERROR(r)) {
 		return r;
 	}
 	else if (r == RET_NOTHING) {
-		if (verbose >= 10)
-			fprintf(stderr, "Could not find '%s' in '%s'...\n",
-					name, target->identifier);
+		if (verbose >= 10) {
+			if (version == NULL)
+				fprintf(stderr, "Could not find '%s' in '%s'...\n",
+						name, target->identifier);
+			else
+				fprintf(stderr, "Could not find '%s=%s' in '%s'...\n",
+						name, version, target->identifier);
+		}
 		return RET_NOTHING;
 	}
 	r = package_remove(&old, logger, trackingdata);
