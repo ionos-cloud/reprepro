@@ -945,6 +945,12 @@ static const char databaseerror[] = "Internal error of the underlying BerkeleyDB
  There is nothing that cannot be solved by another layer of indirection, except
  too many levels of indirection. (Source forgotten) */
 
+struct cursor {
+	DBC *cursor;
+	uint32_t flags;
+	retvalue r;
+};
+
 struct table {
 	char *name, *subname;
 	DB *berkeleydb;
@@ -1315,12 +1321,6 @@ retvalue table_replacerecord(struct table *table, const char *key, const char *d
 		return r;
 	return table_adduniqrecord(table, key, data);
 }
-
-struct cursor {
-	DBC *cursor;
-	uint32_t flags;
-	retvalue r;
-};
 
 static retvalue newcursor(struct table *table, uint32_t flags, struct cursor **cursor_p) {
 	struct cursor *cursor;
