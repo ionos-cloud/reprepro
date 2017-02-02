@@ -1824,6 +1824,25 @@ retvalue database_opentracking(const char *codename, bool readonly, struct table
 	return RET_OK;
 }
 
+static int get_package_name(DB *secondary, const DBT *pkey, const DBT *pdata, DBT *skey) {
+	const char *separator;
+	size_t length;
+
+	separator = memchr(pkey->data, '|', pkey->size);
+	if (unlikely(separator == NULL)) {
+		return DB_MALFORMED_KEY;
+	}
+
+	length = (size_t)separator - (size_t)pkey->data;
+	skey->flags = DB_DBT_APPMALLOC;
+	skey->data = strndup(pkey->data, length);
+	if (FAILEDTOALLOC(skey->data)) {
+		return RET_ERROR_OOM;
+	}
+	skey->size = length + 1;
+	return 0;
+}
+
 retvalue database_openpackages(const char *identifier, bool readonly, struct table **table_p) {
 	struct table *table;
 	retvalue r;

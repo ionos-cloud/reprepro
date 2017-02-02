@@ -10,6 +10,7 @@ bool interrupted(void);
 /* retvalue is simply an int.
  * just named to show it follows the given semantics */
 /*@numabstract@*/ enum retvalue_enum {
+	DB_MALFORMED_KEY = -30001,
 	RET_ERROR_INCOMING_DENY = -13,
 	RET_ERROR_INTERNAL = -12,
 	RET_ERROR_BZ2 = -11,
