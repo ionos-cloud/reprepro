@@ -412,6 +412,7 @@ static retvalue addpackages(struct target *target, const char *packagename, cons
 
 retvalue target_addpackage(struct target *target, struct logger *logger, const char *name, const char *version, const char *control, const struct strlist *filekeys, bool downgrade, struct trackingdata *trackingdata, architecture_t architecture, const char *causingrule, const char *suitefrom, struct description *description) {
 	struct strlist oldfilekeys, *ofk;
+	bool replace = true;
 	char *newcontrol;
 	struct package old;
 	retvalue r;
@@ -473,27 +474,29 @@ retvalue target_addpackage(struct target *target, struct logger *logger, const c
 				}
 			}
 		}
-		r = target->getfilekeys(old.control, &oldfilekeys);
-		ofk = &oldfilekeys;
-		if (RET_WAS_ERROR(r)) {
-			if (IGNORING(brokenold,
-"Error parsing files belonging to installed version of %s!\n", name)) {
-				ofk = NULL;
-			} else {
-				package_done(&old);
-				return r;
-			}
-		} else if (trackingdata != NULL) {
-			r = package_getsource(&old);
+		if (replace) {
+			r = target->getfilekeys(old.control, &oldfilekeys);
+			ofk = &oldfilekeys;
 			if (RET_WAS_ERROR(r)) {
-				strlist_done(ofk);
 				if (IGNORING(brokenold,
-"Error searching for source name of installed version of %s!\n", name)) {
-					// TODO: free something of oldfilekeys?
+"Error parsing files belonging to installed version of %s!\n", name)) {
 					ofk = NULL;
 				} else {
 					package_done(&old);
 					return r;
+				}
+			} else if (trackingdata != NULL) {
+				r = package_getsource(&old);
+				if (RET_WAS_ERROR(r)) {
+					strlist_done(ofk);
+					if (IGNORING(brokenold,
+"Error searching for source name of installed version of %s!\n", name)) {
+						// TODO: free something of oldfilekeys?
+						ofk = NULL;
+					} else {
+						package_done(&old);
+						return r;
+					}
 				}
 			}
 		}
@@ -504,7 +507,11 @@ retvalue target_addpackage(struct target *target, struct logger *logger, const c
 			description, &newcontrol);
 	if (RET_IS_OK(r))
 		control = newcontrol;
-	if (!RET_WAS_ERROR(r))
+	if (!RET_WAS_ERROR(r)) {
+		if (!replace) {
+			package_done(&old);
+			ofk = NULL;
+		}
 		r = addpackages(target, name, control, old.control,
 			version, old.version,
 			filekeys, ofk,
@@ -512,6 +519,7 @@ retvalue target_addpackage(struct target *target, struct logger *logger, const c
 			trackingdata, architecture,
 			old.source, old.sourceversion,
 			causingrule, suitefrom);
+	}
 	if (RET_IS_OK(r)) {
 		target->wasmodified = true;
 		if (trackingdata == NULL)
