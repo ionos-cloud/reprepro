@@ -375,6 +375,20 @@ struct namelist {
 	bool *found;
 };
 
+static int strcmp2(const char *s1, const char *s2) {
+	if (s1 == NULL || s2 == NULL) {
+		if (s1 == NULL && s2 == NULL) {
+			return 0;
+		} else if (s1 == NULL) {
+			return -1;
+		} else {
+			return 1;
+		}
+	} else {
+		return strcmp(s1, s2);
+	}
+}
+
 static retvalue by_name(struct package_list *list, struct target *desttarget, struct target *fromtarget, void *data) {
 	struct namelist *d = data;
 	retvalue result, r;
