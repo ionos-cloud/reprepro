@@ -221,6 +221,7 @@ static const uint32_t types[dbt_COUNT] = {
 	DB_HASH
 };
 
+static int debianversioncompare(UNUSED(DB *db), const DBT *a, const DBT *b);
 #if DB_VERSION_MAJOR >= 6
 static int paireddatacompare(UNUSED(DB *db), const DBT *a, const DBT *b, size_t *locp);
 #else
@@ -1739,6 +1740,45 @@ retvalue database_openreferences(void) {
 	} else
 		rdb_references->verbose = false;
 	return RET_OK;
+}
+
+static int debianversioncompare(UNUSED(DB *db), const DBT *a, const DBT *b) {
+	const char *a_version;
+	const char *b_version;
+	int versioncmp;
+	// There is no way to indicate an error to the caller
+	// Thus return -1 in case of an error
+	retvalue r = -1;
+
+	if (a->size == 0 || ((char*)a->data)[a->size-1] != '\0') {
+		fprintf(stderr, "Database value '%.*s' empty or not NULL terminated.\n", a->size, (char*)a->data);
+		return r;
+	}
+	if (b->size == 0 || ((char*)b->data)[b->size-1] != '\0') {
+		fprintf(stderr, "Database value '%.*s' empty or not NULL terminated.\n", b->size, (char*)b->data);
+		return r;
+	}
+
+	a_version = strchr(a->data, '|');
+	if (a_version == NULL) {
+		fprintf(stderr, "Database value '%s' malformed. It should be 'package|version'.\n", (char*)a->data);
+		return r;
+	}
+	a_version++;
+	b_version = strchr(b->data, '|');
+	if (b_version == NULL) {
+		fprintf(stderr, "Database value '%s' malformed. It should be 'package|version'.\n", (char*)b->data);
+		return r;
+	}
+	b_version++;
+
+	r = dpkgversions_cmp(a_version, b_version, &versioncmp);
+	if (RET_WAS_ERROR(r)) {
+		fprintf(stderr, "Parse errors processing versions.\n");
+		return r;
+	}
+
+	return -versioncmp;
 }
 
 /* only compare the first 0-terminated part of the data */
