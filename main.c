@@ -245,6 +245,57 @@ O(fast), O(x_morguedir), O(x_outdir), O(x_basedir), O(x_distdir), O(x_dbdir), O(
 			act(const struct atomlist *, packagetypes),  \
 			u(int, argc), u(const char *, argv[]))
 
+static retvalue splitnameandversion(const char *nameandversion, const char **name_p, const char **version_p) {
+	char *version;
+	retvalue r;
+
+	version = index(nameandversion, '=');
+	if (version != NULL) {
+		if (index(version+1, '=') != NULL) {
+			fprintf(stderr,
+"Cannot parse '%s': more than one '='\n",
+					nameandversion);
+			*name_p = NULL;
+			*version_p = NULL;
+			r = RET_ERROR;
+		} else if (version[1] == '\0') {
+			fprintf(stderr,
+"Cannot parse '%s': no version after '='\n",
+					nameandversion);
+			*name_p = NULL;
+			*version_p = NULL;
+			r = RET_ERROR;
+		} else if (version == nameandversion) {
+			fprintf(stderr,
+"Cannot parse '%s': no source name found before the '='\n",
+					nameandversion);
+			*name_p = NULL;
+			*version_p = NULL;
+			r = RET_ERROR;
+		} else {
+			*name_p = strndup(nameandversion, version - nameandversion);
+			if (FAILEDTOALLOC(*name_p))
+				r = RET_ERROR_OOM;
+			else
+				r = RET_OK;
+			*version_p = version + 1;
+		}
+	} else {
+		r = RET_OK;
+		*name_p = nameandversion;
+		*version_p = NULL;
+	}
+	return r;
+}
+
+static inline void splitnameandversion_done(const char **name_p, const char **version_p) {
+	// In case version_p points to a non-NULL value, name_p needs to be freed after usage.
+	if (*version_p != NULL) {
+		free((char*)*name_p);
+		*name_p = NULL;
+	}
+}
+
 ACTION_N(n, n, y, printargs) {
 	int i;
 
@@ -899,44 +950,12 @@ ACTION_D(n, n, y, removesrcs) {
 	}
 	for (i = 0 ; i < argc-2 ; i++) {
 		data[i].found = false;
-		data[i].sourcename = argv[2 + i];
-		data[i].sourceversion = index(data[i].sourcename, '=');
-		if (data[i].sourceversion != NULL) {
-			if (index(data[i].sourceversion+1, '=') != NULL) {
-				fprintf(stderr,
-"Cannot parse '%s': more than one '='\n",
-						data[i].sourcename);
-				data[i].sourcename = NULL;
-				r = RET_ERROR;
-			} else if (data[i].sourceversion[1] == '\0') {
-				fprintf(stderr,
-"Cannot parse '%s': no version after '='\n",
-						data[i].sourcename);
-				data[i].sourcename = NULL;
-				r = RET_ERROR;
-			} else if (data[i].sourceversion == data[i].sourcename) {
-				fprintf(stderr,
-"Cannot parse '%s': no source name found before the '='\n",
-						data[i].sourcename);
-				data[i].sourcename = NULL;
-				r = RET_ERROR;
-			} else {
-				data[i].sourcename = strndup(data[i].sourcename,
-						data[i].sourceversion
-						- data[i].sourcename);
-				if (FAILEDTOALLOC(data[i].sourcename))
-					r = RET_ERROR_OOM;
-				else
-					r = RET_OK;
+		r = splitnameandversion(argv[2 + i], &data[i].sourcename, &data[i].sourceversion);
+		if (RET_WAS_ERROR(r)) {
+			for (i--; i >= 0; i--) {
+				splitnameandversion_done(&data[i].sourcename, &data[i].sourceversion);
 			}
-			if (RET_WAS_ERROR(r)) {
-				for (i-- ; i >= 0 ; i--) {
-					if (data[i].sourceversion != NULL)
-						free((char*)data[i].sourcename);
-				}
-				return r;
-			}
-			data[i].sourceversion++;
+			return r;
 		}
 	}
 	data[i].sourcename = NULL;
@@ -954,8 +973,7 @@ ACTION_D(n, n, y, removesrcs) {
 "No package from source '%s' (any version) found.\n",
 						data[i].sourcename);
 		}
-		if (data[i].sourceversion != NULL)
-			free((char*)data[i].sourcename);
+		splitnameandversion_done(&data[i].sourcename, &data[i].sourceversion);
 	}
 	return r;
 }
