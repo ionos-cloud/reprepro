@@ -1,6 +1,8 @@
 #ifndef REPREPRO_GLOBALS_H
 #define REPREPRO_GLOBALS_H
 
+#include <string.h>
+
 #ifdef AVOID_CHECKPROBLEMS
 # define bool _Bool
 # define true (1==1)
@@ -90,5 +92,20 @@ enum compression { c_none, c_gzip, c_bzip2, c_lzma, c_xz, c_lunzip, c_COUNT };
 #define zNEW(type) ((type *)calloc(1, sizeof(type)))
 #define nzNEW(num, type) ((type *)calloc(num, sizeof(type)))
 #define arrayinsert(type, array, position, length) ({type *__var = array; memmove(__var + (position) + 1, __var + (position), sizeof(type) * ((length) - (position)));})
+
+// strcmp2 behaves like strcmp, but allows both strings to be NULL
+inline int strcmp2(const char *s1, const char *s2) {
+	if (s1 == NULL || s2 == NULL) {
+		if (s1 == NULL && s2 == NULL) {
+			return 0;
+		} else if (s1 == NULL) {
+			return -1;
+		} else {
+			return 1;
+		}
+	} else {
+		return strcmp(s1, s2);
+	}
+}
 
 #endif
