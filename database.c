@@ -1299,14 +1299,14 @@ struct cursor {
 	retvalue r;
 };
 
-retvalue table_newglobalcursor(struct table *table, struct cursor **cursor_p) {
+static retvalue newcursor(struct table *table, uint32_t flags, struct cursor **cursor_p) {
 	struct cursor *cursor;
 	int dbret;
 
 	if (table->berkeleydb == NULL) {
 		assert (table->readonly);
 		*cursor_p = NULL;
-		return RET_OK;
+		return RET_NOTHING;
 	}
 
 	cursor = zNEW(struct cursor);
@@ -1314,7 +1314,7 @@ retvalue table_newglobalcursor(struct table *table, struct cursor **cursor_p) {
 		return RET_ERROR_OOM;
 
 	cursor->cursor = NULL;
-	cursor->flags = DB_NEXT;
+	cursor->flags = flags;
 	cursor->r = RET_OK;
 	dbret = table->berkeleydb->cursor(table->berkeleydb, NULL,
 			&cursor->cursor, 0);
@@ -1325,6 +1325,17 @@ retvalue table_newglobalcursor(struct table *table, struct cursor **cursor_p) {
 	}
 	*cursor_p = cursor;
 	return RET_OK;
+}
+
+retvalue table_newglobalcursor(struct table *table, struct cursor **cursor_p) {
+	retvalue r;
+
+	r = newcursor(table, DB_NEXT, cursor_p);
+	if (r == RET_NOTHING) {
+		// table_newglobalcursor returned RET_OK when table->berkeleydb == NULL. Is that return value wanted?
+		r = RET_OK;
+	}
+	return r;
 }
 
 static inline retvalue parse_pair(struct table *table, DBT Key, DBT Data, /*@null@*//*@out@*/const char **key_p, /*@out@*/const char **value_p, /*@out@*/const char **data_p, /*@out@*/size_t *datalen_p) {
@@ -1369,26 +1380,11 @@ retvalue table_newduplicatecursor(struct table *table, const char *key, struct c
 	DBT Key, Data;
 	retvalue r;
 
-	if (table->berkeleydb == NULL) {
-		assert (table->readonly);
-		*cursor_p = NULL;
-		return RET_NOTHING;
+	r = newcursor(table, DB_NEXT_DUP, cursor_p);
+	if(!RET_IS_OK(r)) {
+		return r;
 	}
-
-	cursor = zNEW(struct cursor);
-	if (FAILEDTOALLOC(cursor))
-		return RET_ERROR_OOM;
-
-	cursor->cursor = NULL;
-	cursor->flags = DB_NEXT_DUP;
-	cursor->r = RET_OK;
-	dbret = table->berkeleydb->cursor(table->berkeleydb, NULL,
-			&cursor->cursor, 0);
-	if (dbret != 0) {
-		table_printerror(table, dbret, "cursor");
-		free(cursor);
-		return RET_DBERR(dbret);
-	}
+	cursor = *cursor_p;
 	SETDBT(Key, key);
 	CLEARDBT(Data);
 	dbret = cursor->cursor->c_get(cursor->cursor, &Key, &Data, DB_SET);
@@ -1422,27 +1418,12 @@ retvalue table_newpairedcursor(struct table *table, const char *key, const char 
 	retvalue r;
 	size_t valuelen = strlen(value);
 
-	if (table->berkeleydb == NULL) {
-		assert (table->readonly);
-		*cursor_p = NULL;
-		return RET_NOTHING;
-	}
-
-	cursor = zNEW(struct cursor);
-	if (FAILEDTOALLOC(cursor))
-		return RET_ERROR_OOM;
-
-	cursor->cursor = NULL;
 	/* cursor_next is not allowed with this type: */
-	cursor->flags = DB_GET_BOTH;
-	cursor->r = RET_OK;
-	dbret = table->berkeleydb->cursor(table->berkeleydb, NULL,
-			&cursor->cursor, 0);
-	if (dbret != 0) {
-		table_printerror(table, dbret, "cursor");
-		free(cursor);
-		return RET_DBERR(dbret);
+	r = newcursor(table, DB_GET_BOTH, cursor_p);
+	if(!RET_IS_OK(r)) {
+		return r;
 	}
+	cursor = *cursor_p;
 	SETDBT(Key, key);
 	SETDBTl(Data, value, valuelen + 1);
 	dbret = cursor->cursor->c_get(cursor->cursor, &Key, &Data, DB_GET_BOTH);
