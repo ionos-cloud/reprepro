@@ -241,8 +241,8 @@ retvalue package_remove(struct package *old, struct logger *logger, struct track
 		(void)package_getsource(old);
 	}
 	if (verbose > 0)
-		printf("removing '%s' from '%s'...\n",
-				old->name, old->target->identifier);
+		printf("removing '%s=%s' from '%s'...\n",
+				old->name, old->version, old->target->identifier);
 	result = table_deleterecord(old->target->packages, old->name, false);
 	if (RET_IS_OK(result)) {
 		old->target->wasmodified = true;
@@ -299,7 +299,7 @@ retvalue package_remove_by_cursor(struct package_cursor *tc, struct logger *logg
 	assert (target != NULL && target->packages != NULL);
 	assert (target == old->target);
 
-	if (logger != NULL) {
+	if (logger != NULL || verbose > 0) {
 		(void)package_getversion(old);
 	}
 	r = old->target->getfilekeys(old->control, &files);
@@ -310,8 +310,8 @@ retvalue package_remove_by_cursor(struct package_cursor *tc, struct logger *logg
 		(void)package_getsource(old);
 	}
 	if (verbose > 0)
-		printf("removing '%s' from '%s'...\n",
-				old->name, old->target->identifier);
+		printf("removing '%s=%s' from '%s'...\n",
+				old->name, old->version, old->target->identifier);
 	result = cursor_delete(target->packages, tc->cursor, old->name, NULL);
 	if (RET_IS_OK(result)) {
 		old->target->wasmodified = true;
