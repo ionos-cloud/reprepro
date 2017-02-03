@@ -1477,44 +1477,6 @@ retvalue cursor_close(struct table *table, struct cursor *cursor) {
 	return r;
 }
 
-bool cursor_nexttemp(struct table *table, struct cursor *cursor, const char **key, const char **data) {
-	DBT Key, Data;
-	int dbret;
-
-	if (cursor == NULL)
-		return false;
-
-	CLEARDBT(Key);
-	CLEARDBT(Data);
-
-	dbret = cursor->cursor->c_get(cursor->cursor, &Key, &Data, DB_NEXT);
-	if (dbret == DB_NOTFOUND)
-		return false;
-
-	if (dbret != 0) {
-		table_printerror(table, dbret, "c_get(DB_NEXT)");
-		cursor->r = RET_DBERR(dbret);
-		return false;
-	}
-	if (Key.size <= 0 || Data.size <= 0 ||
-	    ((const char*)Key.data)[Key.size-1] != '\0' ||
-	    ((const char*)Data.data)[Data.size-1] != '\0') {
-		if (table->subname != NULL)
-			fprintf(stderr,
-"Database %s(%s) returned corrupted (not null-terminated) data!",
-					table->name, table->subname);
-		else
-			fprintf(stderr,
-"Database %s returned corrupted (not null-terminated) data!",
-					table->name);
-		cursor->r = RET_ERROR;
-		return false;
-	}
-	*key = Key.data;
-	*data = Data.data;
-	return true;
-}
-
 bool cursor_nexttempdata(struct table *table, struct cursor *cursor, const char **key, const char **data, size_t *len_p) {
 	DBT Key, Data;
 	int dbret;
@@ -1551,7 +1513,8 @@ bool cursor_nexttempdata(struct table *table, struct cursor *cursor, const char 
 	if (key != NULL)
 		*key = Key.data;
 	*data = Data.data;
-	*len_p = Data.size - 1;
+	if (len_p != NULL)
+		*len_p = Data.size - 1;
 	return true;
 }
 
@@ -2077,8 +2040,8 @@ static inline retvalue translate(struct table *oldmd5sums, struct table *newchec
 	r = table_newglobalcursor(oldmd5sums, &cursor);
 	if (RET_WAS_ERROR(r))
 		return r;
-	while (cursor_nexttemp(oldmd5sums, cursor,
-				&filekey, &md5sum)) {
+	while (cursor_nexttempdata(oldmd5sums, cursor,
+				&filekey, &md5sum, NULL)) {
 		struct checksums *n = NULL;
 		const char *combined;
 		size_t combinedlen;
@@ -2145,15 +2108,15 @@ static inline retvalue translate(struct table *oldmd5sums, struct table *newchec
 		cursor_close(oldmd5sums, cursor);
 		return r;
 	}
-	while (cursor_nexttemp(oldmd5sums, cursor,
-				&filekey, &md5sum)) {
+	while (cursor_nexttempdata(oldmd5sums, cursor,
+				&filekey, &md5sum, NULL)) {
 		bool more;
 		int cmp;
 		const char *newfilekey, *dummy;
 
 		do {
-			more = cursor_nexttemp(newchecksums, newcursor,
-				&newfilekey, &dummy);
+			more = cursor_nexttempdata(newchecksums, newcursor,
+				&newfilekey, &dummy, NULL);
 			/* should have been added in the last step */
 			assert (more);
 			cmp = strcmp(filekey, newfilekey);
