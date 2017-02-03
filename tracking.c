@@ -1141,7 +1141,7 @@ static retvalue tracking_foreachversion(trackingdb t, struct distribution *distr
 	const char *value, *data;
 	size_t datalen;
 
-	r = table_newduplicatecursor(t->table, sourcename, &cursor,
+	r = table_newduplicatepairedcursor(t->table, sourcename, &cursor,
 			&value, &data, &datalen);
 	if (!RET_IS_OK(r))
 		return r;

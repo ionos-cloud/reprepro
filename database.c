@@ -1419,7 +1419,7 @@ static inline retvalue parse_pair(struct table *table, DBT Key, DBT Data, /*@nul
 	return RET_OK;
 }
 
-retvalue table_newduplicatecursor(struct table *table, const char *key, struct cursor **cursor_p, const char **value_p, const char **data_p, size_t *datalen_p) {
+retvalue table_newduplicatepairedcursor(struct table *table, const char *key, struct cursor **cursor_p, const char **value_p, const char **data_p, size_t *datalen_p) {
 	struct cursor *cursor;
 	int dbret;
 	DBT Key, Data;
