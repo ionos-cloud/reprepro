@@ -193,8 +193,8 @@ retvalue references_dump(void) {
 		return r;
 
 	result = RET_OK;
-	while (cursor_nexttemp(rdb_references, cursor,
-	                               &found_to, &found_by)) {
+	while (cursor_nexttempdata(rdb_references, cursor,
+	                               &found_to, &found_by, NULL)) {
 		if (fputs(found_by, stdout) == EOF ||
 		    putchar(' ') == EOF ||
 		    puts(found_to) == EOF) {

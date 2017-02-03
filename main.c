@@ -1576,7 +1576,7 @@ ACTION_B(n, n, n, dumpcontents) {
 		return r;
 	}
 	result = RET_NOTHING;
-	while (cursor_nexttemp(packages, cursor, &package, &chunk)) {
+	while (cursor_nexttempdata(packages, cursor, &package, &chunk, NULL)) {
 		printf("'%s' -> '%s'\n", package, chunk);
 		result = RET_OK;
 	}
