@@ -975,6 +975,34 @@ retvalue package_openiterator(struct target *t, bool readonly, /*@out@*/struct p
 	return RET_OK;
 }
 
+retvalue package_openduplicateiterator(struct target *t, const char *name, long long skip, /*@out@*/struct package_cursor *tc) {
+	retvalue r, r2;
+	struct cursor *c;
+
+	tc->close_database = t->packages == NULL;
+	if (tc->close_database) {
+		r = target_initpackagesdb(t, READONLY);
+		assert (r != RET_NOTHING);
+		if (RET_WAS_ERROR(r))
+			return r;
+	}
+
+	memset(&tc->current, 0, sizeof(tc->current));
+	r = table_newduplicatecursor(t->packages, name, skip, &c, &tc->current.name,
+	                             &tc->current.control, &tc->current.controllen);
+	if (!RET_IS_OK(r)) {
+		if (tc->close_database) {
+			r2 = target_closepackagesdb(t);
+			RET_ENDUPDATE(r, r2);
+		}
+		return r;
+	}
+	tc->current.target = t;
+	tc->target = t;
+	tc->cursor = c;
+	return RET_OK;
+}
+
 bool package_next(struct package_cursor *tc) {
 	bool success;
 	package_done(&tc->current);
