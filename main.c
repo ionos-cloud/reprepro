@@ -1295,17 +1295,20 @@ static retvalue newlsversion(struct lsversion **versions_p, struct package *pack
 
 static retvalue ls_in_target(struct target *target, const char *packagename, struct lsversion **versions_p) {
 	retvalue r, result;
-	struct package pkg;
+	struct package_cursor iterator;
 
-	result = package_get(target, packagename, NULL, &pkg);
-	if (RET_IS_OK(result)) {
-		r = package_getversion(&pkg);
+	result = package_openduplicateiterator(target, packagename, 0, &iterator);
+	if (!RET_IS_OK(result))
+		return result;
+	do {
+		r = package_getversion(&iterator.current);
 		if (RET_IS_OK(r))
-			r = newlsversion(versions_p, &pkg,
+			r = newlsversion(versions_p, &iterator.current,
 					target->architecture);
-		package_done(&pkg);
 		RET_UPDATE(result, r);
-	}
+	} while (package_next(&iterator));
+	r = package_closeiterator(&iterator);
+	RET_ENDUPDATE(result, r);
 	return result;
 }
 
