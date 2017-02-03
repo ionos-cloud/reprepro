@@ -1419,6 +1419,61 @@ static inline retvalue parse_pair(struct table *table, DBT Key, DBT Data, /*@nul
 	return RET_OK;
 }
 
+retvalue table_newduplicatecursor(struct table *table, const char *key, long long skip, struct cursor **cursor_p, const char **key_p, const char **data_p, size_t *datalen_p) {
+	struct cursor *cursor;
+	int dbret;
+	DBT Key, Data;
+	retvalue r;
+
+	r = newcursor(table, DB_NEXT_DUP, &cursor);
+	if(!RET_IS_OK(r)) {
+		return r;
+	}
+	SETDBT(Key, key);
+	CLEARDBT(Data);
+	dbret = cursor->cursor->c_get(cursor->cursor, &Key, &Data, DB_SET);
+	if (dbret == DB_NOTFOUND || dbret == DB_KEYEMPTY) {
+		(void)cursor->cursor->c_close(cursor->cursor);
+		free(cursor);
+		return RET_NOTHING;
+	}
+	if (dbret != 0) {
+		table_printerror(table, dbret, "c_get(DB_SET)");
+		(void)cursor->cursor->c_close(cursor->cursor);
+		free(cursor);
+		return RET_DBERR(dbret);
+	}
+
+	while (skip > 0) {
+		CLEARDBT(Key);
+		CLEARDBT(Data);
+
+		dbret = cursor->cursor->c_get(cursor->cursor, &Key, &Data, cursor->flags);
+		if (dbret == DB_NOTFOUND) {
+			(void)cursor->cursor->c_close(cursor->cursor);
+			free(cursor);
+			return RET_NOTHING;
+		}
+		if (dbret != 0) {
+			table_printerror(table, dbret, "c_get(DB_NEXT_DUP)");
+			(void)cursor->cursor->c_close(cursor->cursor);
+			free(cursor);
+			return RET_DBERR(dbret);
+		}
+
+		skip--;
+	}
+
+	r = parse_data(table, Key, Data, key_p, data_p, datalen_p);
+	if (RET_WAS_ERROR(r)) {
+		(void)cursor->cursor->c_close(cursor->cursor);
+		free(cursor);
+		return r;
+	}
+	*cursor_p = cursor;
+	return RET_OK;
+}
+
 retvalue table_newduplicatepairedcursor(struct table *table, const char *key, struct cursor **cursor_p, const char **value_p, const char **data_p, size_t *datalen_p) {
 	struct cursor *cursor;
 	int dbret;
