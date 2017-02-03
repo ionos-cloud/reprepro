@@ -71,6 +71,7 @@ struct package_cursor {
 };
 
 retvalue package_openiterator(struct target *, bool /*readonly*/, /*@out@*/struct package_cursor *);
+retvalue package_openduplicateiterator(struct target *t, const char *name, /*@out@*/struct package_cursor *tc);
 bool package_next(struct package_cursor *);
 retvalue package_closeiterator(struct package_cursor *);
 
