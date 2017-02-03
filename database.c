@@ -1522,46 +1522,16 @@ retvalue cursor_close(struct table *table, struct cursor *cursor) {
 	return r;
 }
 
-bool cursor_nexttempdata(struct table *table, struct cursor *cursor, const char **key, const char **data, size_t *len_p) {
-	DBT Key, Data;
+static bool cursor_next(struct table *table, struct cursor *cursor, DBT *Key, DBT *Data) {
 	int dbret;
-	retvalue r;
 
 	if (cursor == NULL)
 		return false;
 
-	CLEARDBT(Key);
-	CLEARDBT(Data);
+	CLEARDBT(*Key);
+	CLEARDBT(*Data);
 
-	dbret = cursor->cursor->c_get(cursor->cursor, &Key, &Data, DB_NEXT);
-	if (dbret == DB_NOTFOUND)
-		return false;
-
-	if (dbret != 0) {
-		table_printerror(table, dbret, "c_get(DB_NEXT)");
-		cursor->r = RET_DBERR(dbret);
-		return false;
-	}
-	r = parse_data(table, Key, Data, key, data, len_p);
-	if (RET_WAS_ERROR(r)) {
-		cursor->r = r;
-		return false;
-	}
-	return true;
-}
-
-bool cursor_nextpair(struct table *table, struct cursor *cursor, /*@null@*/const char **key_p, const char **value_p, const char **data_p, size_t *datalen_p) {
-	DBT Key, Data;
-	int dbret;
-	retvalue r;
-
-	if (cursor == NULL)
-		return false;
-
-	CLEARDBT(Key);
-	CLEARDBT(Data);
-
-	dbret = cursor->cursor->c_get(cursor->cursor, &Key, &Data,
+	dbret = cursor->cursor->c_get(cursor->cursor, Key, Data,
 			cursor->flags);
 	if (dbret == DB_NOTFOUND)
 		return false;
@@ -1576,6 +1546,33 @@ bool cursor_nextpair(struct table *table, struct cursor *cursor, /*@null@*/const
 		cursor->r = RET_DBERR(dbret);
 		return false;
 	}
+	return true;
+}
+
+bool cursor_nexttempdata(struct table *table, struct cursor *cursor, const char **key, const char **data, size_t *len_p) {
+	DBT Key, Data;
+	bool success;
+	retvalue r;
+
+	success = cursor_next(table, cursor, &Key, &Data);
+	if (!success)
+		return false;
+	r = parse_data(table, Key, Data, key, data, len_p);
+	if (RET_WAS_ERROR(r)) {
+		cursor->r = r;
+		return false;
+	}
+	return true;
+}
+
+bool cursor_nextpair(struct table *table, struct cursor *cursor, /*@null@*/const char **key_p, const char **value_p, const char **data_p, size_t *datalen_p) {
+	DBT Key, Data;
+	bool success;
+	retvalue r;
+
+	success = cursor_next(table, cursor, &Key, &Data);
+	if (!success)
+		return false;
 	r = parse_pair(table, Key, Data, key_p, value_p, data_p, datalen_p);
 	if (RET_WAS_ERROR(r)) {
 		cursor->r = r;
