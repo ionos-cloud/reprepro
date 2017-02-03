@@ -1338,6 +1338,28 @@ retvalue table_newglobalcursor(struct table *table, struct cursor **cursor_p) {
 	return r;
 }
 
+static inline retvalue parse_data(struct table *table, DBT Key, DBT Data, /*@null@*//*@out@*/const char **key_p, /*@out@*/const char **data_p, /*@out@*/size_t *datalen_p) {
+	if (Key.size <= 0 || Data.size <= 0 ||
+	    ((const char*)Key.data)[Key.size-1] != '\0' ||
+	    ((const char*)Data.data)[Data.size-1] != '\0') {
+		if (table->subname != NULL)
+			fprintf(stderr,
+"Database %s(%s) returned corrupted (not null-terminated) data!",
+					table->name, table->subname);
+		else
+			fprintf(stderr,
+"Database %s returned corrupted (not null-terminated) data!",
+					table->name);
+		return RET_ERROR;
+	}
+	if (key_p != NULL)
+		*key_p = Key.data;
+	*data_p = Data.data;
+	if (datalen_p != NULL)
+		*datalen_p = Data.size - 1;
+	return RET_OK;
+}
+
 static inline retvalue parse_pair(struct table *table, DBT Key, DBT Data, /*@null@*//*@out@*/const char **key_p, /*@out@*/const char **value_p, /*@out@*/const char **data_p, /*@out@*/size_t *datalen_p) {
 	/*@dependant@*/ const char *separator;
 
@@ -1480,6 +1502,7 @@ retvalue cursor_close(struct table *table, struct cursor *cursor) {
 bool cursor_nexttempdata(struct table *table, struct cursor *cursor, const char **key, const char **data, size_t *len_p) {
 	DBT Key, Data;
 	int dbret;
+	retvalue r;
 
 	if (cursor == NULL)
 		return false;
@@ -1496,25 +1519,11 @@ bool cursor_nexttempdata(struct table *table, struct cursor *cursor, const char 
 		cursor->r = RET_DBERR(dbret);
 		return false;
 	}
-	if (Key.size <= 0 || Data.size <= 0 ||
-	    ((const char*)Key.data)[Key.size-1] != '\0' ||
-	    ((const char*)Data.data)[Data.size-1] != '\0') {
-		if (table->subname != NULL)
-			fprintf(stderr,
-"Database %s(%s) returned corrupted (not null-terminated) data!",
-					table->name, table->subname);
-		else
-			fprintf(stderr,
-"Database %s returned corrupted (not null-terminated) data!",
-					table->name);
-		cursor->r = RET_ERROR;
+	r = parse_data(table, Key, Data, key, data, len_p);
+	if (RET_WAS_ERROR(r)) {
+		cursor->r = r;
 		return false;
 	}
-	if (key != NULL)
-		*key = Key.data;
-	*data = Data.data;
-	if (len_p != NULL)
-		*len_p = Data.size - 1;
 	return true;
 }
 
