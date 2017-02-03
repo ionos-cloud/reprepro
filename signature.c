@@ -53,6 +53,7 @@ retvalue gpgerror(gpg_error_t err) {
 static gpg_error_t signature_getpassphrase(UNUSED(void *hook), const char *uid_hint, UNUSED(const char *info), int prev_was_bad, int fd) {
 	char *msg;
 	const char *p;
+	int e = 0;
 
 	msg = mprintf("%s needs a passphrase\nPlease enter passphrase%s:",
 			(uid_hint!=NULL)?uid_hint:"key",
@@ -60,8 +61,18 @@ static gpg_error_t signature_getpassphrase(UNUSED(void *hook), const char *uid_h
 	if (msg == NULL)
 		return gpg_err_make(GPG_ERR_SOURCE_USER_1, GPG_ERR_ENOMEM);
 	p = getpass(msg);
-	write(fd, p, strlen(p));
-	write(fd, "\n", 1);
+	if (write(fd, p, strlen(p)) < 0) {
+		e = errno;
+	}
+	if (write(fd, "\n", 1) < 0 && e == 0) {
+		e = errno;
+	}
+	if (e != 0) {
+		fprintf(stderr, "Error %d writing to fd %i: %s\n",
+				e, fd, strerror(e));
+		free(msg);
+		return RET_ERRNO(e);
+	}
 	free(msg);
 	return GPG_ERR_NO_ERROR;
 }
