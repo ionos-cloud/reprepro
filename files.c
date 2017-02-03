@@ -280,7 +280,7 @@ retvalue files_printmd5sums(void) {
 	if (!RET_IS_OK(r))
 		return r;
 	result = RET_NOTHING;
-	while (cursor_nexttemp(rdb_checksums, cursor, &filekey, &checksum)) {
+	while (cursor_nexttempdata(rdb_checksums, cursor, &filekey, &checksum, NULL)) {
 		result = RET_OK;
 		(void)fputs(filekey, stdout);
 		(void)putchar(' ');
@@ -307,7 +307,7 @@ retvalue files_printchecksums(void) {
 	if (!RET_IS_OK(r))
 		return r;
 	result = RET_NOTHING;
-	while (cursor_nexttemp(rdb_checksums, cursor, &filekey, &checksum)) {
+	while (cursor_nexttempdata(rdb_checksums, cursor, &filekey, &checksum, NULL)) {
 		result = RET_OK;
 		(void)fputs(filekey, stdout);
 		(void)putchar(' ');
@@ -333,7 +333,7 @@ retvalue files_foreach(per_file_action action, void *privdata) {
 	if (!RET_IS_OK(r))
 		return r;
 	result = RET_NOTHING;
-	while (cursor_nexttemp(rdb_checksums, cursor, &filekey, &checksum)) {
+	while (cursor_nexttempdata(rdb_checksums, cursor, &filekey, &checksum, NULL)) {
 		if (interrupted()) {
 			RET_UPDATE(result, RET_ERROR_INTERRUPTED);
 			break;
