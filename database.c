@@ -995,7 +995,7 @@ static void table_printerror(struct table *table, int dbret, const char *action)
 
 retvalue table_close(struct table *table) {
 	int dbret;
-	retvalue result;
+	retvalue result = RET_OK;
 
 	if (table == NULL)
 		return RET_NOTHING;
@@ -1011,8 +1011,7 @@ retvalue table_close(struct table *table) {
 				table->name, table->subname,
 				db_strerror(dbret));
 		result = RET_DBERR(dbret);
-	} else
-		result = RET_OK;
+	}
 	free(table->name);
 	free(table->subname);
 	free(table);
