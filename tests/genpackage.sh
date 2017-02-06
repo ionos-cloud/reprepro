@@ -19,7 +19,7 @@ Maintainer: me <guess@who>
 Standards-Version: 0.0
 
 Package: $PACKAGE
-Architecture: abacus
+Architecture: ${ARCH:-$(dpkg-architecture -qDEB_HOST_ARCH)}
 Description: bla
  blub
 
