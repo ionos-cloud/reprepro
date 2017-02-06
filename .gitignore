@@ -15,3 +15,8 @@ Makefile
 /debian/reprepro.debhelper.*
 /debian/reprepro.substvars
 /debian/reprepro
+/autom4te.cache/
+/config.h.in~
+/tests/.deps/
+/tests/testpkgs/
+/tests/testrepo/
