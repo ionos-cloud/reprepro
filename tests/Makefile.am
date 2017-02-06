@@ -1,3 +1,5 @@
+BASH_UNIT_TESTS = basic.sh
+
 EXTRA_DIST = \
 brokenuncompressor.sh \
 genpackage.sh \
@@ -45,5 +47,12 @@ good.key \
 revoked.key \
 revoked.pkey \
 withsubkeys.key \
-withsubkeys-works.key
+withsubkeys-works.key \
+$(BASH_UNIT_TESTS)
 MAINTAINERCLEANFILES = $(srcdir)/Makefile.in
+
+check:
+	bash_unit $(BASH_UNIT_TESTS)
+
+clean-local:
+	rm -rf testrepo testpkgs
