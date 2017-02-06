@@ -441,7 +441,7 @@ static retvalue release_usecached(struct release *release,
 
 		if (filename[ic] == NULL)
 			continue;
-		r = table_getrecord(release->cachedb, filename[ic],
+		r = table_getrecord(release->cachedb, false, filename[ic],
 				&combinedchecksum, NULL);
 		if (!RET_IS_OK(r)) {
 			result = r;
