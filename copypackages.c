@@ -90,12 +90,12 @@ static retvalue list_newpackage(struct package_list *list, struct target *target
 		t = *t_p;
 
 	p_p = &t->packages;
-	while (*p_p != NULL && (c = strcmp(packagename, (*p_p)->name)) < 0)
+	while (*p_p != NULL && (c = cascade_strcmp(packagename, (*p_p)->name, packageversion, (*p_p)->version)) < 0)
 		p_p = &(*p_p)->next;
 	if (*p_p != NULL && c == 0) {
 		// TODO: improve this message..., or some context elsewhere
-		fprintf(stderr, "Multiple occurrences of package '%s'!\n",
-				packagename);
+		fprintf(stderr, "Multiple occurrences of package '%s' with version '%s'!\n",
+				packagename, packageversion);
 		return RET_ERROR_EXIST;
 	}
 	package = zNEW(struct selectedpackage);
