@@ -48,5 +48,13 @@ good.key \
 revoked.key \
 revoked.pkey \
 withsubkeys.key \
-withsubkeys-works.key
+withsubkeys-works.key \
+basic.sh \
+shunit2-helper-functions.sh
 MAINTAINERCLEANFILES = $(srcdir)/Makefile.in
+
+check:
+	./basic.sh
+
+clean-local:
+	rm -rf testrepo testpkgs
