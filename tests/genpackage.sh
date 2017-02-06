@@ -39,7 +39,7 @@ $PACKAGE ($EPOCH$VERSION$REVISION) $DISTRI; urgency=critical
  -- me <guess@who>  Mon, 01 Jan 1980 01:02:02 +0000
 END
 
-dpkg-source -b "$DIR"
+dpkg-source --format=1.0 -b "$DIR"
 mkdir -p "$DIR"/debian/tmp/DEBIAN
 touch "$DIR"/debian/tmp/x
 mkdir "$DIR"/debian/tmp/a
