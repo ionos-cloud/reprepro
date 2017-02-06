@@ -243,12 +243,19 @@ static retvalue database_opentable(const char *filename, /*@null@*/const char *s
 		free(fullfilename);
 		return RET_DBERR(dbret);
 	}
-	if (type == dbt_BTREEDUP || type == dbt_BTREEPAIRS) {
+	if (type == dbt_BTREEPAIRS) {
 		dbret = table->set_flags(table, DB_DUPSORT);
 		if (dbret != 0) {
 			table->err(table, dbret, "db_set_flags(DB_DUPSORT):");
 			(void)table->close(table, 0);
 			free(fullfilename);
+			return RET_DBERR(dbret);
+		}
+	} else if (type == dbt_BTREEDUP) {
+		dbret = table->set_flags(table, DB_DUP);
+		if (dbret != 0) {
+			table->err(table, dbret, "db_set_flags(DB_DUP):");
+			(void)table->close(table, 0);
 			return RET_DBERR(dbret);
 		}
 	}
