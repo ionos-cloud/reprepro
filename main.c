@@ -761,8 +761,13 @@ ACTION_D(y, n, y, remove) {
 
 	for (int i = 0 ; i < argc-2 ; i++) {
 		data[i].found = false;
-		data[i].name = argv[2 + i];
-		data[i].version = NULL;
+		r = splitnameandversion(argv[2 + i], &data[i].name, &data[i].version);
+		if (RET_WAS_ERROR(r)) {
+			for (i-- ; i >= 0 ; i--) {
+				splitnameandversion_done(&data[i].name, &data[i].version);
+			}
+			return r;
+		}
 	}
 
 	remaining = argc-2;
@@ -813,6 +818,9 @@ ACTION_D(y, n, y, remove) {
 			}
 		}
 		(void)fputc('\n', stderr);
+	}
+	for (int i = 0; i < argc - 2; i++) {
+		splitnameandversion_done(&data[i].name, &data[i].version);
 	}
 	return result;
 }
@@ -1986,14 +1994,22 @@ ACTION_D(y, n, y, copy) {
 		return result;
 
 	for (i = 0; i < argc-3; i++) {
-		data[i].name = argv[3 + i];
-		data[i].version = NULL;
+		result = splitnameandversion(argv[3 + i], &data[i].name, &data[i].version);
+		if (RET_WAS_ERROR(result)) {
+			for (i-- ; i >= 0 ; i--) {
+				splitnameandversion_done(&data[i].name, &data[i].version);
+			}
+			return result;
+		}
 	}
 	data[i].name = NULL;
 	data[i].version = NULL;
 
 	result = copy_by_name(destination, source, data,
 			components, architectures, packagetypes);
+	for (i = 0; i < argc - 3; i++) {
+		splitnameandversion_done(&data[i].name, &data[i].version);
+	}
 	return result;
 }
 

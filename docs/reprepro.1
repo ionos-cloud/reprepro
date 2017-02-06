@@ -664,11 +664,12 @@ List the versions of the specified package in all distributions.
 .B lsbycomponent \fIpackage-name\fP
 Like ls, but group by component (and print component names).
 .TP
-.B remove \fIcodename\fP \fIpackage-names\fP
-Delete all packages in the specified distribution,
+.B remove \fIcodename\fP \fIpackage-names\fP\fR[\fP=\fIversion\fP\fR]\fP \fI...\fP
+Delete packages in the specified distribution,
 that have package name listed as argument.
-(i.e. remove all packages \fBlist\fP with the same arguments and options
-would list, except that an empty package list is not allowed.)
+Package versions must be specified by appending '\fB=\fP' and the
+version to the name (without spaces). When no version is specified, the latest
+package version is removed.
 
 Note that like any other operation removing or replacing a package,
 the old package's files are unreferenced and thus may be automatically
@@ -884,11 +885,13 @@ used files.
 Check all source package tracking information for the given distributions
 for files no longer to keep.
 .TP
-.B copy \fIdestination-codename\fP \fIsource-codename\fP \fIpackages...\fP
+.B copy \fIdestination-codename\fP \fIsource-codename\fP \fIpackage\fP\fR[\fP=\fIversion\fP\fR]\fP \fI...\fP
 Copy the given packages from one distribution to another.
 The packages are copied verbatim, no override files are consulted.
 Only components and architectures present in the source distribution are
-copied.
+copied. Package versions must be specified by appending '\fB=\fP' and the
+version to the name (without spaces). When no version is specified, the latest
+package version is copied.
 .TP
 .B copysrc \fIdestination-codename\fP \fIsource-codename\fP \fIsource-package\fP \fR[\fP\fIversions\fP\fR]\fP
 look at each package
