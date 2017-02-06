@@ -701,19 +701,19 @@ ACTION_R(n, n, n, y, addreferences) {
 	return ret;
 }
 
-static retvalue remove_from_target(struct distribution *distribution, struct trackingdata *trackingdata, struct target *target, int count, const char * const *names, int *remaining, bool *gotremoved) {
+static retvalue remove_from_target(struct distribution *distribution, struct trackingdata *trackingdata, struct target *target, int count, struct nameandversion *nameandversion, int *remaining) {
 	retvalue result, r;
 	int i;
 
 	result = RET_NOTHING;
 	for (i = 0 ; i < count ; i++){
 		r = target_removepackage(target, distribution->logger,
-				names[i], NULL, trackingdata);
+				nameandversion[i].name, nameandversion[i].version, trackingdata);
 		RET_UPDATE(distribution->status, r);
 		if (RET_IS_OK(r)) {
-			if (!gotremoved[i])
+			if (!nameandversion[i].found)
 				(*remaining)--;
-			gotremoved[i] = true;
+			nameandversion[i].found = true;
 		}
 		RET_UPDATE(result, r);
 	}
@@ -723,8 +723,9 @@ static retvalue remove_from_target(struct distribution *distribution, struct tra
 ACTION_D(y, n, y, remove) {
 	retvalue result, r;
 	struct distribution *distribution;
+	struct nameandversion data[argc-2];
 	struct target *t;
-	bool *gotremoved;
+	char *delimiter;
 	int remaining;
 
 	trackingdb tracks;
@@ -758,12 +759,15 @@ ACTION_D(y, n, y, remove) {
 		}
 	}
 
+	for (int i = 0 ; i < argc-2 ; i++) {
+		data[i].found = false;
+		data[i].name = argv[2 + i];
+		data[i].version = NULL;
+	}
+
 	remaining = argc-2;
-	gotremoved = nzNEW(argc - 2, bool);
 	result = RET_NOTHING;
-	if (FAILEDTOALLOC(gotremoved))
-		result = RET_ERROR_OOM;
-	else for (t = distribution->targets ; t != NULL ; t = t->next) {
+	for (t = distribution->targets ; t != NULL ; t = t->next) {
 		 if (!target_matches(t, components, architectures, packagetypes))
 			 continue;
 		 r = target_initpackagesdb(t, READWRITE);
@@ -774,8 +778,8 @@ ACTION_D(y, n, y, remove) {
 				 (distribution->tracking != dt_NONE)
 				 	? &trackingdata
 					: NULL,
-				 t, argc-2, argv+2,
-				 &remaining, gotremoved);
+				 t, argc-2, data,
+				 &remaining);
 		 RET_UPDATE(result, r);
 		 r = target_closepackagesdb(t);
 		 RET_UPDATE(distribution->status, r);
@@ -796,19 +800,20 @@ ACTION_D(y, n, y, remove) {
 		int i = argc - 2;
 
 		(void)fputs("Not removed as not found: ", stderr);
-		while (i > 0) {
-			i--;
-			assert(gotremoved != NULL);
-			if (!gotremoved[i]) {
-				(void)fputs(argv[2 + i], stderr);
+		delimiter = "";
+		for (i = 0; i < argc - 2; i++) {
+			if (!data[i].found) {
+				if (data[i].version == NULL) {
+					fprintf(stderr, "%s%s", delimiter, data[i].name);
+				} else {
+					fprintf(stderr, "%s%s=%s", delimiter, data[i].name, data[i].version);
+				}
 				remaining--;
-				if (remaining > 0)
-					(void)fputs(", ", stderr);
+				delimiter = ", ";
 			}
 		}
 		(void)fputc('\n', stderr);
 	}
-	free(gotremoved);
 	return result;
 }
 
