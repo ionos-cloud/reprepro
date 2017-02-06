@@ -39,6 +39,17 @@ $PACKAGE ($EPOCH$VERSION$REVISION) $DISTRI; urgency=critical
  -- me <guess@who>  Mon, 01 Jan 1980 01:02:02 +0000
 END
 
+mkdir -p "$DIR/debian/source"
+if test -z "$REVISION"; then
+	echo "3.0 (native)" > "$DIR/debian/source/format"
+else
+	echo "3.0 (quilt)" > "$DIR/debian/source/format"
+	orig_tarball="${PACKAGE}_${VERSION}.orig.tar.gz"
+	if test ! -f "$orig_tarball"; then
+		tar czvf "$orig_tarball" --files-from /dev/null
+	fi
+fi
+
 dpkg-source -b "$DIR"
 mkdir -p "$DIR"/debian/tmp/DEBIAN
 touch "$DIR"/debian/tmp/x
