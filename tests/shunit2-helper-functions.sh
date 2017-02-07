@@ -34,6 +34,16 @@ EOF
 	$REPREPRO -b $REPO export
 }
 
+add_repo() {
+	local name="$1"
+	cat >> $REPO/conf/distributions <<EOF
+
+Codename: $name
+Architectures: $ARCH source
+Components: main non-free
+EOF
+}
+
 # See https://github.com/wting/shunit2/issues/23
 if test -n "${TEST_CASES-}"; then
 	suite() {
