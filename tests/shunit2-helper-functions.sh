@@ -26,6 +26,7 @@ call() {
 
 check_db() {
 	db_verify $REPO/db/packages.db || fail "BerkeleyDB 'packages.db' is broken."
+	db_verify -o $REPO/db/packagenames.db || fail "BerkeleyDB 'packagenames.db' is broken."
 }
 
 add_distro() {
