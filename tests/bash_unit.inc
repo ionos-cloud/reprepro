@@ -21,3 +21,13 @@ EOF
 	mkdir -p $PKGS
 	$REPREPRO -b $REPO export
 }
+
+add_repo() {
+	local name="$1"
+	cat >> $REPO/conf/distributions <<EOF
+
+Codename: $name
+Architectures: $ARCH source
+Components: main non-free
+EOF
+}

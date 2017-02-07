@@ -1,4 +1,4 @@
-BASH_UNIT_TESTS = basic.sh
+BASH_UNIT_TESTS = basic.sh multiversion.sh
 
 EXTRA_DIST = \
 brokenuncompressor.sh \
