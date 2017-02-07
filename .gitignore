@@ -20,3 +20,4 @@ Makefile
 /tests/.deps/
 /tests/testpkgs/
 /tests/testrepo/
+/tests/upstreamrepo/
