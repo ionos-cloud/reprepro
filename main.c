@@ -1202,23 +1202,27 @@ ACTION_C(n, n, n, listcodenames) {
 }
 
 static retvalue list_in_target(struct target *target, const char *packagename) {
-	retvalue r, result;
-	struct package pkg;
+	retvalue r, result = RET_NOTHING;
+	struct package_cursor iterator;
 
 	if (listmax == 0)
 		return RET_NOTHING;
 
-	result = package_get(target, packagename, NULL, &pkg);
-	if (RET_IS_OK(result)) {
+	r = package_openduplicateiterator(target, packagename, 0, &iterator);
+	if (!RET_IS_OK(r))
+		return r;
+
+	do {
 		if (listskip <= 0) {
-			r = listformat_print(listformat, &pkg);
+			r = listformat_print(listformat, &iterator.current);
 			RET_UPDATE(result, r);
 			if (listmax > 0)
 				listmax--;
 		} else
 			listskip--;
-		package_done(&pkg);
-	}
+	} while (package_next(&iterator));
+	r = package_closeiterator(&iterator);
+	RET_ENDUPDATE(result, r);
 	return result;
 }
 
