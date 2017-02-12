@@ -75,6 +75,8 @@ void sourceextraction_setpart(struct sourceextraction *e, int i, const char *bas
 
 	if (endswith(basefilename, bl, ".dsc"))
 		return;
+	else if (endswith(basefilename, bl, ".asc"))
+		return;
 	else if (endswith(basefilename, bl, ".diff")) {
 		e->difffile = i;
 		e->diffcompression = c;
