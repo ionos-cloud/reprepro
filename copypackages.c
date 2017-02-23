@@ -263,9 +263,6 @@ static retvalue package_add(struct distribution *into, /*@null@*/trackingdb trac
 	struct trackingdata trackingdata;
 	retvalue r;
 
-	// TODO: remove_source = True not implemented yet
-	assert (!remove_source);
-
 	if (verbose >= 1) {
 		printf("Adding '%s' '%s' to '%s'.\n",
 				package->name, package->version,
@@ -294,11 +291,32 @@ static retvalue package_add(struct distribution *into, /*@null@*/trackingdb trac
 			package->architecture,
 			NULL, from != NULL ? from->codename : NULL, NULL);
 	RET_UPDATE(into->status, r);
+
 	if (tracks != NULL) {
 		retvalue r2;
 
 		r2 = trackingdata_finish(tracks, &trackingdata);
 		RET_ENDUPDATE(r, r2);
+	}
+
+	if (!RET_WAS_ERROR(r) && remove_source) {
+		if (fromtracks != NULL) {
+			r = trackingdata_summon(fromtracks, package->sourcename,
+					package->version, &trackingdata);
+			if (RET_WAS_ERROR(r))
+				return r;
+		}
+		r = target_removepackage(fromtarget,
+				from->logger,
+				package->name, package->version,
+				(tracks != NULL) ? &trackingdata : NULL);
+		RET_UPDATE(from->status, r);
+		if (fromtracks != NULL) {
+			retvalue r2;
+
+			r2 = trackingdata_finish(fromtracks, &trackingdata);
+			RET_ENDUPDATE(r, r2);
+		}
 	}
 	return r;
 }
@@ -313,12 +331,24 @@ static retvalue packagelist_add(struct distribution *into, const struct package_
 	if (RET_WAS_ERROR(r))
 		return r;
 
+	if (remove_source) {
+		r = distribution_prepareforwriting(from);
+		if (RET_WAS_ERROR(r))
+			return r;
+	}
+
 	if (into->tracking != dt_NONE) {
 		r = tracking_initialize(&tracks, into, false);
 		if (RET_WAS_ERROR(r))
 			return r;
 	} else
 		tracks = NULL;
+
+	if (from->tracking != dt_NONE) {
+		r = tracking_initialize(&fromtracks, from, false);
+		if (RET_WAS_ERROR(r))
+			return r;
+	}
 
 	result = RET_NOTHING;
 	for (tpl = list->targets; tpl != NULL ; tpl = tpl->next) {
@@ -329,16 +359,33 @@ static retvalue packagelist_add(struct distribution *into, const struct package_
 		RET_ENDUPDATE(result, r);
 		if (RET_WAS_ERROR(r))
 			break;
+
+		if (remove_source) {
+			r = target_initpackagesdb(fromtarget, READWRITE);
+			RET_ENDUPDATE(result, r);
+			if (RET_WAS_ERROR(r)) {
+				(void)target_closepackagesdb(target);
+				break;
+			}
+		}
+
 		for (package = tpl->packages; package != NULL ;
 		                              package = package->next) {
 			r = package_add(into, tracks, target,
 					package, from, fromtracks, fromtarget, remove_source);
 			RET_UPDATE(result, r);
 		}
+		if (remove_source) {
+			r = target_closepackagesdb(fromtarget);
+			RET_UPDATE(into->status, r);
+			RET_ENDUPDATE(result, r);
+		}
 		r = target_closepackagesdb(target);
 		RET_UPDATE(into->status, r);
 		RET_ENDUPDATE(result, r);
 	}
+	r = tracking_done(fromtracks, from);
+	RET_ENDUPDATE(result, r);
 	r = tracking_done(tracks, into);
 	RET_ENDUPDATE(result, r);
 	return result;
