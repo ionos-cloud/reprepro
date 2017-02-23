@@ -310,6 +310,10 @@ _reprepro()
 			listmatched\
 			ls\
 			lsbycomponent\
+			move\
+			movefilter\
+			movematched\
+			movesrc\
 			predelete\
 			processincoming\
 			pull\
@@ -539,7 +543,7 @@ _reprepro()
 			fi
 			return 0;
 			;;
-		copy|copysrc|copyfilter|copymatched)
+		copy|copysrc|copyfilter|copymatched|move|movesrc|movefilter|movematched)
 			# first argument is a codename
 			if [[ $i -eq $COMP_CWORD ]] ; then
 				parse_config
