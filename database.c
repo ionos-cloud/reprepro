@@ -1013,6 +1013,9 @@ retvalue table_close(struct table *table) {
 	int dbret;
 	retvalue result = RET_OK;
 
+	if (verbose >= 15)
+		fprintf(stderr, "trace: table_close(table.name=%s, table.subname=%s) called.\n",
+		        table == NULL ? NULL : table->name, table == NULL ? NULL : table->subname);
 	if (table == NULL)
 		return RET_NOTHING;
 	if (table->flagreset != NULL)
@@ -1754,6 +1757,10 @@ static retvalue database_table_secondary(const char *filename, const char *subta
                                          const char *secondary_filename, enum database_type secondary_type, /*@out@*/struct table **table_p) {
 	struct table *table;
 	retvalue r;
+
+	if (verbose >= 15)
+		fprintf(stderr, "trace: database_table(filename=%s, subtable=%s) called.\n",
+		        filename, subtable);
 
 	table = zNEW(struct table);
 	if (FAILEDTOALLOC(table))
