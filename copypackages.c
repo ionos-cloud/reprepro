@@ -256,9 +256,12 @@ static retvalue list_prepareadd(struct package_list *list, struct target *target
 	return RET_OK;
 }
 
-static retvalue package_add(struct distribution *into, /*@null@*/trackingdb tracks, struct target *target, const struct selectedpackage *package, /*@null@*/ const char *suitefrom) {
+static retvalue package_add(struct distribution *into, /*@null@*/trackingdb tracks, struct target *target, const struct selectedpackage *package, /*@null@*/ struct distribution *from, bool remove_source) {
 	struct trackingdata trackingdata;
 	retvalue r;
+
+	// TODO: remove_source = True not implemented yet
+	assert (!remove_source);
 
 	if (verbose >= 1) {
 		printf("Adding '%s' '%s' to '%s'.\n",
@@ -286,7 +289,7 @@ static retvalue package_add(struct distribution *into, /*@null@*/trackingdb trac
 			(tracks != NULL)?
 			&trackingdata:NULL,
 			package->architecture,
-			NULL, suitefrom);
+			NULL, from != NULL ? from->codename : NULL);
 	RET_UPDATE(into->status, r);
 	if (tracks != NULL) {
 		retvalue r2;
@@ -297,7 +300,7 @@ static retvalue package_add(struct distribution *into, /*@null@*/trackingdb trac
 	return r;
 }
 
-static retvalue packagelist_add(struct distribution *into, const struct package_list *list, /*@null@*/const char *suitefrom) {
+static retvalue packagelist_add(struct distribution *into, const struct package_list *list, /*@null@*/struct distribution *from, bool remove_source) {
 	retvalue result, r;
 	struct target_package_list *tpl;
 	struct selectedpackage *package;
@@ -325,7 +328,7 @@ static retvalue packagelist_add(struct distribution *into, const struct package_
 		for (package = tpl->packages; package != NULL ;
 		                              package = package->next) {
 			r = package_add(into, tracks, target,
-					package, suitefrom);
+					package, from, remove_source);
 			RET_UPDATE(result, r);
 		}
 		r = target_closepackagesdb(target);
@@ -437,7 +440,7 @@ static void packagelist_done(struct package_list *list) {
 	}
 }
 
-retvalue copy_by_name(struct distribution *into, struct distribution *from, struct nameandversion *nameandversion, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes) {
+retvalue copy_by_name(struct distribution *into, struct distribution *from, struct nameandversion *nameandversion, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes, bool remove_source) {
 	struct package_list list;
 	retvalue r;
 
@@ -474,7 +477,7 @@ retvalue copy_by_name(struct distribution *into, struct distribution *from, stru
 	}
 	if (!RET_IS_OK(r))
 		return r;
-	r = packagelist_add(into, &list, from->codename);
+	r = packagelist_add(into, &list, from, remove_source);
 	packagelist_done(&list);
 	return r;
 }
@@ -540,7 +543,7 @@ static retvalue by_source(struct package_list *list, struct target *desttarget, 
 	return result;
 }
 
-retvalue copy_by_source(struct distribution *into, struct distribution *from, int argc, const char **argv, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes) {
+retvalue copy_by_source(struct distribution *into, struct distribution *from, int argc, const char **argv, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes, bool remove_source) {
 	struct package_list list;
 	struct namelist names = { argc, argv, NULL, nzNEW(argc, bool) };
 	retvalue r;
@@ -614,7 +617,7 @@ retvalue copy_by_source(struct distribution *into, struct distribution *from, in
 	free(names.found);
 	if (!RET_IS_OK(r))
 		return r;
-	r = packagelist_add(into, &list, from->codename);
+	r = packagelist_add(into, &list, from, remove_source);
 	packagelist_done(&list);
 	return r;
 }
@@ -671,7 +674,7 @@ static retvalue by_glob(struct package_list *list, struct target *desttarget, st
 	return result;
 }
 
-retvalue copy_by_glob(struct distribution *into, struct distribution *from, const char *glob, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes) {
+retvalue copy_by_glob(struct distribution *into, struct distribution *from, const char *glob, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes, bool remove_source) {
 	struct package_list list;
 	retvalue r;
 
@@ -681,12 +684,12 @@ retvalue copy_by_glob(struct distribution *into, struct distribution *from, cons
 			packagetypes, by_glob, (void*)glob);
 	if (!RET_IS_OK(r))
 		return r;
-	r = packagelist_add(into, &list, from->codename);
+	r = packagelist_add(into, &list, from, remove_source);
 	packagelist_done(&list);
 	return r;
 }
 
-retvalue copy_by_formula(struct distribution *into, struct distribution *from, const char *filter, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes) {
+retvalue copy_by_formula(struct distribution *into, struct distribution *from, const char *filter, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes, bool remove_source) {
 	struct package_list list;
 	term *condition;
 	retvalue r;
@@ -702,7 +705,7 @@ retvalue copy_by_formula(struct distribution *into, struct distribution *from, c
 	term_free(condition);
 	if (!RET_IS_OK(r))
 		return r;
-	r = packagelist_add(into, &list, from->codename);
+	r = packagelist_add(into, &list, from, remove_source);
 	packagelist_done(&list);
 	return r;
 }
@@ -832,7 +835,7 @@ retvalue copy_from_file(struct distribution *into, component_t component, archit
 	r = indexfile_close(i);
 	RET_ENDUPDATE(result, r);
 	if (RET_IS_OK(result))
-		result = packagelist_add(into, &list, NULL);
+		result = packagelist_add(into, &list, NULL, false);
 	packagelist_done(&list);
 	return result;
 }
@@ -845,6 +848,7 @@ static retvalue restore_from_snapshot(struct distribution *into, const struct at
 	struct target *target;
 	char *basedir;
 	enum compression compression;
+	struct distribution pseudo_from; // just stores the codename
 
 	basedir = calc_snapshotbasedir(into->codename, snapshotname);
 	if (FAILEDTOALLOC(basedir))
@@ -926,7 +930,9 @@ static retvalue restore_from_snapshot(struct distribution *into, const struct at
 	free(basedir);
 	if (RET_WAS_ERROR(result))
 		return result;
-	r = packagelist_add(into, &list, snapshotname);
+	memset(&pseudo_from, 0, sizeof(struct distribution));
+	pseudo_from.codename = (char*)snapshotname;
+	r = packagelist_add(into, &list, &pseudo_from, false);
 	packagelist_done(&list);
 	return r;
 }

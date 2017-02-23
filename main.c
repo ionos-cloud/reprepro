@@ -2006,7 +2006,7 @@ ACTION_D(y, n, y, copy) {
 	data[i].version = NULL;
 
 	result = copy_by_name(destination, source, data,
-			components, architectures, packagetypes);
+			components, architectures, packagetypes, false);
 	for (i = 0; i < argc - 3; i++) {
 		splitnameandversion_done(&data[i].name, &data[i].version);
 	}
@@ -2036,7 +2036,7 @@ ACTION_D(y, n, y, copysrc) {
 		return result;
 
 	return copy_by_source(destination, source, argc-3, argv+3,
-			components, architectures, packagetypes);
+			components, architectures, packagetypes, false);
 	return result;
 }
 
@@ -2065,7 +2065,7 @@ ACTION_D(y, n, y, copyfilter) {
 		return result;
 
 	return copy_by_formula(destination, source, argv[3],
-			components, architectures, packagetypes);
+			components, architectures, packagetypes, false);
 }
 
 ACTION_D(y, n, y, copymatched) {
@@ -2093,7 +2093,7 @@ ACTION_D(y, n, y, copymatched) {
 		return result;
 
 	return copy_by_glob(destination, source, argv[3],
-			components, architectures, packagetypes);
+			components, architectures, packagetypes, false);
 }
 
 ACTION_D(y, n, y, restore) {
