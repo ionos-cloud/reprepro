@@ -957,6 +957,7 @@ struct table {
 	DB *berkeleydb;
 	bool *flagreset;
 	bool readonly, verbose;
+	uint32_t flags;
 };
 
 static void table_printerror(struct table *table, int dbret, const char *action) {
@@ -1233,7 +1234,7 @@ retvalue table_addrecord(struct table *table, const char *key, const char *data,
 	SETDBT(Key, key);
 	SETDBTl(Data, data, datalen + 1);
 	dbret = table->berkeleydb->put(table->berkeleydb, NULL,
-			&Key, &Data, DB_NODUPDATA);
+			&Key, &Data, ISSET(table->flags, DB_DUPSORT) ? DB_NODUPDATA : 0);
 	if (dbret != 0 && !(ignoredups && dbret == DB_KEYEXIST)) {
 		table_printerror(table, dbret, "put");
 		return RET_DBERR(dbret);
@@ -1757,6 +1758,7 @@ static retvalue database_table(const char *filename, const char *subtable, enum 
 		table->subname = NULL;
 	table->readonly = ISSET(flags, DB_RDONLY);
 	table->verbose = rdb_verbose;
+	table->flags = flags;
 	r = database_opentable(filename, subtable, type, flags,
 			&table->berkeleydb);
 	if (RET_WAS_ERROR(r)) {
