@@ -42,6 +42,7 @@
 struct target_package_list {
 	struct target_package_list *next;
 	struct target *target;
+	struct target *fromtarget;
 	struct selectedpackage {
 		/*@null@*/struct selectedpackage *next;
 		char *name;
@@ -71,19 +72,20 @@ static int cascade_strcmp(const char *s1, const char *s2, const char *t1, const 
 	return result;
 }
 
-static retvalue list_newpackage(struct package_list *list, struct target *target, const char *sourcename, const char *sourceversion, const char *packagename, const char *packageversion, /*@out@*/struct selectedpackage **package_p) {
+static retvalue list_newpackage(struct package_list *list, struct target *desttarget, struct target *fromtarget, const char *sourcename, const char *sourceversion, const char *packagename, const char *packageversion, /*@out@*/struct selectedpackage **package_p) {
 	struct target_package_list *t, **t_p;
 	struct selectedpackage *package, **p_p;
 	int c;
 
 	t_p = &list->targets;
-	while (*t_p != NULL && (*t_p)->target != target)
+	while (*t_p != NULL && (*t_p)->target != desttarget && (*t_p)->fromtarget != fromtarget)
 		t_p = &(*t_p)->next;
 	if (*t_p == NULL) {
 		t = zNEW(struct target_package_list);
 		if (FAILEDTOALLOC(t))
 			return RET_ERROR_OOM;
-		t->target = target;
+		t->target = desttarget;
+		t->fromtarget = fromtarget;
 		t->next = *t_p;
 		*t_p = t;
 	} else
@@ -166,12 +168,12 @@ static void list_cancelpackage(struct package_list *list, /*@only@*/struct selec
 	assert (package == NULL);
 }
 
-static retvalue list_prepareadd(struct package_list *list, struct target *target, struct package *package) {
+static retvalue list_prepareadd(struct package_list *list, struct target *desttarget, struct target *fromtarget, struct package *package) {
 	struct selectedpackage *new SETBUTNOTUSED(= NULL);
 	retvalue r;
 	int i;
 
-	assert (target->packagetype == package->target->packagetype);
+	assert (desttarget->packagetype == package->target->packagetype);
 
 	r = package_getversion(package);
 	assert (r != RET_NOTHING);
@@ -185,7 +187,7 @@ static retvalue list_prepareadd(struct package_list *list, struct target *target
 	assert (r != RET_NOTHING);
 	if (RET_WAS_ERROR(r))
 		return r;
-	r = list_newpackage(list, target,
+	r = list_newpackage(list, desttarget, fromtarget,
 			package->source, package->sourceversion,
 			package->name, package->version, &new);
 	assert (r != RET_NOTHING);
@@ -194,7 +196,7 @@ static retvalue list_prepareadd(struct package_list *list, struct target *target
 	assert (new != NULL);
 
 	new->architecture = package->architecture;
-	r = target->getinstalldata(target, new->name, new->version,
+	r = desttarget->getinstalldata(desttarget, new->name, new->version,
 			new->architecture, package->control,
 			&new->control, &new->filekeys, &new->origfiles);
 	assert (r != RET_NOTHING);
@@ -257,7 +259,7 @@ static retvalue list_prepareadd(struct package_list *list, struct target *target
 	return RET_OK;
 }
 
-static retvalue package_add(struct distribution *into, /*@null@*/trackingdb tracks, struct target *target, const struct selectedpackage *package, /*@null@*/ struct distribution *from, bool remove_source) {
+static retvalue package_add(struct distribution *into, /*@null@*/trackingdb tracks, struct target *target, const struct selectedpackage *package, /*@null@*/ struct distribution *from, struct target *fromtarget, bool remove_source) {
 	struct trackingdata trackingdata;
 	retvalue r;
 
@@ -321,6 +323,7 @@ static retvalue packagelist_add(struct distribution *into, const struct package_
 	result = RET_NOTHING;
 	for (tpl = list->targets; tpl != NULL ; tpl = tpl->next) {
 		struct target *target = tpl->target;
+		struct target *fromtarget = tpl->fromtarget;
 
 		r = target_initpackagesdb(target, READWRITE);
 		RET_ENDUPDATE(result, r);
@@ -329,7 +332,7 @@ static retvalue packagelist_add(struct distribution *into, const struct package_
 		for (package = tpl->packages; package != NULL ;
 		                              package = package->next) {
 			r = package_add(into, tracks, target,
-					package, from, remove_source);
+					package, from, fromtarget, remove_source);
 			RET_UPDATE(result, r);
 		}
 		r = target_closepackagesdb(target);
@@ -415,7 +418,7 @@ static retvalue by_name(struct package_list *list, struct target *desttarget, st
 		RET_ENDUPDATE(result, r);
 		if (RET_WAS_ERROR(r))
 			break;
-		r = list_prepareadd(list, desttarget, &package);
+		r = list_prepareadd(list, desttarget, fromtarget, &package);
 		package_done(&package);
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(r))
@@ -532,7 +535,7 @@ static retvalue by_source(struct package_list *list, struct target *desttarget, 
 				continue;
 			}
 		}
-		r = list_prepareadd(list, desttarget, &iterator.current);
+		r = list_prepareadd(list, desttarget, fromtarget, &iterator.current);
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(r))
 			break;
@@ -642,7 +645,7 @@ static retvalue by_formula(struct package_list *list, struct target *desttarget,
 			result = r;
 			break;
 		}
-		r = list_prepareadd(list, desttarget, &iterator.current);
+		r = list_prepareadd(list, desttarget, fromtarget, &iterator.current);
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(r))
 			break;
@@ -665,7 +668,7 @@ static retvalue by_glob(struct package_list *list, struct target *desttarget, st
 	while (package_next(&iterator)) {
 		if (!globmatch(iterator.current.name, glob))
 			continue;
-		r = list_prepareadd(list, desttarget, &iterator.current);
+		r = list_prepareadd(list, desttarget, fromtarget, &iterator.current);
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(r))
 			break;
@@ -827,7 +830,7 @@ retvalue copy_from_file(struct distribution *into, component_t component, archit
 	while (indexfile_getnext(i, &package, target, false)) {
 		r = choose_by_name(&package, &d);
 		if (RET_IS_OK(r))
-			r = list_prepareadd(&list, target, &package);
+			r = list_prepareadd(&list, target, NULL, &package);
 		package_done(&package);
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(result))
@@ -917,7 +920,7 @@ static retvalue restore_from_snapshot(struct distribution *into, const struct at
 			result = action(&package, d);
 			if (RET_IS_OK(result))
 				result = list_prepareadd(&list,
-						target, &package);
+						target, NULL, &package);
 			package_done(&package);
 			if (RET_WAS_ERROR(result))
 				break;
