@@ -1957,7 +1957,8 @@ ACTION_B(y, n, y, dumppull) {
 	return result;
 }
 
-ACTION_D(y, n, y, copy) {
+static retvalue copy_or_move(struct distribution *alldistributions, const struct atomlist * architectures, const struct atomlist * components,
+                             const struct atomlist * packagetypes, int argc, const char * argv[], bool remove_source) {
 	struct distribution *destination, *source;
 	struct nameandversion data[argc-2];
 	int i;
@@ -1974,8 +1975,8 @@ ACTION_D(y, n, y, copy) {
 
 	if (destination->readonly) {
 		fprintf(stderr,
-"Cannot copy packages to read-only distribution '%s'.\n",
-				destination->codename);
+"Cannot %s packages to read-only distribution '%s'.\n",
+				remove_source ? "move" : "copy", destination->codename);
 		return RET_ERROR;
 	}
 	result = distribution_prepareforwriting(destination);
@@ -1995,11 +1996,19 @@ ACTION_D(y, n, y, copy) {
 	data[i].version = NULL;
 
 	result = copy_by_name(destination, source, data,
-			components, architectures, packagetypes, false);
+			components, architectures, packagetypes, remove_source);
 	for (i = 0; i < argc - 2; i++) {
 		splitnameandversion_done(&data[i].name, &data[i].version);
 	}
 	return result;
+}
+
+ACTION_D(y, n, y, copy) {
+	return copy_or_move(alldistributions, architectures, components, packagetypes, argc, argv, false);
+}
+
+ACTION_D(y, n, y, move) {
+	return copy_or_move(alldistributions, architectures, components, packagetypes, argc, argv, true);
 }
 
 ACTION_D(y, n, y, copysrc) {
@@ -4033,6 +4042,8 @@ static const struct action {
 		3, 3, "[-C <component> ] [-A <architecture>] [-T <packagetype>] copymatched <destination-distribution> <source-distribution> <glob>"},
 	{"copyfilter",		A_Dact(copyfilter),
 		3, 3, "[-C <component> ] [-A <architecture>] [-T <packagetype>] copyfilter <destination-distribution> <source-distribution> <formula>"},
+	{"move",		A_Dact(move),
+		3, -1, "[-C <component> ] [-A <architecture>] [-T <packagetype>] move <destination-distribution> <source-distribution> <package-names to move>"},
 	{"restore",		A_Dact(restore),
 		3, -1, "[-C <component> ] [-A <architecture>] [-T <packagetype>] restore <distribution> <snapshot-name> <package-names to restore>"},
 	{"restoresrc",		A_Dact(restoresrc),

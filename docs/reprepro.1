@@ -918,6 +918,14 @@ The packages are copied verbatim, no override files are consulted.
 Only components and architectures present in the source distribution are
 copied.
 .TP
+.B move \fIdestination-codename\fP \fIsource-codename\fP \fIpackage\fP\fR[\fP=\fIversion\fP\fR]\fP \fI...\fP
+Move the given packages from one distribution to another.
+The packages are moved verbatim, no override files are consulted.
+Only components and architectures present in the source distribution are
+moved. Package versions must be specified by appending '\fB=\fP' and the
+version to the name (without spaces). When no version is specified, the latest
+package version is moved.
+.TP
 .B restore \fIcodename\fP \fIsnapshot\fP \fIpackages...\fP
 .TP
 .B restoresrc \fIcodename\fP \fIsnapshot\fP \fIsource-epackage\fP \fR[\fP\fIversions\fP\fR]\fP
