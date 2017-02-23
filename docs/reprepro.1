@@ -919,6 +919,40 @@ The packages are copied verbatim, no override files are consulted.
 Only components and architectures present in the source distribution are
 copied.
 .TP
+.B move \fIdestination-codename\fP \fIsource-codename\fP \fIpackage\fP\fR[\fP=\fIversion\fP\fR]\fP \fI...\fP
+Move the given packages from one distribution to another.
+The packages are moved verbatim, no override files are consulted.
+Only components and architectures present in the source distribution are
+moved. Package versions must be specified by appending '\fB=\fP' and the
+version to the name (without spaces). When no version is specified, the latest
+package version is moved.
+.TP
+.B movesrc \fIdestination-codename\fP \fIsource-codename\fP \fIsource-package\fP \fR[\fP\fIversions\fP\fR]\fP
+look at each package
+(where package means, as usual, every package be it dsc, deb or udeb)
+in the distribution specified by \fIsource-codename\fP
+and identifies the relevant source package for each.
+All packages matching the specified \fIsource-package\fP name
+(and any \fIversion\fP if specified)
+are moved to the \fIdestination-codename\fP distribution.
+The packages are moved verbatim, no override files are consulted.
+Only components and architectures present in the source distribution are
+moved.
+.TP
+.B movematched \fIdestination-codename\fP \fIsource-codename\fP \fIglob\fP
+Move packages matching the given glob (see \fBlistmatched\fP).
+
+The packages are moved verbatim, no override files are consulted.
+Only components and architectures present in the source distribution are
+moved.
+.TP
+.B movefilter \fIdestination-codename\fP \fIsource-codename\fP \fIformula\fP
+Move packages matching the given formula (see \fBlistfilter\fP).
+(all versions if no version is specified).
+The packages are moved verbatim, no override files are consulted.
+Only components and architectures present in the source distribution are
+moved.
+.TP
 .B restore \fIcodename\fP \fIsnapshot\fP \fIpackages...\fP
 .TP
 .B restoresrc \fIcodename\fP \fIsnapshot\fP \fIsource-epackage\fP \fR[\fP\fIversions\fP\fR]\fP
