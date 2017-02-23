@@ -43,6 +43,7 @@
 #include "dpkgversions.h"
 #include "distribution.h"
 #include "database_p.h"
+#include "chunks.h"
 
 #define STRINGIFY(x) #x
 #define TOSTRING(x) STRINGIFY(x)
@@ -1972,6 +1973,130 @@ static int get_package_name(DB *secondary, const DBT *pkey, const DBT *pdata, DB
 	return 0;
 }
 
+static retvalue database_translate_legacy_packages(void) {
+	struct cursor *databases_cursor, *cursor;
+	struct table *legacy_databases, *legacy_table, *packages;
+	const char *chunk, *packagename;
+	char *identifier, *key, *legacy_filename, *packages_filename, *packageversion;
+	retvalue r, result;
+	int ret, e;
+	size_t chunk_len;
+	DBT Key, Data;
+
+	if (verbose >= 15)
+		fprintf(stderr, "trace: database_translate_legacy_packages() called.\n");
+
+	if (!isdir(global.dbdir)) {
+		fprintf(stderr, "Cannot find directory '%s'!\n", global.dbdir);
+		return RET_ERROR;
+	}
+
+	packages_filename = dbfilename("packages.db");
+	legacy_filename = dbfilename("packages.legacy.db");
+	ret = rename(packages_filename, legacy_filename);
+	if (ret != 0) {
+		e = errno;
+		fprintf(stderr, "error %d renaming %s to %s: %s\n",
+				e, packages_filename, legacy_filename, strerror(e));
+		return (e != 0)?e:EINVAL;
+	}
+	if (verbose >= 15)
+		fprintf(stderr, "trace: Moved '%s' to '%s'.\n", packages_filename, legacy_filename);
+
+	r = database_table("packages.legacy.db", NULL, dbt_BTREE, DB_RDONLY, &legacy_databases);
+	assert (r != RET_NOTHING);
+	if (RET_WAS_ERROR(r))
+		return r;
+
+	r = table_newglobalcursor(legacy_databases, true, &databases_cursor);
+	assert (r != RET_NOTHING);
+	if (RET_WAS_ERROR(r)) {
+		(void)table_close(legacy_databases);
+		return r;
+	}
+	result = RET_NOTHING;
+	// Iterate over all databases inside the packages.db file.
+	while (cursor_next(legacy_databases, databases_cursor, &Key, &Data)) {
+		identifier = strndup(Key.data, Key.size);
+		if (FAILEDTOALLOC(identifier)) {
+			RET_UPDATE(result, RET_ERROR_OOM);
+			break;
+		}
+		if (verbose >= 15)
+			fprintf(stderr, "Converting table '%s' to new layout...\n", identifier);
+
+		r = database_table("packages.legacy.db", identifier, dbt_BTREE, DB_RDONLY, &legacy_table);
+		assert (r != RET_NOTHING);
+		if (RET_WAS_ERROR(r)) {
+			free(identifier);
+			RET_UPDATE(result, r);
+			break;
+		}
+
+		r = table_newglobalcursor(legacy_table, true, &cursor);
+		assert (r != RET_NOTHING);
+		if (RET_WAS_ERROR(r)) {
+			(void)table_close(legacy_table);
+			free(identifier);
+			RET_UPDATE(result, r);
+			break;
+		}
+
+		r = database_openpackages(identifier, false, &packages);
+		free(identifier);
+		identifier = NULL;
+		if (RET_WAS_ERROR(r)) {
+			(void)cursor_close(legacy_databases, databases_cursor);
+			(void)table_close(legacy_table);
+			RET_UPDATE(result, r);
+			break;
+		}
+
+		while (cursor_nexttempdata(legacy_table, cursor, &packagename, &chunk, &chunk_len)) {
+			r = chunk_getvalue(chunk, "Version", &packageversion);
+			if (!RET_IS_OK(r)) {
+				RET_UPDATE(result, r);
+				break;
+			}
+			key = package_primarykey(packagename, packageversion);
+			r = table_addrecord(packages, key, chunk, chunk_len, false);
+			free(key);
+			if (RET_WAS_ERROR(r)) {
+				RET_UPDATE(result, r);
+				break;
+			}
+		}
+
+		r = table_close(packages);
+		RET_UPDATE(result, r);
+		r = cursor_close(legacy_table, cursor);
+		RET_UPDATE(result, r);
+		r = table_close(legacy_table);
+		RET_UPDATE(result, r);
+
+		if (RET_WAS_ERROR(result)) {
+			break;
+		}
+		result = RET_OK;
+	}
+	r = cursor_close(legacy_databases, databases_cursor);
+	RET_ENDUPDATE(result, r);
+	r = table_close(legacy_databases);
+	RET_ENDUPDATE(result, r);
+
+	if (RET_IS_OK(result)) {
+		e = deletefile(legacy_filename);
+		if (e != 0) {
+			fprintf(stderr, "Could not delete '%s'!\n"
+"It can now safely be deleted and it all that is left to be done!\n",
+					legacy_filename);
+			return RET_ERRNO(e);
+		}
+	}
+
+	return result;
+}
+
 retvalue database_openpackages(const char *identifier, bool readonly, struct table **table_p) {
 	struct table *table;
 	retvalue r;
@@ -1996,6 +2121,18 @@ retvalue database_openpackages(const char *identifier, bool readonly, struct tab
 	assert (r != RET_NOTHING);
 	if (RET_WAS_ERROR(r))
 		return r;
+
+	if (table->berkeleydb != NULL && table->sec_berkeleydb == NULL) {
+		r = table_close(table);
+		if (RET_WAS_ERROR(r)) {
+			return r;
+		}
+		r = database_translate_legacy_packages();
+		if (RET_WAS_ERROR(r)) {
+			return r;
+		}
+		return database_openpackages(identifier, readonly, table_p);
+	}
 
 	if (table->berkeleydb != NULL && table->sec_berkeleydb != NULL) {
 		r = table->berkeleydb->associate(table->berkeleydb, NULL,
