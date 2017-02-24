@@ -55,8 +55,6 @@
 static bool rdb_initialized, rdb_used, rdb_locked, rdb_verbose;
 static int rdb_dircreationdepth;
 static bool rdb_nopackages, rdb_readonly;
-static bool rdb_packagesdatabaseopen;
-static bool rdb_trackingdatabaseopen;
 static /*@null@*/ char *rdb_version, *rdb_lastsupportedversion,
 	*rdb_dbversion, *rdb_lastsupporteddbversion;
 static DB_ENV *rdb_env = NULL;
@@ -1008,7 +1006,6 @@ struct table {
 	char *name, *subname;
 	DB *berkeleydb;
 	DB *sec_berkeleydb;
-	bool *flagreset;
 	bool readonly, verbose;
 	uint32_t flags;
 };
@@ -1069,8 +1066,6 @@ retvalue table_close(struct table *table) {
 
 	if (table == NULL)
 		return RET_NOTHING;
-	if (table->flagreset != NULL)
-		*table->flagreset = false;
 	if (table->sec_berkeleydb != NULL) {
 		dbret = table->sec_berkeleydb->close(table->sec_berkeleydb, 0);
 		if (dbret != 0) {
@@ -2026,20 +2021,12 @@ retvalue database_opentracking(const char *codename, bool readonly, struct table
 				stderr);
 		return RET_ERROR;
 	}
-	if (rdb_trackingdatabaseopen) {
-		(void)fputs(
-"Internal Error: Trying to open multiple tracking databases at the same time.\nThis should normally not happen (to avoid triggering bugs in the underlying BerkeleyDB)\n",
-				stderr);
-		return RET_ERROR;
-	}
 
 	r = database_table("tracking.db", codename,
 			dbt_BTREEPAIRS, readonly?DB_RDONLY:DB_CREATE, &table);
 	assert (r != RET_NOTHING);
 	if (RET_WAS_ERROR(r))
 		return r;
-	table->flagreset = &rdb_trackingdatabaseopen;
-	rdb_trackingdatabaseopen = true;
 	*table_p = table;
 	return RET_OK;
 }
@@ -2197,13 +2184,6 @@ retvalue database_openpackages(const char *identifier, bool readonly, struct tab
 				stderr);
 		return RET_ERROR;
 	}
-	if (rdb_packagesdatabaseopen) {
-		(void)fputs(
-"Internal Error: Trying to open multiple packages databases at the same time.\n"
-"This should normally not happen (to avoid triggering bugs in the underlying BerkeleyDB)\n",
-				stderr);
-		return RET_ERROR;
-	}
 
 	r = database_table_secondary("packages.db", identifier,
 			dbt_BTREE, readonly?DB_RDONLY:DB_CREATE,
@@ -2232,8 +2212,6 @@ retvalue database_openpackages(const char *identifier, bool readonly, struct tab
 		}
 	}
 
-	table->flagreset = &rdb_packagesdatabaseopen;
-	rdb_packagesdatabaseopen = true;
 	*table_p = table;
 	return RET_OK;
 }
