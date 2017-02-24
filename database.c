@@ -67,6 +67,14 @@ static struct {
 	bool createnewtables;
 } rdb_capabilities;
 
+struct opened_tables {
+	struct opened_tables *next;
+	const char *name;
+	const char *subname;
+};
+
+struct opened_tables *opened_tables = NULL;
+
 static void database_free(void) {
 	if (!rdb_initialized)
 		return;
@@ -1044,6 +1052,7 @@ static void table_printerror(struct table *table, int dbret, const char *action)
 }
 
 retvalue table_close(struct table *table) {
+	struct opened_tables *prev = NULL;
 	int dbret;
 	retvalue result = RET_OK;
 
@@ -1071,6 +1080,20 @@ retvalue table_close(struct table *table) {
 				db_strerror(dbret));
 		result = RET_DBERR(dbret);
 	}
+
+	for (struct opened_tables *iter = opened_tables; iter != NULL; iter = iter->next) {
+		if(strcmp2(iter->name, table->name) == 0 && strcmp2(iter->subname, table->subname) == 0) {
+			if (prev == NULL) {
+				opened_tables = iter->next;
+			} else {
+				prev->next = iter->next;
+			}
+			free(iter);
+			break;
+		}
+		prev = iter;
+	}
+
 	free(table->name);
 	free(table->subname);
 	free(table);
@@ -1805,7 +1828,18 @@ retvalue database_haspackages(const char *identifier) {
 static retvalue database_table_secondary(const char *filename, const char *subtable, enum database_type type, uint32_t flags,
                                          const char *secondary_filename, enum database_type secondary_type, /*@out@*/struct table **table_p) {
 	struct table *table;
+	struct opened_tables *opened_table;
 	retvalue r;
+
+	for (struct opened_tables *iter = opened_tables; iter != NULL; iter = iter->next) {
+		if(strcmp2(iter->name, filename) == 0 && strcmp2(iter->subname, subtable) == 0) {
+            fprintf(stderr,
+ "Internal Error: Trying to open table '%s' from file '%s' multiple times.\n"
+ "This should normally not happen (to avoid triggering bugs in the underlying BerkeleyDB)\n",
+                    subtable, filename);
+			return RET_ERROR;
+		}
+	}
 
 	table = zNEW(struct table);
 	if (FAILEDTOALLOC(table))
@@ -1875,6 +1909,18 @@ static retvalue database_table_secondary(const char *filename, const char *subta
 
 		}
 	}
+
+	opened_table = zNEW(struct opened_tables);
+	if (FAILEDTOALLOC(opened_table)) {
+		free(table->subname);
+		free(table->name);
+		free(table);
+		return RET_ERROR_OOM;
+	}
+	opened_table->name = table->name;
+	opened_table->subname = table->subname;
+	opened_table->next = opened_tables;
+	opened_tables = opened_table;
 
 	*table_p = table;
 	return r;
