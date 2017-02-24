@@ -1051,6 +1051,17 @@ static void table_printerror(struct table *table, int dbret, const char *action)
 	}
 }
 
+static void print_opened_tables(FILE *stream) {
+	if (opened_tables == NULL) {
+		fprintf(stream, "No tables are opened.\n");
+	} else {
+		fprintf(stream, "Opened tables:\n");
+		for (struct opened_tables *iter = opened_tables; iter != NULL; iter = iter->next) {
+			fprintf(stream, " * %s - '%s'\n", iter->name, iter->subname);
+		}
+	}
+}
+
 retvalue table_close(struct table *table) {
 	struct opened_tables *prev = NULL;
 	int dbret;
@@ -1093,6 +1104,9 @@ retvalue table_close(struct table *table) {
 		}
 		prev = iter;
 	}
+
+	if (verbose >= 25)
+		print_opened_tables(stderr);
 
 	free(table->name);
 	free(table->subname);
@@ -1921,6 +1935,9 @@ static retvalue database_table_secondary(const char *filename, const char *subta
 	opened_table->subname = table->subname;
 	opened_table->next = opened_tables;
 	opened_tables = opened_table;
+
+	if (verbose >= 25)
+		print_opened_tables(stderr);
 
 	*table_p = table;
 	return r;
