@@ -2,7 +2,7 @@ Source: reprepro
 Section: utils
 Priority: optional
 Maintainer: Bernhard R. Link <brlink@debian.org>
-Build-Depends: debhelper (>= 9), dh-autoreconf, libgpgme-dev, libdb-dev, libz-dev, libbz2-dev, liblzma-dev, libarchive-dev
+Build-Depends: debhelper (>= 9), dh-autoreconf, libgpgme-dev, libdb-dev, libz-dev, libbz2-dev, liblzma-dev, libarchive-dev, shunit2, db-util
 Standards-Version: 4.2.0
 Vcs-Browser: https://salsa.debian.org/brlink/reprepro
 Vcs-Git: https://salsa.debian.org/brlink/reprepro.git -b debian
