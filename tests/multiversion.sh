@@ -167,4 +167,16 @@ buster|main|amd64: hello 2.9-1" "$($REPREPRO -b $REPO list buster)"
 	assertEquals "bullseye|main|amd64: hello 2.9-2" "$($REPREPRO -b $REPO list bullseye)"
 }
 
+test_movesrc_specific() {
+	four_hellos
+	add_repo bullseye
+	$REPREPRO -b $REPO export bullseye
+	call $REPREPRO -b $REPO -VV movesrc bullseye buster hello 2.9-2
+	assertEquals "\
+buster|main|amd64: hello 2.9-10
+buster|main|amd64: hello 2.9-2+deb8u1
+buster|main|amd64: hello 2.9-1" "$($REPREPRO -b $REPO list buster)"
+	assertEquals "bullseye|main|amd64: hello 2.9-2" "$($REPREPRO -b $REPO list bullseye)"
+}
+
 . shunit2

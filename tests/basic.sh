@@ -48,6 +48,21 @@ buster|main|amd64: sl-addons 3.03-1
 buster|main|source: sl 3.03-1" "$($REPREPRO -b $REPO list buster)"
 }
 
+test_copysrc() {
+	(cd $PKGS && PACKAGE=sl SECTION=main DISTRI=buster EPOCH="" VERSION=3.03 REVISION=-1 ../genpackage.sh)
+	call $REPREPRO -b $REPO -V -C main include buster $PKGS/test.changes
+	add_repo bullseye
+	call $REPREPRO -b $REPO -V copysrc bullseye buster sl
+	assertEquals "\
+bullseye|main|amd64: sl 3.03-1
+bullseye|main|amd64: sl-addons 3.03-1
+bullseye|main|source: sl 3.03-1" "$($REPREPRO -b $REPO list bullseye)"
+	assertEquals "\
+buster|main|amd64: sl 3.03-1
+buster|main|amd64: sl-addons 3.03-1
+buster|main|source: sl 3.03-1" "$($REPREPRO -b $REPO list buster)"
+}
+
 test_move() {
 	(cd $PKGS && PACKAGE=sl SECTION=main DISTRI=buster EPOCH="" VERSION=3.03 REVISION=-1 ../genpackage.sh)
 	call $REPREPRO -b $REPO -V -C main include buster $PKGS/test.changes
@@ -57,6 +72,18 @@ test_move() {
 bullseye|main|amd64: sl 3.03-1
 bullseye|main|source: sl 3.03-1" "$($REPREPRO -b $REPO list bullseye)"
 	assertEquals "buster|main|amd64: sl-addons 3.03-1" "$($REPREPRO -b $REPO list buster)"
+}
+
+test_movesrc() {
+	(cd $PKGS && PACKAGE=sl SECTION=main DISTRI=buster EPOCH="" VERSION=3.03 REVISION=-1 ../genpackage.sh)
+	call $REPREPRO -b $REPO -V -C main include buster $PKGS/test.changes
+	add_repo bullseye
+	call $REPREPRO -b $REPO -V movesrc bullseye buster sl
+	assertEquals "\
+bullseye|main|amd64: sl 3.03-1
+bullseye|main|amd64: sl-addons 3.03-1
+bullseye|main|source: sl 3.03-1" "$($REPREPRO -b $REPO list bullseye)"
+	assertEquals "" "$($REPREPRO -b $REPO list buster)"
 }
 
 . shunit2
