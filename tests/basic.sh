@@ -158,4 +158,85 @@ buster
 bullseye" "$($REPREPRO -b $REPO _listcodenames)"
 }
 
+test_copysrc() {
+	(cd $PKGS && PACKAGE=sl SECTION=main DISTRI=buster EPOCH="" VERSION=3.03 REVISION=-1 ../genpackage.sh)
+	call $REPREPRO $VERBOSE_ARGS -b $REPO -C main include buster $PKGS/sl_3.03-1_${ARCH}.changes
+	add_distro bullseye
+	call $REPREPRO $VERBOSE_ARGS -b $REPO copysrc bullseye buster sl
+	assertEquals "\
+bullseye|main|$ARCH: sl 3.03-1
+bullseye|main|$ARCH: sl-addons 3.03-1
+bullseye|main|source: sl 3.03-1" "$($REPREPRO -b $REPO list bullseye)"
+	assertEquals "\
+buster|main|$ARCH: sl 3.03-1
+buster|main|$ARCH: sl-addons 3.03-1
+buster|main|source: sl 3.03-1" "$($REPREPRO -b $REPO list buster)"
+}
+
+test_copymatched() {
+	(cd $PKGS && PACKAGE=sl SECTION=main DISTRI=buster EPOCH="" VERSION=3.03 REVISION=-1 ../genpackage.sh)
+	call $REPREPRO $VERBOSE_ARGS -b $REPO -C main include buster $PKGS/sl_3.03-1_${ARCH}.changes
+	add_distro bullseye
+	call $REPREPRO $VERBOSE_ARGS -b $REPO copymatched bullseye buster "sl-a*on?"
+	assertEquals "bullseye|main|$ARCH: sl-addons 3.03-1" "$($REPREPRO -b $REPO list bullseye)"
+	assertEquals "\
+buster|main|$ARCH: sl 3.03-1
+buster|main|$ARCH: sl-addons 3.03-1
+buster|main|source: sl 3.03-1" "$($REPREPRO -b $REPO list buster)"
+}
+
+test_move() {
+	(cd $PKGS && PACKAGE=sl SECTION=main DISTRI=buster EPOCH="" VERSION=3.03 REVISION=-1 ../genpackage.sh)
+	call $REPREPRO $VERBOSE_ARGS -b $REPO -C main includedsc buster $PKGS/sl_3.03-1.dsc
+	call $REPREPRO $VERBOSE_ARGS -b $REPO -C main includedeb buster $PKGS/sl_3.03-1_$ARCH.deb $PKGS/sl-addons_3.03-1_all.deb
+	add_distro bullseye
+	call $REPREPRO $VERBOSE_ARGS -b $REPO move bullseye buster sl
+	assertEquals "\
+bullseye|main|$ARCH: sl 3.03-1
+bullseye|main|source: sl 3.03-1" "$($REPREPRO -b $REPO list bullseye)"
+	assertEquals "buster|main|$ARCH: sl-addons 3.03-1" "$($REPREPRO -b $REPO list buster)"
+	assertEquals "\
+Distribution: buster
+Source: sl
+Version: 3.03-1
+Files:
+ pool/main/s/sl/sl_3.03-1.dsc s 0
+ pool/main/s/sl/sl_3.03.orig.tar.gz s 0
+ pool/main/s/sl/sl_3.03-1.debian.tar.xz s 0
+ pool/main/s/sl/sl_3.03-1_$ARCH.deb b 0
+ pool/main/s/sl/sl-addons_3.03-1_all.deb a 1
+
+Distribution: bullseye
+Source: sl
+Version: 3.03-1
+Files:
+ pool/main/s/sl/sl_3.03-1_$ARCH.deb b 1
+ pool/main/s/sl/sl_3.03-1.dsc s 1
+ pool/main/s/sl/sl_3.03.orig.tar.gz s 1
+ pool/main/s/sl/sl_3.03-1.debian.tar.xz s 1" "$($REPREPRO -b $REPO dumptracks)"
+}
+
+test_movesrc() {
+	(cd $PKGS && PACKAGE=sl SECTION=main DISTRI=buster EPOCH="" VERSION=3.03 REVISION=-1 ../genpackage.sh)
+	call $REPREPRO $VERBOSE_ARGS -b $REPO -C main include buster $PKGS/sl_3.03-1_${ARCH}.changes
+	add_distro bullseye
+	call $REPREPRO $VERBOSE_ARGS -b $REPO movesrc bullseye buster sl
+	assertEquals "\
+bullseye|main|$ARCH: sl 3.03-1
+bullseye|main|$ARCH: sl-addons 3.03-1
+bullseye|main|source: sl 3.03-1" "$($REPREPRO -b $REPO list bullseye)"
+	assertEquals "" "$($REPREPRO -b $REPO list buster)"
+}
+
+test_movematched() {
+	(cd $PKGS && PACKAGE=sl SECTION=main DISTRI=buster EPOCH="" VERSION=3.03 REVISION=-1 ../genpackage.sh)
+	call $REPREPRO $VERBOSE_ARGS -b $REPO -C main include buster $PKGS/sl_3.03-1_${ARCH}.changes
+	add_distro bullseye
+	call $REPREPRO $VERBOSE_ARGS -b $REPO movematched bullseye buster "sl-a*on?"
+	assertEquals "bullseye|main|$ARCH: sl-addons 3.03-1" "$($REPREPRO -b $REPO list bullseye)"
+	assertEquals "\
+buster|main|$ARCH: sl 3.03-1
+buster|main|source: sl 3.03-1" "$($REPREPRO -b $REPO list buster)"
+}
+
 . shunit2

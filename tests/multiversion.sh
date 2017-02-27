@@ -277,4 +277,41 @@ bullseye|non-free|i386
 bullseye|non-free|source" "$(db_dump "$REPO/db/packages.db" | sed -n 's/^database=//p')"
 }
 
+test_move_specific() {
+	four_hellos
+	add_distro bullseye
+	$REPREPRO -b $REPO export bullseye
+	call $REPREPRO $VERBOSE_ARGS -b $REPO move bullseye buster hello=2.9-2
+	assertEquals "\
+buster|main|$ARCH: hello 2.9-10
+buster|main|$ARCH: hello 2.9-2+deb8u1
+buster|main|$ARCH: hello 2.9-1" "$($REPREPRO -b $REPO list buster)"
+	assertEquals "bullseye|main|$ARCH: hello 2.9-2" "$($REPREPRO -b $REPO list bullseye)"
+}
+
+test_movesrc_specific() {
+	four_hellos
+	add_distro bullseye
+	$REPREPRO -b $REPO export bullseye
+	call $REPREPRO $VERBOSE_ARGS -b $REPO movesrc bullseye buster hello 2.9-2
+	assertEquals "\
+buster|main|$ARCH: hello 2.9-10
+buster|main|$ARCH: hello 2.9-2+deb8u1
+buster|main|$ARCH: hello 2.9-1" "$($REPREPRO -b $REPO list buster)"
+	assertEquals "bullseye|main|$ARCH: hello 2.9-2" "$($REPREPRO -b $REPO list bullseye)"
+}
+
+test_movefilter_specific() {
+	four_hellos
+	add_distro bullseye "Limit: -1"
+	$REPREPRO -b $REPO export bullseye
+	call $REPREPRO $VERBOSE_ARGS -b $REPO movefilter bullseye buster 'Package (= hello), $Version (>> 2.9-2)'
+	assertEquals "\
+buster|main|$ARCH: hello 2.9-2
+buster|main|$ARCH: hello 2.9-1" "$($REPREPRO -b $REPO list buster)"
+	assertEquals "\
+bullseye|main|$ARCH: hello 2.9-10
+bullseye|main|$ARCH: hello 2.9-2+deb8u1" "$($REPREPRO -b $REPO list bullseye)"
+}
+
 . shunit2
