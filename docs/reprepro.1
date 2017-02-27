@@ -926,6 +926,18 @@ moved. Package versions must be specified by appending '\fB=\fP' and the
 version to the name (without spaces). When no version is specified, the latest
 package version is moved.
 .TP
+.B movesrc \fIdestination-codename\fP \fIsource-codename\fP \fIsource-package\fP \fR[\fP\fIversions\fP\fR]\fP
+look at each package
+(where package means, as usual, every package be it dsc, deb or udeb)
+in the distribution specified by \fIsource-codename\fP
+and identifies the relevant source package for each.
+All packages matching the specified \fIsource-package\fP name
+(and any \fIversion\fP if specified)
+are moved to the \fIdestination-codename\fP distribution.
+The packages are moved verbatim, no override files are consulted.
+Only components and architectures present in the source distribution are
+moved.
+.TP
 .B restore \fIcodename\fP \fIsnapshot\fP \fIpackages...\fP
 .TP
 .B restoresrc \fIcodename\fP \fIsnapshot\fP \fIsource-epackage\fP \fR[\fP\fIversions\fP\fR]\fP
