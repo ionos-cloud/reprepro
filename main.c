@@ -2047,7 +2047,8 @@ ACTION_D(y, n, y, movesrc) {
 	return copysrc_or_movesrc(alldistributions, architectures, components, packagetypes, argc, argv, true);
 }
 
-ACTION_D(y, n, y, copyfilter) {
+static retvalue copy_or_move_filter(struct distribution *alldistributions, const struct atomlist * architectures, const struct atomlist * components,
+                                    const struct atomlist * packagetypes, int argc, const char * argv[], bool remove_source) {
 	struct distribution *destination, *source;
 	retvalue result;
 
@@ -2063,8 +2064,8 @@ ACTION_D(y, n, y, copyfilter) {
 		return result;
 	if (destination->readonly) {
 		fprintf(stderr,
-"Cannot copy packages to read-only distribution '%s'.\n",
-				destination->codename);
+"Cannot %s packages to read-only distribution '%s'.\n",
+				remove_source ? "move" : "copy", destination->codename);
 		return RET_ERROR;
 	}
 	result = distribution_prepareforwriting(destination);
@@ -2072,7 +2073,15 @@ ACTION_D(y, n, y, copyfilter) {
 		return result;
 
 	return copy_by_formula(destination, source, argv[3],
-			components, architectures, packagetypes, false);
+			components, architectures, packagetypes, remove_source);
+}
+
+ACTION_D(y, n, y, copyfilter) {
+	return copy_or_move_filter(alldistributions, architectures, components, packagetypes, argc, argv, false);
+}
+
+ACTION_D(y, n, y, movefilter) {
+	return copy_or_move_filter(alldistributions, architectures, components, packagetypes, argc, argv, true);
 }
 
 static retvalue copy_or_move_matched(struct distribution *alldistributions, const struct atomlist * architectures, const struct atomlist * components,
@@ -4066,6 +4075,8 @@ static const struct action {
 		3, -1, "[-C <component> ] [-A <architecture>] [-T <packagetype>] movesrc <destination-distribution> <source-distribution> <source-package-name> [<source versions>]"},
 	{"movematched",		A_Dact(movematched),
 		3, 3, "[-C <component> ] [-A <architecture>] [-T <packagetype>] movematched <destination-distribution> <source-distribution> <glob>"},
+	{"movefilter",		A_Dact(movefilter),
+		3, 3, "[-C <component> ] [-A <architecture>] [-T <packagetype>] movefilter <destination-distribution> <source-distribution> <formula>"},
 	{"restore",		A_Dact(restore),
 		3, -1, "[-C <component> ] [-A <architecture>] [-T <packagetype>] restore <distribution> <snapshot-name> <package-names to restore>"},
 	{"restoresrc",		A_Dact(restoresrc),

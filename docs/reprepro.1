@@ -945,6 +945,13 @@ The packages are moved verbatim, no override files are consulted.
 Only components and architectures present in the source distribution are
 moved.
 .TP
+.B movefilter \fIdestination-codename\fP \fIsource-codename\fP \fIformula\fP
+Move packages matching the given formula (see \fBlistfilter\fP).
+(all versions if no version is specified).
+The packages are moved verbatim, no override files are consulted.
+Only components and architectures present in the source distribution are
+moved.
+.TP
 .B restore \fIcodename\fP \fIsnapshot\fP \fIpackages...\fP
 .TP
 .B restoresrc \fIcodename\fP \fIsnapshot\fP \fIsource-epackage\fP \fR[\fP\fIversions\fP\fR]\fP
