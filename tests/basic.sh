@@ -77,4 +77,12 @@ test_limit() {
 	assertEquals "buster|main|amd64: hello 2.9-2" "$($REPREPRO -b $REPO list buster)"
 }
 
+test_listdistros() {
+	assertEquals "buster" "$($REPREPRO -b $REPO listdistros)"
+	add_distro bullseye
+	assertEquals "\
+buster
+bullseye" "$($REPREPRO -b $REPO listdistros)"
+}
+
 . shunit2
