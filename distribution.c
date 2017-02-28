@@ -223,6 +223,7 @@ CFstartparse(distribution) {
 	if (FAILEDTOALLOC(n))
 		return RET_ERROR_OOM;
 	/* set some default value: */
+	n->limit = 1;
 	r = exportmode_init(&n->udeb, true, NULL, "Packages");
 	if (RET_WAS_ERROR(r)) {
 		(void)distribution_free(n);
@@ -401,6 +402,7 @@ CFallSETPROC(distribution, label)
 CFallSETPROC(distribution, description)
 CFallSETPROC(distribution, signed_by)
 CFsignwithSETPROC(distribution, signwith)
+CFnumberSETPROC(distribution, -1, LLONG_MAX, limit)
 CFfileSETPROC(distribution, deb_override)
 CFfileSETPROC(distribution, udeb_override)
 CFfileSETPROC(distribution, dsc_override)
@@ -471,6 +473,7 @@ static const struct configfield distributionconfigfields[] = {
 	CF("DscOverride",	distribution,	dsc_override),
 	CF("FakeComponentPrefix", distribution,	fakecomponentprefix),
 	CF("Label",		distribution,	label),
+	CF("Limit",		distribution,   limit),
 	CF("Log",		distribution,	logger),
 	CF("NotAutomatic",	distribution,	notautomatic),
 	CF("ButAutomaticUpgrades", distribution, butautomaticupgrades),
