@@ -105,4 +105,12 @@ buster|main|source: sl 3.03-1" "$($REPREPRO -b $REPO list buster)"
 	assertEquals "buster|main|$ARCH: sl-addons 3.03-1" "$($REPREPRO -b $REPO list buster)"
 }
 
+test_listcodenames() {
+	assertEquals "buster" "$($REPREPRO -b $REPO _listcodenames)"
+	add_distro bullseye
+	assertEquals "\
+buster
+bullseye" "$($REPREPRO -b $REPO _listcodenames)"
+}
+
 . shunit2
