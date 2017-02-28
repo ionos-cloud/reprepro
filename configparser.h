@@ -226,6 +226,11 @@ static retvalue configparser_ ## sname ## _set_ ## name(UNUSED(void *dummy), con
 	struct sname *item = data; \
 	return config_gettruth(iter, name, &item->field); \
 }
+#define CFnumberSETPROC(sname, minval, maxval, field) \
+static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UNUSED(const char *name), void *data, struct configiterator *iter) { \
+	struct sname *item = data; \
+	return config_getnumber(iter, name, &item->field, minval, maxval); \
+}
 #define CFallSETPROC(sname, field) \
 static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UNUSED(const char *name), void *data, struct configiterator *iter) { \
 	struct sname *item = data; \

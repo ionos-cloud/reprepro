@@ -440,9 +440,9 @@ retvalue target_addpackage(struct target *target, struct logger *logger, const c
 			fprintf(stderr, "Warning: replacing '%s' version '%s' with equal version '%s' in '%s'!\n",
 			        name, old.version, version, target->identifier);
 		}
-	} else if (true) {
+	} else if (target->distribution->limit > 0) {
 		package_done(&old);
-		r = package_openduplicateiterator(target, name, 0, &iterator);
+		r = package_openduplicateiterator(target, name, target->distribution->limit - 1, &iterator);
 		if (RET_WAS_ERROR(r)) {
 			return r;
 		}
@@ -548,7 +548,20 @@ retvalue target_addpackage(struct target *target, struct logger *logger, const c
 	package_done(&old);
 
 	if (iterator.cursor != NULL) {
+		// Remove all older versions (that exceed the current limit)
 		retvalue r2;
+		while(package_next(&iterator)) {
+			r2 = package_getversion(&iterator.current);
+			RET_UPDATE(r, r2);
+			if (RET_WAS_ERROR(r2))
+				continue;
+			if (strcmp(version, iterator.current.version) == 0) {
+				// Do not remove the newly added package!
+				continue;
+			}
+			r2 = package_remove_by_cursor(&iterator, logger, trackingdata);
+			RET_UPDATE(r, r2);
+		}
 		r2 = package_closeiterator(&iterator);
 		RET_ENDUPDATE(r, r2);
 	}

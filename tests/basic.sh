@@ -79,6 +79,7 @@ buster|main|source: sl 3.03-1" "$($REPREPRO -b $REPO list buster)"
 test_include_old() {
 	# Test including an old package version. Expected output:
 	# Skipping inclusion of 'hello' '2.9-1' in 'buster|main|$ARCH', as it has already '2.9-2'.
+	echo "Limit: 1" >> $REPO/conf/distributions
 	(cd $PKGS && PACKAGE=hello SECTION=main DISTRI=buster VERSION=2.9 REVISION=-1 ../genpackage.sh)
 	(cd $PKGS && PACKAGE=hello SECTION=main DISTRI=buster VERSION=2.9 REVISION=-2 ../genpackage.sh)
 	call $REPREPRO $VERBOSE_ARGS -b $REPO -C main includedeb buster $PKGS/hello_2.9-2_${ARCH}.deb
@@ -86,7 +87,8 @@ test_include_old() {
 	assertEquals "buster|main|$ARCH: hello 2.9-2" "$($REPREPRO -b $REPO list buster)"
 }
 
-test_include_twice() {
+test_limit() {
+	echo "Limit: 1" >> $REPO/conf/distributions
 	(cd $PKGS && PACKAGE=hello SECTION=main DISTRI=buster VERSION=2.9 REVISION=-1 ../genpackage.sh)
 	(cd $PKGS && PACKAGE=hello SECTION=main DISTRI=buster VERSION=2.9 REVISION=-2 ../genpackage.sh)
 	call $REPREPRO $VERBOSE_ARGS -b $REPO -C main includedeb buster $PKGS/hello_2.9-1_${ARCH}.deb

@@ -1566,6 +1566,13 @@ until no file is needed any more.
 .B needsources
 Not yet implemented.
 .TP
+.B Limit
+Limit the number of versions of a package per distribution, architecture,
+component, and type. The limit must be a number. If the number is positive,
+all old package version that exceed these limit will be removed when a new
+package version is added. If the number is zero or negative, all package
+version will be kept. By default all package versions will be kept.
+.TP
 .B Log
 Specify a file to log additions and removals of this distribution
 into and/or external scripts to call when something is added or
