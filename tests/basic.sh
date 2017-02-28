@@ -57,4 +57,12 @@ buster|main|$ARCH: sl-addons 3.03-1
 buster|main|source: sl 3.03-1" "$($REPREPRO -b $REPO list buster)"
 }
 
+test_listdistros() {
+	assertEquals "buster" "$($REPREPRO -b $REPO listdistros)"
+	add_repo bullseye
+	assertEquals "\
+buster
+bullseye" "$($REPREPRO -b $REPO listdistros)"
+}
+
 . shunit2
