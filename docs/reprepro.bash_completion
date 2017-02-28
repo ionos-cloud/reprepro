@@ -306,6 +306,7 @@ _reprepro()
 			includedsc\
 			includeudeb\
 			list\
+			listdistros\
 			listfilter\
 			listmatched\
 			ls\
@@ -415,7 +416,7 @@ _reprepro()
 			fi
 			;;
 
-		collectnewchecksums|cleanlists)
+		collectnewchecksums|cleanlists|listdistros)
 			return 0
 			;;
 
