@@ -347,6 +347,59 @@ retvalue package_remove_by_cursor(struct package_cursor *tc, struct logger *logg
 	return result;
 }
 
+static retvalue archive_package(struct target *target, const char *packagename, const char *controlchunk, const char *version, const struct strlist *files, /*@null@*/struct logger *logger, /*@null@*/struct trackingdata *trackingdata, /*@null@*/const char *causingrule, /*@null@*/const char *suitefrom) {
+	struct strlist filekeys;
+	struct target *archive_target;
+	bool close_database;
+	retvalue result, r;
+
+	if (verbose >= 15)
+		fprintf(stderr, "trace: archive_package(target.identifier=%s, packagename=%s, version=%s) called.\n",
+		        target->identifier, packagename, version);
+
+	if (target->distribution->archive != NULL) {
+		archive_target = distribution_gettarget(target->distribution->archive, target->component,
+		                                        target->architecture, target->packagetype);
+		if (archive_target == NULL) {
+			fprintf(stderr,
+"Warning: Cannot archive '%s=%s' from '%s' to '%s' since '%s' has no matching component/architecture/packagetype.\n",
+			        packagename, version, target->distribution->codename,
+			        target->distribution->archive->codename,
+			        target->distribution->archive->codename);
+		} else {
+			close_database = archive_target->packages == NULL;
+			if (close_database) {
+				result = target_initpackagesdb(archive_target, READWRITE);
+				if (RET_WAS_ERROR(result)) {
+					return result;
+				}
+			}
+			if (files == NULL) {
+				result = archive_target->getfilekeys(controlchunk, &filekeys);
+				if (RET_WAS_ERROR(result))
+					return result;
+				files = &filekeys;
+			}
+			// TODO: Check whether this is the best place to set 'selected' and 'lookedat'
+			target->distribution->archive->selected = true;
+			target->distribution->archive->lookedat = true;
+			result = target_addpackage(archive_target, target->distribution->archive->logger,
+			                  packagename, version, controlchunk,
+			                  files, false, trackingdata,
+			                  target->architecture, causingrule, suitefrom, NULL);
+			RET_UPDATE(target->distribution->archive->status, result);
+			if (close_database) {
+				r = target_closepackagesdb(archive_target);
+				RET_UPDATE(result, r);
+			}
+			if (RET_WAS_ERROR(result)) {
+				return result;
+			}
+		}
+	}
+	return RET_OK;
+}
+
 static retvalue addpackages(struct target *target, const char *packagename, const char *controlchunk, /*@null@*/const char *oldcontrolchunk, const char *version, /*@null@*/const char *oldversion, const struct strlist *files, /*@only@*//*@null@*/struct strlist *oldfiles, /*@null@*/struct logger *logger, /*@null@*/struct trackingdata *trackingdata, architecture_t architecture, /*@null@*/const char *oldsource, /*@null@*/const char *oldsversion, /*@null@*/const char *causingrule, /*@null@*/const char *suitefrom) {
 
 	retvalue result, r;
@@ -385,6 +438,12 @@ static retvalue addpackages(struct target *target, const char *packagename, cons
 			if (oldfiles != NULL)
 				strlist_done(oldfiles);
 			return result;
+		}
+		r = archive_package(target, packagename, oldcontrolchunk, oldversion, oldfiles, logger, trackingdata, causingrule, suitefrom);
+		if (RET_WAS_ERROR(r)) {
+			if (oldfiles != NULL)
+				strlist_done(oldfiles);
+			return r;
 		}
 	}
 
@@ -567,6 +626,16 @@ retvalue target_addpackage(struct target *target, struct logger *logger, const c
 		// Remove all older versions (that exceed the current limit)
 		retvalue r2;
 		while(package_next(&iterator)) {
+			r2 = package_getversion(&iterator.current);
+			RET_UPDATE(r, r2);
+			if (RET_WAS_ERROR(r2))
+				continue;
+			r2 = archive_package(target, iterator.current.name, iterator.current.control,
+				                 iterator.current.version, NULL, logger, trackingdata,
+				                 causingrule, suitefrom);
+			RET_UPDATE(r, r2);
+			if (RET_WAS_ERROR(r2))
+				continue;
 			r2 = package_remove_by_cursor(&iterator, logger, trackingdata);
 			RET_UPDATE(r, r2);
 		}

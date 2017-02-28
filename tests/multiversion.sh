@@ -184,6 +184,24 @@ buster|main|${ARCH}: hello 2.9-1" "$($REPREPRO -b $REPO list buster)"
 	assertEquals "buster|main|${ARCH}: hello 2.9-10" "$($REPREPRO -b $REPO list buster)"
 }
 
+test_reduce_limit_archive() {
+	clear_distro
+	add_distro buster-archive
+	add_distro buster "Archive: buster-archive"
+	for revision in 1 2; do
+		call $REPREPRO $VERBOSE_ARGS -b $REPO -C main includedeb buster $PKGS/hello_2.9-${revision}_${ARCH}.deb
+	done
+	assertEquals "\
+buster|main|${ARCH}: hello 2.9-2
+buster|main|${ARCH}: hello 2.9-1" "$($REPREPRO -b $REPO list buster)"
+	echo "Limit: 1" >> $REPO/conf/distributions
+	call $REPREPRO $VERBOSE_ARGS -b $REPO -C main includedeb buster $PKGS/hello_2.9-10_${ARCH}.deb
+	assertEquals "\
+hello |  2.9-2 | buster-archive | $ARCH
+hello |  2.9-1 | buster-archive | $ARCH
+hello | 2.9-10 |         buster | $ARCH" "$($REPREPRO -b $REPO ls hello)"
+}
+
 test_limit_old() {
 	for revision in 1 2 10; do
 		call $REPREPRO $VERBOSE_ARGS -b $REPO -C main includedeb buster $PKGS/hello_2.9-${revision}_${ARCH}.deb
