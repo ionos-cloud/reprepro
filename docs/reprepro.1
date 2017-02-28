@@ -1603,9 +1603,16 @@ Not yet implemented.
 .B Limit
 Limit the number of versions of a package per distribution, architecture,
 component, and type. The limit must be a number. If the number is positive,
-all old package version that exceed these limit will be removed when a new
-package version is added. If the number is zero or negative, all package
-version will be kept. By default all package versions will be kept.
+all old package version that exceed these limit will be removed or archived
+(see
+.B Archive
+option), when a new package version is added. If the number is zero or negative,
+all package version will be kept. By default all package versions will be kept.
+.TP
+.B Archive
+Specify a codename which must be declared before (to avoid loops). When packages
+exceed the version count limit (specified in \fBLimit\fR), these packages will
+be moved to the specified distribution instead of being removed.
 .TP
 .B Log
 Specify a file to log additions and removals of this distribution

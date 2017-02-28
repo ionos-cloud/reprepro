@@ -47,6 +47,7 @@ static retvalue distribution_free(struct distribution *distribution) {
 	bool needsretrack = false;
 
 	if (distribution != NULL) {
+		distribution->archive = NULL;
 		free(distribution->suite);
 		free(distribution->fakecomponentprefix);
 		free(distribution->version);
@@ -422,6 +423,32 @@ CFcheckvalueSETPROC(distribution, codename, checkforcodename)
 CFcheckvalueSETPROC(distribution, fakecomponentprefix, checkfordirectoryandidentifier)
 CFtimespanSETPROC(distribution, validfor)
 
+CFuSETPROC(distribution, archive) {
+	CFSETPROCVARS(distribution, data, mydata);
+	char *codename;
+	retvalue r;
+
+	r = config_getall(iter, &codename);
+	if (!RET_IS_OK(r))
+		return r;
+
+	for (struct distribution *d = mydata->distributions; d != NULL; d = d->next) {
+		if (strcmp(d->codename, codename) == 0) {
+			data->archive = d;
+			free(codename);
+			return RET_OK;
+		}
+	}
+
+	fprintf(stderr,
+"Error parsing config file %s, line %u:\n"
+"No distribution has '%s' as codename.\n"
+"Note: The archive distribution '%s' must be specified before '%s'.\n",
+		config_filename(iter), config_line(iter), codename, codename, data->codename);
+	free(codename);
+	return RET_ERROR_MISSING;
+}
+
 CFUSETPROC(distribution, Contents) {
 	CFSETPROCVAR(distribution, d);
 	return contentsoptions_parse(d, iter);
@@ -457,6 +484,7 @@ CFUSETPROC(distribution, exportoptions) {
 static const struct configfield distributionconfigfields[] = {
 	CF("AlsoAcceptFor",	distribution,	alsoaccept),
 	CFr("Architectures",	distribution,	architectures),
+	CF("Archive",		distribution,   archive),
 	CF("ByHandHooks",	distribution,	byhandhooks),
 	CFr("Codename",		distribution,	codename),
 	CFr("Components",	distribution,	components),

@@ -342,6 +342,84 @@ retvalue package_remove_by_cursor(struct package_cursor *tc, struct logger *logg
 	return result;
 }
 
+static retvalue archive_package(struct target *target, const struct package *package, const struct strlist *files, /*@null@*/const char *causingrule, /*@null@*/const char *suitefrom) {
+	struct strlist filekeys;
+	struct target *archive_target;
+	struct trackingdata trackingdata;
+	trackingdb tracks = NULL;
+	bool close_database, close_trackingdb = false;
+	retvalue result, r;
+
+	if (verbose >= 15)
+		fprintf(stderr, "trace: archive_package(target.identifier=%s, package->name=%s, package->version=%s) called.\n",
+		        target->identifier, package->name, package->version);
+
+	if (target->distribution->archive != NULL) {
+		archive_target = distribution_gettarget(target->distribution->archive, target->component,
+		                                        target->architecture, target->packagetype);
+		if (archive_target == NULL) {
+			fprintf(stderr,
+"Warning: Cannot archive '%s=%s' from '%s' to '%s' since '%s' has no matching component/architecture/packagetype.\n",
+			        package->name, package->version, target->distribution->codename,
+			        target->distribution->archive->codename,
+			        target->distribution->archive->codename);
+		} else {
+			close_database = archive_target->packages == NULL;
+			if (close_database) {
+				result = target_initpackagesdb(archive_target, READWRITE);
+				if (RET_WAS_ERROR(result)) {
+					return result;
+				}
+			}
+			if (files == NULL) {
+				result = archive_target->getfilekeys(package->control, &filekeys);
+				if (RET_WAS_ERROR(result))
+					return result;
+				files = &filekeys;
+			}
+			if (archive_target->distribution->tracking != dt_NONE) {
+				close_trackingdb = archive_target->distribution->trackingdb == NULL;
+				if (close_trackingdb) {
+					r = tracking_initialize(&tracks, archive_target->distribution, false);
+					if (RET_WAS_ERROR(r))
+						return r;
+				} else {
+					tracks = archive_target->distribution->trackingdb;
+				}
+				r = trackingdata_summon(tracks, package->source, package->version, &trackingdata);
+				if (RET_WAS_ERROR(r))
+					return r;
+			}
+			// TODO: Check whether this is the best place to set 'selected'
+			target->distribution->archive->selected = true;
+			result = distribution_prepareforwriting(archive_target->distribution);
+			if (!RET_WAS_ERROR(result)) {
+				result = target_addpackage(archive_target, target->distribution->archive->logger,
+					              package->name, package->version, package->control,
+					              files, false, (tracks != NULL) ? &trackingdata : NULL,
+					              target->architecture, causingrule, suitefrom, NULL);
+				RET_UPDATE(target->distribution->archive->status, result);
+			}
+			if (close_database) {
+				r = target_closepackagesdb(archive_target);
+				RET_UPDATE(result, r);
+			}
+			if (tracks != NULL) {
+				r = trackingdata_finish(tracks, &trackingdata);
+				RET_UPDATE(result, r);
+				if (close_trackingdb) {
+					r = tracking_done(tracks, archive_target->distribution);
+					RET_UPDATE(result, r);
+				}
+			}
+			if (RET_WAS_ERROR(result)) {
+				return result;
+			}
+		}
+	}
+	return RET_OK;
+}
+
 static retvalue addpackages(struct target *target, const char *packagename, const char *controlchunk, const char *version, const struct strlist *files, /*@null@*/ struct package *old, /*@only@*//*@null@*/struct strlist *oldfiles, /*@null@*/struct logger *logger, /*@null@*/struct trackingdata *trackingdata, architecture_t architecture, /*@null@*/const char *causingrule, /*@null@*/const char *suitefrom) {
 
 	retvalue result = RET_OK, r;
@@ -372,13 +450,13 @@ static retvalue addpackages(struct target *target, const char *packagename, cons
 
 	if (old != NULL && old->control != NULL) {
 		key = package_primarykey(old->name, old->version);
-		r = table_deleterecord(table, key, false);
-		free(key);
-		if (RET_WAS_ERROR(r)) {
-			if (oldfiles != NULL)
-				strlist_done(oldfiles);
-			return r;
+		r = archive_package(target, old, oldfiles, causingrule, suitefrom);
+		RET_UPDATE(result, r);
+		if (RET_IS_OK(r)) {
+			r = table_deleterecord(table, key, false);
+			RET_UPDATE(result, r);
 		}
+		free(key);
 	}
 
 	key = package_primarykey(packagename, version);
@@ -556,9 +634,16 @@ retvalue target_addpackage(struct target *target, struct logger *logger, const c
 			if (RET_WAS_ERROR(r2))
 				continue;
 			if (strcmp(version, iterator.current.version) == 0) {
-				// Do not remove the newly added package!
+				// Do not archive/remove the newly added package!
 				continue;
 			}
+			r2 = package_getsource(&iterator.current);
+			if (RET_WAS_ERROR(r2))
+				continue;
+			r2 = archive_package(target, &iterator.current, NULL, causingrule, suitefrom);
+			RET_UPDATE(r, r2);
+			if (RET_WAS_ERROR(r2))
+				continue;
 			r2 = package_remove_by_cursor(&iterator, logger, trackingdata);
 			RET_UPDATE(r, r2);
 		}
