@@ -196,6 +196,42 @@ Files:
  pool/main/h/hello/hello_2.9-10_$ARCH.deb b 1" "$($REPREPRO -b $REPO dumptracks)"
 }
 
+test_reduce_limit_archive() {
+	clear_distro
+	add_distro buster-archive "Limit: 7"
+	add_distro buster "Limit: -1\nArchive: buster-archive"
+	for revision in 1 2; do
+		call $REPREPRO $VERBOSE_ARGS -b $REPO -C main includedeb buster $PKGS/hello_2.9-${revision}_${ARCH}.deb
+	done
+	assertEquals "\
+buster|main|${ARCH}: hello 2.9-2
+buster|main|${ARCH}: hello 2.9-1" "$($REPREPRO -b $REPO list buster)"
+	sed -i 's/^Limit: -1$/Limit: 1/' $REPO/conf/distributions
+	call $REPREPRO $VERBOSE_ARGS -b $REPO -C main includedeb buster $PKGS/hello_2.9-10_${ARCH}.deb
+	assertEquals "\
+hello |  2.9-2 | buster-archive | $ARCH
+hello |  2.9-1 | buster-archive | $ARCH
+hello | 2.9-10 |         buster | $ARCH" "$($REPREPRO -b $REPO ls hello)"
+	assertEquals "\
+Distribution: buster-archive
+Source: hello
+Version: 2.9-1
+Files:
+ pool/main/h/hello/hello_2.9-1_$ARCH.deb b 1
+
+Distribution: buster-archive
+Source: hello
+Version: 2.9-2
+Files:
+ pool/main/h/hello/hello_2.9-2_$ARCH.deb b 1
+
+Distribution: buster
+Source: hello
+Version: 2.9-10
+Files:
+ pool/main/h/hello/hello_2.9-10_$ARCH.deb b 1" "$($REPREPRO -b $REPO dumptracks)"
+}
+
 test_limit_old() {
 	for revision in 1 2 10; do
 		call $REPREPRO $VERBOSE_ARGS -b $REPO -C main includedeb buster $PKGS/hello_2.9-${revision}_${ARCH}.deb

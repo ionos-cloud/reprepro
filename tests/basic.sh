@@ -239,4 +239,177 @@ buster|main|$ARCH: sl 3.03-1
 buster|main|source: sl 3.03-1" "$($REPREPRO -b $REPO list buster)"
 }
 
+test_archive() {
+	clear_distro
+	add_distro buster-archive
+	add_distro buster "Limit: 1\nArchive: buster-archive"
+	(cd $PKGS && PACKAGE=hello SECTION=main DISTRI=buster VERSION=2.9 REVISION=-1 ../genpackage.sh)
+	(cd $PKGS && PACKAGE=hello SECTION=main DISTRI=buster VERSION=2.9 REVISION=-2 ../genpackage.sh)
+	call $REPREPRO $VERBOSE_ARGS -b $REPO -C main includedeb buster $PKGS/hello_2.9-1_${ARCH}.deb
+	call $REPREPRO $VERBOSE_ARGS -b $REPO -C main includedeb buster $PKGS/hello_2.9-2_${ARCH}.deb
+	assertEquals "\
+hello | 2.9-1 | buster-archive | $ARCH
+hello | 2.9-2 |         buster | $ARCH" "$($REPREPRO -b $REPO ls hello)"
+	assertEquals "\
+Distribution: buster-archive
+Source: hello
+Version: 2.9-1
+Files:
+ pool/main/h/hello/hello_2.9-1_$ARCH.deb b 1
+
+Distribution: buster
+Source: hello
+Version: 2.9-2
+Files:
+ pool/main/h/hello/hello_2.9-2_$ARCH.deb b 1" "$($REPREPRO -b $REPO dumptracks)"
+}
+
+test_archive_downgrade() {
+	clear_distro
+	add_distro buster-archive
+	add_distro buster "Limit: 1\nArchive: buster-archive"
+	add_distro buster-proposed
+	(cd $PKGS && PACKAGE=hello SECTION=main DISTRI=buster VERSION=2.9 REVISION=-1 ../genpackage.sh)
+	(cd $PKGS && PACKAGE=hello SECTION=main DISTRI=buster VERSION=2.9 REVISION=-2 ../genpackage.sh)
+	call $REPREPRO $VERBOSE_ARGS -b $REPO -C main includedeb buster $PKGS/hello_2.9-2_${ARCH}.deb
+	call $REPREPRO $VERBOSE_ARGS -b $REPO -C main includedeb buster-proposed $PKGS/hello_2.9-1_${ARCH}.deb
+	call $REPREPRO $VERBOSE_ARGS -b $REPO move buster buster-proposed hello=2.9-1
+	assertEquals "\
+hello | 2.9-2 | buster-archive | $ARCH
+hello | 2.9-1 |         buster | $ARCH" "$($REPREPRO -b $REPO ls hello)"
+	assertEquals "\
+Distribution: buster-archive
+Source: hello
+Version: 2.9-2
+Files:
+ pool/main/h/hello/hello_2.9-2_$ARCH.deb b 1
+
+Distribution: buster
+Source: hello
+Version: 2.9-1
+Files:
+ pool/main/h/hello/hello_2.9-1_$ARCH.deb b 1" "$($REPREPRO -b $REPO dumptracks)"
+}
+
+test_archive_move() {
+	clear_distro
+	add_distro buster-archive "Limit: -1"
+	add_distro buster "Limit: 1\nArchive: buster-archive"
+	add_distro buster-proposed "Limit: -1"
+	(cd $PKGS && PACKAGE=hello SECTION=main DISTRI=buster VERSION=2.9 REVISION=-1 ../genpackage.sh)
+	(cd $PKGS && PACKAGE=hello SECTION=main DISTRI=buster VERSION=2.9 REVISION=-2 ../genpackage.sh)
+	(cd $PKGS && PACKAGE=hello SECTION=main DISTRI=buster VERSION=2.9 REVISION=-3 ../genpackage.sh)
+	call $REPREPRO $VERBOSE_ARGS -b $REPO -C main includedeb buster-proposed $PKGS/hello_2.9-1_${ARCH}.deb
+	call $REPREPRO $VERBOSE_ARGS -b $REPO -C main includedeb buster-proposed $PKGS/hello_2.9-2_${ARCH}.deb
+	call $REPREPRO $VERBOSE_ARGS -b $REPO -C main includedeb buster-proposed $PKGS/hello_2.9-3_${ARCH}.deb
+	assertEquals "\
+hello | 2.9-3 | buster-proposed | $ARCH
+hello | 2.9-2 | buster-proposed | $ARCH
+hello | 2.9-1 | buster-proposed | $ARCH" "$($REPREPRO -b $REPO ls hello)"
+	assertEquals "\
+Distribution: buster-proposed
+Source: hello
+Version: 2.9-1
+Files:
+ pool/main/h/hello/hello_2.9-1_$ARCH.deb b 1
+
+Distribution: buster-proposed
+Source: hello
+Version: 2.9-2
+Files:
+ pool/main/h/hello/hello_2.9-2_$ARCH.deb b 1
+
+Distribution: buster-proposed
+Source: hello
+Version: 2.9-3
+Files:
+ pool/main/h/hello/hello_2.9-3_$ARCH.deb b 1" "$($REPREPRO -b $REPO dumptracks)"
+	call $REPREPRO $VERBOSE_ARGS -b $REPO -C main move buster buster-proposed hello=2.9-1
+	assertEquals "\
+hello | 2.9-1 |          buster | $ARCH
+hello | 2.9-3 | buster-proposed | $ARCH
+hello | 2.9-2 | buster-proposed | $ARCH" "$($REPREPRO -b $REPO ls hello)"
+	assertEquals "\
+Distribution: buster
+Source: hello
+Version: 2.9-1
+Files:
+ pool/main/h/hello/hello_2.9-1_$ARCH.deb b 1
+
+Distribution: buster-proposed
+Source: hello
+Version: 2.9-2
+Files:
+ pool/main/h/hello/hello_2.9-2_$ARCH.deb b 1
+
+Distribution: buster-proposed
+Source: hello
+Version: 2.9-3
+Files:
+ pool/main/h/hello/hello_2.9-3_$ARCH.deb b 1" "$($REPREPRO -b $REPO dumptracks)"
+	call $REPREPRO $VERBOSE_ARGS -b $REPO -C main move buster buster-proposed hello=2.9-2
+	assertEquals "\
+hello | 2.9-1 |  buster-archive | $ARCH
+hello | 2.9-2 |          buster | $ARCH
+hello | 2.9-3 | buster-proposed | $ARCH" "$($REPREPRO -b $REPO ls hello)"
+	assertEquals "\
+Distribution: buster-archive
+Source: hello
+Version: 2.9-1
+Files:
+ pool/main/h/hello/hello_2.9-1_$ARCH.deb b 1
+
+Distribution: buster
+Source: hello
+Version: 2.9-2
+Files:
+ pool/main/h/hello/hello_2.9-2_$ARCH.deb b 1
+
+Distribution: buster-proposed
+Source: hello
+Version: 2.9-3
+Files:
+ pool/main/h/hello/hello_2.9-3_$ARCH.deb b 1" "$($REPREPRO -b $REPO dumptracks)"
+	call $REPREPRO $VERBOSE_ARGS -b $REPO -C main move buster buster-proposed hello
+	assertEquals "\
+hello | 2.9-2 | buster-archive | $ARCH
+hello | 2.9-1 | buster-archive | $ARCH
+hello | 2.9-3 |         buster | $ARCH" "$($REPREPRO -b $REPO ls hello)"
+	assertEquals "\
+Distribution: buster-archive
+Source: hello
+Version: 2.9-1
+Files:
+ pool/main/h/hello/hello_2.9-1_$ARCH.deb b 1
+
+Distribution: buster-archive
+Source: hello
+Version: 2.9-2
+Files:
+ pool/main/h/hello/hello_2.9-2_$ARCH.deb b 1
+
+Distribution: buster
+Source: hello
+Version: 2.9-3
+Files:
+ pool/main/h/hello/hello_2.9-3_$ARCH.deb b 1" "$($REPREPRO -b $REPO dumptracks)"
+}
+
+test_archive_move_back() {
+	clear_distro
+	add_distro buster-archive "Limit: -1"
+	add_distro buster "Limit: 1\nArchive: buster-archive"
+	(cd $PKGS && PACKAGE=hello SECTION=main DISTRI=buster VERSION=2.9 REVISION=-1 ../genpackage.sh)
+	(cd $PKGS && PACKAGE=hello SECTION=main DISTRI=buster VERSION=2.9 REVISION=-2 ../genpackage.sh)
+	call $REPREPRO $VERBOSE_ARGS -b $REPO -C main includedeb buster $PKGS/hello_2.9-1_${ARCH}.deb
+	call $REPREPRO $VERBOSE_ARGS -b $REPO -C main includedeb buster-archive $PKGS/hello_2.9-2_${ARCH}.deb
+	assertEquals "\
+hello | 2.9-2 | buster-archive | $ARCH
+hello | 2.9-1 |         buster | $ARCH" "$($REPREPRO -b $REPO ls hello)"
+	call $REPREPRO $VERBOSE_ARGS -b $REPO -C main move buster buster-archive hello=2.9-2
+	assertEquals "\
+hello | 2.9-1 | buster-archive | $ARCH
+hello | 2.9-2 |         buster | $ARCH" "$($REPREPRO -b $REPO ls hello)"
+}
+
 . shunit2
