@@ -1203,6 +1203,13 @@ ACTION_B(y, n, y, buildneeded) {
 	}
 }
 
+ACTION_C(n, n, listdistros) {
+	for (struct distribution *d = alldistributions ; d != NULL ; d = d->next) {
+		printf("%s\n", d->codename);
+	}
+	return RET_OK;
+}
+
 static retvalue list_in_target(struct target *target, const char *packagename) {
 	retvalue r, result = RET_NOTHING;
 	struct package_cursor iterator;
@@ -3965,6 +3972,8 @@ static const struct action {
 		1, 1, "[-C <component>] [-A <architecture>] [-T <type>] ls <package-name>"},
 	{"lsbycomponent",	A_ROBact(lsbycomponent),
 		1, 1, "[-C <component>] [-A <architecture>] [-T <type>] lsbycomponent <package-name>"},
+	{"listdistros", 		A_C(listdistros),
+		0, 0, "listdistros"},
 	{"list", 		A_ROBact(list),
 		1, 2, "[-C <component>] [-A <architecture>] [-T <type>] list <codename> [<package-name>]"},
 	{"listfilter", 		A_ROBact(listfilter),
