@@ -883,7 +883,6 @@ static retvalue changes_check(const struct distribution *distribution, const cha
 			havealtsrc = true;
 		}
 	}
-
 	if (havetar && !haveorig && havediff) {
 		fprintf(stderr,
 "I don't know what to do having a .tar.gz not being a .orig.tar.gz and a .diff.gz in '%s'!\n",
@@ -903,6 +902,36 @@ static retvalue changes_check(const struct distribution *distribution, const cha
 "I don't know what to do having a .dsc without a .diff.gz or .tar.gz in '%s'!\n",
 				filename);
 		return RET_ERROR;
+	}
+
+	/* check if signatures match files signed: */
+	for (e = changes->files ; e != NULL ; e = e->next) {
+		size_t el;
+		struct fileentry *f;
+
+		if (e->type != fe_SIG) 
+			continue;
+
+		el = strlen(e->basename);
+
+		if (el <= 4 || memcmp(e->basename + el - 4, ".asc", 4) != 0)
+			continue;
+
+		for (f = changes->files ; f != NULL ; f = f->next) {
+			size_t fl = strlen(f->basename);
+
+			if (el != fl + 4)
+				continue;
+			if (memcmp(e->basename, f->basename, fl) != 0)
+				continue;
+			break;
+		}
+		if (f == NULL) {
+			fprintf(stderr,
+"Signature file without file to be signed: '%s'!\n",
+				e->basename);
+			return RET_ERROR;
+		}
 	}
 
 	return r;

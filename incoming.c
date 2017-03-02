@@ -1443,6 +1443,35 @@ static retvalue prepare_dsc(const struct incoming *i, const struct candidate *c,
 		r = properfilenames(&file->dsc.files.names);
 	if (RET_WAS_ERROR(r))
 		return r;
+
+	/* check if signatures match files signed: */
+	for (j = 0 ; j < file->dsc.files.names.count ; j++) {
+		int jj;
+		const char *afn = file->dsc.files.names.values[j];
+		size_t al = strlen(afn);
+		bool found = false;
+
+		if (al <= 4 || memcmp(afn + al - 4, ".asc", 4) != 0)
+			continue;
+
+		for (jj = 0 ; jj < file->dsc.files.names.count ; jj++) {
+			const char *fn = file->dsc.files.names.values[jj];
+			size_t l = strlen(fn);
+
+			if (l + 4 != al)
+				continue;
+			if (memcmp(afn, fn, l) != 0)
+				continue;
+			found = true;
+			break;
+		}
+		if (!found) {
+			fprintf(stderr,
+"Signature file without file to be signed: '%s'!\n", afn);
+			return RET_ERROR;
+		}
+	}
+
 	oinfo = override_search(into->overrides.dsc, file->dsc.name);
 
 	r = getsectionprioritycomponent(i, c, into, file,
