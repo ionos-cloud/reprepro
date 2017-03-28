@@ -14,7 +14,7 @@ mkdir "$DIR"/debian
 cat >"$DIR"/debian/control <<END
 Source: $PACKAGE
 Section: $SECTION
-Priority: superfluous
+Priority: optional
 Maintainer: me <guess@who>
 Standards-Version: 0.0
 
