@@ -39,7 +39,7 @@ $PACKAGE ($EPOCH$VERSION$REVISION) $DISTRI; urgency=critical
  -- me <guess@who>  Mon, 01 Jan 1980 01:02:02 +0000
 END
 
-dpkg-source --format=1.0 -b "$DIR"
+dpkg-source --format=1.0 -b "$DIR" > /dev/null
 mkdir -p "$DIR"/debian/tmp/DEBIAN
 touch "$DIR"/debian/tmp/x
 mkdir "$DIR"/debian/tmp/a
@@ -56,9 +56,9 @@ for pkg in `grep '^Package: ' debian/control | sed -e 's/^Package: //'` ; do
 	else
 		dpkg-gencontrol -p$pkg
 	fi
-	dpkg --build debian/tmp ..
+	dpkg --build debian/tmp .. > /dev/null
 done
-dpkg-genchanges "$@" > "$OUTPUT".pre
+dpkg-genchanges -q "$@" > "$OUTPUT".pre
 # simulate dpkg-genchanges behaviour currently in sid so the testsuite runs for backports, too
 awk 'BEGIN{inheader=0} /^Files:/ || (inheader && /^ /)  {inheader = 1; next} {inheader = 0 ; print}' "$OUTPUT".pre | sed -e 's/ \+$//' >../"$OUTPUT"
 echo "Files:" >> ../"$OUTPUT"
