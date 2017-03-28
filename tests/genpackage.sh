@@ -50,7 +50,7 @@ else
 	fi
 fi
 
-dpkg-source -b "$DIR"
+dpkg-source -b "$DIR" > /dev/null
 mkdir -p "$DIR"/debian/tmp/DEBIAN
 touch "$DIR"/debian/tmp/x
 mkdir "$DIR"/debian/tmp/a
@@ -67,9 +67,9 @@ for pkg in `grep '^Package: ' debian/control | sed -e 's/^Package: //'` ; do
 	else
 		dpkg-gencontrol -p$pkg
 	fi
-	dpkg --build debian/tmp ..
+	dpkg --build debian/tmp .. > /dev/null
 done
-dpkg-genchanges "$@" > "$OUTPUT".pre
+dpkg-genchanges -q "$@" > "$OUTPUT".pre
 # simulate dpkg-genchanges behaviour currently in sid so the testsuite runs for backports, too
 awk 'BEGIN{inheader=0} /^Files:/ || (inheader && /^ /)  {inheader = 1; next} {inheader = 0 ; print}' "$OUTPUT".pre | sed -e 's/ \+$//' >../"$OUTPUT"
 echo "Files:" >> ../"$OUTPUT"
