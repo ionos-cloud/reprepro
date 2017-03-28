@@ -68,6 +68,7 @@ struct package_cursor {
 	/*@temp@*/struct target *target;
 	struct cursor *cursor;
 	struct package current;
+	bool close_database;
 };
 
 retvalue package_openiterator(struct target *, bool /*readonly*/, /*@out@*/struct package_cursor *);
