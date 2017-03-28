@@ -976,6 +976,7 @@ retvalue package_openiterator(struct target *t, bool readonly, /*@out@*/struct p
 	if (verbose >= 15)
 		fprintf(stderr, "trace: package_openiterator(target={identifier: %s}) called.\n", t->identifier);
 
+	tc->close_database = t->packages == NULL;
 	r = target_initpackagesdb(t, readonly);
 	assert (r != RET_NOTHING);
 	if (RET_WAS_ERROR(r))
@@ -1015,8 +1016,12 @@ retvalue package_closeiterator(struct package_cursor *tc) {
 
 	package_done(&tc->current);
 	result = cursor_close(tc->target->packages, tc->cursor);
-	r = target_closepackagesdb(tc->target);
-	RET_UPDATE(result, r);
+	if (tc->close_database) {
+		r = target_closepackagesdb(tc->target);
+		RET_UPDATE(result, r);
+	} else {
+		tc->target = NULL;
+	}
 	return result;
 }
 
