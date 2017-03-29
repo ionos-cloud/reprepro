@@ -327,6 +327,10 @@ static retvalue packagelist_add(struct distribution *into, const struct package_
 	struct selectedpackage *package;
 	trackingdb tracks, fromtracks = NULL;
 
+	if (verbose >= 15)
+		fprintf(stderr, "trace: packagelist_add(into.codename=%s, from.codename=%s) called.\n",
+		        into->codename, from != NULL ? from->codename : NULL);
+
 	r = distribution_prepareforwriting(into);
 	if (RET_WAS_ERROR(r))
 		return r;
@@ -354,6 +358,10 @@ static retvalue packagelist_add(struct distribution *into, const struct package_
 	for (tpl = list->targets; tpl != NULL ; tpl = tpl->next) {
 		struct target *target = tpl->target;
 		struct target *fromtarget = tpl->fromtarget;
+
+		if (verbose >= 15)
+			fprintf(stderr, "trace: Processing add/move from '%s' to '%s'...\n",
+			        fromtarget != NULL ? fromtarget->identifier : NULL, target->identifier);
 
 		r = target_initpackagesdb(target, READWRITE);
 		RET_ENDUPDATE(result, r);

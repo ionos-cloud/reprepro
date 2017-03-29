@@ -101,6 +101,10 @@ static retvalue save_package_version(struct upgradelist *upgrade, struct package
 	if (RET_WAS_ERROR(r))
 		return r;
 
+	if (verbose >= 15)
+		fprintf(stderr, "trace: save_package_version(upgrade.target={identifier: %s}, pkg={name: %s, version: %s, pkgname: %s}) called.\n",
+		        upgrade->target == NULL ? NULL : upgrade->target->identifier, pkg->name, pkg->version, pkg->pkgname);
+
 	package = zNEW(struct package_data);
 	if (FAILEDTOALLOC(package))
 		return RET_ERROR_OOM;
@@ -144,6 +148,10 @@ retvalue upgradelist_initialize(struct upgradelist **ul, struct target *t) {
 	struct upgradelist *upgrade;
 	retvalue r, r2;
 	struct package_cursor iterator;
+
+	if (verbose >= 15)
+		fprintf(stderr, "trace: upgradelist_initialize(target={identifier: %s}) called.\n",
+		        t == NULL ? NULL : t->identifier);
 
 	upgrade = zNEW(struct upgradelist);
 	if (FAILEDTOALLOC(upgrade))
