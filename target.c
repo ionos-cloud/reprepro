@@ -233,6 +233,9 @@ retvalue package_remove(struct package *old, struct logger *logger, struct track
 	if (logger != NULL) {
 		(void)package_getversion(old);
 	}
+	if (verbose >= 15)
+		fprintf(stderr, "trace: package_remove(old.name=%s, old.version=%s, old.target.identifier=%s) called.\n",
+		        old->name, old->version, old->target->identifier);
 	r = old->target->getfilekeys(old->control, &files);
 	if (RET_WAS_ERROR(r)) {
 		return r;
@@ -273,6 +276,9 @@ retvalue target_removepackage(struct target *target, struct logger *logger, cons
 	retvalue r;
 
 	assert(target != NULL && target->packages != NULL && name != NULL);
+	if (verbose >= 15)
+		fprintf(stderr, "trace: target_removepackage(target.identifier=%s, name=%s, version=%s) called.\n",
+		        target->identifier, name, version);
 
 	r = package_get(target, name, version, &old);
 	if (RET_WAS_ERROR(r)) {
@@ -347,6 +353,9 @@ static retvalue addpackages(struct target *target, const char *packagename, cons
 	struct table *table = target->packages;
 	enum filetype filetype;
 
+	if (verbose >= 15)
+		fprintf(stderr, "trace: addpackages(target.identifier=%s, packagename=%s, version=%s, old->version=%s) called.\n",
+		        target->identifier, packagename, version, old != NULL ? old->version : NULL);
 	assert (atom_defined(architecture));
 
 	if (architecture == architecture_source)
@@ -408,6 +417,9 @@ retvalue target_addpackage(struct target *target, struct logger *logger, const c
 	struct package old;
 	retvalue r;
 
+	if (verbose >= 15)
+		fprintf(stderr, "trace: target_addpackage(target.identifier=%s, name=%s, version=%s) called.\n",
+		        target->identifier, name, version);
 	assert(target->packages!=NULL);
 
 	r = package_get(target, name, NULL, &old);
@@ -925,6 +937,9 @@ retvalue package_get(struct target *target, const char *name, const char *versio
 	retvalue result, r;
 	bool database_closed;
 
+	if (verbose >= 15)
+		fprintf(stderr, "trace: package_get(target.identifier=%s, packagename=%s, version=%s) called.\n",
+		        target->identifier, name, version);
 	assert (version == NULL); /* not yet implemented */
 
 	memset(pkg, 0, sizeof(*pkg));
@@ -957,6 +972,9 @@ retvalue package_openiterator(struct target *t, bool readonly, /*@out@*/struct p
 	retvalue r, r2;
 	struct cursor *c;
 
+	if (verbose >= 15)
+		fprintf(stderr, "trace: package_openiterator(target={identifier: %s}) called.\n", t->identifier);
+
 	r = target_initpackagesdb(t, readonly);
 	assert (r != RET_NOTHING);
 	if (RET_WAS_ERROR(r))
@@ -976,6 +994,10 @@ retvalue package_openiterator(struct target *t, bool readonly, /*@out@*/struct p
 
 bool package_next(struct package_cursor *tc) {
 	bool success;
+
+	if (verbose >= 15)
+		fprintf(stderr, "trace: package_next(tc={current: {name: %s, version: %s}}) called.\n", tc->current.name, tc->current.version);
+
 	package_done(&tc->current);
 	success = cursor_nexttempdata(tc->target->packages, tc->cursor,
 			&tc->current.name, &tc->current.control,

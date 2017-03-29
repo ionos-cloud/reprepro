@@ -891,6 +891,9 @@ retvalue trackingdata_remove(struct trackingdata *data, const char* oldsource, c
 	retvalue result, r;
 	struct trackedpackage *pkg;
 
+	if (verbose >= 15)
+		fprintf(stderr, "trace: trackingdata_remove(oldsource=%s, oldversion=%s) called.\n",
+		        oldsource, oldversion);
 	assert(oldsource != NULL && oldversion != NULL && oldfilekeys != NULL);
 	if (data->pkg != NULL &&
 			strcmp(oldversion, data->pkg->sourceversion) == 0 &&

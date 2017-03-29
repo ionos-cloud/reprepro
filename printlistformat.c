@@ -38,6 +38,10 @@ retvalue listformat_print(const char *listformat, struct package *package) {
 	retvalue r;
 	const char *p, *q;
 
+	if (verbose >= 15)
+		fprintf(stderr, "trace: listformat_print(package={name: %s, version: %s, pkgname: %s}) called.\n",
+		        package->name, package->version, package->pkgname);
+
 	if (listformat == NULL) {
 
 		r = package_getversion(package);

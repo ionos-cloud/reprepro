@@ -806,6 +806,9 @@ static retvalue export(struct distribution *distribution, bool onlyneeded) {
 	retvalue result, r;
 	struct release *release;
 
+	if (verbose >= 15)
+		fprintf(stderr, "trace: export(distribution={codename: %s}, onlyneeded=%s)\n",
+		        distribution->codename, onlyneeded ? "true" : "false");
 	assert (distribution != NULL);
 
 	if (distribution->exportoptions[deo_noexport])
@@ -903,6 +906,8 @@ retvalue distribution_exportlist(enum exportwhen when, struct distribution *dist
 	bool todo = false;
 	struct distribution *d;
 
+	if (verbose >= 15)
+		fprintf(stderr, "trace: distribution_exportlist() called.\n");
 	if (when == EXPORT_SILENT_NEVER) {
 		for (d = distributions ; d != NULL ; d = d->next) {
 			struct target *t;
