@@ -997,6 +997,9 @@ retvalue table_close(struct table *table) {
 	int dbret;
 	retvalue result = RET_OK;
 
+	if (verbose >= 15)
+		fprintf(stderr, "trace: table_close(table.name=%s, table.subname=%s) called.\n",
+		        table == NULL ? NULL : table->name, table == NULL ? NULL : table->subname);
 	if (table == NULL)
 		return RET_NOTHING;
 	if (table->flagreset != NULL)
@@ -1279,6 +1282,9 @@ retvalue table_adduniqsizedrecord(struct table *table, const char *key, const ch
 	return RET_OK;
 }
 retvalue table_adduniqrecord(struct table *table, const char *key, const char *data) {
+	if (verbose >= 15)
+		fprintf(stderr, "trace: table_adduniqrecord(table=%s, key=%s) called.\n",
+		        table->name, key);
 	return table_adduniqsizedrecord(table, key, data, strlen(data)+1,
 			false, false);
 }
@@ -1315,6 +1321,9 @@ retvalue table_deleterecord(struct table *table, const char *key, bool ignoremis
 retvalue table_replacerecord(struct table *table, const char *key, const char *data) {
 	retvalue r;
 
+	if (verbose >= 15)
+		fprintf(stderr, "trace: table_replacerecord(table=%s, key=%s) called.\n",
+		        table->name, key);
 	r = table_deleterecord(table, key, false);
 	if (r != RET_ERROR_MISSING && RET_WAS_ERROR(r))
 		return r;
@@ -1324,6 +1333,9 @@ retvalue table_replacerecord(struct table *table, const char *key, const char *d
 static retvalue newcursor(struct table *table, uint32_t flags, struct cursor **cursor_p) {
 	struct cursor *cursor;
 	int dbret;
+
+	if (verbose >= 15)
+		fprintf(stderr, "trace: newcursor(table={name: %s}) called.\n", table->name);
 
 	if (table->berkeleydb == NULL) {
 		assert (table->readonly);
@@ -1680,6 +1692,10 @@ retvalue database_haspackages(const char *identifier) {
 static retvalue database_table(const char *filename, const char *subtable, enum database_type type, uint32_t flags, /*@out@*/struct table **table_p) {
 	struct table *table;
 	retvalue r;
+
+	if (verbose >= 15)
+		fprintf(stderr, "trace: database_table(filename=%s, subtable=%s) called.\n",
+		        filename, subtable);
 
 	table = zNEW(struct table);
 	if (FAILEDTOALLOC(table))
