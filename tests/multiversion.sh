@@ -74,14 +74,14 @@ hello | 2.9-1 | buster | amd64" "$($REPREPRO -b $REPO ls hello)"
 
 test_copy_latest() {
 	four_hellos
-	add_repo bullseye
+	add_distro bullseye
 	call $REPREPRO $VERBOSE_ARGS -b $REPO copy bullseye buster hello hello
 	assertEquals "bullseye|main|amd64: hello 2.9-10" "$($REPREPRO -b $REPO list bullseye)"
 }
 
 test_copy_specific() {
 	four_hellos
-	add_repo bullseye
+	add_distro bullseye
 	call $REPREPRO $VERBOSE_ARGS -b $REPO copy bullseye buster hello=2.9-10 hello=2.9-1 hello=2.9-10
 	assertEquals "\
 bullseye|main|amd64: hello 2.9-10
@@ -90,7 +90,7 @@ bullseye|main|amd64: hello 2.9-1" "$($REPREPRO -b $REPO list bullseye)"
 
 test_remove_latest() {
 	four_hellos
-	add_repo bullseye
+	add_distro bullseye
 	call $REPREPRO $VERBOSE_ARGS -b $REPO copy bullseye buster hello=2.9-10 hello=2.9-1 hello=2.9-10
 	call $REPREPRO $VERBOSE_ARGS -b $REPO remove bullseye hello
 	assertEquals "\
@@ -121,7 +121,7 @@ buster|main|amd64: hello 2.9-1
 buster|main|amd64: kvm 1.2.1-9
 buster|main|amd64: kvm 1.2.1-8" "$($REPREPRO -b $REPO list buster)"
 
-	add_repo bullseye
+	add_distro bullseye
 	call $REPREPRO $VERBOSE_ARGS -b $REPO copy bullseye buster kvm
 	assertEquals "bullseye|main|amd64: kvm 1.2.1-9" "$($REPREPRO -b $REPO list bullseye)"
 
@@ -141,7 +141,7 @@ test_readd_distribution() {
 
 	# Add distribution
 	cp $REPO/conf/distributions $REPO/conf/distributions.backup
-	add_repo bullseye
+	add_distro bullseye
 	call $REPREPRO $VERBOSE_ARGS -b $REPO -C main includedeb bullseye $PKGS/hello_2.9-2_${ARCH}.deb
 
 	# Remove distribution
@@ -150,7 +150,7 @@ test_readd_distribution() {
 
 	# Re-add distribution again
 	echo "I: Re-adding bullseye..."
-	add_repo bullseye
+	add_distro bullseye
 	call $REPREPRO $VERBOSE_ARGS -b $REPO -C main includedeb bullseye $PKGS/hello_2.9-10_${ARCH}.deb
 	assertEquals "bullseye|main|$ARCH: hello 2.9-10" "$($REPREPRO -b $REPO list bullseye)"
 }
