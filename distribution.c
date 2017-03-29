@@ -941,6 +941,13 @@ retvalue distribution_exportlist(enum exportwhen when, struct distribution *dist
 
 	result = RET_NOTHING;
 	for (d=distributions; d != NULL; d = d->next) {
+		if (verbose >= 20)
+			fprintf(stderr, " looking at distribution {codename: %s, exportoptions[deo_noexport]: %s, omitted: %s, selected: %s, status: %d}.\n",
+			        d->codename,
+			        d->exportoptions[deo_noexport] ? "true" : "false",
+			        d->omitted ? "true" : "false",
+			        d->selected ? "true" : "false",
+			        d->status);
 		if (d->exportoptions[deo_noexport])
 			continue;
 		if (d->omitted || !d->selected)
