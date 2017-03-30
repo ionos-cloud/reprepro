@@ -870,7 +870,7 @@ retvalue trackingdata_insert(struct trackingdata *data, enum filetype filetype, 
 	}
 	if (r == RET_NOTHING) {
 		fprintf(stderr,
-"Could not found tracking data for %s_%s in %s to remove old files from it.\n",
+"Could not find tracking data for %s_%s in %s to remove old files from it.\n",
 			old->source, old->sourceversion,
 			data->tracks->codename);
 		return result;
@@ -904,7 +904,7 @@ retvalue trackingdata_remove(struct trackingdata *data, const char* oldsource, c
 	}
 	if (result == RET_NOTHING) {
 		fprintf(stderr,
-"Could not found tracking data for %s_%s in %s to remove old files from it.\n",
+"Could not find tracking data for %s_%s in %s to remove old files from it.\n",
 			oldsource, oldversion, data->tracks->codename);
 		return RET_OK;
 	}
