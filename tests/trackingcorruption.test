@@ -43,7 +43,7 @@ EOF
 
 testrun - --keepunreferenced remove breakme aa aa-addons 3<<EOF
 stderr
-*=Could not found tracking data for aa_1-1 in breakme to remove old files from it.
+*=Could not find tracking data for aa_1-1 in breakme to remove old files from it.
 stdout
 $(opd 'aa' unset breakme something abacus deb)
 $(opd 'aa-addons' unset breakme something abacus deb)
