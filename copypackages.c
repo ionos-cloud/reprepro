@@ -259,7 +259,7 @@ static retvalue list_prepareadd(struct package_list *list, struct target *destta
 	return RET_OK;
 }
 
-static retvalue package_add(struct distribution *into, /*@null@*/trackingdb tracks, struct target *target, const struct selectedpackage *package, /*@null@*/ struct distribution *from, struct target *fromtarget, bool remove_source) {
+static retvalue package_add(struct distribution *into, /*@null@*/trackingdb tracks, struct target *target, const struct selectedpackage *package, /*@null@*/ struct distribution *from, /*@null@*/trackingdb fromtracks, struct target *fromtarget, bool remove_source) {
 	struct trackingdata trackingdata;
 	retvalue r;
 
@@ -307,7 +307,7 @@ static retvalue packagelist_add(struct distribution *into, const struct package_
 	retvalue result, r;
 	struct target_package_list *tpl;
 	struct selectedpackage *package;
-	trackingdb tracks;
+	trackingdb tracks, fromtracks = NULL;
 
 	r = distribution_prepareforwriting(into);
 	if (RET_WAS_ERROR(r))
@@ -332,7 +332,7 @@ static retvalue packagelist_add(struct distribution *into, const struct package_
 		for (package = tpl->packages; package != NULL ;
 		                              package = package->next) {
 			r = package_add(into, tracks, target,
-					package, from, fromtarget, remove_source);
+					package, from, fromtracks, fromtarget, remove_source);
 			RET_UPDATE(result, r);
 		}
 		r = target_closepackagesdb(target);
