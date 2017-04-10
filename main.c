@@ -758,7 +758,7 @@ ACTION_D(y, n, y, remove) {
 		}
 		r = trackingdata_new(tracks, &trackingdata);
 		if (RET_WAS_ERROR(r)) {
-			(void)tracking_done(tracks);
+			(void)tracking_done(tracks, distribution);
 			return r;
 		}
 	}
@@ -794,7 +794,7 @@ ACTION_D(y, n, y, remove) {
 			trackingdata_done(&trackingdata);
 		else
 			trackingdata_finish(tracks, &trackingdata);
-		r = tracking_done(tracks);
+		r = tracking_done(tracks, distribution);
 		RET_ENDUPDATE(result, r);
 	}
 	if (verbose >= 0 && !RET_WAS_ERROR(result) && remaining > 0) {
@@ -891,7 +891,7 @@ static retvalue remove_packages(struct distribution *distribution, struct remove
 				}
 			}
 		}
-		r = tracking_done(tracks);
+		r = tracking_done(tracks, distribution);
 		RET_ENDUPDATE(result, r);
 		return result;
 	}
@@ -1031,7 +1031,7 @@ ACTION_D(y, n, y, removefilter) {
 		else {
 			r = trackingdata_new(tracks, &trackingdata);
 			if (RET_WAS_ERROR(r)) {
-				(void)tracking_done(tracks);
+				(void)tracking_done(tracks, distribution);
 				term_free(condition);
 				return r;
 			}
@@ -1046,7 +1046,7 @@ ACTION_D(y, n, y, removefilter) {
 			condition);
 	if (tracks != NULL) {
 		trackingdata_finish(tracks, &trackingdata);
-		r = tracking_done(tracks);
+		r = tracking_done(tracks, distribution);
 		RET_ENDUPDATE(result, r);
 	}
 	term_free(condition);
@@ -1093,7 +1093,7 @@ ACTION_D(y, n, y, removematched) {
 		else {
 			r = trackingdata_new(tracks, &trackingdata);
 			if (RET_WAS_ERROR(r)) {
-				(void)tracking_done(tracks);
+				(void)tracking_done(tracks, distribution);
 				return r;
 			}
 		}
@@ -1107,7 +1107,7 @@ ACTION_D(y, n, y, removematched) {
 			(void*)argv[2]);
 	if (tracks != NULL) {
 		trackingdata_finish(tracks, &trackingdata);
-		r = tracking_done(tracks);
+		r = tracking_done(tracks, distribution);
 		RET_ENDUPDATE(result, r);
 	}
 	return result;
@@ -2304,7 +2304,7 @@ ACTION_D(n, n, y, removetrack) {
 
 	result = tracking_remove(tracks, argv[2], argv[3]);
 
-	r = tracking_done(tracks);
+	r = tracking_done(tracks, distribution);
 	RET_ENDUPDATE(result, r);
 	return result;
 }
@@ -2395,7 +2395,7 @@ ACTION_D(n, n, y, tidytracks) {
 		}
 		r = tracking_tidyall(tracks);
 		RET_UPDATE(result, r);
-		r = tracking_done(tracks);
+		r = tracking_done(tracks, d);
 		RET_ENDUPDATE(result, r);
 		if (RET_WAS_ERROR(result))
 			break;
@@ -2431,7 +2431,7 @@ ACTION_B(n, n, y, dumptracks) {
 			continue;
 		r = tracking_printall(tracks);
 		RET_UPDATE(result, r);
-		r = tracking_done(tracks);
+		r = tracking_done(tracks, d);
 		RET_ENDUPDATE(result, r);
 		if (RET_WAS_ERROR(result))
 			break;
@@ -2809,7 +2809,7 @@ ACTION_D(y, y, y, includedeb) {
 
 	distribution_unloadoverrides(distribution);
 
-	r = tracking_done(tracks);
+	r = tracking_done(tracks, distribution);
 	RET_ENDUPDATE(result, r);
 	return result;
 }
@@ -2883,7 +2883,7 @@ ACTION_D(y, y, y, includedsc) {
 	logger_wait();
 
 	distribution_unloadoverrides(distribution);
-	r = tracking_done(tracks);
+	r = tracking_done(tracks, distribution);
 	RET_ENDUPDATE(result, r);
 	return result;
 }
@@ -2938,7 +2938,7 @@ ACTION_D(y, y, y, include) {
 	}
 	result = distribution_loaduploaders(distribution);
 	if (RET_WAS_ERROR(result)) {
-		r = tracking_done(tracks);
+		r = tracking_done(tracks, distribution);
 		RET_ENDUPDATE(result, r);
 		return result;
 	}
@@ -2950,7 +2950,7 @@ ACTION_D(y, y, y, include) {
 
 	distribution_unloadoverrides(distribution);
 	distribution_unloaduploaders(distribution);
-	r = tracking_done(tracks);
+	r = tracking_done(tracks, distribution);
 	RET_ENDUPDATE(result, r);
 	return result;
 }
@@ -3797,7 +3797,7 @@ ACTION_D(y, n, y, flood) {
 		RET_UPDATE(distribution->status, result);
 
 	if (tracks != NULL) {
-		r = tracking_done(tracks);
+		r = tracking_done(tracks, distribution);
 		RET_ENDUPDATE(result, r);
 	}
 	return result;
