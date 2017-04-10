@@ -46,7 +46,7 @@ struct s_tracking {
 	struct trackingoptions options;
 };
 
-retvalue tracking_done(trackingdb db) {
+retvalue tracking_done(trackingdb db, struct distribution *distribution) {
 	retvalue r;
 
 	if (db == NULL)
@@ -568,7 +568,7 @@ retvalue tracking_rereference(struct distribution *distribution) {
 		return result;
 	r = tracking_recreatereferences(tracks);
 	RET_UPDATE(result, r);
-	r = tracking_done(tracks);
+	r = tracking_done(tracks, distribution);
 	RET_ENDUPDATE(result, r);
 	return result;
 }
@@ -673,7 +673,7 @@ retvalue tracking_foreach_ro(struct distribution *d, tracking_foreach_ro_action 
 
 	r = table_newglobalcursor(t->table, &cursor);
 	if (!RET_IS_OK(r)) {
-		(void)tracking_done(t);
+		(void)tracking_done(t, d);
 		return r;
 	}
 
@@ -691,7 +691,7 @@ retvalue tracking_foreach_ro(struct distribution *d, tracking_foreach_ro_action 
 	}
 	r = cursor_close(t->table, cursor);
 	RET_ENDUPDATE(result, r);
-	r = tracking_done(t);
+	r = tracking_done(t, d);
 	RET_ENDUPDATE(result, r);
 	return result;
 }
@@ -1434,7 +1434,7 @@ retvalue tracking_retrack(struct distribution *d, bool needsretrack) {
 		/* now remove everything no longer needed */
 		r = tracking_tidyall(tracks);
 	}
-	rr = tracking_done(tracks);
+	rr = tracking_done(tracks, d);
 	RET_ENDUPDATE(r, rr);
 	return r;
 }

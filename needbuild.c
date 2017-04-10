@@ -297,7 +297,7 @@ retvalue find_needs_build(struct distribution *distribution, architecture_t arch
 			onlycomponents, architecture_source, pt_dsc,
 			check_source_needs_build, &d);
 
-	r = tracking_done(d.tracks);
+	r = tracking_done(d.tracks, distribution);
 	RET_ENDUPDATE(result, r);
 	return result;
 }

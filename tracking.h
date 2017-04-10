@@ -18,7 +18,7 @@ retvalue tracking_parse(struct distribution *, struct configiterator *);
 retvalue tracking_retrack(struct distribution *, bool /*evenifnotstale*/);
 
 retvalue tracking_initialize(/*@out@*/trackingdb *, const struct distribution *, bool readonly);
-retvalue tracking_done(trackingdb);
+retvalue tracking_done(trackingdb, struct distribution *distribution);
 retvalue tracking_listdistributions(/*@out@*/struct strlist *);
 retvalue tracking_drop(const char *);
 

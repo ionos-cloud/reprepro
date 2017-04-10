@@ -1850,7 +1850,7 @@ static retvalue candidate_add_into(const struct incoming *i, const struct candid
 		r = trackingdata_summon(tracks, c->source, c->sourceversion,
 				&trackingdata);
 		if (RET_WAS_ERROR(r)) {
-			(void)tracking_done(tracks);
+			(void)tracking_done(tracks, into);
 			return r;
 		}
 		if (into->trackingoptions.needsources) {
@@ -1936,7 +1936,7 @@ static retvalue candidate_add_into(const struct incoming *i, const struct candid
 		retvalue r2;
 		r2 = trackingdata_finish(tracks, &trackingdata);
 		RET_UPDATE(r, r2);
-		r2 = tracking_done(tracks);
+		r2 = tracking_done(tracks, into);
 		RET_ENDUPDATE(r, r2);
 	}
 	return r;
