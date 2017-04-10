@@ -332,7 +332,7 @@ static retvalue packagelist_add(struct distribution *into, const struct package_
 		RET_UPDATE(into->status, r);
 		RET_ENDUPDATE(result, r);
 	}
-	r = tracking_done(tracks);
+	r = tracking_done(tracks, into);
 	RET_ENDUPDATE(result, r);
 	return result;
 }
