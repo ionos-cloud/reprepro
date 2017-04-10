@@ -55,10 +55,17 @@ retvalue tracking_done(trackingdb db, struct distribution *distribution) {
 	r = table_close(db->table);
 	free(db->codename);
 	free(db);
+	if (distribution->trackingdb == NULL) {
+		fprintf(stderr,
+"Internal Error: Tracking database was closed, but corresponding entry in the distribution structure %s is missing.\n",
+		       distribution->codename);
+	} else {
+		distribution->trackingdb = NULL;
+	}
 	return r;
 }
 
-retvalue tracking_initialize(/*@out@*/trackingdb *db, const struct distribution *distribution, bool readonly) {
+retvalue tracking_initialize(/*@out@*/trackingdb *db, struct distribution *distribution, bool readonly) {
 	struct s_tracking *t;
 	retvalue r;
 
@@ -80,6 +87,7 @@ retvalue tracking_initialize(/*@out@*/trackingdb *db, const struct distribution 
 		return r;
 	}
 	*db = t;
+	distribution->trackingdb = t;
 	return RET_OK;
 }
 
