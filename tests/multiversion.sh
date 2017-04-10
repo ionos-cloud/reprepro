@@ -27,6 +27,10 @@ setUp() {
 	create_repo
 }
 
+tearDown() {
+	check_db
+}
+
 four_hellos() {
 	for revision in 1 2 2+deb8u1 10; do
 		call $REPREPRO $VERBOSE_ARGS -b $REPO -C main includedeb buster $PKGS/hello_2.9-${revision}_${ARCH}.deb

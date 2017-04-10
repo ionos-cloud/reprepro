@@ -21,6 +21,10 @@ setUp() {
 	create_repo
 }
 
+tearDown() {
+	check_db
+}
+
 test_empty() {
 	$REPREPRO -b $REPO export
 	call $REPREPRO -b $REPO list buster
