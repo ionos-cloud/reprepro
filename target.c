@@ -347,7 +347,7 @@ retvalue package_remove_by_cursor(struct package_cursor *tc, struct logger *logg
 
 static retvalue addpackages(struct target *target, const char *packagename, const char *controlchunk, const char *version, const struct strlist *files, /*@null@*/const struct package *old, /*@null@*/const struct strlist *oldfiles, /*@null@*/struct logger *logger, /*@null@*/struct trackingdata *trackingdata, architecture_t architecture, /*@null@*/const char *causingrule, /*@null@*/const char *suitefrom) {
 
-	retvalue result, r;
+	retvalue result = RET_OK, r;
 	struct table *table = target->packages;
 	enum filetype filetype;
 
@@ -370,14 +370,14 @@ static retvalue addpackages(struct target *target, const char *packagename, cons
 	/* Add package to the distribution's database */
 
 	if (old != NULL) {
-		result = table_replacerecord(table, packagename, controlchunk);
+		r = table_replacerecord(table, packagename, controlchunk);
 
 	} else {
-		result = table_adduniqrecord(table, packagename, controlchunk);
+		r = table_adduniqrecord(table, packagename, controlchunk);
 	}
 
-	if (RET_WAS_ERROR(result))
-		return result;
+	if (RET_WAS_ERROR(r))
+		return r;
 
 	if (logger != NULL) {
 		logger_log(logger, target, packagename,
