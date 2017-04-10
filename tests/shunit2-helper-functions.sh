@@ -24,6 +24,11 @@ call() {
 	"$@" || fail "Command '$command' failed with exit code $?."
 }
 
+check_db() {
+	db_verify $REPO/db/packages.db || fail "BerkeleyDB 'packages.db' is broken."
+	db_verify -o $REPO/db/packagenames.db || fail "BerkeleyDB 'packagenames.db' is broken."
+}
+
 add_distro() {
 	local name="$1"
 	if test -e $REPO/conf/distributions; then
