@@ -76,6 +76,7 @@ struct distribution {
 		bool keepsources;
 		bool embargoalls;
 		} trackingoptions;
+	trackingdb trackingdb;
 	/* what content files to generate */
 	struct contentsoptions contents;
 	struct atomlist contents_architectures,
