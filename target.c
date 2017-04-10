@@ -341,7 +341,7 @@ retvalue package_remove_by_cursor(struct package_cursor *tc, struct logger *logg
 	return result;
 }
 
-static retvalue addpackages(struct target *target, const char *packagename, const char *controlchunk, /*@null@*/const char *oldcontrolchunk, const char *version, /*@null@*/const char *oldversion, const struct strlist *files, /*@only@*//*@null@*/struct strlist *oldfiles, /*@null@*/struct logger *logger, /*@null@*/struct trackingdata *trackingdata, architecture_t architecture, /*@null@*/const char *oldsource, /*@null@*/const char *oldsversion, /*@null@*/const char *causingrule, /*@null@*/const char *suitefrom) {
+static retvalue addpackages(struct target *target, const char *packagename, const char *controlchunk, const char *version, const struct strlist *files, /*@null@*/ struct package *old, /*@only@*//*@null@*/struct strlist *oldfiles, /*@null@*/struct logger *logger, /*@null@*/struct trackingdata *trackingdata, architecture_t architecture, /*@null@*/const char *causingrule, /*@null@*/const char *suitefrom) {
 
 	retvalue result, r;
 	struct table *table = target->packages;
@@ -368,7 +368,7 @@ static retvalue addpackages(struct target *target, const char *packagename, cons
 
 	/* Add package to the distribution's database */
 
-	if (oldcontrolchunk != NULL) {
+	if (old != NULL && old->control != NULL) {
 		result = table_replacerecord(table, packagename, controlchunk);
 
 	} else {
@@ -383,12 +383,12 @@ static retvalue addpackages(struct target *target, const char *packagename, cons
 
 	if (logger != NULL)
 		logger_log(logger, target, packagename,
-				version, oldversion,
-				controlchunk, oldcontrolchunk,
+				version, old != NULL ? old->version : NULL,
+				controlchunk, old != NULL ? old->control : NULL,
 				files, oldfiles, causingrule, suitefrom);
 
 	r = trackingdata_insert(trackingdata, filetype, files,
-			oldsource, oldsversion, oldfiles);
+			old != NULL ? old->source : NULL, old != NULL ? old->sourceversion : NULL, oldfiles);
 	RET_UPDATE(result, r);
 
 	/* remove old references to files */
@@ -494,12 +494,10 @@ retvalue target_addpackage(struct target *target, struct logger *logger, const c
 	if (RET_IS_OK(r))
 		control = newcontrol;
 	if (!RET_WAS_ERROR(r))
-		r = addpackages(target, name, control, old.control,
-			version, old.version,
-			filekeys, ofk,
+		r = addpackages(target, name, control,
+			version, filekeys, &old, ofk,
 			logger,
 			trackingdata, architecture,
-			old.source, old.sourceversion,
 			causingrule, suitefrom);
 	if (RET_IS_OK(r)) {
 		target->wasmodified = true;
