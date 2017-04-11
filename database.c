@@ -59,6 +59,7 @@ static bool rdb_packagesdatabaseopen;
 static bool rdb_trackingdatabaseopen;
 static /*@null@*/ char *rdb_version, *rdb_lastsupportedversion,
 	*rdb_dbversion, *rdb_lastsupporteddbversion;
+static DB_ENV *rdb_env = NULL;
 
 struct table *rdb_checksums, *rdb_contents;
 struct table *rdb_references;
@@ -82,6 +83,36 @@ static void database_free(void) {
 
 static inline char *dbfilename(const char *filename) {
 	return calc_dirconcat(global.dbdir, filename);
+}
+
+static retvalue database_openenv(void) {
+	int dbret;
+
+	dbret = db_env_create(&rdb_env, 0);
+	if (dbret != 0) {
+		fprintf(stderr, "db_env_create: %s\n", db_strerror(dbret));
+		return RET_ERROR;
+	}
+
+	// DB_INIT_LOCK is needed to open multiple databases in one file (e.g. for move command)
+	dbret = rdb_env->open(rdb_env, global.dbdir,
+	                      DB_CREATE | DB_INIT_MPOOL | DB_PRIVATE | DB_INIT_LOCK, 0664);
+	if (dbret != 0) {
+		rdb_env->err(rdb_env, dbret, "environment open: %s", global.dbdir);
+		return RET_ERROR;
+	}
+
+	return RET_OK;
+}
+
+static void database_closeenv(void) {
+	int dbret;
+
+	dbret = rdb_env->close(rdb_env, 0);
+	if (dbret != 0) {
+		fprintf(stderr, "Error: DB_ENV->close: %s\n", db_strerror(dbret));
+	}
+	rdb_env = NULL;
 }
 
 /**********************/
@@ -149,6 +180,13 @@ static retvalue database_lock(size_t waitforlock) {
 	}
 	free(lockfile);
 	rdb_locked = true;
+
+	r = database_openenv();
+	if (RET_WAS_ERROR(r)) {
+		(void)unlink(lockfile);
+		free(lockfile);
+		return r;
+	}
 	return RET_OK;
 }
 
@@ -157,6 +195,7 @@ static void releaselock(void) {
 
 	assert (rdb_locked);
 
+	database_closeenv();
 	lockfile = dbfilename("lockfile");
 	if (lockfile == NULL)
 		return;
@@ -230,18 +269,12 @@ static int paireddatacompare(UNUSED(DB *db), const DBT *a, const DBT *b);
 #endif
 
 static retvalue database_opentable(const char *filename, /*@null@*/const char *subtable, enum database_type type, uint32_t flags, /*@out@*/DB **result) {
-	char *fullfilename;
 	DB *table;
 	int dbret;
 
-	fullfilename = dbfilename(filename);
-	if (FAILEDTOALLOC(fullfilename))
-		return RET_ERROR_OOM;
-
-	dbret = db_create(&table, NULL, 0);
+	dbret = db_create(&table, rdb_env, 0);
 	if (dbret != 0) {
 		fprintf(stderr, "db_create: %s\n", db_strerror(dbret));
-		free(fullfilename);
 		return RET_DBERR(dbret);
 	}
 	if (type == dbt_BTREEPAIRS || type == dbt_BTREEVERSIONS) {
@@ -249,7 +282,6 @@ static retvalue database_opentable(const char *filename, /*@null@*/const char *s
 		if (dbret != 0) {
 			table->err(table, dbret, "db_set_flags(DB_DUPSORT):");
 			(void)table->close(table, 0);
-			free(fullfilename);
 			return RET_DBERR(dbret);
 		}
 	} else if (type == dbt_BTREEDUP) {
@@ -265,7 +297,6 @@ static retvalue database_opentable(const char *filename, /*@null@*/const char *s
 		if (dbret != 0) {
 			table->err(table, dbret, "db_set_dup_compare:");
 			(void)table->close(table, 0);
-			free(fullfilename);
 			return RET_DBERR(dbret);
 		}
 	}
@@ -274,7 +305,6 @@ static retvalue database_opentable(const char *filename, /*@null@*/const char *s
 		if (dbret != 0) {
 			table->err(table, dbret, "db_set_dup_compare:");
 			(void)table->close(table, 0);
-			free(fullfilename);
 			return RET_DBERR(dbret);
 		}
 	}
@@ -295,24 +325,21 @@ static retvalue database_opentable(const char *filename, /*@null@*/const char *s
 #endif
 #endif
 #endif
-	dbret = DB_OPEN(table, fullfilename, subtable, types[type], flags);
+	dbret = DB_OPEN(table, filename, subtable, types[type], flags);
 	if (dbret == ENOENT && !ISSET(flags, DB_CREATE)) {
 		(void)table->close(table, 0);
-		free(fullfilename);
 		return RET_NOTHING;
 	}
 	if (dbret != 0) {
 		if (subtable != NULL)
 			table->err(table, dbret, "db_open(%s:%s)[%d]",
-					fullfilename, subtable, dbret);
+					filename, subtable, dbret);
 		else
 			table->err(table, dbret, "db_open(%s)[%d]",
-					fullfilename, dbret);
+					filename, dbret);
 		(void)table->close(table, 0);
-		free(fullfilename);
 		return RET_DBERR(dbret);
 	}
-	free(fullfilename);
 	*result = table;
 	return RET_OK;
 }
