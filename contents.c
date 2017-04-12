@@ -43,6 +43,7 @@ retvalue contentsoptions_parse(struct distribution *distribution, struct configi
 		cf_uncompressed, cf_gz, cf_bz2, cf_xz,
 		cf_percomponent, cf_allcomponents,
 		cf_compatsymlink, cf_nocompatsymlink,
+		cf_ddebs,
 		cf_COUNT
 	};
 	bool flags[cf_COUNT];
@@ -60,6 +61,7 @@ retvalue contentsoptions_parse(struct distribution *distribution, struct configi
 		{".bz2", cf_bz2},
 		{".gz", cf_gz},
 		{".", cf_uncompressed},
+		{"ddebs", cf_ddebs},
 		{NULL, -1}
 	};
 	retvalue r;
@@ -130,6 +132,7 @@ retvalue contentsoptions_parse(struct distribution *distribution, struct configi
 		distribution->contents.compressions |= IC_FLAG(ic_xz);
 #endif
 	distribution->contents.flags.udebs = flags[cf_udebs];
+	distribution->contents.flags.ddebs = flags[cf_ddebs];
 	distribution->contents.flags.nodebs = flags[cf_nodebs];
 	if (flags[cf_allcomponents])
 		distribution->contents.flags.allcomponents = true;
@@ -173,20 +176,36 @@ static retvalue gentargetcontents(struct target *target, struct release *release
 	struct filetorelease *file;
 	struct filelist_list *contents;
 	struct package_cursor iterator;
+	const char *suffix;
+	const char *symlink_prefix;
 
 	if (onlyneeded && target->saved_wasmodified)
 		onlyneeded = false;
 
+	switch (target->packagetype) {
+		case pt_ddeb:
+			symlink_prefix = "d";
+			suffix = "-ddeb";
+			break;
+		case pt_udeb:
+			symlink_prefix = "s";
+			suffix = "-udeb";
+			break;
+		default:
+			symlink_prefix = "";
+			suffix = "";
+	}
+
 	contentsfilename = mprintf("%s/Contents%s-%s",
 			atoms_components[target->component],
-			(target->packagetype == pt_udeb)?"-udeb":"",
+			suffix,
 			atoms_architectures[target->architecture]);
 	if (FAILEDTOALLOC(contentsfilename))
 		return RET_ERROR_OOM;
 
 	if (symlink) {
 		char *symlinkas = mprintf("%sContents-%s",
-				(target->packagetype == pt_udeb)?"s":"",
+				symlink_prefix,
 				atoms_architectures[target->architecture]);
 		if (FAILEDTOALLOC(symlinkas)) {
 			free(contentsfilename);
@@ -244,17 +263,30 @@ static retvalue genarchcontents(struct distribution *distribution, architecture_
 	const struct atomlist *components;
 	struct target *target;
 	bool combinedonlyifneeded;
+	const char *prefix;
+	const char *symlink_prefix;
 
-	if (type == pt_udeb) {
+	if (type == pt_ddeb) {
+		if (distribution->contents_components_set)
+			components = &distribution->contents_dcomponents;
+		else
+			components = &distribution->ddebcomponents;
+		prefix = "d";
+		symlink_prefix = "d";
+	} else if (type == pt_udeb) {
 		if (distribution->contents_components_set)
 			components = &distribution->contents_ucomponents;
 		else
 			components = &distribution->udebcomponents;
+		prefix = "u";
+		symlink_prefix = "s";
 	} else {
 		if (distribution->contents_components_set)
 			components = &distribution->contents_components;
 		else
 			components = &distribution->components;
+		prefix = "";
+		symlink_prefix = "";
 	}
 
 	if (components->count == 0)
@@ -286,7 +318,7 @@ static retvalue genarchcontents(struct distribution *distribution, architecture_
 	if (!distribution->contents.flags.allcomponents) {
 		if (!distribution->contents.flags.compatsymlink) {
 			char *symlinkas = mprintf("%sContents-%s",
-					(type == pt_udeb)?"s":"",
+					symlink_prefix,
 					atoms_architectures[architecture]);
 			if (FAILEDTOALLOC(symlinkas))
 				return RET_ERROR_OOM;
@@ -298,7 +330,7 @@ static retvalue genarchcontents(struct distribution *distribution, architecture_
 	}
 
 	contentsfilename = mprintf("%sContents-%s",
-			(type == pt_udeb)?"u":"",
+			prefix,
 			atoms_architectures[architecture]);
 	if (FAILEDTOALLOC(contentsfilename))
 		return RET_ERROR_OOM;
@@ -362,6 +394,12 @@ retvalue contents_generate(struct distribution *distribution, struct release *re
 		if (distribution->contents.flags.udebs) {
 			r = genarchcontents(distribution,
 					architecture, pt_udeb,
+					release, onlyneeded);
+			RET_UPDATE(result, r);
+		}
+		if (distribution->contents.flags.ddebs) {
+			r = genarchcontents(distribution,
+					architecture, pt_ddeb,
 					release, onlyneeded);
 			RET_UPDATE(result, r);
 		}

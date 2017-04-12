@@ -53,6 +53,10 @@ static char *calc_identifier(const char *codename, component_t component, archit
 		return mprintf("u|%s|%s|%s", codename,
 				atoms_components[component],
 				atoms_architectures[architecture]);
+	else if (packagetype == pt_ddeb)
+		return mprintf("d|%s|%s|%s", codename,
+				atoms_components[component],
+				atoms_architectures[architecture]);
 	else
 		return mprintf("%s|%s|%s", codename,
 				atoms_components[component],
@@ -126,6 +130,25 @@ retvalue target_initialize_ubinary(struct distribution *d, component_t component
 			ubinaries_doreoverride, binaries_retrack,
 			binaries_complete_checksums,
 			mprintf("%s/debian-installer/binary-%s",
+				dist_component_name(component,
+					fakecomponentprefix),
+				atoms_architectures[architecture]),
+			exportmode, readonly, noexport, target);
+}
+retvalue target_initialize_dbinary(struct distribution *d, component_t component, architecture_t architecture, const struct exportmode *exportmode, bool readonly, bool noexport, const char *fakecomponentprefix, struct target **target) {
+	return target_initialize(d, component, architecture, pt_ddeb,
+			binaries_getversion,
+			binaries_getinstalldata,
+			binaries_getarchitecture,
+			binaries_getfilekeys, binaries_getchecksums,
+			binaries_getsourceandversion,
+			/* we use the main overrides */
+			binaries_doreoverride, binaries_retrack,
+			binaries_complete_checksums,
+			/* FIXME: we don't know what the Debian archive layout
+			 * is going to look like yet, so take a guess based
+			 * on udebs */
+			mprintf("%s/debug/binary-%s",
 				dist_component_name(component,
 					fakecomponentprefix),
 				atoms_architectures[architecture]),

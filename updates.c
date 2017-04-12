@@ -155,6 +155,9 @@ struct update_pattern {
 	// (empty means all)
 	struct strlist udebcomponents_from;
 	struct strlist udebcomponents_into;
+	// There's no ddeb support here yet, since we don't know what the
+	// Debian archive layout is going to look like.
+
 	// NULL means no condition
 	/*@null@*/term *includecondition;
 	struct filterlist filterlist;

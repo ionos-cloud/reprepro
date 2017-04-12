@@ -60,6 +60,8 @@ struct pull_rule {
 	//e.g. "UDebComponents: main" // (not set means all)
 	struct atomlist udebcomponents;
 	bool udebcomponents_set;
+	// We don't have equivalents for ddebs yet since we don't know
+	// what the Debian archive layout is going to look like
 	// NULL means no condition
 	/*@null@*/term *includecondition;
 	struct filterlist filterlist;

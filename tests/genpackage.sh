@@ -9,6 +9,8 @@ if [ "x$OUTPUT" == "x" ] ; then
 fi
 
 DIR="$PACKAGE-$VERSION"
+ARCH="${ARCH:-$(dpkg-architecture -qDEB_HOST_ARCH)}"
+rm -rf "$DIR"
 mkdir "$DIR"
 mkdir "$DIR"/debian
 cat >"$DIR"/debian/control <<END
@@ -19,7 +21,7 @@ Maintainer: me <guess@who>
 Standards-Version: 0.0
 
 Package: $PACKAGE
-Architecture: ${ARCH:-$(dpkg-architecture -qDEB_HOST_ARCH)}
+Architecture: ${ARCH}
 Description: bla
  blub
 
@@ -28,6 +30,17 @@ Architecture: all
 Description: bla
  blub
 END
+
+if test -n "${DDEB-}" ; then
+cat >>"$DIR"/debian/control <<END
+
+Package: ${PACKAGE}-dbgsym
+Architecture: ${ARCH}
+Description: ${PACKAGE} debug symbols
+Package-Type: ddeb
+END
+fi
+
 if test -z "$DISTRI" ; then
 	DISTRI=test1
 fi
@@ -62,12 +75,26 @@ mkdir "$DIR"/debian/tmp/dir/subdir
 touch "$DIR"/debian/tmp/dir/subdir/file
 cd "$DIR"
 for pkg in `grep '^Package: ' debian/control | sed -e 's/^Package: //'` ; do
+	case "$pkg" in
+		(*-udeb)
+			deb="${pkg}_${VERSION}${REVISION}_${ARCH}.udeb"
+			;;
+		(*-dbgsym)
+			deb="${pkg}_${VERSION}${REVISION}_${ARCH}.ddeb"
+			;;
+		(*-addons)
+			deb="${pkg}_${FAKEVER:-${VERSION}${REVISION}}_all.deb"
+			;;
+		(*)
+			deb="${pkg}_${VERSION}${REVISION}_${ARCH}.deb"
+			;;
+	esac
 	if [ "x$pkg" != "x${pkg%-addons}" -a -n "$FAKEVER" ] ; then
 		dpkg-gencontrol -p$pkg -v"$FAKEVER"
 	else
 		dpkg-gencontrol -p$pkg
 	fi
-	dpkg --build debian/tmp .. > /dev/null
+	dpkg --build debian/tmp ../$deb > /dev/null
 done
 dpkg-genchanges -q "$@" > "$OUTPUT".pre
 # simulate dpkg-genchanges behaviour currently in sid so the testsuite runs for backports, too
