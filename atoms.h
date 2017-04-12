@@ -19,6 +19,7 @@ enum atom_type { at_architecture, at_component, at_packagetype, at_command };
 #define pt_dsc ((packagetype_t)1)
 #define pt_deb ((packagetype_t)2)
 #define pt_udeb ((packagetype_t)3)
+#define pt_ddeb ((packagetype_t)4)
 
 #define atom_defined(a) ((a) > (atom_t)0)
 

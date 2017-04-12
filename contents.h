@@ -19,6 +19,7 @@ struct contentsoptions {
 		bool percomponent;
 		bool allcomponents;
 		bool compatsymlink;
+		bool ddebs;
 	} flags;
 	compressionset compressions;
 };
