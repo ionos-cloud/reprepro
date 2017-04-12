@@ -71,8 +71,10 @@ static retvalue distribution_free(struct distribution *distribution) {
 		exportmode_done(&distribution->dsc);
 		exportmode_done(&distribution->deb);
 		exportmode_done(&distribution->udeb);
+		exportmode_done(&distribution->ddeb);
 		atomlist_done(&distribution->contents_architectures);
 		atomlist_done(&distribution->contents_components);
+		atomlist_done(&distribution->contents_dcomponents);
 		atomlist_done(&distribution->contents_ucomponents);
 		override_free(distribution->overrides.deb);
 		override_free(distribution->overrides.udeb);
@@ -187,6 +189,26 @@ static retvalue createtargets(struct distribution *distribution) {
 					return r;
 
 			}
+			if (atomlist_in(&distribution->ddebcomponents, c)) {
+				r = target_initialize_dbinary(
+						distribution,
+						c, a,
+						&distribution->ddeb,
+						distribution->readonly,
+						distribution->exportoptions[deo_noexport],
+						distribution->fakecomponentprefix,
+						&t);
+				if (RET_IS_OK(r)) {
+					if (last != NULL) {
+						last->next = t;
+					} else {
+						distribution->targets = t;
+					}
+					last = t;
+				}
+				if (RET_WAS_ERROR(r))
+					return r;
+			}
 		}
 		/* check if this distribution contains source
 		 * (yes, yes, source is not really an architecture, but
@@ -225,6 +247,11 @@ CFstartparse(distribution) {
 		return RET_ERROR_OOM;
 	/* set some default value: */
 	r = exportmode_init(&n->udeb, true, NULL, "Packages");
+	if (RET_WAS_ERROR(r)) {
+		(void)distribution_free(n);
+		return r;
+	}
+	r = exportmode_init(&n->ddeb, true, "Release", "Packages");
 	if (RET_WAS_ERROR(r)) {
 		(void)distribution_free(n);
 		return r;
@@ -331,6 +358,9 @@ CFfinishparse(distribution) {
 	    notpropersuperset(&n->components, "Components",
 			    &n->contents_components, "ContentsComponents",
 			    atoms_components, n) ||
+	    notpropersuperset(&n->ddebcomponents, "DDebComponents",
+			    &n->contents_dcomponents, "ContentsDComponents",
+			    atoms_components, n) ||
 	    notpropersuperset(&n->udebcomponents, "UDebComponents",
 			    &n->contents_ucomponents, "ContentsUComponents",
 			    atoms_components, n) ||
@@ -338,6 +368,9 @@ CFfinishparse(distribution) {
 	    // in the rest of the code...:
 	    notpropersuperset(&n->components, "Components",
 			    &n->udebcomponents, "UDebComponents",
+			    atoms_components, n) ||
+	    notpropersuperset(&n->components, "Components",
+			    &n->ddebcomponents, "DDebComponents",
 			    atoms_components, n)) {
 		(void)distribution_free(n);
 		return RET_ERROR;
@@ -357,6 +390,14 @@ CFfinishparse(distribution) {
 			n->contents.flags.udebs = true;
 		} else {
 			n->contents.flags.udebs = false;
+		}
+	}
+	if (n->contents_dcomponents_set) {
+		if (n->contents_dcomponents.count > 0) {
+			n->contents.flags.enabled = true;
+			n->contents.flags.ddebs = true;
+		} else {
+			n->contents.flags.ddebs = false;
 		}
 	}
 	if (n->contents_architectures_set) {
@@ -414,8 +455,10 @@ CFinternatomsSETPROC(distribution, components, checkforcomponent, at_component)
 CFinternatomsSETPROC(distribution, architectures, checkforarchitecture, at_architecture)
 CFatomsublistSETPROC(distribution, contents_architectures, at_architecture, architectures, "Architectures")
 CFatomsublistSETPROC(distribution, contents_components, at_component, components, "Components")
+CFatomsublistSETPROC(distribution, ddebcomponents, at_component, components, "Components")
 CFatomsublistSETPROC(distribution, udebcomponents, at_component, components, "Components")
 CFatomsublistSETPROC(distribution, contents_ucomponents, at_component, udebcomponents, "UDebComponents")
+CFexportmodeSETPROC(distribution, ddeb)
 CFexportmodeSETPROC(distribution, udeb)
 CFexportmodeSETPROC(distribution, deb)
 CFexportmodeSETPROC(distribution, dsc)
@@ -492,6 +535,8 @@ static const struct configfield distributionconfigfields[] = {
 	CF("ContentsComponents", distribution,	contents_components),
 	CF("Contents",		distribution,	Contents),
 	CF("ContentsUComponents", distribution,	contents_ucomponents),
+	CF("DDebComponents",	distribution,	ddebcomponents),
+	CF("DDebIndices",	distribution,	ddeb),
 	CF("DebIndices",	distribution,	deb),
 	CF("DebOverride",	distribution,	deb_override),
 	CF("Description",	distribution,	description),

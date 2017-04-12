@@ -207,6 +207,11 @@ static retvalue newentry(struct fileentry **entry, const char *fileline, const s
 		*ignoredlines_p = true;
 		return RET_NOTHING;
 	}
+	if (e->type == fe_DDEB && limitations_missed(packagetypes, pt_ddeb)) {
+		freeentries(e);
+		*ignoredlines_p = true;
+		return RET_NOTHING;
+	}
 	if (e->type != fe_LOG && e->type != fe_BUILDINFO &&
 			e->architecture_into == architecture_source &&
 			strcmp(e->name, sourcename) != 0) {
@@ -1237,6 +1242,15 @@ static retvalue changes_checkpkgs(struct distribution *distribution, struct chan
 				e->filekey, e->checksums,
 				&changes->binaries,
 				changes->source, changes->sourceversion);
+		} else if (e->type == fe_DDEB) {
+			r = deb_prepare(&e->pkg.deb,
+				e->component, e->architecture_into,
+				e->section, e->priority,
+				pt_ddeb,
+				distribution, fullfilename,
+				e->filekey, e->checksums,
+				&changes->binaries,
+				changes->source, changes->sourceversion);
 		} else if (e->type == fe_DSC) {
 			if (!changes->isbinnmu || IGNORING(dscinbinnmu,
 "File '%s' looks like a source package, but this .changes looks like a binNMU\n"
@@ -1283,6 +1297,15 @@ static retvalue changes_includepkgs(struct distribution *distribution, struct ch
 				(e->architecture_into == architecture_all)?
 					forcearchitectures:NULL,
 				pt_deb, distribution, trackingdata);
+			if (r == RET_NOTHING)
+				*missed_p = true;
+		} else if (e->type == fe_DDEB) {
+			r = deb_addprepared(e->pkg.deb,
+				/* architecture all needs this, the rest is
+				 * already filtered out */
+				(e->architecture_into == architecture_all)?
+					forcearchitectures:NULL,
+				pt_ddeb, distribution, trackingdata);
 			if (r == RET_NOTHING)
 				*missed_p = true;
 		} else if (e->type == fe_UDEB) {

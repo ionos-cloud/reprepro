@@ -1264,9 +1264,13 @@ static retvalue prepare_deb(const struct incoming *i, const struct candidate *c,
 	assert (file == package->master);
 	if (file->type == fe_DEB)
 		package->packagetype = pt_deb;
+	else if (file->type == fe_DDEB)
+		package->packagetype = pt_ddeb;
 	else
 		package->packagetype = pt_udeb;
 
+	/* we use the deb overrides for ddebs too - ddebs aren't
+	 * meant to have overrides so this is probably fine */
 	oinfo = override_search(file->type==fe_UDEB?into->overrides.udeb:
 			                    into->overrides.deb,
 	                        file->name);
@@ -1277,6 +1281,16 @@ static retvalue prepare_deb(const struct incoming *i, const struct candidate *c,
 	if (RET_WAS_ERROR(r))
 		return r;
 
+	if (file->type == fe_DDEB &&
+	    !atomlist_in(&into->ddebcomponents, package->component)) {
+		fprintf(stderr,
+"Cannot put file '%s' of '%s' into component '%s',\n"
+"as it is not listed in DDebComponents of '%s'!\n",
+			BASENAME(i, file->ofs), BASENAME(i, c->ofs),
+			atoms_components[package->component],
+			into->codename);
+		return RET_ERROR;
+	}
 	if (file->type == fe_UDEB &&
 	    !atomlist_in(&into->udebcomponents, package->component)) {
 		fprintf(stderr,
@@ -1699,6 +1713,7 @@ static retvalue prepare_for_distribution(const struct incoming *i, const struct 
 		switch (file->type) {
 			case fe_UDEB:
 			case fe_DEB:
+			case fe_DDEB:
 				r = prepare_deb(i, c, d, file);
 				break;
 			case fe_DSC:

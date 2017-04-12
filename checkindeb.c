@@ -105,7 +105,13 @@ static retvalue deb_preparelocation(struct debpackage *pkg, component_t forcecom
 	const struct overridedata *oinfo;
 	retvalue r;
 
-	if (packagetype == pt_udeb) {
+	if (packagetype == pt_ddeb) {
+		/* ddebs don't have overrides */
+		forcesection = "debug";
+		forcepriority = "extra";
+		binoverride = NULL;
+		components = &distribution->ddebcomponents;
+	} else if (packagetype == pt_udeb) {
 		binoverride = distribution->overrides.udeb;
 		components = &distribution->udebcomponents;
 	} else {
@@ -113,14 +119,21 @@ static retvalue deb_preparelocation(struct debpackage *pkg, component_t forcecom
 		components = &distribution->components;
 	}
 
-	oinfo = override_search(binoverride, pkg->deb.name);
+	if (binoverride == NULL) {
+		oinfo = NULL;
+	} else {
+		oinfo = override_search(binoverride, pkg->deb.name);
+
+		if (forcesection == NULL) {
+			forcesection = override_get(oinfo, SECTION_FIELDNAME);
+		}
+
+		if (forcepriority == NULL) {
+			forcepriority = override_get(oinfo, PRIORITY_FIELDNAME);
+		}
+	}
 	*oinfo_ptr = oinfo;
-	if (forcesection == NULL) {
-		forcesection = override_get(oinfo, SECTION_FIELDNAME);
-	}
-	if (forcepriority == NULL) {
-		forcepriority = override_get(oinfo, PRIORITY_FIELDNAME);
-	}
+
 	if (!atom_defined(forcecomponent)) {
 		const char *fc;
 
@@ -261,7 +274,29 @@ retvalue deb_prepare(/*@out@*/struct debpackage **deb, component_t forcecomponen
 		base = NULL;
 	}
 
-	if (!strlist_in(allowed_binaries, packagenametocheck) &&
+	if (packagetype == pt_ddeb) {
+		/* ddebs are allowed if they are an allowed
+		 * binary + "-dbgsym" */
+		int i;
+		bool found = false;
+
+		for (i = 0; i < allowed_binaries->count; i++) {
+			const char *s = allowed_binaries->values[i];
+			size_t len = strlen(s);
+
+			if (strncmp(s, pkg->deb.name, len) == 0 &&
+					strcmp(pkg->deb.name + len, "-dbgsym") == 0) {
+				found = true;
+			}
+		}
+
+		if (!found && !IGNORING(surprisingbinary,
+					"'%s' has packagename '%s' not corresponding to a .deb listed in the .changes file!\n",
+					debfilename, pkg->deb.name)) {
+			deb_free(pkg);
+			return RET_ERROR;
+		}
+	} else if (!strlist_in(allowed_binaries, packagenametocheck) &&
 	    !IGNORING(surprisingbinary,
 "'%s' has packagename '%s' not listed in the .changes file!\n",
 					debfilename, packagenametocheck)) {

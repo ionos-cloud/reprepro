@@ -847,7 +847,14 @@ retvalue copy_from_file(struct distribution *into, component_t component, archit
 					into->codename,
 					atoms_architectures[architecture]);
 		}
-		if (packagetype != pt_udeb) {
+		if (packagetype == pt_ddeb) {
+			if (!atomlist_in(&into->ddebcomponents, component)) {
+				fprintf(stderr,
+"Distribution '%s' does not contain ddeb component '%s!'\n",
+					into->codename,
+					atoms_components[component]);
+			}
+		} else if (packagetype != pt_udeb) {
 			if (!atomlist_in(&into->components, component)) {
 				fprintf(stderr,
 "Distribution '%s' does not contain component '%s!'\n",

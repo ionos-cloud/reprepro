@@ -2615,7 +2615,9 @@ static retvalue repair_descriptions(struct target *target) {
 	retvalue result, r;
 
 	assert(target->packages == NULL);
-	assert(target->packagetype == pt_deb || target->packagetype == pt_udeb);
+	assert(target->packagetype == pt_deb ||
+			target->packagetype == pt_udeb ||
+			target->packagetype == pt_ddeb);
 
 	if (verbose > 2) {
 		printf(
@@ -2791,6 +2793,13 @@ ACTION_D(y, y, y, includedeb) {
 "Calling includeudeb with a -T not containing udeb makes no sense!\n");
 			return RET_ERROR;
 		}
+	} else if (strcmp(argv[0], "includeddeb") == 0) {
+		packagetype = pt_ddeb;
+		if (limitations_missed(packagetypes, pt_ddeb)) {
+			fprintf(stderr,
+"Calling includeddeb with a -T not containing ddeb makes no sense!\n");
+			return RET_ERROR;
+		}
 	} else if (strcmp(argv[0], "includedeb") == 0) {
 		packagetype = pt_deb;
 		if (limitations_missed(packagetypes, pt_deb)) {
@@ -2810,6 +2819,10 @@ ACTION_D(y, y, y, includedeb) {
 		if (packagetype == pt_udeb) {
 			if (!endswith(filename, ".udeb") && !IGNORING(extension,
 "includeudeb called with file '%s' not ending with '.udeb'\n", filename))
+				return RET_ERROR;
+		} else if (packagetype == pt_ddeb) {
+			if (!endswith(filename, ".ddeb") && !IGNORING(extension,
+"includeddeb called with file '%s' not ending with '.ddeb'\n", filename))
 				return RET_ERROR;
 		} else {
 			if (!endswith(filename, ".deb") && !IGNORING(extension,
@@ -2833,6 +2846,8 @@ ACTION_D(y, y, y, includedeb) {
 		result = override_read(distribution->udeb_override,
 				&distribution->overrides.udeb, false);
 	else
+		/* we use the normal deb overrides for ddebs too -
+		 * they're not meant to have overrides anyway */
 		result = override_read(distribution->deb_override,
 				&distribution->overrides.deb, false);
 	if (RET_WAS_ERROR(result)) {
@@ -4104,6 +4119,8 @@ static const struct action {
 		2, -1, "[--delete] includedeb <distribution> <.deb-file>"},
 	{"includeudeb",		A_Dactsp(includedeb)|NEED_DELNEW,
 		2, -1, "[--delete] includeudeb <distribution> <.udeb-file>"},
+	{"includeddeb",		A_Dactsp(includedeb)|NEED_DELNEW,
+		2, -1, "[--delete] includeddeb <distribution> <.ddeb-file>"},
 	{"includedsc",		A_Dactsp(includedsc)|NEED_DELNEW,
 		2, 2, "[--delete] includedsc <distribution> <package>"},
 	{"include",		A_Dactsp(include)|NEED_DELNEW,
@@ -4296,7 +4313,7 @@ static retvalue callaction(command_t command, const struct action *action, int a
 			if (r == RET_NOTHING) {
 				fprintf(stderr,
 "Error: Packagetype '%s' as given to --packagetype is not know.\n"
-"(only dsc, deb, udeb and combinations of those are allowed)\n",
+"(only dsc, deb, udeb, ddeb and combinations of those are allowed)\n",
 					unknownitem);
 				r = RET_ERROR;
 			}
@@ -4563,7 +4580,7 @@ static void handle_option(int c, const char *argument) {
 " -P, --priority <priority>:         Force include* to set priority.\n"
 " -C, --component <component>: 	     Add,list or delete only in component.\n"
 " -A, --architecture <architecture>: Add,list or delete only to architecture.\n"
-" -T, --type <type>:                 Add,list or delete only type (dsc,deb,udeb).\n"
+" -T, --type <type>:                 Add,list or delete only type (dsc,deb,udeb,ddeb).\n"
 "\n"
 "actions (selection, for more see manpage):\n"
 " dumpreferences:    Print all saved references\n"
@@ -4582,6 +4599,8 @@ static void handle_option(int c, const char *argument) {
 "       Include the given upload.\n"
 " includedeb <distribution> <.deb-file>\n"
 "       Include the given binary package.\n"
+" includeddeb <distribution> <.ddeb-file>\n"
+"       Include the given debug binary package.\n"
 " includeudeb <distribution> <.udeb-file>\n"
 "       Include the given installer binary package.\n"
 " includedsc <distribution> <.dsc-file>\n"
