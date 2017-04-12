@@ -164,6 +164,8 @@ retvalue changes_parsefileline(const char *fileline, /*@out@*/filetype *result_t
 
 	if (l >= 4 && memcmp(p-4, ".deb", 4) == 0)
 		type = fe_DEB;
+	else if (l >= 5 && memcmp(p-5, ".ddeb", 5) == 0)
+		type = fe_DDEB;
 	else if (l >= 5 && memcmp(p-5, ".udeb", 5) == 0)
 		type = fe_UDEB;
 	else
@@ -189,7 +191,7 @@ retvalue changes_parsefileline(const char *fileline, /*@out@*/filetype *result_t
 		if (type == fe_DEB)
 			archend = versionstart + l - 4;
 		else {
-			assert (type == fe_UDEB);
+			assert (type == fe_DDEB || type == fe_UDEB);
 			archend = versionstart + l - 5;
 		}
 		if (archend - archstart == 6 &&
@@ -204,7 +206,7 @@ retvalue changes_parsefileline(const char *fileline, /*@out@*/filetype *result_t
 		bool issignature = false;
 
 		/* without those, it gets more complicated.
-		 * It's not .deb or .udeb, so most likely a
+		 * It's not .deb, .ddeb or .udeb, so most likely a
 		 * source file (or perhaps a log (reprepro extension)) */
 
 		/* if it uses a known compression, things are easy,

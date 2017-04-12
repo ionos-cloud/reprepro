@@ -412,4 +412,14 @@ hello | 2.9-1 | buster-archive | $ARCH
 hello | 2.9-2 |         buster | $ARCH" "$($REPREPRO -b $REPO ls hello)"
 }
 
+test_ddeb() {
+	clear_distro
+	add_distro buster "DDebComponents: main non-free"
+	(cd $PKGS && PACKAGE=hello SECTION=main DISTRI=buster VERSION=2.9 REVISION=-1 DDEB=1 ../genpackage.sh)
+	#mv $PKGS/hello_2.9-1_${ARCH}.deb $PKGS/hello_2.9-1_${ARCH}.ddeb
+	#sed -i "s/hello_2.9-1_${ARCH}.deb/hello_2.9-1_${ARCH}.ddeb/g" $PKGS/hello_2.9-1_${ARCH}.changes
+	call $REPREPRO $VERBOSE_ARGS -b $REPO -C main include buster $PKGS/hello_2.9-1_${ARCH}.changes
+	assertEquals "hello | 2.9-1 | buster | $ARCH, source" "$($REPREPRO -b $REPO ls hello)"
+}
+
 . shunit2

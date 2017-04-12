@@ -26,7 +26,7 @@
 
 const char **atoms_architectures;
 const char **atoms_components;
-const char * const packagetypes[4] = { "!!NONE!!", "dsc", "deb", "udeb" };
+const char * const packagetypes[5] = { "!!NONE!!", "dsc", "deb", "udeb", "ddeb" };
 const char **atoms_packagetypes = (const char **)&packagetypes;
 const char **atoms_commands;
 static int command_count;
@@ -159,6 +159,8 @@ packagetype_t packagetype_find(const char *value) {
 		return pt_deb;
 	else if (strcmp(value, "udeb") == 0)
 		return pt_udeb;
+	else if (strcmp(value, "ddeb") == 0)
+		return pt_ddeb;
 	else
 		return atom_unknown;
 }
@@ -169,8 +171,12 @@ packagetype_t packagetype_find_l(const char *value, size_t len) {
 			return pt_dsc;
 		else if (strncmp(value, "deb", 3) == 0)
 			return pt_deb;
-	} else if (len == 4 && strncmp(value, "udeb", 4) == 0)
-		return pt_udeb;
+	} else if (len == 4) {
+		if (strncmp(value, "udeb", 4) == 0)
+			return pt_udeb;
+		else if (strncmp(value, "ddeb", 4) == 0)
+			return pt_ddeb;
+	}
 	return atom_unknown;
 }
 

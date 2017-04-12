@@ -101,7 +101,7 @@ static void binaryfile_free(struct binaryfile *p) {
 enum filetype { ft_UNKNOWN,
 			ft_TAR, ft_ORIG_TAR, ft_DIFF,
 #define ft_MaxInSource ft_DSC-1
-			ft_DSC, ft_DEB, ft_UDEB , ft_Count};
+			ft_DSC, ft_DEB, ft_UDEB, ft_DDEB, ft_Count};
 #define ft_Max ft_Count-1
 
 static const struct {
@@ -115,7 +115,8 @@ static const struct {
 	{ ".diff", 5, true},
 	{ ".dsc", 4, false},
 	{ ".deb", 4, false},
-	{ ".udeb", 5, false}
+	{ ".udeb", 5, false},
+	{ ".ddeb", 5, false}
 };
 
 struct dscfile {
@@ -199,7 +200,7 @@ static void fileentry_free(/*@only@*/struct fileentry *f) {
 	checksums_free(f->realchecksums);
 	free(f->section);
 	free(f->priority);
-	if (f->type == ft_DEB || f->type == ft_UDEB) {
+	if (f->type == ft_DEB || f->type == ft_DDEB || f->type == ft_UDEB) {
 		binaryfile_free(f->deb);
 	} else if (f->type == ft_DSC) {
 		dscfile_free(f->dsc);
@@ -947,7 +948,7 @@ static retvalue processfiles(const char *changesfilename, struct changes *change
 		if (RET_IS_OK(r)) {
 			if (file->type == ft_DSC)
 				r = parse_dsc(file, changes);
-			else if (file->type == ft_DEB || file->type == ft_UDEB)
+			else if (file->type == ft_DEB || file->type == ft_DDEB || file->type == ft_UDEB)
 				r = parse_deb(file, changes);
 			if (RET_WAS_ERROR(r)) {
 				free(dir);
@@ -958,7 +959,7 @@ static retvalue processfiles(const char *changesfilename, struct changes *change
 		if (r == RET_NOTHING) {
 			/* apply heuristics when not readable */
 			if (file->type == ft_DSC) {
-			} else if (file->type == ft_DEB || file->type == ft_UDEB) {
+			} else if (file->type == ft_DEB || file->type == ft_DDEB || file->type == ft_UDEB) {
 				struct binary *b; size_t len;
 
 				len = 0;
@@ -1819,7 +1820,7 @@ static retvalue verify(const char *changesfilename, struct changes *changes) {
 		const struct binary *b;
 		const struct binaryfile *deb;
 
-		if (file->type != ft_DEB && file->type != ft_UDEB)
+		if (file->type != ft_DEB && file->type != ft_DDEB && file->type != ft_UDEB)
 			continue;
 		if (file->fullfilename == NULL) {
 			fprintf(stderr,
@@ -2504,6 +2505,10 @@ static retvalue adddeb(struct changes *c, const char *debfilename, const struct 
 			strcmp(fullfilename+strlen(fullfilename)-5, ".udeb") == 0) {
 		packagetype = "udeb";
 		type = ft_UDEB;
+	} else if (strlen(fullfilename) > 5 &&
+			strcmp(fullfilename+strlen(fullfilename)-5, ".ddeb") == 0) {
+		packagetype = "ddeb";
+		type = ft_DDEB;
 	} else {
 		packagetype = "deb";
 		type = ft_DEB;
@@ -2767,6 +2772,7 @@ static retvalue addfiles(const char *changesfilename, struct changes *c, int arg
 		size_t l = strlen(filename);
 
 		if ((l > 4 && strcmp(filename+l-4, ".deb") == 0) ||
+			(l > 5 && strcmp(filename+l-5, ".ddeb") == 0) ||
 		    (l > 5 && strcmp(filename+l-5, ".udeb") == 0))
 			r = adddeb(c, filename, searchpath);
 		else if ((l > 4 && strcmp(filename+l-4, ".dsc") == 0))
