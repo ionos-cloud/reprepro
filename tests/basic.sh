@@ -69,7 +69,7 @@ sl | 3.03-1 | bullseye | $ARCH" "$($REPREPRO -b $REPO ls sl)"
 
 test_include_changes() {
 	(cd $PKGS && PACKAGE=sl SECTION=main DISTRI=buster EPOCH="" VERSION=3.03 REVISION=-1 ../genpackage.sh)
-	call $REPREPRO $VERBOSE_ARGS -b $REPO -C main include buster $PKGS/test.changes
+	call $REPREPRO $VERBOSE_ARGS -b $REPO -C main include buster $PKGS/sl_3.03-1_${ARCH}.changes
 	assertEquals "\
 buster|main|$ARCH: sl 3.03-1
 buster|main|$ARCH: sl-addons 3.03-1
@@ -98,7 +98,7 @@ test_limit() {
 
 test_remove() {
 	(cd $PKGS && PACKAGE=sl SECTION=main DISTRI=buster EPOCH="" VERSION=3.03 REVISION=-1 ../genpackage.sh)
-	call $REPREPRO $VERBOSE_ARGS -b $REPO -C main include buster $PKGS/test.changes
+	call $REPREPRO $VERBOSE_ARGS -b $REPO -C main include buster $PKGS/sl_3.03-1_${ARCH}.changes
 	assertEquals "\
 buster|main|$ARCH: sl 3.03-1
 buster|main|$ARCH: sl-addons 3.03-1
@@ -117,7 +117,7 @@ bullseye" "$($REPREPRO -b $REPO listdistros)"
 
 test_copysrc() {
 	(cd $PKGS && PACKAGE=sl SECTION=main DISTRI=buster EPOCH="" VERSION=3.03 REVISION=-1 ../genpackage.sh)
-	call $REPREPRO $VERBOSE_ARGS -b $REPO -C main include buster $PKGS/test.changes
+	call $REPREPRO $VERBOSE_ARGS -b $REPO -C main include buster $PKGS/sl_3.03-1_${ARCH}.changes
 	add_distro bullseye
 	call $REPREPRO $VERBOSE_ARGS -b $REPO copysrc bullseye buster sl
 	assertEquals "\
@@ -132,7 +132,7 @@ buster|main|source: sl 3.03-1" "$($REPREPRO -b $REPO list buster)"
 
 test_copymatched() {
 	(cd $PKGS && PACKAGE=sl SECTION=main DISTRI=buster EPOCH="" VERSION=3.03 REVISION=-1 ../genpackage.sh)
-	call $REPREPRO $VERBOSE_ARGS -b $REPO -C main include buster $PKGS/test.changes
+	call $REPREPRO $VERBOSE_ARGS -b $REPO -C main include buster $PKGS/sl_3.03-1_${ARCH}.changes
 	add_distro bullseye
 	call $REPREPRO $VERBOSE_ARGS -b $REPO copymatched bullseye buster "sl-a*on?"
 	assertEquals "bullseye|main|$ARCH: sl-addons 3.03-1" "$($REPREPRO -b $REPO list bullseye)"
@@ -173,7 +173,7 @@ Files:
 
 test_movesrc() {
 	(cd $PKGS && PACKAGE=sl SECTION=main DISTRI=buster EPOCH="" VERSION=3.03 REVISION=-1 ../genpackage.sh)
-	call $REPREPRO $VERBOSE_ARGS -b $REPO -C main include buster $PKGS/test.changes
+	call $REPREPRO $VERBOSE_ARGS -b $REPO -C main include buster $PKGS/sl_3.03-1_${ARCH}.changes
 	add_distro bullseye
 	call $REPREPRO $VERBOSE_ARGS -b $REPO movesrc bullseye buster sl
 	assertEquals "\
@@ -185,7 +185,7 @@ bullseye|main|source: sl 3.03-1" "$($REPREPRO -b $REPO list bullseye)"
 
 test_movematched() {
 	(cd $PKGS && PACKAGE=sl SECTION=main DISTRI=buster EPOCH="" VERSION=3.03 REVISION=-1 ../genpackage.sh)
-	call $REPREPRO $VERBOSE_ARGS -b $REPO -C main include buster $PKGS/test.changes
+	call $REPREPRO $VERBOSE_ARGS -b $REPO -C main include buster $PKGS/sl_3.03-1_${ARCH}.changes
 	add_distro bullseye
 	call $REPREPRO $VERBOSE_ARGS -b $REPO movematched bullseye buster "sl-a*on?"
 	assertEquals "bullseye|main|$ARCH: sl-addons 3.03-1" "$($REPREPRO -b $REPO list bullseye)"
