@@ -5,7 +5,7 @@ set -e
 #VERSION=0.9-A:Z+a:z
 #REVISION=-0+aA.9zZ
 if [ "x$OUTPUT" == "x" ] ; then
-	OUTPUT=test.changes
+	OUTPUT=${PACKAGE}_${VERSION}${REVISION}_${ARCH:-$(dpkg-architecture -qDEB_HOST_ARCH)}.changes
 fi
 
 DIR="$PACKAGE-$VERSION"
