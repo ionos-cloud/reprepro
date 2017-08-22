@@ -698,35 +698,30 @@ retvalue target_checkaddpackage(struct target *target, const char *name, const c
 			package_done(&old);
 			return r;
 		}
-		if (versioncmp <= 0) {
-			r = RET_NOTHING;
-			if (versioncmp < 0) {
-				if (!permitnewerold) {
-					fprintf(stderr,
+		if (versioncmp < 0) {
+			if (!permitnewerold) {
+				fprintf(stderr,
 "Error: trying to put version '%s' of '%s' in '%s',\n"
 "while there already is the stricly newer '%s' in there.\n"
 "(To ignore this error add Permit: older_version.)\n",
-						version, name,
-						target->identifier,
-						old.version);
-					r = RET_ERROR;
-				} else if (verbose >= 0) {
-					printf(
-"Warning: trying to put version '%s' of '%s' in '%s',\n"
-"while there already is '%s' in there.\n",
-						version, name,
-						target->identifier,
-						old.version);
-				}
+					version, name,
+					target->identifier,
+					old.version);
+				package_done(&old);
+				return RET_ERROR;
 			} else if (verbose > 2) {
-					printf(
+				printf("Puting version '%s' of '%s' in '%s', while there already is '%s' in there.\n",
+					version, name, target->identifier, old.version);
+			}
+		} else if (versioncmp == 0) {
+			if (verbose > 2) {
+				printf(
 "Will not put '%s' in '%s', as already there with same version '%s'.\n",
-						name, target->identifier,
-						old.version);
-
+					name, target->identifier,
+					old.version);
 			}
 			package_done(&old);
-			return r;
+			return RET_NOTHING;
 		}
 		r = target->getfilekeys(old.control, &oldfilekeys);
 		ofk = &oldfilekeys;

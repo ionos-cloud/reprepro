@@ -367,4 +367,43 @@ hello | 2.9-1 | buster-archive | $ARCH
 hello | 2.9-2 |         buster | $ARCH" "$($REPREPRO -b $REPO ls hello)"
 }
 
+test_older_version() {
+	cat >> $REPO/conf/incoming <<EOF
+Name: buster-upload
+IncomingDir: ../testpkgs
+TempDir: tmp
+Allow: buster
+Permit: older_version
+EOF
+	echo "Limit: 3" >> $REPO/conf/distributions
+	(cd $PKGS && PACKAGE=hello SECTION=main DISTRI=buster VERSION=2.9 REVISION=-1 ../genpackage.sh)
+	(cd $PKGS && PACKAGE=hello SECTION=main DISTRI=buster VERSION=2.9 REVISION=-2 ../genpackage.sh)
+	call $REPREPRO $VERBOSE_ARGS -b $REPO processincoming buster-upload hello_2.9-2_${ARCH}.changes
+	assertEquals "hello | 2.9-2 | buster | $ARCH, source" "$($REPREPRO -b $REPO ls hello)"
+	call $REPREPRO $VERBOSE_ARGS -b $REPO processincoming buster-upload hello_2.9-1_${ARCH}.changes
+	assertEquals "\
+hello | 2.9-2 | buster | $ARCH, source
+hello | 2.9-1 | buster | $ARCH, source" "$($REPREPRO -b $REPO ls hello)"
+}
+
+test_too_old_version() {
+	# Allow only one version per package in the archive
+	# Test if uploading an older version will not replace the newer version
+	# in the archive.
+	cat >> $REPO/conf/incoming <<EOF
+Name: buster-upload
+IncomingDir: ../testpkgs
+TempDir: tmp
+Allow: buster
+Permit: older_version
+EOF
+	echo "Limit: 1" >> $REPO/conf/distributions
+	(cd $PKGS && PACKAGE=hello SECTION=main DISTRI=buster VERSION=2.9 REVISION=-1 ../genpackage.sh)
+	(cd $PKGS && PACKAGE=hello SECTION=main DISTRI=buster VERSION=2.9 REVISION=-2 ../genpackage.sh)
+	call $REPREPRO $VERBOSE_ARGS -b $REPO processincoming buster-upload hello_2.9-2_${ARCH}.changes
+	assertEquals "hello | 2.9-2 | buster | $ARCH, source" "$($REPREPRO -b $REPO ls hello)"
+	call $REPREPRO $VERBOSE_ARGS -b $REPO processincoming buster-upload hello_2.9-1_${ARCH}.changes
+	assertEquals "hello | 2.9-2 | buster | $ARCH, source" "$($REPREPRO -b $REPO ls hello)"
+}
+
 . shunit2
