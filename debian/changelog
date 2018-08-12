@@ -1,6 +1,8 @@
 reprepro (5.1.1-2) UNRELEASED; urgency=medium
 
-  * add .gpg verification to debian/watch (as uscan supports alioth now)
+  * update Standards-Version
+  * update VCS headers
+  * remove Homepage and debian/watch
 
  -- Bernhard R. Link <brlink@debian.org>  Sun, 08 Jan 2017 16:31:21 +0100
 
