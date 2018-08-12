@@ -1,5 +1,6 @@
 2018-08-12 Bernhard R. Link <brlink@debian.org>
 	* add _listcodenames command (based on work from Benjamin Drung)
+	* drop "FILE LOCATION" headers from Contents files
 
 2017-03-02  Bernhard R. Link <brlink@debian.org>
 	* handle .asc files in source files better
