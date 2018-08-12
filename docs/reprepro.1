@@ -1790,51 +1790,83 @@ See the description of the listfilter command for the semantics
 of formulas.
 .TP
 .B FilterList\fR, \fPFilterSrcList
-These take at least two arguments:
-The first one is the default action when something is not found in the list,
-then a list of filenames (relative to
+These two options each take at least two arguments:
+The first argument is the fallback (default) action.
+All following arguments are treated as file names of lists.
+
+The filenames are considered to be relative to
 .B \-\-confdir\fR,
 if not starting with
-.BR ~/ ", " +b/ ", " +c/ " or " / " )"
-in the format of dpkg \-\-get\-selections and only packages listed in
-there as
+.BR ~/ ", " +b/ ", " +c/ " or " / "."
+
+Each list file consists of lines with a package name
+followed by whitespaced followed by an action.
+
+Each list may only contain a single line for a given package name.
+The action to be taken is the action specified by the first file
+mentioning that package.
+If no list file mentions a package, the fallback action is used instead.
+
+This format is inspired by dpkg \-\-get\-selections before multiarch
+and the names of the actions likely only make sense if you imagine the
+file to be the output of this command of an existing system.
+
+For each package available in the distribution to be updated from/pulled from
+this action is determined and affects the current decision what to do
+to the target distribution.
+(Only after all update/pull rules for a given target distribution have been
+processed something is actually done).
+
+The possible action keywords are:
+.RS
+.TP
 .B install
-or that are already there and are listed with
+mark the available package to be added to the target distribution unless
+the same version or a higher version is already marked as to be added/kept.
+(Note that without a prior delete rule (\fB\-\fP) or \fBsupersede\fP action,
+this will will never downgrade a package as the already existing version
+is marked to be kept).
+.TP
 .B upgradeonly
-will be installed. Things listed as
-.B deinstall
-or
-.B purge
-will be ignored.
-Packages having
+like \fBinstall\fP but will not add new packages to a distribution.
+.TP
 .B supersede
-will not be installed but instead cause the removal of packages with strictly
-smaller version (i.e. if a package would be replaced by this package if this
-was
-.BR install ,
-it will be removed instead and no new package being installed).
-Things listed with
+unless the current package version is higher than the available package version,
+mark the package to be deleted in the target distribution.
+(Useful to remove packages in add-on distributions once they reached the base distribution).
+.TP
+.BR deinstall " or " purge
+ignore the newly available package.
+.TP
 .B warning
-are also ignored,
-but a warning message is printed to stderr.
-A package being
+print a warning message to stderr if a new package/newer version is available.
+Otherwise ignore the new package (like with \fBdeinstall\fP or \fBpurge\fP).
+.TP
 .B hold
-will not be upgraded but also not downgraded or removed by previous
-delete rules.
-To abort the whole upgrade/pull if a package is available, use
-.B error\fR.
-Instead of a keyword you can also use "\fB= \fP\fIversion\fP" which
-is treated like \fBinstall\fP if the version matches and like no
-entry if it does not match.
+the new package is ignored, but every previous decision to
+downgrade or delete the package in the target distribution is reset.
+.TP
+.B error
+abort the whole upgrade/pull if a new package/newer version is available
+.TP
+.B "= \fIversion\fP"
+If the candidate package has the given version, behave like \fBinstall\fP.
+Otherwise continue as if this list file did not mention this package
+(i.e. look in the remaining list files or use the fallback action).
 Only one such entry per package is currently supported and the version
 is currently compared as string.
-
+.RE
+.PP
+.RS
 If there is both \fBFilterList\fP and \fBFilterSrcList\fP then
 the first is used for \fB.deb\fP and \fB.udeb\fP and the second for
 \fB.dsc\fP packages.
+.PP
 If there is only \fBFilterList\fP that is applied to everything.
+.PP
 If there is only \fBFilterSrcList\fP that is applied to everything, too,
 but the source package name (and source version) is used to do the lookup.
+.RE
 .TP
 .B OmitExtraSourceOnly
 This field controls whether source packages with Extra-Source-Only
