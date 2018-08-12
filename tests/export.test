@@ -1,0 +1,79 @@
+set -u
+. "$TESTSDIR"/test.inc
+
+mkdir conf
+cat > conf/distributions <<EOF
+Codename: o
+Architectures: a
+Components: e
+DebIndices: Packages .
+EOF
+
+testrun - -b . export o 3<<EOF
+stdout
+$(odb)
+-v1*=Exporting o...
+-v2*=Created directory "./dists"
+-v2*=Created directory "./dists/o"
+-v2*=Created directory "./dists/o/e"
+-v2*=Created directory "./dists/o/e/binary-a"
+-v6*= exporting 'o|e|a'...
+-v6*=  creating './dists/o/e/binary-a/Packages' (uncompressed)
+EOF
+
+testrun - -b . remove o nothing 3<<EOF
+stderr
+-v0*=Not removed as not found: nothing
+stdout
+-v0*=Exporting indices...
+-v6*= looking for changes in 'o|e|a'...
+EOF
+
+cat >> conf/distributions <<EOF
+Signed-By: test
+EOF
+
+testrun - -b . export o 3<<EOF
+stdout
+-v1*=Exporting o...
+-v6*= exporting 'o|e|a'...
+-v6*=  replacing './dists/o/e/binary-a/Packages' (uncompressed)
+EOF
+
+dodo grep 'Signed-By: test' dists/o/Release
+
+testrun - -b . remove o nothing 3<<EOF
+stderr
+-v0*=Not removed as not found: nothing
+stdout
+-v0*=Exporting indices...
+-v6*= looking for changes in 'o|e|a'...
+EOF
+
+dodo grep 'Signed-By: test' dists/o/Release
+
+cat >> conf/distributions <<EOF
+ValidFor: 100d
+EOF
+
+testrun - -b . export o 3<<EOF
+stdout
+-v1*=Exporting o...
+-v6*= exporting 'o|e|a'...
+-v6*=  replacing './dists/o/e/binary-a/Packages' (uncompressed)
+EOF
+
+dodo grep '^Valid-Until:' dists/o/Release
+
+testrun - -b . --export=normal remove o nothing 3<<EOF
+stderr
+-v0*=Not removed as not found: nothing
+stdout
+-v0*=Exporting indices...
+-v6*= looking for changes in 'o|e|a'...
+EOF
+
+dodo grep '^Valid-Until:' dists/o/Release
+
+rm -r conf db dists
+testsuccess

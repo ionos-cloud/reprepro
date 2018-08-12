@@ -1,4 +1,5 @@
 2018-08-12 Bernhard R. Link <brlink@debian.org>
+	* allow to set Signed-By header via conf/distributions
 	* add _listcodenames command (based on work from Benjamin Drung)
 	* drop "FILE LOCATION" headers from Contents files
 	* multiple manpage fixes

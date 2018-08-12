@@ -233,6 +233,7 @@ runtest() {
 if test x"$testtorun" != x"all" ; then
 	runtest "$testtorun"
 else
+	runtest export
 	runtest buildinfo
 	runtest updatepullreject
 	runtest descriptions

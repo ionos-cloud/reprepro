@@ -1625,6 +1625,12 @@ the section (usually \fBbyhand\fP),
 the priority (usually only \fB\-\fP),
 the filename in the changes file and
 the full filename (with processincoming in the secure TempDir).
+.TP
+.B Signed\-By
+This optional field is simply copied into the Release files.
+It is used to tell apt which keys to trust for this Release
+in the future.
+(see SignWith for how to tell reprepro whether and how to sign).
 .SS conf/updates
 .TP
 .B Name
