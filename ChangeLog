@@ -1,3 +1,6 @@
+2018-08-12 Bernhard R. Link <brlink@debian.org>
+	* add _listcodenames command (based on work from Benjamin Drung)
+
 2017-03-02  Bernhard R. Link <brlink@debian.org>
 	* handle .asc files in source files better
 	  (thanks to Marc Laue)

@@ -1,0 +1,41 @@
+set -u
+. "$TESTSDIR"/test.inc
+
+testrun - -b . _listcodenames 3<<EOF
+return 254
+stderr
+*=Error opening config file './conf/distributions': No such file or directory(2)
+-v0*=There have been errors!
+stdout
+EOF
+mkdir -p conf
+touch conf/distributions
+testrun - -b . _listcodenames 3<<EOF
+return 249
+stderr
+*=No distribution definitions found in ./conf/distributions!
+-v0*=There have been errors!
+stdout
+EOF
+cat > conf/distributions <<EOF
+Codename: foo/updates
+Suite: suitename
+Components: a bb ccc dddd
+UDebComponents: a dddd
+Architectures: x source
+EOF
+testrun - -b . _listcodenames 3<<EOF
+stderr
+stdout
+*=foo/updates
+EOF
+testrun - -b . --nothingiserror _listcodenames 3<<EOF
+stderr
+stdout
+*=foo/updates
+EOF
+dodo test ! -d db
+dodo test ! -d pool
+dodo test ! -d dists
+rm -r -f conf
+testsuccess

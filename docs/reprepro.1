@@ -536,9 +536,6 @@ For a format of the \fB.outlog\fP files generated for this script see the
 \fBmanual.html\fP shiped with reprepro.
 .SH COMMANDS
 .TP
-.BR listdistros
-Print the codenames of all configured distributions.
-.TP
 .BR export " [ " \fIcodenames\fP " ]"
 Generate all index files for the specified distributions.
 
@@ -1140,6 +1137,9 @@ List what compressions format can be uncompressed and how.
 .BI __uncompress " format compressed-file uncompressed-file"
 Use builtin or external uncompression to uncompress the specified
 file of the specified format into the specified target.
+.TP
+.BR _listcodenames
+Print - on per line - the codenames of all configured distributions.
 .TP
 .B _listconfidentifiers  \fIidentifier\fP \fR[\fP \fIdistributions...\fP \fR]\fP
 Print - one per line - all identifiers of subdatabases as derived from the

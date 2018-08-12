@@ -1172,11 +1172,15 @@ ACTION_B(y, n, y, buildneeded) {
 	}
 }
 
-ACTION_C(n, n, n, listdistros) {
-	for (struct distribution *d = alldistributions ; d != NULL ; d = d->next) {
-		printf("%s\n", d->codename);
+ACTION_C(n, n, n, listcodenames) {
+	retvalue r = RET_NOTHING;
+	struct distribution *d;
+
+	for (d = alldistributions ; d != NULL ; d = d->next) {
+		puts(d->codename);
+		r = RET_OK;
 	}
-	return RET_OK;
+	return r;
 }
 
 static retvalue list_in_target(struct target *target, const char *packagename) {
@@ -3916,8 +3920,6 @@ static const struct action {
 		1, 1, "[-C <component>] [-A <architecture>] [-T <type>] ls <package-name>"},
 	{"lsbycomponent",	A_ROBact(lsbycomponent),
 		1, 1, "[-C <component>] [-A <architecture>] [-T <type>] lsbycomponent <package-name>"},
-	{"listdistros", 		A_C(listdistros),
-		0, 0, "listdistros"},
 	{"list", 		A_ROBact(list),
 		1, 2, "[-C <component>] [-A <architecture>] [-T <type>] list <codename> [<package-name>]"},
 	{"listfilter", 		A_ROBact(listfilter),
@@ -4016,6 +4018,8 @@ static const struct action {
 		0, -1, "_listconfidentifiers"},
 	{"_listdbidentifiers",	A_ROB(listdbidentifiers)|MAY_UNUSED,
 		0, -1, "_listdbidentifiers"},
+	{"_listcodenames", 		A_C(listcodenames),
+		0, 0, "_listcodenames"},
 	{"clearvanished",	A_D(clearvanished)|MAY_UNUSED,
 		0, 0, "[--delete] clearvanished"},
 	{"processincoming",	A_D(processincoming)|NEED_DELNEW,
