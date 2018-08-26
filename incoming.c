@@ -328,7 +328,7 @@ CFSETPROC(incoming, allow) {
 
 CFSETPROC(incoming, permit) {
 	CFSETPROCVARS(incoming, i, d);
-	static const struct constant const permitconstants[] = {
+	static const struct constant permitconstants[] = {
 		{ "unused_files",	pmf_unused_files},
 		{ "older_version",	pmf_oldpackagenewer},
 		{ "unlisted_binaries",	pmf_unlistedbinaries},
@@ -358,7 +358,7 @@ CFSETPROC(incoming, permit) {
 
 CFSETPROC(incoming, cleanup) {
 	CFSETPROCVARS(incoming, i, d);
-	static const struct constant const cleanupconstants[] = {
+	static const struct constant cleanupconstants[] = {
 		{ "unused_files", cuf_unused_files},
 		{ "unused_buildinfo_files", cuf_unused_buildinfo_files},
 		{ "on_deny", cuf_on_deny},
@@ -388,7 +388,7 @@ CFSETPROC(incoming, cleanup) {
 
 CFSETPROC(incoming, options) {
 	CFSETPROCVARS(incoming, i, d);
-	static const struct constant const optionsconstants[] = {
+	static const struct constant optionsconstants[] = {
 		{ "limit_arch_all", iof_limit_arch_all},
 		{ "multiple_distributions", iof_multiple_distributions},
 		{ NULL, -1}
