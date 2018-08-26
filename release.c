@@ -1674,6 +1674,10 @@ retvalue release_prepare(struct release *release, struct distribution *distribut
 		writestring("\nDescription: ");
 		writestring(distribution->description);
 	}
+	if (distribution->signed_by != NULL) {
+		writestring("\nSigned-By: ");
+		writestring(distribution->signed_by);
+	}
 	if (distribution->notautomatic != NULL) {
 		writestring("\nNotAutomatic: ");
 		writestring(distribution->notautomatic);

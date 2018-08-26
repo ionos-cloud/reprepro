@@ -1,0 +1,221 @@
+set -u
+. "$TESTSDIR"/test.inc
+
+mkdir i j k
+
+# first create some fake package with .asc files:
+mkdir pkg-42
+tar -cvvzf pkg_42.orig.tar.gz pkg-42
+echo "Fake .asc file" > pkg_42.orig.tar.gz.asc
+cd pkg-42
+mkdir debian debian/source
+echo "3.0 (quilt)" > debian/source/format
+cat > debian/rules <<'EOF'
+#!/usr/bin/make
+clean:
+	echo clean
+EOF
+chmod a+x debian/rules
+cat > debian/changelog <<EOF
+pkg (42-42) test; urgency=low
+
+  * now ansers everything
+
+ -- Sky.NET <nowhere@example.com>  Sat, 15 Jan 2000 17:12:05 +2700
+EOF
+
+cat > debian/control <<EOF
+Source: pkg
+Section: doc
+Priority: standard
+Maintainer: Sky.NET <nowhere@example.com>
+Standards-Version: Aleph_17
+
+Package: pkg-doc
+Architecture: all
+Description: pkg
+ pkg
+EOF
+
+cd ..
+dpkg-source -Zgzip -b pkg-42
+cd pkg-42
+
+OUTPUT=test.changes
+dpkg-genchanges > ../j/"$OUTPUT"
+cd ..
+cp pkg_* j/
+
+# now with an .asc filename that does not match:
+mv pkg_42.orig.tar.gz.asc pkg_42.tar.gz.asc
+sed -i 's/orig\.tar\.gz\.asc/tar.gz.asc/' pkg_42-42.dsc
+cd pkg-42
+
+dpkg-genchanges > ../k/broken.changes
+cd ..
+mv pkg_* k/
+rm -r pkg-42
+
+ls j
+cp j/* i/
+
+mkdir conf
+# first check files are properly ingored:
+cat > conf/distributions <<EOF
+Codename: test
+Architectures: coal source
+Components: main
+EOF
+
+mkdir -p pool/main/p/pkg
+
+testrun - --export=never include test i/test.changes 3<<EOF
+stderr
+=Warning: database 'test|main|source' was modified but no index file was exported.
+=Changes will only be visible after the next 'export'!
+stdout
+$(odb)
+$(ofa 'pool/main/p/pkg/pkg_42.orig.tar.gz')
+$(ofa 'pool/main/p/pkg/pkg_42.orig.tar.gz.asc')
+$(ofa 'pool/main/p/pkg/pkg_42-42.debian.tar.gz')
+$(ofa 'pool/main/p/pkg/pkg_42-42.dsc')
+$(opa 'pkg' x 'test' 'main' 'source' 'dsc')
+EOF
+rm -r pool db
+
+mkdir -p pool/main/p/pkg
+
+cat > conf/incoming <<EOF
+Name: foo
+IncomingDir: i
+TempDir: tmp
+Default: test
+EOF
+mkdir tmp
+
+testrun - --export=never processincoming foo 3<<EOF
+stderr
+=Warning: database 'test|main|source' was modified but no index file was exported.
+=Changes will only be visible after the next 'export'!
+stdout
+$(odb)
+$(ofa 'pool/main/p/pkg/pkg_42.orig.tar.gz')
+$(ofa 'pool/main/p/pkg/pkg_42.orig.tar.gz.asc')
+$(ofa 'pool/main/p/pkg/pkg_42-42.debian.tar.gz')
+$(ofa 'pool/main/p/pkg/pkg_42-42.dsc')
+$(opa 'pkg' x 'test' 'main' 'source' 'dsc')
+-v3*=deleting './i/test.changes'...
+-v3*=deleting './i/pkg_42.orig.tar.gz.asc'...
+-v3*=deleting './i/pkg_42.orig.tar.gz'...
+-v3*=deleting './i/pkg_42-42.dsc'...
+-v3*=deleting './i/pkg_42-42.debian.tar.gz'...
+EOF
+
+cat >> conf/distributions <<EOF
+Tracking: all
+EOF
+rm -r pool db
+cp j/* i/
+mkdir -p pool/main/p/pkg
+
+testrun - --export=never processincoming foo 3<<EOF
+stderr
+=Warning: database 'test|main|source' was modified but no index file was exported.
+=Changes will only be visible after the next 'export'!
+stdout
+$(odb)
+$(ofa 'pool/main/p/pkg/pkg_42.orig.tar.gz')
+$(ofa 'pool/main/p/pkg/pkg_42.orig.tar.gz.asc')
+$(ofa 'pool/main/p/pkg/pkg_42-42.debian.tar.gz')
+$(ofa 'pool/main/p/pkg/pkg_42-42.dsc')
+$(opa 'pkg' x 'test' 'main' 'source' 'dsc')
+$(ota 'test' 'pkg')
+-v3*=deleting './i/test.changes'...
+-v3*=deleting './i/pkg_42.orig.tar.gz.asc'...
+-v3*=deleting './i/pkg_42.orig.tar.gz'...
+-v3*=deleting './i/pkg_42-42.dsc'...
+-v3*=deleting './i/pkg_42-42.debian.tar.gz'...
+EOF
+
+cat >results.expected <<EOF
+Distribution: test
+Source: pkg
+Version: 42-42
+Files:
+ pool/main/p/pkg/pkg_42-42.dsc s 1
+ pool/main/p/pkg/pkg_42.orig.tar.gz s 1
+ pool/main/p/pkg/pkg_42.orig.tar.gz.asc s 1
+ pool/main/p/pkg/pkg_42-42.debian.tar.gz s 1
+
+EOF
+
+rm -r pool db
+cp j/* i/
+mkdir -p pool/main/p/pkg
+
+testrun - --export=never -C main includedsc test i/pkg_42-42.dsc 3<<EOF
+stderr
+=Warning: database 'test|main|source' was modified but no index file was exported.
+=Changes will only be visible after the next 'export'!
+stdout
+$(odb)
+$(ofa 'pool/main/p/pkg/pkg_42.orig.tar.gz')
+$(ofa 'pool/main/p/pkg/pkg_42.orig.tar.gz.asc')
+$(ofa 'pool/main/p/pkg/pkg_42-42.debian.tar.gz')
+$(ofa 'pool/main/p/pkg/pkg_42-42.dsc')
+$(opa 'pkg' x 'test' 'main' 'source' 'dsc')
+$(ota 'test' 'pkg')
+EOF
+
+testout - dumptracks test 3<<EOF
+EOF
+dodiff results.expected results
+
+rm -r pool db i
+mkdir -p i pool/main/p/pkg
+cp k/* i/
+
+testrun - --export=never include test i/broken.changes 3<<EOF
+returns 255
+stdout
+$(odb)
+stderr
+*=Signature file without file to be signed: 'pkg_42.tar.gz.asc'!
+-v0*=There have been errors!
+EOF
+
+rm -r pool db i
+mkdir -p i pool/main/p/pkg
+cp k/* i/
+
+testrun - --export=never processincoming foo 3<<EOF
+returns 255
+stdout
+$(odb)
+stderr
+*=Signature file without file to be signed: 'pkg_42.tar.gz.asc'!
+-v0*=There have been errors!
+EOF
+
+rm -r pool db i
+mkdir -p i pool/main/p/pkg
+cp k/* i/
+
+# includedsc does not care....
+testrun - --export=never -C main includedsc test i/pkg_42-42.dsc 3<<EOF
+stderr
+=Warning: database 'test|main|source' was modified but no index file was exported.
+=Changes will only be visible after the next 'export'!
+stdout
+$(odb)
+$(ofa 'pool/main/p/pkg/pkg_42.orig.tar.gz')
+$(ofa 'pool/main/p/pkg/pkg_42.tar.gz.asc')
+$(ofa 'pool/main/p/pkg/pkg_42-42.debian.tar.gz')
+$(ofa 'pool/main/p/pkg/pkg_42-42.dsc')
+$(opa 'pkg' x 'test' 'main' 'source' 'dsc')
+$(ota 'test' 'pkg')
+EOF
+
+rm -r db pool
+rm -r i j tmp conf results results.expected
+testsuccess

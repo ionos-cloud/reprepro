@@ -825,7 +825,7 @@ retvalue config_geturl(struct configiterator *iter, const char *header, char **r
 		return RET_ERROR;
 	}
 	p = value;
-	while (*p != '\0' && (*p == '_' || *p == '-' ||
+	while (*p != '\0' && (*p == '_' || *p == '-' || *p == '+' ||
 				(*p>='a' && *p<='z') || (*p>='A' && *p<='Z') ||
 				(*p>='0' && *p<='9'))) {
 		p++;

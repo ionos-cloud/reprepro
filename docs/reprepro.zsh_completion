@@ -273,6 +273,7 @@ hiddencommands=(
 	_fakeemptyfilelist:"create an empty fake filelist cache item for a filekey"
 	_forget:"forget a file specified by filekey."
 	_listchecksums:"print a list of filekeys and their checksums"
+	_listcodenames:"list configured codenames"
 	_listconfidentifiers:"list parts of the repository in the configuration"
 	_listdbidentifiers:"list parts of the repository in the database"
 	_listmd5sums:"print a list of filekeys and their md5 hashes"
@@ -388,7 +389,7 @@ case "$state" in
 		fi
 		;;
 
-	 (cleanlists|clearvanished|dumpreferences|dumpunreferened|deleteunreferenced|_listmd5sums|_listchecksums|_addmd5sums|_addchecksums|__dumpuncompressors|transatelegacychecksums)
+	 (cleanlists|clearvanished|dumpreferences|dumpunreferened|deleteunreferenced|_listmd5sums|_listchecksums|_addmd5sums|_addchecksums|__dumpuncompressors|transatelegacychecksums|_listcodenames)
 		;;
 	 (_dumpcontents|_removereferences)
 		if [[ "$state" = "first argument" ]] ; then

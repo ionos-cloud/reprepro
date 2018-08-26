@@ -219,7 +219,7 @@ retvalue aptmethod_newmethod(struct aptmethodrun *run, const char *uri, const ch
 	method->child = -1;
 	method->status = ams_notstarted;
 	p = uri;
-	while (*p != '\0' && (*p == '_' || *p == '-' ||
+	while (*p != '\0' && (*p == '_' || *p == '-' || *p == '+' ||
 		(*p>='a' && *p<='z') || (*p>='A' && *p<='Z') ||
 		(*p>='0' && *p<='9'))) {
 		p++;
