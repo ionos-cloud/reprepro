@@ -6,6 +6,17 @@
    obj:/usr/lib*/libz.so.*
 }
 {
+   still-careless-libdb
+   Memcheck:Param
+   pwrite64(buf)
+   fun:pwrite
+   fun:__os_io
+   obj:/usr/lib/x86_64-linux-gnu/libdb-*.so
+   fun:__memp_bhwrite
+   fun:__memp_sync_int
+}
+
+{
    careless-libdb
    Memcheck:Param
    pwrite64(buf)
