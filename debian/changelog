@@ -1,10 +1,16 @@
-reprepro (5.1.1-2) UNRELEASED; urgency=medium
+reprepro (5.2.0-1) unstable; urgency=medium
 
   * update Standards-Version
   * update VCS headers
-  * remove Homepage and debian/watch
+  * remove Homepage and debian/watch (Closes: #904124, #906804)
+  * new release
+  - add support for .asc files in source packages (Closes: #854480)
+  - add _listcodenames command (Closes: #857303)
+  - Signed-By header can be set (Closes: #856403)
+  - drop header from contents files (Closes: #881405)
+  - multiple manpage fixes (Closes: #895045, #852309, #866905, #860740)
 
- -- Bernhard R. Link <brlink@debian.org>  Sun, 08 Jan 2017 16:31:21 +0100
+ -- Bernhard R. Link <brlink@debian.org>  Sun, 26 Aug 2018 16:29:53 +0200
 
 reprepro (5.1.1-1) unstable; urgency=medium
 

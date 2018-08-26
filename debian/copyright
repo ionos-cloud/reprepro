@@ -1,9 +1,7 @@
 This package was debianized by Bernhard R. Link <brlink@debian.org> on
 Tue,  1 Feb 2005 12:25:56 +0100.
 
-The .orig.tar.gz was generated with make dist from the cvs checkout
-and can be downloaded from
-http://alioth.debian.org/project/showfiles.php?group_id=30039
+The .orig.tar.gz was generated with make dist from the git checkout.
 
 With the exceptions given below, reprepro is:
 
