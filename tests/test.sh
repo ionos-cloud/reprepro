@@ -263,6 +263,7 @@ else
 	runtest diffgeneration
 	runtest onlysmalldeletes
 	runtest override
+	runtest includeasc
 fi
 echo "$number_tests tests, $number_success succeded, $number_failed failed, $number_skipped skipped, $number_missing missing"
 exit 0
