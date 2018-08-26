@@ -43,7 +43,7 @@ struct distribution {
 	 * (and only for sanity checks) */
 	/*@null@*/char *suite, *version;
 	/*@null@*/char *origin, *label, *description,
-		*notautomatic, *butautomaticupgrades;
+		*notautomatic, *butautomaticupgrades, *signed_by;
 	/* What architectures and components are there */
 	struct atomlist architectures, components;
 	/* which update rules to use */

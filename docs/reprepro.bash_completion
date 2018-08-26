@@ -351,6 +351,7 @@ _reprepro()
 		       	_fakeemptyfilelist\
 		       	_forget\
 		       	_listchecksums\
+			_listcodenames\
 		       	_listconfidentifiers\
 		       	_listdbidentifiers\
 			_listmd5sums\
@@ -415,7 +416,7 @@ _reprepro()
 			fi
 			;;
 
-		collectnewchecksums|cleanlists)
+		collectnewchecksums|cleanlists|_listcodenames)
 			return 0
 			;;
 

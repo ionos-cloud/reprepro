@@ -396,7 +396,6 @@ dodiff /dev/null results
 find i -type f > results
 dodiff /dev/null results
 cat > results.expected <<EOF
-FILE                                                    LOCATION
 x	    tasty/bird,tasty/bird-addons
 a/1	    tasty/bird,tasty/bird-addons
 dir/another	    tasty/bird,tasty/bird-addons
@@ -406,12 +405,10 @@ EOF
 gunzip -c dists/B/Contents-abacus.gz > results
 dodiff results.expected results
 cat > results.expected <<EOF
-FILE                                                    LOCATION
 EOF
 gunzip -c dists/B/cat/Contents-abacus.gz > results
 dodiff results.expected results
 cat > results.expected <<EOF
-FILE                                                    LOCATION
 x	    tasty/bird,tasty/bird-addons
 a/1	    tasty/bird,tasty/bird-addons
 dir/another	    tasty/bird,tasty/bird-addons
@@ -505,7 +502,6 @@ dodiff /dev/null results
 find i -type f > results
 dodiff /dev/null results
 cat > results.expected <<EOF
-FILE                                                    LOCATION
 x	    tasty/bird,tasty/bird-addons,cat/tasty/bird,cat/ugly/bird-addons
 a/1	    tasty/bird,tasty/bird-addons,cat/tasty/bird,cat/ugly/bird-addons
 dir/another	    tasty/bird,tasty/bird-addons,cat/tasty/bird,cat/ugly/bird-addons
@@ -515,7 +511,6 @@ EOF
 gunzip -c dists/B/Contents-abacus.gz > results
 dodiff results.expected results
 cat > results.expected <<EOF
-FILE                                                    LOCATION
 x	    cat/tasty/bird,cat/ugly/bird-addons
 a/1	    cat/tasty/bird,cat/ugly/bird-addons
 dir/another	    cat/tasty/bird,cat/ugly/bird-addons
@@ -525,7 +520,6 @@ EOF
 gunzip -c dists/B/cat/Contents-abacus.gz > results
 dodiff results.expected results
 cat > results.expected <<EOF
-FILE                                                    LOCATION
 x	    tasty/bird,tasty/bird-addons
 a/1	    tasty/bird,tasty/bird-addons
 dir/another	    tasty/bird,tasty/bird-addons

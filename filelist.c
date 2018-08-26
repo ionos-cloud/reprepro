@@ -488,7 +488,6 @@ retvalue fakefilelist(const char *filekey) {
 			"", 1, true, false);
 }
 
-static const char header[] = "FILE                                                    LOCATION\n";
 static const char separator_chars[] = "\t    ";
 
 static void filelist_writefiles(char *dir, size_t len,
@@ -562,7 +561,6 @@ retvalue filelist_write(struct filelist_list *list, struct filetorelease *file) 
 	if (FAILEDTOALLOC(buffer))
 		return RET_ERROR_OOM;
 
-	(void)release_writedata(file, header, sizeof(header) - 1);
 	buffer[0] = '\0';
 	filelist_writefiles(buffer, 0, list->root->files, file);
 	if (list->root->subdirs != NULL)

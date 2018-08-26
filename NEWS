@@ -1,3 +1,11 @@
+Updates between 5.1.1 and 5.2.0:
+- mark .lz support as deprecated
+- add _listcodenames command
+- allow to set Signed-By header via conf/distributions
+- add support for .asc files in source packages
+- some documentation improvements
+- allow '+' character in method-URI
+
 Updates between 5.1.0 and 5.1.1:
 - improve error handling when extracting .deb file contents
 - fix many spelling mistakes

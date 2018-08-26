@@ -173,14 +173,14 @@ O(fast), O(x_morguedir), O(x_outdir), O(x_basedir), O(x_distdir), O(x_dbdir), O(
 			act(const struct atomlist *, packagetypes),  \
 			int argc, args(const char *, argv[]))
 
-#define ACTION_C(act, sp, name) static retvalue action_c_ ## act ## _ ## sp ## _ ## name ( \
+#define ACTION_C(act, sp, a, name) static retvalue action_c_ ## act ## _ ## sp ## _ ## name ( \
 			struct distribution *alldistributions,       \
 			sp(const char *, section),                   \
 			sp(const char *, priority),                  \
 			act(const struct atomlist *, architectures), \
 			act(const struct atomlist *, components),    \
 			act(const struct atomlist *, packagetypes),  \
-			int argc, const char *argv[])
+			a(int, argc), a(const char *, argv[]))
 
 #define ACTION_B(act, sp, u, name) static retvalue action_b_ ## act ## _ ## sp ## _ ## name ( \
 			u(struct distribution *, alldistributions),  \
@@ -1170,6 +1170,17 @@ ACTION_B(y, n, y, buildneeded) {
 		return find_needs_build(distribution, arch, components,
 				glob, false);
 	}
+}
+
+ACTION_C(n, n, n, listcodenames) {
+	retvalue r = RET_NOTHING;
+	struct distribution *d;
+
+	for (d = alldistributions ; d != NULL ; d = d->next) {
+		puts(d->codename);
+		r = RET_OK;
+	}
+	return r;
 }
 
 static retvalue list_in_target(struct target *target, const char *packagename) {
@@ -2944,7 +2955,7 @@ static bool mayaliasas(const struct distribution *alldistributions, const char *
 	return false;
 }
 
-ACTION_C(n, n, createsymlinks) {
+ACTION_C(n, n, y, createsymlinks) {
 	retvalue result, r;
 	struct distribution *d, *d2;
 	bool warned_slash = false;
@@ -3286,7 +3297,7 @@ static inline void verifyatomlist(struct upload_conditions *conditions, const st
 }
 
 
-ACTION_C(n, n, checkuploaders) {
+ACTION_C(n, n, y, checkuploaders) {
 	retvalue result, r;
 	struct distribution *d;
 	char *sourcename = NULL;
@@ -3571,7 +3582,7 @@ ACTION_B(n, n, y, listdbidentifiers) {
 	return result;
 }
 
-ACTION_C(n, n, listconfidentifiers) {
+ACTION_C(n, n, y, listconfidentifiers) {
 	struct target *t;
 	const struct distribution *d;
 	retvalue result;
@@ -4007,6 +4018,8 @@ static const struct action {
 		0, -1, "_listconfidentifiers"},
 	{"_listdbidentifiers",	A_ROB(listdbidentifiers)|MAY_UNUSED,
 		0, -1, "_listdbidentifiers"},
+	{"_listcodenames", 		A_C(listcodenames),
+		0, 0, "_listcodenames"},
 	{"clearvanished",	A_D(clearvanished)|MAY_UNUSED,
 		0, 0, "[--delete] clearvanished"},
 	{"processincoming",	A_D(processincoming)|NEED_DELNEW,

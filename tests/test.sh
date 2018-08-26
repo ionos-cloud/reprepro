@@ -233,6 +233,7 @@ runtest() {
 if test x"$testtorun" != x"all" ; then
 	runtest "$testtorun"
 else
+	runtest export
 	runtest buildinfo
 	runtest updatepullreject
 	runtest descriptions
@@ -263,6 +264,8 @@ else
 	runtest diffgeneration
 	runtest onlysmalldeletes
 	runtest override
+	runtest includeasc
+	runtest listcodenames
 fi
 echo "$number_tests tests, $number_success succeded, $number_failed failed, $number_skipped skipped, $number_missing missing"
 exit 0

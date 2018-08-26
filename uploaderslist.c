@@ -553,7 +553,7 @@ static struct uploader *addfingerprint(struct uploaders *u, const char *fingerpr
 		char c = fingerprint[len-i-1];
 		if (c >= 'a' && c <= 'f')
 			c -= 'a' - 'A';
-		assert ((c >= '0' && c <= '9') || (c >= 'A' || c <= 'F'));
+		assert ((c >= '0' && c <= '9') || (c >= 'A' && c <= 'F'));
 		reversed[i] = c;
 	}
 	reversed[len] = '\0';
@@ -966,7 +966,7 @@ static void condition_add(struct upload_condition *permissions, struct upload_co
 
 		/* the very last is always the fallback-node to which all
 		 * other conditions fall back if they have no decision */
-		assert(last->type = uc_ALWAYS);
+		assert(last->type == uc_ALWAYS);
 		assert(!last->accept_if_true);
 
 		*last = *c;

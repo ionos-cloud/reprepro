@@ -55,6 +55,7 @@ static retvalue distribution_free(struct distribution *distribution) {
 		free(distribution->butautomaticupgrades);
 		free(distribution->label);
 		free(distribution->description);
+		free(distribution->signed_by);
 		free(distribution->deb_override);
 		free(distribution->udeb_override);
 		free(distribution->dsc_override);
@@ -398,6 +399,7 @@ CFallSETPROC(distribution, butautomaticupgrades)
 CFtruthSETPROC2(distribution, readonly, readonly)
 CFallSETPROC(distribution, label)
 CFallSETPROC(distribution, description)
+CFallSETPROC(distribution, signed_by)
 CFsignwithSETPROC(distribution, signwith)
 CFfileSETPROC(distribution, deb_override)
 CFfileSETPROC(distribution, udeb_override)
@@ -464,6 +466,7 @@ static const struct configfield distributionconfigfields[] = {
 	CF("DebIndices",	distribution,	deb),
 	CF("DebOverride",	distribution,	deb_override),
 	CF("Description",	distribution,	description),
+	CF("Signed-By",		distribution,	signed_by),
 	CF("DscIndices",	distribution,	dsc),
 	CF("DscOverride",	distribution,	dsc_override),
 	CF("FakeComponentPrefix", distribution,	fakecomponentprefix),

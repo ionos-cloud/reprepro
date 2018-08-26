@@ -328,7 +328,7 @@ CFSETPROC(incoming, allow) {
 
 CFSETPROC(incoming, permit) {
 	CFSETPROCVARS(incoming, i, d);
-	static const struct constant const permitconstants[] = {
+	static const struct constant permitconstants[] = {
 		{ "unused_files",	pmf_unused_files},
 		{ "older_version",	pmf_oldpackagenewer},
 		{ "unlisted_binaries",	pmf_unlistedbinaries},
@@ -358,7 +358,7 @@ CFSETPROC(incoming, permit) {
 
 CFSETPROC(incoming, cleanup) {
 	CFSETPROCVARS(incoming, i, d);
-	static const struct constant const cleanupconstants[] = {
+	static const struct constant cleanupconstants[] = {
 		{ "unused_files", cuf_unused_files},
 		{ "unused_buildinfo_files", cuf_unused_buildinfo_files},
 		{ "on_deny", cuf_on_deny},
@@ -388,7 +388,7 @@ CFSETPROC(incoming, cleanup) {
 
 CFSETPROC(incoming, options) {
 	CFSETPROCVARS(incoming, i, d);
-	static const struct constant const optionsconstants[] = {
+	static const struct constant optionsconstants[] = {
 		{ "limit_arch_all", iof_limit_arch_all},
 		{ "multiple_distributions", iof_multiple_distributions},
 		{ NULL, -1}
@@ -1443,6 +1443,35 @@ static retvalue prepare_dsc(const struct incoming *i, const struct candidate *c,
 		r = properfilenames(&file->dsc.files.names);
 	if (RET_WAS_ERROR(r))
 		return r;
+
+	/* check if signatures match files signed: */
+	for (j = 0 ; j < file->dsc.files.names.count ; j++) {
+		int jj;
+		const char *afn = file->dsc.files.names.values[j];
+		size_t al = strlen(afn);
+		bool found = false;
+
+		if (al <= 4 || memcmp(afn + al - 4, ".asc", 4) != 0)
+			continue;
+
+		for (jj = 0 ; jj < file->dsc.files.names.count ; jj++) {
+			const char *fn = file->dsc.files.names.values[jj];
+			size_t l = strlen(fn);
+
+			if (l + 4 != al)
+				continue;
+			if (memcmp(afn, fn, l) != 0)
+				continue;
+			found = true;
+			break;
+		}
+		if (!found) {
+			fprintf(stderr,
+"Signature file without file to be signed: '%s'!\n", afn);
+			return RET_ERROR;
+		}
+	}
+
 	oinfo = override_search(into->overrides.dsc, file->dsc.name);
 
 	r = getsectionprioritycomponent(i, c, into, file,

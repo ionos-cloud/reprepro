@@ -201,6 +201,7 @@ retvalue changes_parsefileline(const char *fileline, /*@out@*/filetype *result_t
 	} else {
 		enum compression c;
 		const char *eoi;
+		bool issignature = false;
 
 		/* without those, it gets more complicated.
 		 * It's not .deb or .udeb, so most likely a
@@ -209,6 +210,10 @@ retvalue changes_parsefileline(const char *fileline, /*@out@*/filetype *result_t
 		/* if it uses a known compression, things are easy,
 		 * so try this first: */
 
+		if (l > 4 && memcmp(versionstart + l - 4, ".asc", 4) == 0 ) {
+			issignature = true;
+			l -= 4;
+		}
 		c = compression_by_suffix(versionstart, &l);
 		p = versionstart + l;
 
@@ -220,6 +225,9 @@ retvalue changes_parsefileline(const char *fileline, /*@out@*/filetype *result_t
 		} else if (l > 4 && strncmp(p-4, ".tar", 4) == 0) {
 			type = fe_TAR;
 			eoi = p - 4;
+		} else if (issignature) {
+			/* only .tar.* files are allowed to have .asc files: */
+			issignature = false;
 		} else if (l > 5 && strncmp(p-5, ".diff", 5) == 0) {
 			type = fe_DIFF;
 			eoi = p - 5;
@@ -275,6 +283,8 @@ retvalue changes_parsefileline(const char *fileline, /*@out@*/filetype *result_t
 				return RET_ERROR;
 
 			}
+			if (issignature)
+				type = fe_SIG;
 		} else {
 			/* everything else is assumed to be source */
 			checkfilename = true;
