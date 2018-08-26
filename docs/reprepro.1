@@ -387,6 +387,7 @@ If the program is not found or is \fBNONE\fP (all-uppercase) then uncompressing
 lz files will not be possible.
 The program has to accept the compressed file as stdin and write
 the uncompressed file into stdout.
+Note that .lz support is \fBDEPRECATED\fP and will be removed in the future.
 .TP
 .BI \-\-list\-max " count"
 Limits the output of \fBlist\fP, \fBlistmatched\fP and \fBlistfilter\fP to the first \fIcount\fP
@@ -1912,9 +1913,9 @@ The arguments of this field specify which index files reprepro
 will download.
 
 Allowed values are
-.BR . ", " .gz ", " .bz2 ", " .lzma ", " .xz ", " .lz ", " .diff ", "
-.BR force.gz ", " force.bz2 ", " force.lzma ", " force.xz ", "
-.BR force.lz ", and " force.diff "."
+.BR . ", " .gz ", " .bz2 ", " .lzma ", " .xz ", " .diff ", "
+.BR force.gz ", " force.bz2 ", " force.lzma ", "
+.BR force.xz ", and " force.diff "."
 
 Reprepro will try the first supported variant in the list given:
 Only compressions compiled in or for which an uncompressor was found
