@@ -966,7 +966,7 @@ static void condition_add(struct upload_condition *permissions, struct upload_co
 
 		/* the very last is always the fallback-node to which all
 		 * other conditions fall back if they have no decision */
-		assert(last->type = uc_ALWAYS);
+		assert(last->type == uc_ALWAYS);
 		assert(!last->accept_if_true);
 
 		*last = *c;
