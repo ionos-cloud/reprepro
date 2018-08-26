@@ -3,6 +3,7 @@ reprepro (5.2.0-1) unstable; urgency=medium
   * update Standards-Version
   * update VCS headers
   * remove Homepage and debian/watch (Closes: #904124, #906804)
+  * remove debian/upstream/ directory to avoid lintian warning
   * new release
   - add support for .asc files in source packages (Closes: #854480)
   - add _listcodenames command (Closes: #857303)
@@ -10,7 +11,7 @@ reprepro (5.2.0-1) unstable; urgency=medium
   - drop header from contents files (Closes: #881405)
   - multiple manpage fixes (Closes: #895045, #852309, #866905, #860740)
 
- -- Bernhard R. Link <brlink@debian.org>  Sun, 26 Aug 2018 16:29:53 +0200
+ -- Bernhard R. Link <brlink@debian.org>  Sun, 26 Aug 2018 16:47:54 +0200
 
 reprepro (5.1.1-1) unstable; urgency=medium
 
@@ -881,7 +882,7 @@ reprepro (0.5-1) unstable; urgency=low
   - starts to track source packages, which yet mostly only:
     + allow to include .changes files into the pool (Closes: 309703)
     + keep no longer used files of one distribution (Closes: 309414)
-  - include English-fixes and new parts about apache2 
+  - include English-fixes and new parts about apache2
     to short-howto from V. Stanley Jaddoe (Closes: 319708)
   - include example from Goswin Brederlow (Closes: 306982)
 
@@ -930,4 +931,3 @@ reprepro (0.1-1) unstable; urgency=low
   * Initial Upload.
 
  -- Bernhard R. Link <brlink@debian.org>  Sun,  6 Feb 2005 13:43:25 +0100
-
