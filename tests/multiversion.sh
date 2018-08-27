@@ -209,4 +209,18 @@ buster|main|${ARCH}: hello 2.9-10
 buster|main|${ARCH}: hello 2.9-2+deb8u1" "$($REPREPRO -b $REPO list buster)"
 }
 
+test_database_upgrade() {
+	# Test case for https://github.com/profitbricks/reprepro/issues/8
+	rm -rf "$REPO"
+	cp -r "${0%/*}/old-database" "$REPO"
+	call $REPREPRO $VERBOSE_ARGS -b $REPO export
+	assertEquals "\
+bullseye|main|amd64
+bullseye|main|i386
+bullseye|main|source
+bullseye|non-free|amd64
+bullseye|non-free|i386
+bullseye|non-free|source" "$(db_dump "$REPO/db/packages.db" | sed -n 's/^database=//p')"
+}
+
 . shunit2

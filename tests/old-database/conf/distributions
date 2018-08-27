@@ -1,0 +1,5 @@
+Codename: bullseye
+Architectures: amd64 i386 source
+Components: main non-free
+Log: testrepo.log
+Tracking: all
