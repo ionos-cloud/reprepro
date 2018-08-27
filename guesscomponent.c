@@ -39,7 +39,7 @@ retvalue guess_component(const char *codename, const struct atomlist *components
 	if (atom_defined(givencomponent)) {
 		if (!atomlist_in(components, givencomponent)) {
 			(void)fprintf(stderr,
-"Could not find '%s' in components of '%s': ",
+"Could not find '%s' in components of '%s': '",
 					atoms_components[givencomponent],
 					codename);
 			(void)atomlist_fprint(stderr,
