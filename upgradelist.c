@@ -153,7 +153,7 @@ retvalue upgradelist_initialize(struct upgradelist **ul, struct target *t) {
 
 	/* Beginn with the packages currently in the archive */
 
-	r = package_openiterator(t, READONLY, true, &iterator);
+	r = package_openiterator(t, READONLY, false, &iterator);
 	if (RET_WAS_ERROR(r)) {
 		upgradelist_free(upgrade);
 		return r;
