@@ -490,7 +490,7 @@ retvalue export_target(const char *relativedir, struct target *target,  const st
 					exportdescription(exportmode, buffer, 100));
 			status = "new";
 		}
-		r = package_openiterator(target, READONLY, &iterator);
+		r = package_openiterator(target, READONLY, true, &iterator);
 		if (RET_WAS_ERROR(r)) {
 			release_abortfile(file);
 			free(relfilename);

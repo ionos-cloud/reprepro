@@ -215,7 +215,7 @@ static retvalue gentargetcontents(struct target *target, struct release *release
 		release_abortfile(file);
 		return r;
 	}
-	result = package_openiterator(target, READONLY, &iterator);
+	result = package_openiterator(target, READONLY, true, &iterator);
 	if (RET_IS_OK(result)) {
 		while (package_next(&iterator)) {
 			r = addpackagetocontents(&iterator.current, contents);
