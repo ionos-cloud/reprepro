@@ -225,7 +225,7 @@ retvalue sizes_distributions(struct distribution *alldistributions, bool specifi
 	}
 	if (ds == NULL)
 		return RET_NOTHING;
-	r = table_newglobalcursor(rdb_references, &cursor);
+	r = table_newglobalcursor(rdb_references, true, &cursor);
 	if (!RET_IS_OK(r)) {
 		distribution_sizes_freelist(ds);
 		return r;

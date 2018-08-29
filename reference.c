@@ -152,7 +152,7 @@ retvalue references_remove(const char *neededby) {
 	const char *found_to, *found_by;
 	size_t datalen, l;
 
-	r = table_newglobalcursor(rdb_references, &cursor);
+	r = table_newglobalcursor(rdb_references, true, &cursor);
 	if (!RET_IS_OK(r))
 		return r;
 
@@ -188,7 +188,7 @@ retvalue references_dump(void) {
 	retvalue result, r;
 	const char *found_to, *found_by;
 
-	r = table_newglobalcursor(rdb_references, &cursor);
+	r = table_newglobalcursor(rdb_references, true, &cursor);
 	if (!RET_IS_OK(r))
 		return r;
 

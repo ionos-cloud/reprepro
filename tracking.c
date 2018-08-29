@@ -530,7 +530,7 @@ static retvalue tracking_recreatereferences(trackingdb t) {
 	const char *key, *value, *data;
 	size_t datalen;
 
-	r = table_newglobalcursor(t->table, &cursor);
+	r = table_newglobalcursor(t->table, true, &cursor);
 	if (!RET_IS_OK(r))
 		return r;
 
@@ -647,7 +647,7 @@ retvalue tracking_printall(trackingdb t) {
 	const char *key, *value, *data;
 	size_t datalen;
 
-	r = table_newglobalcursor(t->table, &cursor);
+	r = table_newglobalcursor(t->table, true, &cursor);
 	if (!RET_IS_OK(r))
 		return r;
 
@@ -679,7 +679,7 @@ retvalue tracking_foreach_ro(struct distribution *d, tracking_foreach_ro_action 
 	if (!RET_IS_OK(r))
 		return r;
 
-	r = table_newglobalcursor(t->table, &cursor);
+	r = table_newglobalcursor(t->table, true, &cursor);
 	if (!RET_IS_OK(r)) {
 		(void)tracking_done(t, d);
 		return r;
@@ -1079,7 +1079,7 @@ retvalue tracking_tidyall(trackingdb t) {
 	const char *key, *value, *data;
 	size_t datalen;
 
-	r = table_newglobalcursor(t->table, &cursor);
+	r = table_newglobalcursor(t->table, true, &cursor);
 	if (!RET_IS_OK(r))
 		return r;
 
@@ -1112,7 +1112,7 @@ retvalue tracking_reset(trackingdb t) {
 	size_t datalen, newdatalen;
 	int i;
 
-	r = table_newglobalcursor(t->table, &cursor);
+	r = table_newglobalcursor(t->table, true, &cursor);
 	if (!RET_IS_OK(r))
 		return r;
 
