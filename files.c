@@ -276,7 +276,7 @@ retvalue files_printmd5sums(void) {
 	struct cursor *cursor;
 	const char *filekey, *checksum;
 
-	r = table_newglobalcursor(rdb_checksums, &cursor);
+	r = table_newglobalcursor(rdb_checksums, true, &cursor);
 	if (!RET_IS_OK(r))
 		return r;
 	result = RET_NOTHING;
@@ -303,7 +303,7 @@ retvalue files_printchecksums(void) {
 	struct cursor *cursor;
 	const char *filekey, *checksum;
 
-	r = table_newglobalcursor(rdb_checksums, &cursor);
+	r = table_newglobalcursor(rdb_checksums, true, &cursor);
 	if (!RET_IS_OK(r))
 		return r;
 	result = RET_NOTHING;
@@ -329,7 +329,7 @@ retvalue files_foreach(per_file_action action, void *privdata) {
 	struct cursor *cursor;
 	const char *filekey, *checksum;
 
-	r = table_newglobalcursor(rdb_checksums, &cursor);
+	r = table_newglobalcursor(rdb_checksums, true, &cursor);
 	if (!RET_IS_OK(r))
 		return r;
 	result = RET_NOTHING;
@@ -375,7 +375,7 @@ retvalue files_checkpool(bool fast) {
 	bool improveable = false;
 
 	result = RET_NOTHING;
-	r = table_newglobalcursor(rdb_checksums, &cursor);
+	r = table_newglobalcursor(rdb_checksums, true, &cursor);
 	if (!RET_IS_OK(r))
 		return r;
 	while (cursor_nexttempdata(rdb_checksums, cursor,
@@ -421,7 +421,7 @@ retvalue files_collectnewchecksums(void) {
 	char *fullfilename;
 
 	result = RET_NOTHING;
-	r = table_newglobalcursor(rdb_checksums, &cursor);
+	r = table_newglobalcursor(rdb_checksums, true, &cursor);
 	if (!RET_IS_OK(r))
 		return r;
 	while (cursor_nexttempdata(rdb_checksums, cursor,
