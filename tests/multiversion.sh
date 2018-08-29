@@ -296,4 +296,44 @@ bullseye|main|$ARCH: hello 2.9-10
 bullseye|main|$ARCH: hello 2.9-2+deb8u1" "$($REPREPRO -b $REPO list bullseye)"
 }
 
+test_update_packages() {
+	# Test case for https://github.com/profitbricks/reprepro/issues/6
+	local upstream_repo
+	upstream_repo="${0%/*}/upstreamrepo"
+
+	four_hellos
+	rm -rf "$upstream_repo"
+	mv "$REPO" "$upstream_repo"
+
+	mkdir -p "$REPO/conf"
+	cat > "$REPO/conf/distributions" <<EOF
+Origin: Icinga2
+Label: Icinga2
+Suite: icinga-stretch
+Codename: icinga-stretch
+Description: Icinga2 packages for Debian Stretch
+Architectures: $ARCH
+Components: main
+Update: icinga-stretch
+Log: icinga2.log
+EOF
+	cat > "$REPO/conf/updates" <<EOF
+Name: icinga-stretch
+Method: file://$(readlink -f $upstream_repo)
+Suite: buster
+Components: main
+Architectures: $ARCH
+VerifyRelease: blindtrust
+GetInRelease: no
+EOF
+	call $REPREPRO $VERBOSE_ARGS -b $REPO --noskipold update
+	assertEquals "icinga-stretch|main|$ARCH: hello 2.9-10" "$($REPREPRO -b $REPO list icinga-stretch)"
+
+	call $REPREPRO $VERBOSE_ARGS -b $REPO -C main includedeb icinga-stretch $PKGS/hello_2.9-2_${ARCH}.deb
+	call $REPREPRO $VERBOSE_ARGS -b $REPO --noskipold update
+	assertEquals "\
+icinga-stretch|main|$ARCH: hello 2.9-10
+icinga-stretch|main|$ARCH: hello 2.9-2" "$($REPREPRO -b $REPO list icinga-stretch)"
+}
+
 . shunit2
