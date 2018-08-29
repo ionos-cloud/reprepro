@@ -1350,10 +1350,10 @@ static retvalue newcursor(struct table *table, uint32_t flags, struct cursor **c
 	return RET_OK;
 }
 
-retvalue table_newglobalcursor(struct table *table, struct cursor **cursor_p) {
+retvalue table_newglobalcursor(struct table *table, bool duplicate, struct cursor **cursor_p) {
 	retvalue r;
 
-	r = newcursor(table, DB_NEXT, cursor_p);
+	r = newcursor(table, duplicate ? DB_NEXT : DB_NEXT_NODUP, cursor_p);
 	if (r == RET_NOTHING) {
 		// table_newglobalcursor returned RET_OK when table->berkeleydb == NULL. Is that return value wanted?
 		r = RET_OK;
@@ -2055,7 +2055,7 @@ static retvalue table_copy(struct table *oldtable, struct table *newtable) {
 	const char *filekey, *data;
 	size_t data_len;
 
-	r = table_newglobalcursor(oldtable, &cursor);
+	r = table_newglobalcursor(oldtable, true, &cursor);
 	if (!RET_IS_OK(r))
 		return r;
 	while (cursor_nexttempdata(oldtable, cursor, &filekey,
@@ -2179,7 +2179,7 @@ static inline retvalue translate(struct table *oldmd5sums, struct table *newchec
 
 	/* first add all md5sums to checksums if not there yet */
 
-	r = table_newglobalcursor(oldmd5sums, &cursor);
+	r = table_newglobalcursor(oldmd5sums, true, &cursor);
 	if (RET_WAS_ERROR(r))
 		return r;
 	while (cursor_nexttempdata(oldmd5sums, cursor,
@@ -2242,10 +2242,10 @@ static inline retvalue translate(struct table *oldmd5sums, struct table *newchec
 
 	/* then delete everything from checksums that is not in md5sums */
 
-	r = table_newglobalcursor(oldmd5sums, &cursor);
+	r = table_newglobalcursor(oldmd5sums, true, &cursor);
 	if (RET_WAS_ERROR(r))
 		return r;
-	r = table_newglobalcursor(newchecksums, &newcursor);
+	r = table_newglobalcursor(newchecksums, true, &newcursor);
 	if (RET_WAS_ERROR(r)) {
 		cursor_close(oldmd5sums, cursor);
 		return r;

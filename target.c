@@ -948,7 +948,7 @@ retvalue package_openiterator(struct target *t, bool readonly, /*@out@*/struct p
 	assert (r != RET_NOTHING);
 	if (RET_WAS_ERROR(r))
 		return r;
-	r = table_newglobalcursor(t->packages, &c);
+	r = table_newglobalcursor(t->packages, true, &c);
 	assert (r != RET_NOTHING);
 	if (RET_WAS_ERROR(r)) {
 		r2 = target_closepackagesdb(t);

@@ -1594,7 +1594,7 @@ ACTION_B(n, n, n, dumpcontents) {
 	result = database_openpackages(argv[1], true, &packages);
 	if (RET_WAS_ERROR(result))
 		return result;
-	r = table_newglobalcursor(packages, &cursor);
+	r = table_newglobalcursor(packages, true, &cursor);
 	assert (r != RET_NOTHING);
 	if (RET_WAS_ERROR(r)) {
 		(void)table_close(packages);
