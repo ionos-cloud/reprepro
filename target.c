@@ -629,7 +629,7 @@ retvalue target_rereference(struct target *target) {
 	if (verbose > 2)
 		printf("Referencing %s...\n", target->identifier);
 
-	r = package_openiterator(target, READONLY, &iterator);
+	r = package_openiterator(target, READONLY, true, &iterator);
 	assert (r != RET_NOTHING);
 	if (RET_WAS_ERROR(r))
 		return r;
@@ -753,7 +753,7 @@ retvalue target_reoverride(struct target *target, struct distribution *distribut
 				target->identifier);
 	}
 
-	r = package_openiterator(target, READWRITE, &iterator);
+	r = package_openiterator(target, READWRITE, true, &iterator);
 	if (!RET_IS_OK(r))
 		return r;
 	result = RET_NOTHING;
@@ -821,7 +821,7 @@ retvalue target_redochecksums(struct target *target, struct distribution *distri
 				target->identifier);
 	}
 
-	r = package_openiterator(target, READWRITE, &iterator);
+	r = package_openiterator(target, READWRITE, true, &iterator);
 	if (!RET_IS_OK(r))
 		return r;
 	result = RET_NOTHING;
@@ -939,7 +939,7 @@ retvalue package_get(struct target *target, const char *name, const char *versio
 	return result;
 }
 
-retvalue package_openiterator(struct target *t, bool readonly, /*@out@*/struct package_cursor *tc) {
+retvalue package_openiterator(struct target *t, bool readonly, bool duplicate, /*@out@*/struct package_cursor *tc) {
 	retvalue r, r2;
 	struct cursor *c;
 
@@ -948,7 +948,7 @@ retvalue package_openiterator(struct target *t, bool readonly, /*@out@*/struct p
 	assert (r != RET_NOTHING);
 	if (RET_WAS_ERROR(r))
 		return r;
-	r = table_newglobalcursor(t->packages, true, &c);
+	r = table_newglobalcursor(t->packages, duplicate, &c);
 	assert (r != RET_NOTHING);
 	if (RET_WAS_ERROR(r)) {
 		r2 = target_closepackagesdb(t);

@@ -2556,7 +2556,7 @@ static retvalue repair_descriptions(struct target *target) {
 				target->identifier);
 	}
 
-	r = package_openiterator(target, READWRITE, &iterator);
+	r = package_openiterator(target, READWRITE, true, &iterator);
 	if (!RET_IS_OK(r))
 		return r;
 	result = RET_NOTHING;
