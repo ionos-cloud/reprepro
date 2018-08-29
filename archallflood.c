@@ -327,7 +327,7 @@ static retvalue floodlist_initialize(struct floodlist **fl, struct target *t) {
 
 	/* Begin with the packages currently in the archive */
 
-	r = package_openiterator(t, READONLY, &iterator);
+	r = package_openiterator(t, READONLY, true, &iterator);
 	if (RET_WAS_ERROR(r)) {
 		floodlist_free(list);
 		return r;
@@ -551,7 +551,7 @@ static retvalue floodlist_pull(struct floodlist *list, struct target *source) {
 	struct package_cursor iterator;
 
 	list->last = NULL;
-	r = package_openiterator(source, READONLY, &iterator);
+	r = package_openiterator(source, READONLY, true, &iterator);
 	if (RET_WAS_ERROR(r))
 		return r;
 	result = RET_NOTHING;

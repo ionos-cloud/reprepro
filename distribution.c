@@ -627,7 +627,7 @@ retvalue package_foreach(struct distribution *distribution, const struct atomlis
 			if (r == RET_NOTHING)
 				continue;
 		}
-		r = package_openiterator(t, READONLY, &iterator);
+		r = package_openiterator(t, READONLY, true, &iterator);
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(r))
 			return result;
@@ -659,7 +659,7 @@ retvalue package_foreach_c(struct distribution *distribution, const struct atoml
 			continue;
 		if (limitation_missed(packagetype, t->packagetype))
 			continue;
-		r = package_openiterator(t, READONLY, &iterator);
+		r = package_openiterator(t, READONLY, true, &iterator);
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(r))
 			return result;
@@ -1195,7 +1195,7 @@ retvalue package_remove_each(struct distribution *distribution, const struct ato
 	for (t = distribution->targets ; t != NULL ; t = t->next) {
 		if (!target_matches(t, components, architectures, packagetypes))
 			continue;
-		r = package_openiterator(t, READWRITE, &iterator);
+		r = package_openiterator(t, READWRITE, true, &iterator);
 		RET_UPDATE(result, r);
 		if (RET_WAS_ERROR(r))
 			return result;

@@ -76,7 +76,7 @@ static retvalue collect_source_versions(struct distribution *d, struct info_sour
 	for (t = d->targets ; t != NULL ; t = t->next) {
 		if (t->architecture != architecture_source)
 			continue;
-		r = package_openiterator(t, true, &cursor);
+		r = package_openiterator(t, true, true, &cursor);
 		if (RET_WAS_ERROR(r)) {
 			RET_UPDATE(result, r);
 			break;
@@ -196,7 +196,7 @@ static retvalue process_binaries(struct distribution *d, struct info_source *sou
 	for (t = d->targets ; t != NULL ; t = t->next) {
 		if (t->architecture == architecture_source)
 			continue;
-		r = package_openiterator(t, true, &cursor);
+		r = package_openiterator(t, true, true, &cursor);
 		if (RET_WAS_ERROR(r)) {
 			RET_UPDATE(result, r);
 			break;
