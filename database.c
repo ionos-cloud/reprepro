@@ -283,10 +283,17 @@ static retvalue database_opentable(const char *filename, /*@null@*/const char *s
 		fprintf(stderr, "db_create: %s\n", db_strerror(dbret));
 		return RET_DBERR(dbret);
 	}
-	if (type == dbt_BTREEDUP || type == dbt_BTREEPAIRS || type == dbt_BTREEVERSIONS) {
+	if (type == dbt_BTREEPAIRS || type == dbt_BTREEVERSIONS) {
 		dbret = table->set_flags(table, DB_DUPSORT);
 		if (dbret != 0) {
 			table->err(table, dbret, "db_set_flags(DB_DUPSORT):");
+			(void)table->close(table, 0);
+			return RET_DBERR(dbret);
+		}
+	} else if (type == dbt_BTREEDUP) {
+		dbret = table->set_flags(table, DB_DUP);
+		if (dbret != 0) {
+			table->err(table, dbret, "db_set_flags(DB_DUP):");
 			(void)table->close(table, 0);
 			return RET_DBERR(dbret);
 		}
