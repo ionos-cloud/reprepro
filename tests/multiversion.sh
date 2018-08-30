@@ -337,4 +337,15 @@ icinga-stretch|main|$ARCH: hello 2.9-10
 icinga-stretch|main|$ARCH: hello 2.9-2" "$($REPREPRO -b $REPO list icinga-stretch)"
 }
 
+test_includedsc_sources() {
+	call $REPREPRO $VERBOSE_ARGS -b $REPO -C main includedsc buster $PKGS/hello_2.9-1.dsc
+	call $REPREPRO $VERBOSE_ARGS -b $REPO -C main includedsc buster $PKGS/hello_2.9-2.dsc
+	assertEquals "\
+buster|main|source: hello 2.9-2
+buster|main|source: hello 2.9-1" "$($REPREPRO -b $REPO list buster)"
+
+	call $REPREPRO $VERBOSE_ARGS -b $REPO removesrc buster hello 2.9-1
+	assertEquals "buster|main|source: hello 2.9-2" "$($REPREPRO -b $REPO list buster)"
+}
+
 . shunit2
