@@ -19,6 +19,7 @@ set -u
 
 oneTimeSetUp() {
 	for revision in 1 2 2+deb8u1 10; do
+		mkdir -p "$PKGS"
 		(cd $PKGS && PACKAGE=hello SECTION=main DISTRI=buster EPOCH="" VERSION=2.9 REVISION=-$revision ../genpackage.sh)
 	done
 }
