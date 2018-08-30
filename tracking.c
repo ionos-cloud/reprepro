@@ -1198,8 +1198,8 @@ static retvalue targetremovesourcepackage(trackingdb t, struct trackedpackage *p
 	component_len = strlen(component);
 	arch_len = strlen(architecture);
 	for (i = 0 ; i < pkg->filekeys.count ; i++) {
-		const char *s, *basefilename, *filekey = pkg->filekeys.values[i];
-		char *packagename;
+		const char *s, *s2, *basefilename, *filekey = pkg->filekeys.values[i];
+		char *packagename, *packageversion;
 		struct package package;
 		struct strlist filekeys;
 		bool savedstaletracking;
@@ -1254,9 +1254,14 @@ static retvalue targetremovesourcepackage(trackingdb t, struct trackedpackage *p
 		packagename = strndup(basefilename, s - basefilename);
 		if (FAILEDTOALLOC(packagename))
 			return RET_ERROR_OOM;
-		r = package_get(target, packagename, NULL, &package);
+		s2 = strrchr(s, '.');
+		packageversion = strndup(s + 1, s2 - s - 1);
+		if (FAILEDTOALLOC(packageversion))
+			return RET_ERROR_OOM;
+		r = package_get(target, packagename, packageversion, &package);
 		if (RET_WAS_ERROR(r)) {
 			free(packagename);
+			free(packageversion);
 			return r;
 		}
 		if (r == RET_NOTHING) {
@@ -1264,16 +1269,18 @@ static retvalue targetremovesourcepackage(trackingdb t, struct trackedpackage *p
 			    && verbose >= -1) {
 				fprintf(stderr,
 "Warning: tracking data might be inconsistent:\n"
-"cannot find '%s' in '%s', but '%s' should be there.\n",
-						packagename, target->identifier,
+"cannot find '%s=%s' in '%s', but '%s' should be there.\n",
+						packagename, packageversion, target->identifier,
 						filekey);
 			}
 			free(packagename);
+			free(packageversion);
 			continue;
 		}
 		// TODO: ugly
 		package.pkgname = packagename;
 		packagename = NULL;
+		free(packageversion);
 
 		r = package_getsource(&package);
 		assert (r != RET_NOTHING);
