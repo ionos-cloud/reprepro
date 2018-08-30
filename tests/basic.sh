@@ -99,7 +99,7 @@ test_limit() {
 test_older_version() {
 	cat >> $REPO/conf/incoming <<EOF
 Name: buster-upload
-IncomingDir: ../testpkgs
+IncomingDir: incoming
 TempDir: tmp
 Allow: buster
 Permit: older_version
@@ -107,8 +107,11 @@ EOF
 	echo "Limit: 3" >> $REPO/conf/distributions
 	(cd $PKGS && PACKAGE=hello SECTION=main DISTRI=buster VERSION=2.9 REVISION=-1 ../genpackage.sh)
 	(cd $PKGS && PACKAGE=hello SECTION=main DISTRI=buster VERSION=2.9 REVISION=-2 ../genpackage.sh)
+	mkdir -p "$REPO/incoming"
+	cp "$PKGS/hello_2.9-2_${ARCH}.changes" "$PKGS/hello-addons_2.9-2_all.deb" "$PKGS/hello_2.9-2_${ARCH}.deb" "$PKGS/hello_2.9-2.dsc" "$PKGS/hello_2.9.orig.tar.gz" "$PKGS/hello_2.9-2.debian.tar.xz" "$REPO/incoming"
 	call $REPREPRO $VERBOSE_ARGS -b $REPO processincoming buster-upload hello_2.9-2_${ARCH}.changes
 	assertEquals "hello | 2.9-2 | buster | $ARCH, source" "$($REPREPRO -b $REPO ls hello)"
+	cp "$PKGS/hello_2.9-1_${ARCH}.changes" "$PKGS/hello-addons_2.9-1_all.deb" "$PKGS/hello_2.9-1_${ARCH}.deb" "$PKGS/hello_2.9-1.dsc" "$PKGS/hello_2.9.orig.tar.gz" "$PKGS/hello_2.9-1.debian.tar.xz" "$REPO/incoming"
 	call $REPREPRO $VERBOSE_ARGS -b $REPO processincoming buster-upload hello_2.9-1_${ARCH}.changes
 	assertEquals "\
 hello | 2.9-2 | buster | $ARCH, source
@@ -121,7 +124,7 @@ test_too_old_version() {
 	# in the archive.
 	cat >> $REPO/conf/incoming <<EOF
 Name: buster-upload
-IncomingDir: ../testpkgs
+IncomingDir: incoming
 TempDir: tmp
 Allow: buster
 Permit: older_version
@@ -129,8 +132,11 @@ EOF
 	echo "Limit: 1" >> $REPO/conf/distributions
 	(cd $PKGS && PACKAGE=hello SECTION=main DISTRI=buster VERSION=2.9 REVISION=-1 ../genpackage.sh)
 	(cd $PKGS && PACKAGE=hello SECTION=main DISTRI=buster VERSION=2.9 REVISION=-2 ../genpackage.sh)
+	mkdir -p "$REPO/incoming"
+	cp "$PKGS/hello_2.9-2_${ARCH}.changes" "$PKGS/hello-addons_2.9-2_all.deb" "$PKGS/hello_2.9-2_${ARCH}.deb" "$PKGS/hello_2.9-2.dsc" "$PKGS/hello_2.9.orig.tar.gz" "$PKGS/hello_2.9-2.debian.tar.xz" "$REPO/incoming"
 	call $REPREPRO $VERBOSE_ARGS -b $REPO processincoming buster-upload hello_2.9-2_${ARCH}.changes
 	assertEquals "hello | 2.9-2 | buster | $ARCH, source" "$($REPREPRO -b $REPO ls hello)"
+	cp "$PKGS/hello_2.9-1_${ARCH}.changes" "$PKGS/hello-addons_2.9-1_all.deb" "$PKGS/hello_2.9-1_${ARCH}.deb" "$PKGS/hello_2.9-1.dsc" "$PKGS/hello_2.9.orig.tar.gz" "$PKGS/hello_2.9-1.debian.tar.xz" "$REPO/incoming"
 	call $REPREPRO $VERBOSE_ARGS -b $REPO processincoming buster-upload hello_2.9-1_${ARCH}.changes
 	assertEquals "hello | 2.9-2 | buster | $ARCH, source" "$($REPREPRO -b $REPO ls hello)"
 }
@@ -197,7 +203,8 @@ Source: sl
 Version: 3.03-1
 Files:
  pool/main/s/sl/sl_3.03-1.dsc s 0
- pool/main/s/sl/sl_3.03-1.tar.gz s 0
+ pool/main/s/sl/sl_3.03.orig.tar.gz s 0
+ pool/main/s/sl/sl_3.03-1.debian.tar.xz s 0
  pool/main/s/sl/sl_3.03-1_$ARCH.deb b 0
  pool/main/s/sl/sl-addons_3.03-1_all.deb a 1
 
@@ -207,7 +214,8 @@ Version: 3.03-1
 Files:
  pool/main/s/sl/sl_3.03-1_$ARCH.deb b 1
  pool/main/s/sl/sl_3.03-1.dsc s 1
- pool/main/s/sl/sl_3.03-1.tar.gz s 1" "$($REPREPRO -b $REPO dumptracks)"
+ pool/main/s/sl/sl_3.03.orig.tar.gz s 1
+ pool/main/s/sl/sl_3.03-1.debian.tar.xz s 1" "$($REPREPRO -b $REPO dumptracks)"
 }
 
 test_movesrc() {
