@@ -1327,7 +1327,7 @@ retvalue table_addrecord(struct table *table, const char *key, const char *data,
 	SETDBT(Key, key);
 	SETDBTl(Data, data, datalen + 1);
 	dbret = table->berkeleydb->put(table->berkeleydb, NULL,
-			&Key, &Data, DB_NODUPDATA ? ISSET(table->flags, DB_DUPSORT) : 0);
+			&Key, &Data, ISSET(table->flags, DB_DUPSORT) ? DB_NODUPDATA : 0);
 	if (dbret != 0 && !(ignoredups && dbret == DB_KEYEXIST)) {
 		table_printerror(table, dbret, "put");
 		return RET_DBERR(dbret);
