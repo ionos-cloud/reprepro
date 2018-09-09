@@ -138,7 +138,7 @@ retvalue sources_getarchitecture(UNUSED(const char *chunk), architecture_t *arch
 	return RET_OK;
 }
 
-retvalue sources_getinstalldata(const struct target *t, const struct package *package, char **control, struct strlist *filekeys, struct checksumsarray *origfiles) {
+retvalue sources_getinstalldata(const struct target *t, struct package *package, char **control, struct strlist *filekeys, struct checksumsarray *origfiles) {
 	retvalue r;
 	char *origdirectory, *directory, *mychunk;
 	struct strlist myfilekeys;

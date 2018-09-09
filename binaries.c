@@ -121,39 +121,28 @@ retvalue binaries_getarchitecture(const char *chunk, architecture_t *architectur
 
 /* get somefields out of a "Packages.gz"-chunk.
  * returns RET_OK on success, RET_NOTHING if incomplete, error otherwise */
-static retvalue binaries_parse_chunk(const char *chunk, const char *packagename, packagetype_t packagetype, architecture_t package_architecture, const char *version, /*@out@*/char **sourcename_p, /*@out@*/char **basename_p) {
+static retvalue binaries_calc_basename(struct package *package, /*@out@*/char **basename_p) {
 	retvalue r;
-	char *mysourcename, *mybasename;
+	char *mybasename;
 
-	assert(packagename!=NULL);
+	assert (package->name != NULL);
+	assert (package->version != NULL);
 
-	/* get the sourcename */
-	r = chunk_getname(chunk, "Source", &mysourcename, true);
-	if (r == RET_NOTHING) {
-		mysourcename = strdup(packagename);
-		if (FAILEDTOALLOC(mysourcename))
-			r = RET_ERROR_OOM;
-	}
-	if (RET_WAS_ERROR(r)) {
-		return r;
-	}
-
-	r = properpackagename(packagename);
+	r = properpackagename(package->name);
 	if (!RET_WAS_ERROR(r))
-		r = properversion(version);
+		r = properversion(package->version);
 	if (RET_WAS_ERROR(r)) {
-		free(mysourcename);
 		return r;
 	}
-	mybasename = calc_binary_basename(packagename, version,
-			package_architecture, packagetype);
+	mybasename = calc_binary_basename(package->name,
+			package->version,
+			package->architecture,
+			package->target->packagetype);
 	if (FAILEDTOALLOC(mybasename)) {
-		free(mysourcename);
 		return RET_ERROR_OOM;
 	}
 
 	*basename_p = mybasename;
-	*sourcename_p = mysourcename;
 	return RET_OK;
 }
 
@@ -232,29 +221,29 @@ retvalue binaries_getversion(const char *control, char **version) {
 	return r;
 }
 
-retvalue binaries_getinstalldata(const struct target *t, const struct package *package, char **control, struct strlist *filekeys, struct checksumsarray *origfiles) {
-	char *sourcename, *basefilename;
+retvalue binaries_getinstalldata(const struct target *t, struct package *package, char **control, struct strlist *filekeys, struct checksumsarray *origfiles) {
+	char *basefilename;
 	struct checksumsarray origfilekeys;
 	retvalue r;
 	const char *chunk = package->control;
 
-	r = binaries_parse_chunk(chunk, package->name,
-			t->packagetype, package->architecture,
-			package->version, &sourcename, &basefilename);
-	if (RET_WAS_ERROR(r)) {
+	assert (t->packagetype == package->target->packagetype);
+
+	r = package_getsource(package);
+	if (RET_WAS_ERROR(r))
 		return r;
-	} else if (r == RET_NOTHING) {
-		fprintf(stderr, "Does not look like a binary package: '%s'!\n",
-				chunk);
+
+	r = binaries_calc_basename(package, &basefilename);
+	if (RET_WAS_ERROR(r))
 		return RET_ERROR;
-	}
 	r = binaries_getchecksums(chunk, &origfilekeys);
 	if (RET_WAS_ERROR(r)) {
-		free(sourcename); free(basefilename);
+		free(basefilename);
 		return r;
 	}
 
-	r = calcnewcontrol(chunk, package->name, sourcename, basefilename,
+	r = calcnewcontrol(chunk, package->name, package->source,
+			basefilename,
 			t->component, filekeys, control);
 	if (RET_WAS_ERROR(r)) {
 		checksumsarray_done(&origfilekeys);
@@ -262,7 +251,7 @@ retvalue binaries_getinstalldata(const struct target *t, const struct package *p
 		assert (r != RET_NOTHING);
 		checksumsarray_move(origfiles, &origfilekeys);
 	}
-	free(sourcename); free(basefilename);
+	free(basefilename);
 	return r;
 }
 
@@ -793,4 +782,3 @@ retvalue binaries_calcfilekeys(component_t component, const struct deb_headers *
 	free(basefilename);
 	return r;
 }
-

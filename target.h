@@ -29,7 +29,7 @@ struct alloverrides;
 typedef retvalue get_version(const char *, /*@out@*/char **);
 typedef retvalue get_architecture(const char *, /*@out@*/architecture_t *);
 struct package;
-typedef retvalue get_installdata(const struct target *, const struct package *, /*@out@*/char **, /*@out@*/struct strlist *, /*@out@*/struct checksumsarray *);
+typedef retvalue get_installdata(const struct target *, struct package *, /*@out@*/char **, /*@out@*/struct strlist *, /*@out@*/struct checksumsarray *);
 /* md5sums may be NULL */
 typedef retvalue get_filekeys(const char *, /*@out@*/struct strlist *);
 typedef retvalue get_checksums(const char *, /*@out@*/struct checksumsarray *);
