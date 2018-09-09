@@ -672,7 +672,7 @@ static retvalue startchild(void) {
 	return RET_OK;
 }
 
-static retvalue notificator_enqueuechanges(struct notificator *n, const char *codename, const char *name, const char *version, const char *changeschunk, const char *safefilename, /*@null@*/const char *filekey) {
+static retvalue notificator_enqueuechanges(struct notificator *n, const char *codename, const char *name, const char *version, const char *safefilename, /*@null@*/const char *filekey) {
 	size_t count, i, j;
 	char **arguments;
 	struct notification_process *p;
@@ -744,16 +744,13 @@ static retvalue notificator_enqueuechanges(struct notificator *n, const char *co
 	p->datalen = 0;
 	p->datasent = 0;
 	p->data = NULL;
-	// TODO: implement --withcontrol
-	// until that changeschunk is not yet needed:
-	changeschunk = changeschunk;
 
 	if (runningchildren() < 1)
 		startchild();
 	return RET_OK;
 }
 
-static retvalue notificator_enqueue(struct notificator *n, struct target *target, const char *name, /*@null@*/const char *version, /*@null@*/const char *oldversion, /*@null@*/const char *control, /*@null@*/const char *oldcontrol, /*@null@*/const struct strlist *filekeys, /*@null@*/const struct strlist *oldfilekeys, bool renotification, /*@null@*/const char *causingrule, /*@null@*/ const char *suitefrom) {
+static retvalue notificator_enqueue(struct notificator *n, struct target *target, const char *name, /*@null@*/const char *version, /*@null@*/const char *oldversion, /*@null@*/const struct strlist *filekeys, /*@null@*/const struct strlist *oldfilekeys, bool renotification, /*@null@*/const char *causingrule, /*@null@*/ const char *suitefrom) {
 	size_t count, i;
 	char **arguments;
 	const char *action = NULL;
@@ -909,9 +906,6 @@ static retvalue notificator_enqueue(struct notificator *n, struct target *target
 	p->datalen = 0;
 	p->datasent = 0;
 	p->data = NULL;
-	// TODO: implement --withcontrol
-	// until that control is not yet needed:
-	control = control; oldcontrol = oldcontrol;
 	if (runningchildren() < 1)
 		startchild();
 	return RET_OK;
@@ -1073,16 +1067,10 @@ bool logger_isprepared(/*@null@*/const struct logger *logger) {
 	return true;
 }
 
-void logger_log(struct logger *log, struct target *target, const char *name, const char *version, const char *oldversion, const char *control, const char *oldcontrol, const struct strlist *filekeys, const struct strlist *oldfilekeys, const char *causingrule, const char *suitefrom) {
+void logger_log(struct logger *log, struct target *target, const char *name, const char *version, const char *oldversion, const struct strlist *filekeys, const struct strlist *oldfilekeys, const char *causingrule, const char *suitefrom) {
 	size_t i;
 
 	assert (name != NULL);
-	assert (control != NULL || oldcontrol != NULL);
-
-	assert (version != NULL || control == NULL);
-	/* so that a replacement can be detected by existence of oldversion */
-	if (oldcontrol != NULL && oldversion == NULL)
-		oldversion = "#unparseable#";
 
 	assert (version != NULL || oldversion != NULL);
 
@@ -1091,13 +1079,12 @@ void logger_log(struct logger *log, struct target *target, const char *name, con
 	for (i = 0 ; i < log->notificator_count ; i++) {
 		notificator_enqueue(&log->notificators[i], target,
 				name, version, oldversion,
-				control, oldcontrol,
 				filekeys, oldfilekeys, false,
 				causingrule, suitefrom);
 	}
 }
 
-void logger_logchanges(struct logger *log, const char *codename, const char *name, const char *version, const char *data, const char *safefilename, const char *changesfilekey) {
+void logger_logchanges(struct logger *log, const char *codename, const char *name, const char *version, const char *safefilename, const char *changesfilekey) {
 	size_t i;
 
 	assert (name != NULL);
@@ -1108,7 +1095,7 @@ void logger_logchanges(struct logger *log, const char *codename, const char *nam
 
 	for (i = 0 ; i < log->notificator_count ; i++) {
 		notificator_enqueuechanges(&log->notificators[i], codename,
-				name, version, data, safefilename,
+				name, version, safefilename,
 				changesfilekey);
 	}
 }
@@ -1131,20 +1118,18 @@ bool logger_rerun_needs_target(const struct logger *logger, const struct target 
 	return false;
 }
 
-retvalue logger_reruninfo(struct logger *logger, struct target *target, const char *name, const char *version, const char *control, /*@null@*/const struct strlist *filekeys) {
+retvalue logger_reruninfo(struct logger *logger, struct target *target, const char *name, const char *version, /*@null@*/const struct strlist *filekeys) {
 	retvalue result, r;
 	size_t i;
 
 	assert (name != NULL);
 	assert (version != NULL);
-	assert (control != NULL);
 
 	result = RET_NOTHING;
 
 	for (i = 0 ; i < logger->notificator_count ; i++) {
 		r = notificator_enqueue(&logger->notificators[i], target,
 				name, version, NULL,
-				control, NULL,
 				filekeys, NULL, true,
 				NULL, NULL);
 		RET_UPDATE(result, r);

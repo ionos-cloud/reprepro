@@ -256,8 +256,10 @@ retvalue package_remove(struct package *old, struct logger *logger, struct track
 			old->target->staletracking = true;
 		if (logger != NULL)
 			logger_log(logger, old->target, old->name,
-					NULL, old->version,
-					NULL, old->control,
+					NULL,
+					(old->version == NULL)
+						? "#unparseable#"
+						: old->version,
 					NULL, &files,
 					NULL, NULL);
 		r = references_delete(old->target->identifier, &files, NULL);
@@ -325,8 +327,10 @@ retvalue package_remove_by_cursor(struct package_cursor *tc, struct logger *logg
 			old->target->staletracking = true;
 		if (logger != NULL)
 			logger_log(logger, old->target, old->name,
-					NULL, old->version,
-					NULL, old->control,
+					NULL,
+					(old->version == NULL)
+						? "#unparseable"
+						: old->version,
 					NULL, &files,
 					NULL, NULL);
 		r = references_delete(old->target->identifier, &files, NULL);
@@ -376,11 +380,13 @@ static retvalue addpackages(struct target *target, const char *packagename, cons
 		return result;
 	}
 
-	if (logger != NULL)
+	if (logger != NULL) {
+		if (oldversion == NULL && oldcontrolchunk != NULL)
+			oldversion = "#unparseable";
 		logger_log(logger, target, packagename,
 				version, oldversion,
-				controlchunk, oldcontrolchunk,
 				files, oldfiles, causingrule, suitefrom);
+	}
 
 	r = trackingdata_insert(trackingdata, filetype, files,
 			oldsource, oldsversion, oldfiles);
@@ -913,7 +919,7 @@ retvalue package_rerunnotifiers(struct package *package, UNUSED(void *data)) {
 		return r;
 	}
 	r = logger_reruninfo(logger, target, package->name, package->version,
-			package->control, &filekeys);
+			&filekeys);
 	strlist_done(&filekeys);
 	return r;
 }

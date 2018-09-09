@@ -1577,7 +1577,6 @@ retvalue changes_add(trackingdb const tracks, const struct atomlist *packagetype
 		assert (logger_isprepared(distribution->logger));
 		logger_logchanges(distribution->logger, distribution->codename,
 			changes->source, changes->changesversion,
-			changes->control,
 			changesfilename, changes->changesfilekey);
 	}
 	/* wait for notify scripts (including those for the packages)

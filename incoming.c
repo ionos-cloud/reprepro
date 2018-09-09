@@ -2268,7 +2268,7 @@ static retvalue candidate_really_add(struct incoming *i, struct candidate *c) {
 		} else if (d->byhandhookstocall == NULL)
 			continue;
 		logger_logchanges(into->logger, into->codename,
-				c->source, c->changesversion, c->control,
+				c->source, c->changesversion,
 				changesfile(c)->tempfilename, changesfilekey);
 	}
 	return RET_OK;
