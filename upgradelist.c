@@ -317,8 +317,7 @@ static retvalue upgradelist_trypackage(struct upgradelist *upgrade, void *privda
 		new->architecture = package->architecture;
 		version = NULL; //to be sure...
 		r = upgrade->target->getinstalldata(upgrade->target,
-				new->name, new->new_version,
-				new->architecture, package->control,
+				package,
 				&new->new_control, &new->new_filekeys,
 				&new->new_origfiles);
 		if (RET_WAS_ERROR(r)) {
@@ -447,8 +446,7 @@ static retvalue upgradelist_trypackage(struct upgradelist *upgrade, void *privda
 
 		current->architecture = package->architecture;
 		r = upgrade->target->getinstalldata(upgrade->target,
-				package->name, version,
-				package->architecture, package->control,
+				package,
 				&control, &files, &origfiles);
 		if (RET_WAS_ERROR(r)) {
 			free(version);

@@ -182,8 +182,7 @@ static retvalue list_prepareadd(struct package_list *list, struct target *target
 	assert (new != NULL);
 
 	new->architecture = package->architecture;
-	r = target->getinstalldata(target, new->name, new->version,
-			new->architecture, package->control,
+	r = target->getinstalldata(target, package,
 			&new->control, &new->filekeys, &new->origfiles);
 	assert (r != RET_NOTHING);
 	if (RET_WAS_ERROR(r)) {

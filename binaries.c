@@ -36,6 +36,7 @@
 #include "override.h"
 #include "tracking.h"
 #include "debfile.h"
+#include "package.h"
 
 static const char * const deb_checksum_headers[cs_COUNT] = {
 	"MD5sum", "SHA1", "SHA256", "Size"};
@@ -231,14 +232,15 @@ retvalue binaries_getversion(const char *control, char **version) {
 	return r;
 }
 
-retvalue binaries_getinstalldata(const struct target *t, const char *packagename, const char *version, architecture_t package_architecture, const char *chunk, char **control, struct strlist *filekeys, struct checksumsarray *origfiles) {
+retvalue binaries_getinstalldata(const struct target *t, const struct package *package, char **control, struct strlist *filekeys, struct checksumsarray *origfiles) {
 	char *sourcename, *basefilename;
 	struct checksumsarray origfilekeys;
 	retvalue r;
+	const char *chunk = package->control;
 
-	r = binaries_parse_chunk(chunk, packagename,
-			t->packagetype, package_architecture,
-			version, &sourcename, &basefilename);
+	r = binaries_parse_chunk(chunk, package->name,
+			t->packagetype, package->architecture,
+			package->version, &sourcename, &basefilename);
 	if (RET_WAS_ERROR(r)) {
 		return r;
 	} else if (r == RET_NOTHING) {
@@ -252,7 +254,7 @@ retvalue binaries_getinstalldata(const struct target *t, const char *packagename
 		return r;
 	}
 
-	r = calcnewcontrol(chunk, packagename, sourcename, basefilename,
+	r = calcnewcontrol(chunk, package->name, sourcename, basefilename,
 			t->component, filekeys, control);
 	if (RET_WAS_ERROR(r)) {
 		checksumsarray_done(&origfilekeys);

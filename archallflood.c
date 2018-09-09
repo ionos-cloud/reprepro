@@ -443,8 +443,7 @@ static retvalue floodlist_trypackage(struct floodlist *list, struct package *pac
 			return RET_ERROR_OOM;
 		}
 		r = list->target->getinstalldata(list->target,
-				new->name, new->new_version,
-				architecture_all, package->control,
+				package,
 				&new->new_control, &new->new_filekeys,
 				&new->new_origfiles);
 		if (RET_WAS_ERROR(r)) {
@@ -525,8 +524,7 @@ static retvalue floodlist_trypackage(struct floodlist *list, struct package *pac
 			return RET_ERROR_OOM;
 
 		r = list->target->getinstalldata(list->target,
-				package->name, package->version,
-				architecture_all, package->control,
+				package,
 				&control, &files, &origfiles);
 		if (RET_WAS_ERROR(r)) {
 			free(new_version);
