@@ -2545,7 +2545,6 @@ static retvalue repair_descriptions(struct target *target) {
 		/* replace it by itself to normalize the Description field */
                 r = description_addpackage(target, iterator.current.name,
 				iterator.current.control,
-				iterator.current.control, NULL,
 				&newcontrolchunk);
                 RET_UPDATE(result, r);
                 if (RET_WAS_ERROR(r))

@@ -99,7 +99,7 @@ static void description_genmd5(const char *description, /*@out@*/ char *d, size_
  * the cached description is not yet used, long descriptions are not stored elsewhere
  * and thus also no reference counting is done. */
 
-retvalue description_addpackage(struct target *target, const char *package, const char *control, const char *oldcontrol, struct description *cached, char **control_p) {
+retvalue description_addpackage(struct target *target, const char *package, const char *control, char **control_p) {
 	char *description, *description_md5, *deb_description, *newcontrol;
 	struct fieldtoadd *todo;
 	size_t dlen;
@@ -199,9 +199,4 @@ retvalue description_addpackage(struct target *target, const char *package, cons
 		return RET_ERROR_OOM;
 	*control_p = newcontrol;
 	return RET_OK;
-}
-
-retvalue description_preparepackage(UNUSED(struct target *target), UNUSED(const char *package), UNUSED(const char *control), UNUSED(struct description **description_p)) {
-	/* everything yet done in description_addpackage */
-	return RET_NOTHING;
 }

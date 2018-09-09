@@ -60,8 +60,6 @@ struct package_data {
 	/* the list of files that will belong to this:
 	 * same validity */
 	struct strlist new_filekeys;
-	/* cache/info what description is needed for this */
-	struct description *description;
 	struct checksumsarray new_origfiles;
 	/* to destinguish arch all from not arch all */
 	architecture_t architecture;
@@ -703,8 +701,7 @@ retvalue upgradelist_install(struct upgradelist *upgrade, struct logger *logger,
 						pkg->new_control,
 						&pkg->new_filekeys, true,
 						NULL, pkg->architecture,
-						causingrule, suitefrom,
-						pkg->description);
+						causingrule, suitefrom);
 			}
 			RET_UPDATE(result, r);
 			if (RET_WAS_ERROR(r))

@@ -403,7 +403,7 @@ static retvalue addpackages(struct target *target, const char *packagename, cons
 	return result;
 }
 
-retvalue target_addpackage(struct target *target, struct logger *logger, const char *name, const char *version, const char *control, const struct strlist *filekeys, bool downgrade, struct trackingdata *trackingdata, architecture_t architecture, const char *causingrule, const char *suitefrom, struct description *description) {
+retvalue target_addpackage(struct target *target, struct logger *logger, const char *name, const char *version, const char *control, const struct strlist *filekeys, bool downgrade, struct trackingdata *trackingdata, architecture_t architecture, const char *causingrule, const char *suitefrom) {
 	struct strlist oldfilekeys, *ofk;
 	char *newcontrol;
 	struct package old;
@@ -490,8 +490,7 @@ retvalue target_addpackage(struct target *target, struct logger *logger, const c
 
 	}
 	newcontrol = NULL;
-	r = description_addpackage(target, name, control, old.control,
-			description, &newcontrol);
+	r = description_addpackage(target, name, control, &newcontrol);
 	if (RET_IS_OK(r))
 		control = newcontrol;
 	if (!RET_WAS_ERROR(r))

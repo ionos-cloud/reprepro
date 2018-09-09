@@ -675,7 +675,7 @@ retvalue binaries_adddeb(const struct deb_headers *deb, const struct atomlist *f
 						false,
 						trackingdata,
 						deb->architecture,
-						NULL, NULL, NULL);
+						NULL, NULL);
 			r2 = target_closepackagesdb(t);
 			RET_ENDUPDATE(r, r2);
 		}
@@ -717,7 +717,7 @@ retvalue binaries_adddeb(const struct deb_headers *deb, const struct atomlist *f
 						false,
 						trackingdata,
 						deb->architecture,
-						NULL, NULL, NULL);
+						NULL, NULL);
 			r2 = target_closepackagesdb(t);
 			RET_ENDUPDATE(r, r2);
 		}
