@@ -340,7 +340,7 @@ retvalue package_remove_by_cursor(struct package_cursor *tc, struct logger *logg
 	return result;
 }
 
-static retvalue addpackages(struct target *target, const char *packagename, const char *controlchunk, /*@null@*/const char *oldcontrolchunk, const char *version, /*@null@*/const char *oldversion, const struct strlist *files, /*@only@*//*@null@*/struct strlist *oldfiles, /*@null@*/struct logger *logger, /*@null@*/struct trackingdata *trackingdata, architecture_t architecture, /*@null@*/const char *oldsource, /*@null@*/const char *oldsversion, /*@null@*/const char *causingrule, /*@null@*/const char *suitefrom) {
+static retvalue addpackages(struct target *target, const char *packagename, const char *controlchunk, const char *version, const struct strlist *files, /*@null@*/const struct package *old, /*@only@*//*@null@*/struct strlist *oldfiles, /*@null@*/struct logger *logger, /*@null@*/struct trackingdata *trackingdata, architecture_t architecture, /*@null@*/const char *causingrule, /*@null@*/const char *suitefrom) {
 
 	retvalue result, r;
 	struct table *table = target->packages;
@@ -367,7 +367,7 @@ static retvalue addpackages(struct target *target, const char *packagename, cons
 
 	/* Add package to the distribution's database */
 
-	if (oldcontrolchunk != NULL) {
+	if (old != NULL) {
 		result = table_replacerecord(table, packagename, controlchunk);
 
 	} else {
@@ -381,16 +381,25 @@ static retvalue addpackages(struct target *target, const char *packagename, cons
 	}
 
 	if (logger != NULL) {
-		if (oldversion == NULL && oldcontrolchunk != NULL)
-			oldversion = "#unparseable";
 		logger_log(logger, target, packagename,
-				version, oldversion,
+				version,
+				/* the old version, NULL if there is
+				 * no old package,
+				 * "#unparseable" if there is old but
+				 * no version available */
+				(old==NULL)
+				? NULL
+				: (old->version == NULL)
+				  ? "#unparseable"
+				  : old->version,
 				files, oldfiles, causingrule, suitefrom);
 	}
 
-	r = trackingdata_insert(trackingdata, filetype, files,
-			oldsource, oldsversion, oldfiles);
-	RET_UPDATE(result, r);
+	if (trackingdata != NULL) {
+		r = trackingdata_insert(trackingdata,
+			filetype, files, old, oldfiles);
+		RET_UPDATE(result, r);
+	}
 
 	/* remove old references to files */
 
@@ -406,7 +415,7 @@ static retvalue addpackages(struct target *target, const char *packagename, cons
 retvalue target_addpackage(struct target *target, struct logger *logger, const char *name, const char *version, const char *control, const struct strlist *filekeys, bool downgrade, struct trackingdata *trackingdata, architecture_t architecture, const char *causingrule, const char *suitefrom) {
 	struct strlist oldfilekeys, *ofk;
 	char *newcontrol;
-	struct package old;
+	struct package old, *old_p;
 	retvalue r;
 
 	assert(target->packages!=NULL);
@@ -415,9 +424,11 @@ retvalue target_addpackage(struct target *target, struct logger *logger, const c
 	if (RET_WAS_ERROR(r))
 		return r;
 	if (r == RET_NOTHING) {
+		old_p = NULL;
 		ofk = NULL;
 		setzero(struct package, &old);
 	} else {
+		old_p = &old;
 		r = package_getversion(&old);
 		if (RET_WAS_ERROR(r) && !IGNORING(brokenold,
 "Error parsing old version!\n")) {
@@ -494,12 +505,12 @@ retvalue target_addpackage(struct target *target, struct logger *logger, const c
 	if (RET_IS_OK(r))
 		control = newcontrol;
 	if (!RET_WAS_ERROR(r))
-		r = addpackages(target, name, control, old.control,
-			version, old.version,
-			filekeys, ofk,
+		r = addpackages(target, name, control,
+			version,
+			filekeys,
+			old_p, ofk,
 			logger,
 			trackingdata, architecture,
-			old.source, old.sourceversion,
 			causingrule, suitefrom);
 	if (RET_IS_OK(r)) {
 		target->wasmodified = true;
