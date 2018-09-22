@@ -340,7 +340,7 @@ retvalue package_remove_by_cursor(struct package_cursor *tc, struct logger *logg
 	return result;
 }
 
-static retvalue addpackages(struct target *target, const char *packagename, const char *controlchunk, const char *version, const struct strlist *files, /*@null@*/const struct package *old, /*@only@*//*@null@*/struct strlist *oldfiles, /*@null@*/struct logger *logger, /*@null@*/struct trackingdata *trackingdata, architecture_t architecture, /*@null@*/const char *causingrule, /*@null@*/const char *suitefrom) {
+static retvalue addpackages(struct target *target, const char *packagename, const char *controlchunk, const char *version, const struct strlist *files, /*@null@*/const struct package *old, /*@null@*/const struct strlist *oldfiles, /*@null@*/struct logger *logger, /*@null@*/struct trackingdata *trackingdata, architecture_t architecture, /*@null@*/const char *causingrule, /*@null@*/const char *suitefrom) {
 
 	retvalue result, r;
 	struct table *table = target->packages;
@@ -359,11 +359,8 @@ static retvalue addpackages(struct target *target, const char *packagename, cons
 
 	r = references_insert(target->identifier, files, oldfiles);
 
-	if (RET_WAS_ERROR(r)) {
-		if (oldfiles != NULL)
-			strlist_done(oldfiles);
+	if (RET_WAS_ERROR(r))
 		return r;
-	}
 
 	/* Add package to the distribution's database */
 
@@ -374,11 +371,8 @@ static retvalue addpackages(struct target *target, const char *packagename, cons
 		result = table_adduniqrecord(table, packagename, controlchunk);
 	}
 
-	if (RET_WAS_ERROR(result)) {
-		if (oldfiles != NULL)
-			strlist_done(oldfiles);
+	if (RET_WAS_ERROR(result))
 		return result;
-	}
 
 	if (logger != NULL) {
 		logger_log(logger, target, packagename,
@@ -406,7 +400,6 @@ static retvalue addpackages(struct target *target, const char *packagename, cons
 	if (oldfiles != NULL) {
 		r = references_delete(target->identifier, oldfiles, files);
 		RET_UPDATE(result, r);
-		strlist_done(oldfiles);
 	}
 
 	return result;
@@ -512,6 +505,8 @@ retvalue target_addpackage(struct target *target, struct logger *logger, const c
 			logger,
 			trackingdata, architecture,
 			causingrule, suitefrom);
+	if (ofk != NULL)
+		strlist_done(ofk);
 	if (RET_IS_OK(r)) {
 		target->wasmodified = true;
 		if (trackingdata == NULL)

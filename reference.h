@@ -30,7 +30,7 @@ retvalue references_add(const char *, const struct strlist *);
 
 /* Remove reference by <identifier> for the given <oldfiles>,
  * excluding <exclude>, if it is nonNULL. */
-retvalue references_delete(const char *, struct strlist *, /*@null@*/const struct strlist * /*exclude*/);
+retvalue references_delete(const char *, const struct strlist *, /*@null@*/const struct strlist * /*exclude*/);
 
 /* add an reference to a file for an identifier. */
 retvalue references_increment(const char * /*needed*/, const char * /*needey*/);
