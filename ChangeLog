@@ -1,3 +1,10 @@
+2018-09-23  Bernhard R. Link <brlink@debian.org>
+	* check command no longer checks if the files
+	  of existing packages are names as they are
+	  expected to be named. (There was no way to
+	  get them wrong apart editing the database and
+	  checking it makes the code more complex).
+
 2018-08-26 Bernhard R. Link <brlink@debian.org>
 	* mark .lz support as deprecated
 

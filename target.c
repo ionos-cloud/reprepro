@@ -668,8 +668,6 @@ retvalue package_referenceforsnapshot(struct package *package, void *data) {
 retvalue package_check(struct package *package, UNUSED(void *pd)) {
 	struct target *target = package->target;
 	struct checksumsarray files;
-	struct strlist expectedfilekeys;
-	char *dummy;
 	retvalue result = RET_OK, r;
 
 	r = package_getversion(package);
@@ -700,39 +698,14 @@ retvalue package_check(struct package *package, UNUSED(void *pd)) {
 				package->name, target->identifier);
 		result = RET_ERROR;
 	}
-	r = target->getinstalldata(target, package->name, package->version,
-			package->architecture, package->control, &dummy,
-			&expectedfilekeys, &files);
+	r = target->getchecksums(package->control, &files);
+	if (r == RET_NOTHING)
+		r = RET_ERROR;
 	if (RET_WAS_ERROR(r)) {
 		fprintf(stderr,
 "Error extracting information of package '%s'!\n",
 				package->name);
-		result = r;
-	}
-	if (RET_IS_OK(r)) {
-		free(dummy);
-		if (!strlist_subset(&expectedfilekeys, &files.names, NULL) ||
-		    !strlist_subset(&expectedfilekeys, &files.names, NULL)) {
-			(void)fprintf(stderr,
-"Reparsing the package information of '%s' yields to the expectation to find:\n",
-					package->name);
-			(void)strlist_fprint(stderr, &expectedfilekeys);
-			(void)fputs("but found:\n", stderr);
-			(void)strlist_fprint(stderr, &files.names);
-			(void)putc('\n', stderr);
-			result = RET_ERROR;
-		}
-		strlist_done(&expectedfilekeys);
-	} else {
-		r = target->getchecksums(package->control, &files);
-		if (r == RET_NOTHING)
-			r = RET_ERROR;
-		if (RET_WAS_ERROR(r)) {
-			fprintf(stderr,
-"Even more errors extracting information of package '%s'!\n",
-					package->name);
-			return r;
-		}
+		return r;
 	}
 
 	if (verbose > 10) {
