@@ -73,7 +73,7 @@ void deb_free(/*@only@*/struct debpackage *pkg) {
 }
 
 /* read the data from a .deb, make some checks and extract some data */
-static retvalue deb_read(/*@out@*/struct debpackage **pkg, const char *filename, bool needssourceversion) {
+static retvalue deb_read(/*@out@*/struct debpackage **pkg, const char *filename) {
 	retvalue r;
 	struct debpackage *deb;
 
@@ -81,12 +81,12 @@ static retvalue deb_read(/*@out@*/struct debpackage **pkg, const char *filename,
 	if (FAILEDTOALLOC(deb))
 		return RET_ERROR_OOM;
 
-	r = binaries_readdeb(&deb->deb, filename, needssourceversion);
+	r = binaries_readdeb(&deb->deb, filename);
 	if (RET_IS_OK(r))
 		r = properpackagename(deb->deb.name);
 	if (RET_IS_OK(r))
 		r = propersourcename(deb->deb.source);
-	if (RET_IS_OK(r) && needssourceversion)
+	if (RET_IS_OK(r))
 		r = properversion(deb->deb.sourceversion);
 	if (RET_IS_OK(r))
 		r = properversion(deb->deb.version);
@@ -240,7 +240,7 @@ retvalue deb_prepare(/*@out@*/struct debpackage **deb, component_t forcecomponen
 
 	/* First taking a closer look in the file: */
 
-	r = deb_read(&pkg, debfilename, true);
+	r = deb_read(&pkg, debfilename);
 	if (RET_WAS_ERROR(r)) {
 		return r;
 	}
@@ -341,7 +341,7 @@ retvalue deb_add(component_t forcecomponent, const struct atomlist *forcearchite
 
 	causingfile = debfilename;
 
-	r = deb_read(&pkg, debfilename, tracks != NULL);
+	r = deb_read(&pkg, debfilename);
 	if (RET_WAS_ERROR(r)) {
 		return r;
 	}

@@ -500,7 +500,7 @@ void binaries_debdone(struct deb_headers *pkg) {
 	free(pkg->priority);
 }
 
-retvalue binaries_readdeb(struct deb_headers *deb, const char *filename, bool needssourceversion) {
+retvalue binaries_readdeb(struct deb_headers *deb, const char *filename) {
 	retvalue r;
 	char *architecture;
 
@@ -538,11 +538,8 @@ retvalue binaries_readdeb(struct deb_headers *deb, const char *filename, bool ne
 	if (RET_WAS_ERROR(r))
 		return r;
 	/* can be there, otherwise we also know what it is */
-	if (needssourceversion)
-		r = chunk_getnameandversion(deb->control, "Source",
-				&deb->source, &deb->sourceversion);
-	else
-		r = chunk_getname(deb->control, "Source", &deb->source, true);
+	r = chunk_getnameandversion(deb->control, "Source",
+			&deb->source, &deb->sourceversion);
 	if (r == RET_NOTHING) {
 		deb->source = strdup(deb->name);
 		if (FAILEDTOALLOC(deb->source))
@@ -550,7 +547,7 @@ retvalue binaries_readdeb(struct deb_headers *deb, const char *filename, bool ne
 	}
 	if (RET_WAS_ERROR(r))
 		return r;
-	if (needssourceversion && deb->sourceversion == NULL) {
+	if (deb->sourceversion == NULL) {
 		deb->sourceversion = strdup(deb->version);
 		if (FAILEDTOALLOC(deb->sourceversion))
 			return RET_ERROR_OOM;

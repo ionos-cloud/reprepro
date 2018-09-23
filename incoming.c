@@ -998,7 +998,7 @@ static retvalue candidate_read_deb(struct incoming *i, struct candidate *c, stru
 	char *base;
 	const char *packagenametocheck;
 
-	r = binaries_readdeb(&file->deb, file->tempfilename, true);
+	r = binaries_readdeb(&file->deb, file->tempfilename);
 	if (RET_WAS_ERROR(r))
 		return r;
 	if (strcmp(file->name, file->deb.name) != 0) {
