@@ -39,7 +39,8 @@ retvalue tracking_printall(trackingdb);
 retvalue trackingdata_summon(trackingdb, const char *, const char *, struct trackingdata *);
 retvalue trackingdata_new(trackingdb, struct trackingdata *);
 retvalue trackingdata_switch(struct trackingdata *, const char *, const char *);
-retvalue trackingdata_insert(struct trackingdata *, enum filetype, const struct strlist * /*filekeys*/, /*@null@*/const char * /*oldsource*/, /*@null@*/const char * /*oldversion*/, /*@null@*/const struct strlist * /*oldfilekeys*/);
+struct package;
+retvalue trackingdata_insert(struct trackingdata *, enum filetype, const struct strlist * /*filekeys*/, /*@null@*/const struct package * /*oldpackage*/, /*@null@*/const struct strlist * /*oldfilekeys*/);
 retvalue trackingdata_remove(struct trackingdata *, const char */*oldsource*/, const char * /*oldversion*/, const struct strlist * /*filekeys*/);
 void trackingdata_done(struct trackingdata *);
 /* like _done but actually do something */

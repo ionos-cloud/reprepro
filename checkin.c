@@ -452,10 +452,16 @@ static retvalue changes_read(const char *filename, /*@out@*/struct changes **cha
 		r = properversion(c->sourceversion);
 		R;
 	}
-	r = chunk_getwordlist(c->control, "Binary", &c->binaries);
-	E("Missing 'Binary' field");
 	r = chunk_getwordlist(c->control, "Architecture", &c->architectures);
 	E("Missing 'Architecture' field");
+	r = chunk_getwordlist(c->control, "Binary", &c->binaries);
+	if (r == RET_NOTHING) {
+		/* this could print a waring if architectures
+		 * contains anything but 'source', but the .deb
+		 * files are checked anyway... */
+		strlist_init(&c->binaries);
+	}
+	R;
 	r = chunk_getvalue(c->control, "Version", &c->changesversion);
 	E("Missing 'Version' field");
 	r = properversion(c->changesversion);
@@ -1577,7 +1583,6 @@ retvalue changes_add(trackingdb const tracks, const struct atomlist *packagetype
 		assert (logger_isprepared(distribution->logger));
 		logger_logchanges(distribution->logger, distribution->codename,
 			changes->source, changes->changesversion,
-			changes->control,
 			changesfilename, changes->changesfilekey);
 	}
 	/* wait for notify scripts (including those for the packages)

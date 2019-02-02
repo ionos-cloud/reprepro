@@ -44,7 +44,7 @@ struct deb_headers {
  *   error returned
  * - no checks for sanity of values, left to the caller */
 
-retvalue binaries_readdeb(struct deb_headers *, const char *filename, bool /*needssourceversion*/);
+retvalue binaries_readdeb(struct deb_headers *, const char *filename);
 void binaries_debdone(struct deb_headers *);
 
 retvalue binaries_calcfilekeys(component_t, const struct deb_headers *, packagetype_t, /*@out@*/struct strlist *);
