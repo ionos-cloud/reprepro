@@ -1,3 +1,10 @@
+2019-02-02 Bernhard R. Link <brlink@debian.org>
+	* handle a missing Binary field in a .changes file like an empty one.
+	  (So not having one in a source only upload will be ignored,
+	  while a missing one in a binary upload will complain about the
+	  packages not listed in Binary: instead of complaining about not
+	  having a Binary field).
+
 2018-09-23  Bernhard R. Link <brlink@debian.org>
 	* check command no longer checks if the files
 	  of existing packages are names as they are

@@ -700,13 +700,6 @@ echo "Source: sourceinchanges" > i/test.changes
 testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
-*=In 'test.changes': Missing 'Binary' field!
--v0*=There have been errors!
-EOF
-echo "Binary: binaryinchanges" >> i/test.changes
-testrun - -b . processincoming default 3<<EOF
-returns 255
-stderr
 *=In 'test.changes': Missing 'Architecture' field!
 -v0*=There have been errors!
 EOF
@@ -717,6 +710,7 @@ stderr
 *=In 'test.changes': Missing 'Version' field!
 -v0*=There have been errors!
 EOF
+echo "Binary: binaryinchanges" >> i/test.changes
 echo "Version: 999:0versioninchanges-0~" >> i/test.changes
 testrun - -b . processincoming default 3<<EOF
 returns 255
