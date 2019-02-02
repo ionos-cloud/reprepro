@@ -1,3 +1,8 @@
+Updates between 5.2.0 and 5.3.0:
+- no Binary field in a .changes file is no longer an error
+  but handled like an empty Binary field. (Needed to still
+  accept source only .changes files by dpkg > 1.19.3).
+
 Updates between 5.1.1 and 5.2.0:
 - mark .lz support as deprecated
 - add _listcodenames command
