@@ -1,3 +1,10 @@
+reprepro (5.3.0-1) unstable; urgency=medium
+
+  * new release
+  - handle .changes files without Binary field (Closes: #920377)
+
+ -- Bernhard R. Link <brlink@debian.org>  Sat, 02 Feb 2019 23:20:17 +0100
+
 reprepro (5.2.0-1) unstable; urgency=medium
 
   * update Standards-Version
