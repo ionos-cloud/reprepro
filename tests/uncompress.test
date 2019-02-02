@@ -93,8 +93,8 @@ lzma -c < /dev/null > emptyfile.lzma
 echo xz -c \< /dev/null \> emptyfile.xz
 xz -c < /dev/null > emptyfile.xz
 
-testrun - __uncompress .lz notexists.lz notexists.lz.uncompressed 3<<EOF
--v2*=Uncompress 'notexists.lz' into 'notexists.lz.uncompressed' using '/usr/bin/lunzip'...
+testrun - --lunzip /bin/cat __uncompress .lz notexists.lz notexists.lz.uncompressed 3<<EOF
+-v2*=Uncompress 'notexists.lz' into 'notexists.lz.uncompressed' using '/bin/cat'...
 *=Error 2 opening notexists.lz: No such file or directory
 -v0*=There have been errors!
 returns 254
