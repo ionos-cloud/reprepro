@@ -842,46 +842,44 @@ retvalue trackingdata_switch(struct trackingdata *data, const char *source, cons
 	return RET_OK;
 }
 
-retvalue trackingdata_insert(struct trackingdata *data, enum filetype filetype, const struct strlist *filekeys, /*@null@*/const char *oldsource, /*@null@*/const char*oldversion, /*@null@*/const struct strlist *oldfilekeys) {
+retvalue trackingdata_insert(struct trackingdata *data, enum filetype filetype, const struct strlist *filekeys, /*@null@*/const struct package *old, /*@null@*/const struct strlist *oldfilekeys) {
 	retvalue result, r;
 	struct trackedpackage *pkg;
 
-	if (data == NULL) {
-		assert(oldversion == NULL && oldsource == NULL);
-		return RET_OK;
-	}
+	assert (data != NULL);
 	assert(data->pkg != NULL);
 	result = trackedpackage_adddupfilekeys(data->tracks, data->pkg,
 			filetype, filekeys, true);
 	if (RET_WAS_ERROR(result)) {
 		return result;
 	}
-	if (oldsource == NULL || oldversion == NULL || oldfilekeys == NULL) {
-		assert(oldsource==NULL&&oldversion==NULL&&oldfilekeys==NULL);
+	if (old == NULL || old->source == NULL || old->sourceversion == NULL
+			|| oldfilekeys == NULL) {
 		return RET_OK;
 	}
-	if (strcmp(oldversion, data->pkg->sourceversion) == 0 &&
-			strcmp(oldsource, data->pkg->sourcename) == 0) {
+	if (strcmp(old->sourceversion, data->pkg->sourceversion) == 0 &&
+			strcmp(old->source, data->pkg->sourcename) == 0) {
 		/* Unlikely, but it may also be the same source version as
 		 * the package we are currently adding */
 		return trackedpackage_removefilekeys(data->tracks, data->pkg,
 				oldfilekeys);
 	}
-	r = tracking_get(data->tracks, oldsource, oldversion, &pkg);
+	r = tracking_get(data->tracks, old->source, old->sourceversion, &pkg);
 	if (RET_WAS_ERROR(r)) {
 		return r;
 	}
 	if (r == RET_NOTHING) {
 		fprintf(stderr,
 "Could not found tracking data for %s_%s in %s to remove old files from it.\n",
-			oldsource, oldversion, data->tracks->codename);
+			old->source, old->sourceversion,
+			data->tracks->codename);
 		return result;
 	}
 	r = trackedpackage_removefilekeys(data->tracks, pkg, oldfilekeys);
 	RET_UPDATE(result, r);
 	r = tracking_save(data->tracks, pkg);
 	RET_UPDATE(result, r);
-	r = trackingdata_remember(data, oldsource, oldversion);
+	r = trackingdata_remember(data, old->source, old->sourceversion);
 	RET_UPDATE(result, r);
 
 	return result;

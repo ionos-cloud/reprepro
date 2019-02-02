@@ -34,6 +34,7 @@
 #include "override.h"
 #include "tracking.h"
 #include "signature.h"
+#include "package.h"
 
 /* split a "<md5> <size> <filename>" into md5sum and filename */
 static retvalue calc_parsefileline(const char *fileline, /*@out@*/char **filename) {
@@ -137,7 +138,7 @@ retvalue sources_getarchitecture(UNUSED(const char *chunk), architecture_t *arch
 	return RET_OK;
 }
 
-retvalue sources_getinstalldata(const struct target *t, const char *packagename, UNUSED(const char *version), architecture_t architecture, const char *chunk, char **control, struct strlist *filekeys, struct checksumsarray *origfiles) {
+retvalue sources_getinstalldata(const struct target *t, struct package *package, char **control, struct strlist *filekeys, struct checksumsarray *origfiles) {
 	retvalue r;
 	char *origdirectory, *directory, *mychunk;
 	struct strlist myfilekeys;
@@ -145,8 +146,9 @@ retvalue sources_getinstalldata(const struct target *t, const char *packagename,
 	struct checksumsarray files;
 	enum checksumtype cs;
 	bool gothash = false;
+	const char *chunk = package->control;
 
-	assert (architecture == architecture_source);
+	assert (package->architecture == architecture_source);
 
 	for (cs = cs_md5sum ; cs < cs_hashCOUNT ; cs++) {
 		assert (source_checksum_names[cs] != NULL);
@@ -170,7 +172,7 @@ retvalue sources_getinstalldata(const struct target *t, const char *packagename,
 			strlist_done(&filelines[cs]);
 		return RET_ERROR;
 	}
-	r = checksumsarray_parse(&files, filelines, packagename);
+	r = checksumsarray_parse(&files, filelines, package->name);
 	for (cs = cs_md5sum ; cs < cs_hashCOUNT ; cs++) {
 		strlist_done(&filelines[cs]);
 	}
@@ -192,19 +194,19 @@ retvalue sources_getinstalldata(const struct target *t, const char *packagename,
 		return r;
 	}
 
-	r = propersourcename(packagename);
+	r = propersourcename(package->name);
 	assert (r != RET_NOTHING);
 	if (RET_IS_OK(r))
 		r = properfilenames(&files.names);
 	if (RET_WAS_ERROR(r)) {
 		fprintf(stderr,
-"Forbidden characters in source package '%s'!\n", packagename);
+"Forbidden characters in source package '%s'!\n", package->name);
 		free(origdirectory);
 		checksumsarray_done(&files);
 		return r;
 	}
 
-	directory = calc_sourcedir(t->component, packagename);
+	directory = calc_sourcedir(t->component, package->name);
 	if (FAILEDTOALLOC(directory))
 		r = RET_ERROR_OOM;
 	else
@@ -220,7 +222,7 @@ retvalue sources_getinstalldata(const struct target *t, const char *packagename,
 	if (!RET_WAS_ERROR(r)) {
 		char *n;
 
-		n = chunk_normalize(chunk, "Package", packagename);
+		n = chunk_normalize(chunk, "Package", package->name);
 		if (FAILEDTOALLOC(n))
 			mychunk = NULL;
 		else

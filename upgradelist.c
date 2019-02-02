@@ -60,8 +60,6 @@ struct package_data {
 	/* the list of files that will belong to this:
 	 * same validity */
 	struct strlist new_filekeys;
-	/* cache/info what description is needed for this */
-	struct description *description;
 	struct checksumsarray new_origfiles;
 	/* to destinguish arch all from not arch all */
 	architecture_t architecture;
@@ -317,8 +315,7 @@ static retvalue upgradelist_trypackage(struct upgradelist *upgrade, void *privda
 		new->architecture = package->architecture;
 		version = NULL; //to be sure...
 		r = upgrade->target->getinstalldata(upgrade->target,
-				new->name, new->new_version,
-				new->architecture, package->control,
+				package,
 				&new->new_control, &new->new_filekeys,
 				&new->new_origfiles);
 		if (RET_WAS_ERROR(r)) {
@@ -447,8 +444,7 @@ static retvalue upgradelist_trypackage(struct upgradelist *upgrade, void *privda
 
 		current->architecture = package->architecture;
 		r = upgrade->target->getinstalldata(upgrade->target,
-				package->name, version,
-				package->architecture, package->control,
+				package,
 				&control, &files, &origfiles);
 		if (RET_WAS_ERROR(r)) {
 			free(version);
@@ -705,8 +701,7 @@ retvalue upgradelist_install(struct upgradelist *upgrade, struct logger *logger,
 						pkg->new_control,
 						&pkg->new_filekeys, true,
 						NULL, pkg->architecture,
-						causingrule, suitefrom,
-						pkg->description);
+						causingrule, suitefrom);
 			}
 			RET_UPDATE(result, r);
 			if (RET_WAS_ERROR(r))

@@ -1968,12 +1968,6 @@ returns 255
 EOF
 echo "Source: nowhere" >> broken.changes
 testrun - -b . include test2 broken.changes 3<<EOF
-*=In 'broken.changes': Missing 'Binary' field
--v0*=There have been errors!
-returns 255
-EOF
-echo "Binary: phantom" >> broken.changes
-testrun - -b . include test2 broken.changes 3<<EOF
 *=In 'broken.changes': Missing 'Architecture' field
 -v0*=There have been errors!
 returns 255

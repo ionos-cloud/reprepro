@@ -146,7 +146,8 @@ static retvalue parseatom(const char **formula, /*@out@*/struct term_atom **atom
 					comparison = tc_notequal;
 					break;
 				}
-				// no break here...
+				*formula = f;
+				return RET_NOTHING;
 			default:
 				*formula = f;
 				return RET_NOTHING;

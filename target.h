@@ -28,7 +28,8 @@ struct alloverrides;
 
 typedef retvalue get_version(const char *, /*@out@*/char **);
 typedef retvalue get_architecture(const char *, /*@out@*/architecture_t *);
-typedef retvalue get_installdata(const struct target *, const char *, const char *, architecture_t, const char *, /*@out@*/char **, /*@out@*/struct strlist *, /*@out@*/struct checksumsarray *);
+struct package;
+typedef retvalue get_installdata(const struct target *, struct package *, /*@out@*/char **, /*@out@*/struct strlist *, /*@out@*/struct checksumsarray *);
 /* md5sums may be NULL */
 typedef retvalue get_filekeys(const char *, /*@out@*/struct strlist *);
 typedef retvalue get_checksums(const char *, /*@out@*/struct checksumsarray *);
@@ -90,7 +91,7 @@ retvalue target_closepackagesdb(struct target *);
 /* The following calls can only be called if target_initpackagesdb was called before: */
 struct logger;
 struct description;
-retvalue target_addpackage(struct target *, /*@null@*/struct logger *, const char *name, const char *version, const char *control, const struct strlist *filekeys, bool downgrade, /*@null@*/struct trackingdata *, architecture_t, /*@null@*/const char *causingrule, /*@null@*/const char *suitefrom, /*@null@*/struct description *);
+retvalue target_addpackage(struct target *, /*@null@*/struct logger *, const char *name, const char *version, const char *control, const struct strlist *filekeys, bool downgrade, /*@null@*/struct trackingdata *, architecture_t, /*@null@*/const char *causingrule, /*@null@*/const char *suitefrom);
 retvalue target_checkaddpackage(struct target *, const char *name, const char *version, bool tracking, bool permitnewerold);
 retvalue target_removepackage(struct target *, /*@null@*/struct logger *, const char *name, struct trackingdata *);
 /* like target_removepackage, but do not read control data yourself but use available */

@@ -182,8 +182,7 @@ static retvalue list_prepareadd(struct package_list *list, struct target *target
 	assert (new != NULL);
 
 	new->architecture = package->architecture;
-	r = target->getinstalldata(target, new->name, new->version,
-			new->architecture, package->control,
+	r = target->getinstalldata(target, package,
 			&new->control, &new->filekeys, &new->origfiles);
 	assert (r != RET_NOTHING);
 	if (RET_WAS_ERROR(r)) {
@@ -275,7 +274,7 @@ static retvalue package_add(struct distribution *into, /*@null@*/trackingdb trac
 			(tracks != NULL)?
 			&trackingdata:NULL,
 			package->architecture,
-			NULL, suitefrom, NULL);
+			NULL, suitefrom);
 	RET_UPDATE(into->status, r);
 	if (tracks != NULL) {
 		retvalue r2;

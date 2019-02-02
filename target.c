@@ -256,8 +256,10 @@ retvalue package_remove(struct package *old, struct logger *logger, struct track
 			old->target->staletracking = true;
 		if (logger != NULL)
 			logger_log(logger, old->target, old->name,
-					NULL, old->version,
-					NULL, old->control,
+					NULL,
+					(old->version == NULL)
+						? "#unparseable#"
+						: old->version,
 					NULL, &files,
 					NULL, NULL);
 		r = references_delete(old->target->identifier, &files, NULL);
@@ -325,8 +327,10 @@ retvalue package_remove_by_cursor(struct package_cursor *tc, struct logger *logg
 			old->target->staletracking = true;
 		if (logger != NULL)
 			logger_log(logger, old->target, old->name,
-					NULL, old->version,
-					NULL, old->control,
+					NULL,
+					(old->version == NULL)
+						? "#unparseable"
+						: old->version,
 					NULL, &files,
 					NULL, NULL);
 		r = references_delete(old->target->identifier, &files, NULL);
@@ -336,7 +340,7 @@ retvalue package_remove_by_cursor(struct package_cursor *tc, struct logger *logg
 	return result;
 }
 
-static retvalue addpackages(struct target *target, const char *packagename, const char *controlchunk, /*@null@*/const char *oldcontrolchunk, const char *version, /*@null@*/const char *oldversion, const struct strlist *files, /*@only@*//*@null@*/struct strlist *oldfiles, /*@null@*/struct logger *logger, /*@null@*/struct trackingdata *trackingdata, architecture_t architecture, /*@null@*/const char *oldsource, /*@null@*/const char *oldsversion, /*@null@*/const char *causingrule, /*@null@*/const char *suitefrom) {
+static retvalue addpackages(struct target *target, const char *packagename, const char *controlchunk, const char *version, const struct strlist *files, /*@null@*/const struct package *old, /*@null@*/const struct strlist *oldfiles, /*@null@*/struct logger *logger, /*@null@*/struct trackingdata *trackingdata, architecture_t architecture, /*@null@*/const char *causingrule, /*@null@*/const char *suitefrom) {
 
 	retvalue result, r;
 	struct table *table = target->packages;
@@ -355,52 +359,56 @@ static retvalue addpackages(struct target *target, const char *packagename, cons
 
 	r = references_insert(target->identifier, files, oldfiles);
 
-	if (RET_WAS_ERROR(r)) {
-		if (oldfiles != NULL)
-			strlist_done(oldfiles);
+	if (RET_WAS_ERROR(r))
 		return r;
-	}
 
 	/* Add package to the distribution's database */
 
-	if (oldcontrolchunk != NULL) {
+	if (old != NULL) {
 		result = table_replacerecord(table, packagename, controlchunk);
 
 	} else {
 		result = table_adduniqrecord(table, packagename, controlchunk);
 	}
 
-	if (RET_WAS_ERROR(result)) {
-		if (oldfiles != NULL)
-			strlist_done(oldfiles);
+	if (RET_WAS_ERROR(result))
 		return result;
+
+	if (logger != NULL) {
+		logger_log(logger, target, packagename,
+				version,
+				/* the old version, NULL if there is
+				 * no old package,
+				 * "#unparseable" if there is old but
+				 * no version available */
+				(old==NULL)
+				? NULL
+				: (old->version == NULL)
+				  ? "#unparseable"
+				  : old->version,
+				files, oldfiles, causingrule, suitefrom);
 	}
 
-	if (logger != NULL)
-		logger_log(logger, target, packagename,
-				version, oldversion,
-				controlchunk, oldcontrolchunk,
-				files, oldfiles, causingrule, suitefrom);
-
-	r = trackingdata_insert(trackingdata, filetype, files,
-			oldsource, oldsversion, oldfiles);
-	RET_UPDATE(result, r);
+	if (trackingdata != NULL) {
+		r = trackingdata_insert(trackingdata,
+			filetype, files, old, oldfiles);
+		RET_UPDATE(result, r);
+	}
 
 	/* remove old references to files */
 
 	if (oldfiles != NULL) {
 		r = references_delete(target->identifier, oldfiles, files);
 		RET_UPDATE(result, r);
-		strlist_done(oldfiles);
 	}
 
 	return result;
 }
 
-retvalue target_addpackage(struct target *target, struct logger *logger, const char *name, const char *version, const char *control, const struct strlist *filekeys, bool downgrade, struct trackingdata *trackingdata, architecture_t architecture, const char *causingrule, const char *suitefrom, struct description *description) {
+retvalue target_addpackage(struct target *target, struct logger *logger, const char *name, const char *version, const char *control, const struct strlist *filekeys, bool downgrade, struct trackingdata *trackingdata, architecture_t architecture, const char *causingrule, const char *suitefrom) {
 	struct strlist oldfilekeys, *ofk;
 	char *newcontrol;
-	struct package old;
+	struct package old, *old_p;
 	retvalue r;
 
 	assert(target->packages!=NULL);
@@ -409,9 +417,11 @@ retvalue target_addpackage(struct target *target, struct logger *logger, const c
 	if (RET_WAS_ERROR(r))
 		return r;
 	if (r == RET_NOTHING) {
+		old_p = NULL;
 		ofk = NULL;
 		setzero(struct package, &old);
 	} else {
+		old_p = &old;
 		r = package_getversion(&old);
 		if (RET_WAS_ERROR(r) && !IGNORING(brokenold,
 "Error parsing old version!\n")) {
@@ -484,18 +494,19 @@ retvalue target_addpackage(struct target *target, struct logger *logger, const c
 
 	}
 	newcontrol = NULL;
-	r = description_addpackage(target, name, control, old.control,
-			description, &newcontrol);
+	r = description_addpackage(target, name, control, &newcontrol);
 	if (RET_IS_OK(r))
 		control = newcontrol;
 	if (!RET_WAS_ERROR(r))
-		r = addpackages(target, name, control, old.control,
-			version, old.version,
-			filekeys, ofk,
+		r = addpackages(target, name, control,
+			version,
+			filekeys,
+			old_p, ofk,
 			logger,
 			trackingdata, architecture,
-			old.source, old.sourceversion,
 			causingrule, suitefrom);
+	if (ofk != NULL)
+		strlist_done(ofk);
 	if (RET_IS_OK(r)) {
 		target->wasmodified = true;
 		if (trackingdata == NULL)
@@ -662,8 +673,6 @@ retvalue package_referenceforsnapshot(struct package *package, void *data) {
 retvalue package_check(struct package *package, UNUSED(void *pd)) {
 	struct target *target = package->target;
 	struct checksumsarray files;
-	struct strlist expectedfilekeys;
-	char *dummy;
 	retvalue result = RET_OK, r;
 
 	r = package_getversion(package);
@@ -694,39 +703,14 @@ retvalue package_check(struct package *package, UNUSED(void *pd)) {
 				package->name, target->identifier);
 		result = RET_ERROR;
 	}
-	r = target->getinstalldata(target, package->name, package->version,
-			package->architecture, package->control, &dummy,
-			&expectedfilekeys, &files);
+	r = target->getchecksums(package->control, &files);
+	if (r == RET_NOTHING)
+		r = RET_ERROR;
 	if (RET_WAS_ERROR(r)) {
 		fprintf(stderr,
 "Error extracting information of package '%s'!\n",
 				package->name);
-		result = r;
-	}
-	if (RET_IS_OK(r)) {
-		free(dummy);
-		if (!strlist_subset(&expectedfilekeys, &files.names, NULL) ||
-		    !strlist_subset(&expectedfilekeys, &files.names, NULL)) {
-			(void)fprintf(stderr,
-"Reparsing the package information of '%s' yields to the expectation to find:\n",
-					package->name);
-			(void)strlist_fprint(stderr, &expectedfilekeys);
-			(void)fputs("but found:\n", stderr);
-			(void)strlist_fprint(stderr, &files.names);
-			(void)putc('\n', stderr);
-			result = RET_ERROR;
-		}
-		strlist_done(&expectedfilekeys);
-	} else {
-		r = target->getchecksums(package->control, &files);
-		if (r == RET_NOTHING)
-			r = RET_ERROR;
-		if (RET_WAS_ERROR(r)) {
-			fprintf(stderr,
-"Even more errors extracting information of package '%s'!\n",
-					package->name);
-			return r;
-		}
+		return r;
 	}
 
 	if (verbose > 10) {
@@ -913,7 +897,7 @@ retvalue package_rerunnotifiers(struct package *package, UNUSED(void *data)) {
 		return r;
 	}
 	r = logger_reruninfo(logger, target, package->name, package->version,
-			package->control, &filekeys);
+			&filekeys);
 	strlist_done(&filekeys);
 	return r;
 }

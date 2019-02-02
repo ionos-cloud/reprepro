@@ -304,6 +304,7 @@ static retvalue parsediff(struct compressedfile *f, /*@null@*/char **section_p, 
 							return RET_NOTHING;
 						lines_out--;
 						/* no break */
+						__attribute__ ((fallthrough));
 					case '-':
 						if (unlikely(lines_in == 0))
 							return RET_NOTHING;
