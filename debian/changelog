@@ -1,3 +1,11 @@
+reprepro (5.3.0-1.1) UNRELEASED; urgency=medium
+
+  * Non-maintainer upload.
+  * Switch to dh 9
+  * Support multiple versions. (Closes: #570623)
+
+ -- Benjamin Drung <benjamin.drung@cloud.ionos.com>  Tue, 02 Apr 2019 16:59:11 +0200
+
 reprepro (5.3.0-1) unstable; urgency=medium
 
   * new release
