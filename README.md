@@ -17,6 +17,14 @@ The multiple-versions patch set adds following features:
 * Add the commands move, movesrc, movematched, movefilter
 * Add Limit and Archive option
 
+How to keep multiple versions
+-----------------------------
+
+The default behavior of this reprepro is identical to upstream's version. To
+keep multiple versions of the same package in the archive, you have to set the
+`Limit` option to the desired maximum amount (or to 0 for unlimited). See the
+description in the man page for details.
+
 Database layout changes
 -----------------------
 
