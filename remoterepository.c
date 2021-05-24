@@ -1542,6 +1542,13 @@ struct remote_index *remote_index(struct remote_distribution *rd, const char *ar
 		cachefilename = genlistsfilename("uPackages", 4,
 				rd->repository->name, rd->suite,
 				component, architecture, ENDOFARGUMENTS);
+        } else if (packagetype == pt_ddeb) {
+		filename_in_release = mprintf(
+"%s/debug/binary-%s/Packages",
+				component, architecture);
+		cachefilename = genlistsfilename("dPackages", 4,
+				rd->repository->name, rd->suite,
+				component, architecture, ENDOFARGUMENTS);
 	} else if (packagetype == pt_dsc) {
 		filename_in_release = mprintf(
 "%s/source/Sources",
@@ -1564,6 +1571,10 @@ void cachedlistfile_need_index(struct cachedlistfile *list, const char *reposito
 		cachedlistfile_need(list, "uPackages", 4,
 				repository, suite,
 				component, architecture, ENDOFARGUMENTS);
+        } else if (packagetype == pt_ddeb) {
+		cachedlistfile_need(list, "dPackages", 4,
+				repository, suite,
+				component, architecture, ENDOFARGUMENTS);
 	} else if (packagetype == pt_dsc) {
 		cachedlistfile_need(list, "Sources", 3,
 				repository, suite,
@@ -1580,6 +1591,11 @@ struct remote_index *remote_flat_index(struct remote_distribution *rd, packagety
 		cachefilename = genlistsfilename("Packages", 2,
 				rd->repository->name, rd->suite,
 				ENDOFARGUMENTS);
+        } else if (packagetype == pt_ddeb) {
+                filename_in_release = strdup("dPackages");
+                cachefilename = genlistsfilename("dPackages", 2,
+				rd->repository->name, rd->suite,
+				ENDOFARGUMENTS);
 	} else if (packagetype == pt_dsc) {
 		filename_in_release = strdup("Sources");
 		cachefilename = genlistsfilename("Sources", 2,
@@ -1594,6 +1610,9 @@ struct remote_index *remote_flat_index(struct remote_distribution *rd, packagety
 void cachedlistfile_need_flat_index(struct cachedlistfile *list, const char *repository, const char *suite, packagetype_t packagetype) {
 	if (packagetype == pt_deb) {
 		cachedlistfile_need(list, "Packages", 2,
+				repository, suite, ENDOFARGUMENTS);
+        } else if (packagetype == pt_ddeb) {
+		cachedlistfile_need(list, "dPackages", 2,
 				repository, suite, ENDOFARGUMENTS);
 	} else if (packagetype == pt_dsc) {
 		cachedlistfile_need(list, "Sources", 1,
