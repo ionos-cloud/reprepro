@@ -42,18 +42,18 @@
 #include "uncompression.h"
 
 const char * const uncompression_suffix[c_COUNT] = {
-	"", ".gz", ".bz2", ".lzma", ".xz", ".lz" };
+	"", ".gz", ".bz2", ".lzma", ".xz", ".lz", ".zst"};
 
 /* So help messages can hint what option to try */
 const char * const uncompression_option[c_COUNT] = {
-	NULL, NULL, "--bunzip2", "--unlzma", "--unxz", "--lunzip" };
+	NULL, NULL, "--bunzip2", "--unlzma", "--unxz", "--lunzip", "--unzstd" };
 /* how those are called in the config file */
 const char * const uncompression_config[c_COUNT] = {
-	".", ".gz", ".bz2", ".lzma", ".xz", ".lz" };
+	".", ".gz", ".bz2", ".lzma", ".xz", ".lz", ".zst" };
 
 
 /*@null@*/ char *extern_uncompressors[c_COUNT] = {
-	NULL, NULL, NULL, NULL, NULL};
+	NULL, NULL, NULL, NULL, NULL, NULL};
 
 /*@null@*/ static struct uncompress_task {
 	struct uncompress_task *next;
@@ -348,12 +348,13 @@ static void search_binary(/*@null@*/const char *setting, const char *default_pro
 }
 
 /* check for existence of external programs */
-void uncompressions_check(const char *gunzip, const char *bunzip2, const char *unlzma, const char *unxz, const char *lunzip) {
+void uncompressions_check(const char *gunzip, const char *bunzip2, const char *unlzma, const char *unxz, const char *lunzip, const char *unzstd) {
 	search_binary(gunzip,  "gunzip",  &extern_uncompressors[c_gzip]);
 	search_binary(bunzip2, "bunzip2", &extern_uncompressors[c_bzip2]);
 	search_binary(unlzma,  "unlzma",  &extern_uncompressors[c_lzma]);
 	search_binary(unxz,    "unxz",    &extern_uncompressors[c_xz]);
 	search_binary(lunzip,  "lunzip",  &extern_uncompressors[c_lunzip]);
+	search_binary(unzstd,  "unzstd",  &extern_uncompressors[c_zstd]);
 }
 
 static inline retvalue builtin_uncompress(const char *compressed, const char *destination, enum compression compression) {

@@ -82,7 +82,7 @@ extern struct global_config {
 	int showdownloadpercent;
 } global;
 
-enum compression { c_none, c_gzip, c_bzip2, c_lzma, c_xz, c_lunzip, c_COUNT };
+enum compression { c_none, c_gzip, c_bzip2, c_lzma, c_xz, c_lunzip, c_zstd, c_COUNT };
 
 #define setzero(type, pointer) ({type *__var = pointer; memset(__var, 0, sizeof(type));})
 #define NEW(type) ((type *)malloc(sizeof(type)))
