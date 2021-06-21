@@ -1,0 +1,16 @@
+#!/bin/sh
+
+set -e
+
+case "$1" in
+    configure)
+        if [ -f /etc/bash_completion.d/reprepro.dpkg-remove ] ; then
+		echo "Removing obsolete unmodified conffile /etc/bash_completion.d/reprepro"
+		rm -f /etc/bash_completion.d/reprepro.dpkg-remove
+	fi
+    ;;
+esac
+
+#DEBHELPER#
+
+exit 0
