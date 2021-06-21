@@ -63,7 +63,7 @@ retvalue indexfile_open(struct indexfile **file_p, const char *filename, enum co
 	f->linenumber = 0;
 	f->startlinenumber = 0;
 	f->status = RET_OK;
-	f->size = 256*1024;
+	f->size = 4*1024*1024;
 	f->ofs = 0;
 	f->content = 0;
 	/* +1 for *d = '\0' in eof case */
