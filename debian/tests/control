@@ -1,2 +1,2 @@
-Test: import-hello.sh
+Tests: import-hello.sh
 Depends: reprepro
