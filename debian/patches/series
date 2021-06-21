@@ -1,2 +1,3 @@
-bump-buffer-size
-flush-streams-before-exec-hook.patch
+0001-Bump-up-the-maxsize-on-a-fixed-size-C-buffer-to-avoi.patch
+0002-Flush-stdout-stderr-before-calling-endhook.patch
+0003-Add-Zstd-support.patch

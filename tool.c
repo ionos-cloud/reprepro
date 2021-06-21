@@ -2969,6 +2969,7 @@ int main(int argc, char *argv[]) {
 		{"unlzma", required_argument, &longoption, 3},
 		{"unxz", required_argument, &longoption, 4},
 		{"lunzip", required_argument, &longoption, 5},
+		{"unzstd", required_argument, &longoption, 7},
 		{NULL, 0, NULL, 0},
 	};
 	int c;
@@ -2979,7 +2980,7 @@ int main(int argc, char *argv[]) {
 	struct strlist searchpath;
 	struct changes *changesdata;
 	char *gunzip = NULL, *bunzip2 = NULL, *unlzma = NULL,
-	     *unxz = NULL, *lunzip = NULL;
+	*unxz = NULL, *lunzip = NULL, *unzstd = NULL;
 	retvalue r;
 
 	strlist_init(&searchpath);
@@ -3002,6 +3003,9 @@ int main(int argc, char *argv[]) {
 						break;
 					case 5:
 						lunzip = strdup(optarg);
+						break;
+					case 7:
+						unzstd = strdup(optarg);
 						break;
 					case 6:
 						create_file = true;
@@ -3029,7 +3033,7 @@ int main(int argc, char *argv[]) {
 		about(false);
 	}
 	signature_init(false);
-	uncompressions_check(gunzip, bunzip2, unlzma, unxz, lunzip);
+	uncompressions_check(gunzip, bunzip2, unlzma, unxz, lunzip, unzstd);
 
 	changesfilename = argv[optind];
 	if (strcmp(changesfilename, "-") != 0 &&

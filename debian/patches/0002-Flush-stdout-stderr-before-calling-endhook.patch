@@ -1,13 +1,20 @@
+From 376078dc4df5e0d00b322504474666398e23ae11 Mon Sep 17 00:00:00 2001
 From: Hilko Bengen <bengen@debian.org>
 Date: Wed, 10 Feb 2021 01:47:23 +0100
 Subject: Flush stdout, stderr before calling endhook
+
 Bug-Debian: https://bugs.debian.org/982423
 
 Flush stdout and stderr, otherwise output might be discarded.
+---
+ main.c | 2 ++
+ 1 file changed, 2 insertions(+)
 
+diff --git a/main.c b/main.c
+index 31aa5cf..632ca18 100644
 --- a/main.c
 +++ b/main.c
-@@ -4906,6 +4906,8 @@
+@@ -4906,6 +4906,8 @@ static inline int callendhook(int status, char *argv[]) {
  	if (snprintf(exitcode, 4, "%u", ((unsigned int)status)&255U) > 3)
  		memcpy(exitcode, "255", 4);
  	sethookenvironment(causingfile, NULL, NULL, exitcode);

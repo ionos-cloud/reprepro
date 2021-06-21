@@ -1,0 +1,199 @@
+From ea5595786fa0ee4d36cb3102a84404d7ff4e45b2 Mon Sep 17 00:00:00 2001
+From: Dimitri John Ledkov <dimitri.ledkov@canonical.com>
+Date: Fri, 18 Jun 2021 12:20:36 +0100
+Subject: Add Zstd support
+
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1923845
+
+Signed-off-by: Dimitri John Ledkov <dimitri.ledkov@canonical.com>
+---
+ globals.h       |  2 +-
+ main.c          | 17 +++++++++++++++--
+ tool.c          |  8 ++++++--
+ uncompression.c | 11 ++++++-----
+ uncompression.h |  2 +-
+ 5 files changed, 29 insertions(+), 11 deletions(-)
+
+diff --git a/globals.h b/globals.h
+index 945341d..4c6154d 100644
+--- a/globals.h
++++ b/globals.h
+@@ -82,7 +82,7 @@ extern struct global_config {
+ 	int showdownloadpercent;
+ } global;
+ 
+-enum compression { c_none, c_gzip, c_bzip2, c_lzma, c_xz, c_lunzip, c_COUNT };
++enum compression { c_none, c_gzip, c_bzip2, c_lzma, c_xz, c_lunzip, c_zstd, c_COUNT };
+ 
+ #define setzero(type, pointer) ({type *__var = pointer; memset(__var, 0, sizeof(type));})
+ #define NEW(type) ((type *)malloc(sizeof(type)))
+diff --git a/main.c b/main.c
+index 632ca18..571d9f4 100644
+--- a/main.c
++++ b/main.c
+@@ -116,6 +116,7 @@ static char /*@only@*/
+ 	*unlzma = NULL,
+ 	*unxz = NULL,
+ 	*lunzip = NULL,
++	*unzstd = NULL,
+ 	*gnupghome = NULL;
+ static int 	listmax = -1;
+ static int 	listskip = 0;
+@@ -142,7 +143,7 @@ static off_t reservedotherspace = 1024*1024;
+  * to change something owned by lower owners. */
+ enum config_option_owner config_state,
+ #define O(x) owner_ ## x = CONFIG_OWNER_DEFAULT
+-O(fast), O(x_morguedir), O(x_outdir), O(x_basedir), O(x_distdir), O(x_dbdir), O(x_listdir), O(x_confdir), O(x_logdir), O(x_methoddir), O(x_section), O(x_priority), O(x_component), O(x_architecture), O(x_packagetype), O(nothingiserror), O(nolistsdownload), O(keepunusednew), O(keepunreferenced), O(keeptemporaries), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock), O(spacecheckmode), O(reserveddbspace), O(reservedotherspace), O(guessgpgtty), O(verbosedatabase), O(gunzip), O(bunzip2), O(unlzma), O(unxz), O(lunzip), O(gnupghome), O(listformat), O(listmax), O(listskip), O(onlysmalldeletes), O(endhook), O(outhook);
++O(fast), O(x_morguedir), O(x_outdir), O(x_basedir), O(x_distdir), O(x_dbdir), O(x_listdir), O(x_confdir), O(x_logdir), O(x_methoddir), O(x_section), O(x_priority), O(x_component), O(x_architecture), O(x_packagetype), O(nothingiserror), O(nolistsdownload), O(keepunusednew), O(keepunreferenced), O(keeptemporaries), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock), O(spacecheckmode), O(reserveddbspace), O(reservedotherspace), O(guessgpgtty), O(verbosedatabase), O(gunzip), O(bunzip2), O(unlzma), O(unxz), O(lunzip), O(unzstd), O(gnupghome), O(listformat), O(listmax), O(listskip), O(onlysmalldeletes), O(endhook), O(outhook);
+ #undef O
+ 
+ #define CONFIGSET(variable, value) if (owner_ ## variable <= config_state) { \
+@@ -289,6 +290,10 @@ ACTION_N(n, n, n, dumpuncompressors) {
+ 				printf(
+ "not supported (install lzip or use --lunzip to tell where lunzip is).\n");
+ 				break;
++			case c_zstd:
++				printf(
++"not supported (install unzstd or use --unzstd to tell where unzstd is).\n");
++				break;
+ 			default:
+ 				printf("not supported\n");
+ 		}
+@@ -4374,6 +4379,7 @@ LO_BUNZIP2,
+ LO_UNLZMA,
+ LO_UNXZ,
+ LO_LZIP,
++LO_UNZSTD,
+ LO_GNUPGHOME,
+ LO_LISTFORMAT,
+ LO_LISTSKIP,
+@@ -4664,6 +4670,9 @@ static void handle_option(int c, const char *argument) {
+ 				case LO_LZIP:
+ 					CONFIGDUP(lunzip, argument);
+ 					break;
++				case LO_UNZSTD:
++					CONFIGDUP(unzstd, argument);
++					break;
+ 				case LO_GNUPGHOME:
+ 					CONFIGDUP(gnupghome, argument);
+ 					break;
+@@ -4982,6 +4991,7 @@ int main(int argc, char *argv[]) {
+ 		{"unlzma", required_argument, &longoption, LO_UNLZMA},
+ 		{"unxz", required_argument, &longoption, LO_UNXZ},
+ 		{"lunzip", required_argument, &longoption, LO_LZIP},
++		{"unzstd", required_argument, &longoption, LO_UNZSTD},
+ 		{"gnupghome", required_argument, &longoption, LO_GNUPGHOME},
+ 		{"list-format", required_argument, &longoption, LO_LISTFORMAT},
+ 		{"list-skip", required_argument, &longoption, LO_LISTSKIP},
+@@ -5148,12 +5158,15 @@ int main(int argc, char *argv[]) {
+ 		unxz = expand_plus_prefix(unxz, "unxz", "boc", true);
+ 	if (lunzip != NULL && lunzip[0] == '+')
+ 		lunzip = expand_plus_prefix(lunzip, "lunzip", "boc", true);
+-	uncompressions_check(gunzip, bunzip2, unlzma, unxz, lunzip);
++	if (unzstd != NULL && lunzip[0] == '+')
++		lunzip = expand_plus_prefix(unzstd, "unzstd", "boc", true);
++	uncompressions_check(gunzip, bunzip2, unlzma, unxz, lunzip, unzstd);
+ 	free(gunzip);
+ 	free(bunzip2);
+ 	free(unlzma);
+ 	free(unxz);
+ 	free(lunzip);
++	free(unzstd);
+ 
+ 	a = all_actions;
+ 	while (a->name != NULL) {
+diff --git a/tool.c b/tool.c
+index 5716d44..c841f8c 100644
+--- a/tool.c
++++ b/tool.c
+@@ -2969,6 +2969,7 @@ int main(int argc, char *argv[]) {
+ 		{"unlzma", required_argument, &longoption, 3},
+ 		{"unxz", required_argument, &longoption, 4},
+ 		{"lunzip", required_argument, &longoption, 5},
++		{"unzstd", required_argument, &longoption, 7},
+ 		{NULL, 0, NULL, 0},
+ 	};
+ 	int c;
+@@ -2979,7 +2980,7 @@ int main(int argc, char *argv[]) {
+ 	struct strlist searchpath;
+ 	struct changes *changesdata;
+ 	char *gunzip = NULL, *bunzip2 = NULL, *unlzma = NULL,
+-	     *unxz = NULL, *lunzip = NULL;
++	*unxz = NULL, *lunzip = NULL, *unzstd = NULL;
+ 	retvalue r;
+ 
+ 	strlist_init(&searchpath);
+@@ -3003,6 +3004,9 @@ int main(int argc, char *argv[]) {
+ 					case 5:
+ 						lunzip = strdup(optarg);
+ 						break;
++					case 7:
++						unzstd = strdup(optarg);
++						break;
+ 					case 6:
+ 						create_file = true;
+ 						all_fields = true;
+@@ -3029,7 +3033,7 @@ int main(int argc, char *argv[]) {
+ 		about(false);
+ 	}
+ 	signature_init(false);
+-	uncompressions_check(gunzip, bunzip2, unlzma, unxz, lunzip);
++	uncompressions_check(gunzip, bunzip2, unlzma, unxz, lunzip, unzstd);
+ 
+ 	changesfilename = argv[optind];
+ 	if (strcmp(changesfilename, "-") != 0 &&
+diff --git a/uncompression.c b/uncompression.c
+index b191cf8..43819ae 100644
+--- a/uncompression.c
++++ b/uncompression.c
+@@ -42,18 +42,18 @@
+ #include "uncompression.h"
+ 
+ const char * const uncompression_suffix[c_COUNT] = {
+-	"", ".gz", ".bz2", ".lzma", ".xz", ".lz" };
++	"", ".gz", ".bz2", ".lzma", ".xz", ".lz", ".zst"};
+ 
+ /* So help messages can hint what option to try */
+ const char * const uncompression_option[c_COUNT] = {
+-	NULL, NULL, "--bunzip2", "--unlzma", "--unxz", "--lunzip" };
++	NULL, NULL, "--bunzip2", "--unlzma", "--unxz", "--lunzip", "--unzstd" };
+ /* how those are called in the config file */
+ const char * const uncompression_config[c_COUNT] = {
+-	".", ".gz", ".bz2", ".lzma", ".xz", ".lz" };
++	".", ".gz", ".bz2", ".lzma", ".xz", ".lz", ".zst" };
+ 
+ 
+ /*@null@*/ char *extern_uncompressors[c_COUNT] = {
+-	NULL, NULL, NULL, NULL, NULL};
++	NULL, NULL, NULL, NULL, NULL, NULL};
+ 
+ /*@null@*/ static struct uncompress_task {
+ 	struct uncompress_task *next;
+@@ -348,12 +348,13 @@ static void search_binary(/*@null@*/const char *setting, const char *default_pro
+ }
+ 
+ /* check for existence of external programs */
+-void uncompressions_check(const char *gunzip, const char *bunzip2, const char *unlzma, const char *unxz, const char *lunzip) {
++void uncompressions_check(const char *gunzip, const char *bunzip2, const char *unlzma, const char *unxz, const char *lunzip, const char *unzstd) {
+ 	search_binary(gunzip,  "gunzip",  &extern_uncompressors[c_gzip]);
+ 	search_binary(bunzip2, "bunzip2", &extern_uncompressors[c_bzip2]);
+ 	search_binary(unlzma,  "unlzma",  &extern_uncompressors[c_lzma]);
+ 	search_binary(unxz,    "unxz",    &extern_uncompressors[c_xz]);
+ 	search_binary(lunzip,  "lunzip",  &extern_uncompressors[c_lunzip]);
++	search_binary(unzstd,  "unzstd",  &extern_uncompressors[c_zstd]);
+ }
+ 
+ static inline retvalue builtin_uncompress(const char *compressed, const char *destination, enum compression compression) {
+diff --git a/uncompression.h b/uncompression.h
+index 9da1f5d..ae0e2e4 100644
+--- a/uncompression.h
++++ b/uncompression.h
+@@ -63,7 +63,7 @@ retvalue uncompress_fdopen(/*@out@*/struct compressedfile **, int, off_t, enum c
+ /**** general initialisation ****/
+ 
+ /* check for existence of external programs */
+-void uncompressions_check(const char *gunzip, const char *bunzip2, const char *unlzma, const  char *unxz, const char *lunzip);
++void uncompressions_check(const char *gunzip, const char *bunzip2, const char *unlzma, const  char *unxz, const char *lunzip, const char *unzstd);
+ 
+ #endif
+ 
