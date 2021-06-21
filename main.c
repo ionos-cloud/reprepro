@@ -4906,6 +4906,8 @@ static inline int callendhook(int status, char *argv[]) {
 	if (snprintf(exitcode, 4, "%u", ((unsigned int)status)&255U) > 3)
 		memcpy(exitcode, "255", 4);
 	sethookenvironment(causingfile, NULL, NULL, exitcode);
+	fflush(stdout);
+	fflush(stderr);
 	argv[0] = endhook,
 	(void)execv(endhook, argv);
 	fprintf(stderr, "Error executing '%s': %s\n", endhook,
