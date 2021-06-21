@@ -1,0 +1,9 @@
+docs/pdiff.example
+docs/bzip.example
+docs/xz.example
+docs/changelogs.example
+docs/di.example
+docs/copybyhand.example
+docs/outstore.py
+docs/sftp.py
+docs/outsftphook.py

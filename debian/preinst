@@ -1,0 +1,33 @@
+#!/bin/sh
+set -e
+
+case "$1" in
+    install|upgrade)
+        # This is an simplified modified version of dpkg-maintscript-helper rm_conffile.
+        # d-m-h doesn't support the case that the file location it still working and the
+        # user is supposed to place a modified file there. But if it is unmodified, remove
+        # it so that the version in /usr/share/bash-completion/completions/reprepro is used:
+        if test -f /etc/bash_completion.d/reprepro ; then
+           chksum="$(sha1sum /etc/bash_completion.d/reprepro)"
+           chksum="${chksum%% *}"
+           status="$(dpkg-query -W -f='${Conffiles}' reprepro)"
+           status="${status% obsolete}"
+           # if the file is there, assume the jessie version was the last one with the conffile
+           # (updates skipping a stable release are not supported anyway).
+           # In that case and if the file is unmodified, remove the conffile.
+           # If either the file was modified or it does not belong to the last version, keep it.
+           # (some user likely put it there and it will still work, so do not break their setup).
+           if test x"$chksum" = x"cec8c3210eebc0d4f5e8a1e669e2c80f3248d49d" &&
+              test x"$status" = x" /etc/bash_completion.d/reprepro 1ef57c381250da27f0f44537dea0ed2f" ; then
+               mv -f /etc/bash_completion.d/reprepro /etc/bash_completion.d/reprepro.dpkg-remove
+           else
+               echo "Not removing /etc/bash_completion.d/reprepro as it looks modified."
+               echo "Remove it to activate /usr/share/bash-completion/completions/reprepro instead."
+           fi
+        fi
+    ;;
+esac
+
+#DEBHELPER#
+
+exit 0
