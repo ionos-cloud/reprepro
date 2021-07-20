@@ -1064,6 +1064,9 @@ retvalue table_close(struct table *table) {
 	int dbret;
 	retvalue result = RET_OK;
 
+	if (verbose >= 15)
+		fprintf(stderr, "trace: table_close(table.name=%s, table.subname=%s) called.\n",
+		        table == NULL ? NULL : table->name, table == NULL ? NULL : table->subname);
 	if (table == NULL)
 		return RET_NOTHING;
 	if (table->sec_berkeleydb != NULL) {
@@ -1374,6 +1377,9 @@ retvalue table_adduniqsizedrecord(struct table *table, const char *key, const ch
 	return RET_OK;
 }
 retvalue table_adduniqrecord(struct table *table, const char *key, const char *data) {
+	if (verbose >= 15)
+		fprintf(stderr, "trace: table_adduniqrecord(table={name: %s, subname: %s}, key=%s) called.\n",
+		        table->name, table->subname, key);
 	return table_adduniqsizedrecord(table, key, data, strlen(data)+1,
 			false, false);
 }
@@ -1410,6 +1416,9 @@ retvalue table_deleterecord(struct table *table, const char *key, bool ignoremis
 retvalue table_replacerecord(struct table *table, const char *key, const char *data) {
 	retvalue r;
 
+	if (verbose >= 15)
+		fprintf(stderr, "trace: table_replacerecord(table={name: %s, subname: %s}, key=%s) called.\n",
+		        table->name, table->subname, key);
 	r = table_deleterecord(table, key, false);
 	if (r != RET_ERROR_MISSING && RET_WAS_ERROR(r))
 		return r;
@@ -1420,6 +1429,10 @@ static retvalue newcursor(struct table *table, uint32_t flags, struct cursor **c
 	DB *berkeleydb;
 	struct cursor *cursor;
 	int dbret;
+
+	if (verbose >= 15)
+		fprintf(stderr, "trace: newcursor(table={name: %s, subname: %s}) called.\n",
+		        table->name, table->subname);
 
 	if (table->sec_berkeleydb == NULL) {
 		berkeleydb = table->berkeleydb;
@@ -1839,6 +1852,10 @@ static retvalue database_table_secondary(const char *filename, const char *subta
 	struct table *table;
 	struct opened_tables *opened_table;
 	retvalue r;
+
+	if (verbose >= 15)
+		fprintf(stderr, "trace: database_table_secondary(filename=%s, subtable=%s, type=%i, flags=%u, secondary_filename=%s, secondary_type=%i) called.\n",
+		        filename, subtable, type, flags, secondary_filename, secondary_type);
 
 	for (struct opened_tables *iter = opened_tables; iter != NULL; iter = iter->next) {
 		if(strcmp2(iter->name, filename) == 0 && strcmp2(iter->subname, subtable) == 0) {

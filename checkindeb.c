@@ -105,6 +105,14 @@ static retvalue deb_preparelocation(struct debpackage *pkg, component_t forcecom
 	const struct overridedata *oinfo;
 	retvalue r;
 
+	if (verbose >= 15) {
+		fprintf(stderr, "trace: deb_preparelocation(pkg={deb={name=%s}}, forcecomponent=%s, forcearchitectures=[",
+		        pkg == NULL ? NULL : pkg->deb.name, atoms_components[forcecomponent]);
+		atomlist_fprint(stderr, at_architecture, forcearchitectures);
+		fprintf(stderr, "], forcesection=%s, packagetype=%s, distribution={codename=%s}, debfilename=%s) called.\n",
+		        forcesection, atoms_packagetypes[packagetype], distribution->codename, debfilename);
+	}
+
 	if (packagetype == pt_ddeb) {
 		/* ddebs don't have overrides */
 		forcesection = "debug";

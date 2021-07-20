@@ -897,6 +897,9 @@ retvalue trackingdata_remove(struct trackingdata *data, const char* oldsource, c
 	retvalue result, r;
 	struct trackedpackage *pkg;
 
+	if (verbose >= 15)
+		fprintf(stderr, "trace: trackingdata_remove(oldsource=%s, oldversion=%s) called.\n",
+		        oldsource, oldversion);
 	assert(oldsource != NULL && oldversion != NULL && oldfilekeys != NULL);
 	if (data->pkg != NULL &&
 			strcmp(oldversion, data->pkg->sourceversion) == 0 &&
@@ -1191,6 +1194,10 @@ static retvalue targetremovesourcepackage(trackingdb t, struct trackedpackage *p
 	const char *architecture = atoms_architectures[target->architecture];
 	const char *component = atoms_components[target->component];
 
+	if (verbose >= 15)
+		fprintf(stderr, "trace: targetremovesourcepackage(pkg={sourcename: %s, sourceversion: %s}, distribution.codename=%s, target.identifier=%s) called.\n",
+		        pkg->sourcename, pkg->sourceversion, distribution->codename, target->identifier);
+
 	result = RET_NOTHING;
 
 	component_len = strlen(component);
@@ -1345,6 +1352,10 @@ static retvalue removesourcepackage(trackingdb t, struct trackedpackage *pkg, st
 	retvalue result, r;
 	int i;
 
+	if (verbose >= 15)
+		fprintf(stderr, "trace: removesourcepackage(pkg={sourcename: %s, sourceversion: %s}, distribution={codename: %s}) called.\n",
+		        pkg->sourcename, pkg->sourceversion, distribution->codename);
+
 	result = RET_NOTHING;
 	for (target = distribution->targets ; target != NULL ;
 	                                      target = target->next) {
@@ -1384,6 +1395,10 @@ static retvalue removesourcepackage(trackingdb t, struct trackedpackage *pkg, st
 retvalue tracking_removepackages(trackingdb t, struct distribution *distribution, const char *sourcename, /*@null@*/const char *version) {
 	struct trackedpackage *pkg;
 	retvalue result, r;
+
+	if (verbose >= 15)
+		fprintf(stderr, "trace: tracking_removepackages(distribution={codename: %s}, sourcename=%s, version=%s) called.\n",
+		        distribution->codename, sourcename, version);
 
 	if (version == NULL)
 		return tracking_foreachversion(t, distribution,

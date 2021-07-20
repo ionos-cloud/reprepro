@@ -175,6 +175,10 @@ retvalue release_init(struct release **release, const char *codename, const char
 	size_t len, suitelen, codenamelen;
 	retvalue r;
 
+	if (verbose >= 15)
+		fprintf(stderr, "trace: release_init(codename=%s, suite=%s, fakecomponentprefix=%s) called.\n",
+		        codename, suite, fakecomponentprefix);
+
 	n = zNEW(struct release);
 	if (FAILEDTOALLOC(n))
 		return RET_ERROR_OOM;
