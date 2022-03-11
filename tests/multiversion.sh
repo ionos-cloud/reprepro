@@ -26,7 +26,7 @@ oneTimeSetUp() {
 
 setUp() {
 	create_repo
-	echo "Limit: -1" >> $REPO/conf/distributions
+	echo "Limit: 0" >> $REPO/conf/distributions
 }
 
 tearDown() {
@@ -80,14 +80,14 @@ hello | 2.9-1 | buster | $ARCH" "$($REPREPRO -b $REPO ls hello)"
 
 test_copy_latest() {
 	four_hellos
-	add_distro bullseye "Limit: -1"
+	add_distro bullseye "Limit: 0"
 	call $REPREPRO $VERBOSE_ARGS -b $REPO copy bullseye buster hello hello
 	assertEquals "bullseye|main|$ARCH: hello 2.9-10" "$($REPREPRO -b $REPO list bullseye)"
 }
 
 test_copy_specific() {
 	four_hellos
-	add_distro bullseye "Limit: -1"
+	add_distro bullseye "Limit: 0"
 	call $REPREPRO $VERBOSE_ARGS -b $REPO copy bullseye buster hello=2.9-10 hello=2.9-1 hello=2.9-10
 	assertEquals "\
 bullseye|main|$ARCH: hello 2.9-10
@@ -96,7 +96,7 @@ bullseye|main|$ARCH: hello 2.9-1" "$($REPREPRO -b $REPO list bullseye)"
 
 test_remove_latest() {
 	four_hellos
-	add_distro bullseye "Limit: -1"
+	add_distro bullseye "Limit: 0"
 	call $REPREPRO $VERBOSE_ARGS -b $REPO copy bullseye buster hello=2.9-10 hello=2.9-1 hello=2.9-10
 	call $REPREPRO $VERBOSE_ARGS -b $REPO remove bullseye hello
 	assertEquals "\
@@ -127,7 +127,7 @@ buster|main|$ARCH: hello 2.9-1
 buster|main|$ARCH: kvm 1.2.1-9
 buster|main|$ARCH: kvm 1.2.1-8" "$($REPREPRO -b $REPO list buster)"
 
-	add_distro bullseye "Limit: -1"
+	add_distro bullseye "Limit: 0"
 	call $REPREPRO $VERBOSE_ARGS -b $REPO copy bullseye buster kvm
 	assertEquals "bullseye|main|$ARCH: kvm 1.2.1-9" "$($REPREPRO -b $REPO list bullseye)"
 
@@ -147,7 +147,7 @@ test_readd_distribution() {
 
 	# Add distribution
 	cp $REPO/conf/distributions $REPO/conf/distributions.backup
-	add_distro bullseye "Limit: -1"
+	add_distro bullseye "Limit: 0"
 	call $REPREPRO $VERBOSE_ARGS -b $REPO -C main includedeb bullseye $PKGS/hello_2.9-2_${ARCH}.deb
 
 	# Remove distribution
@@ -156,7 +156,7 @@ test_readd_distribution() {
 
 	# Re-add distribution again
 	echo "I: Re-adding bullseye..."
-	add_distro bullseye "Limit: -1"
+	add_distro bullseye "Limit: 0"
 	call $REPREPRO $VERBOSE_ARGS -b $REPO -C main includedeb bullseye $PKGS/hello_2.9-10_${ARCH}.deb
 	assertEquals "bullseye|main|$ARCH: hello 2.9-10" "$($REPREPRO -b $REPO list bullseye)"
 }
@@ -199,14 +199,14 @@ Files:
 test_reduce_limit_archive() {
 	clear_distro
 	add_distro buster-archive "Limit: 7"
-	add_distro buster "Limit: -1\nArchive: buster-archive"
+	add_distro buster "Limit: 0\nArchive: buster-archive"
 	for revision in 1 2; do
 		call $REPREPRO $VERBOSE_ARGS -b $REPO -C main includedeb buster $PKGS/hello_2.9-${revision}_${ARCH}.deb
 	done
 	assertEquals "\
 buster|main|${ARCH}: hello 2.9-2
 buster|main|${ARCH}: hello 2.9-1" "$($REPREPRO -b $REPO list buster)"
-	sed -i 's/^Limit: -1$/Limit: 1/' $REPO/conf/distributions
+	sed -i 's/^Limit: 0$/Limit: 1/' $REPO/conf/distributions
 	call $REPREPRO $VERBOSE_ARGS -b $REPO -C main includedeb buster $PKGS/hello_2.9-10_${ARCH}.deb
 	assertEquals "\
 hello |  2.9-2 | buster-archive | $ARCH
@@ -267,7 +267,7 @@ Architectures: $ARCH
 Components: main
 Update: icinga-stretch
 Log: icinga2.log
-Limit: -1
+Limit: 0
 EOF
 	cat > "$REPO/conf/updates" <<EOF
 Name: icinga-stretch
@@ -339,7 +339,7 @@ buster|main|$ARCH: hello 2.9-1" "$($REPREPRO -b $REPO list buster)"
 
 test_movefilter_specific() {
 	four_hellos
-	add_distro bullseye "Limit: -1"
+	add_distro bullseye "Limit: 0"
 	$REPREPRO -b $REPO export bullseye
 	call $REPREPRO $VERBOSE_ARGS -b $REPO movefilter bullseye buster 'Package (= hello), $Version (>> 2.9-2)'
 	assertEquals "\

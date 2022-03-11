@@ -293,9 +293,9 @@ Files:
 
 test_archive_move() {
 	clear_distro
-	add_distro buster-archive "Limit: -1"
+	add_distro buster-archive "Limit: 0"
 	add_distro buster "Limit: 1\nArchive: buster-archive"
-	add_distro buster-proposed "Limit: -1"
+	add_distro buster-proposed "Limit: 0"
 	(cd $PKGS && PACKAGE=hello SECTION=main DISTRI=buster VERSION=2.9 REVISION=-1 ../genpackage.sh)
 	(cd $PKGS && PACKAGE=hello SECTION=main DISTRI=buster VERSION=2.9 REVISION=-2 ../genpackage.sh)
 	(cd $PKGS && PACKAGE=hello SECTION=main DISTRI=buster VERSION=2.9 REVISION=-3 ../genpackage.sh)
@@ -397,7 +397,7 @@ Files:
 
 test_archive_move_back() {
 	clear_distro
-	add_distro buster-archive "Limit: -1"
+	add_distro buster-archive "Limit: 0"
 	add_distro buster "Limit: 1\nArchive: buster-archive"
 	(cd $PKGS && PACKAGE=hello SECTION=main DISTRI=buster VERSION=2.9 REVISION=-1 ../genpackage.sh)
 	(cd $PKGS && PACKAGE=hello SECTION=main DISTRI=buster VERSION=2.9 REVISION=-2 ../genpackage.sh)
