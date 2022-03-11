@@ -668,6 +668,46 @@ retvalue target_addpackage(struct target *target, struct logger *logger, const c
 		if (trackingdata == NULL)
 			target->staletracking = true;
 	}
+
+	while (RET_IS_OK(r) && target->distribution->limit < 0) {
+		// Remove older versions under the same source package name for negative limit
+		long long limit, num;
+		char *source;
+		char *sourceversion;
+
+		r = target->getsourceandversion(control, name, &source, &sourceversion);
+		if (r == RET_NOTHING || RET_WAS_ERROR(r)) {
+			break;
+		}
+
+		limit = -target->distribution->limit;
+		num = 0;
+		r = package_openduplicateiterator(target, name, 0, &iterator);
+		if (!RET_WAS_ERROR(r) && iterator.cursor != NULL) do {
+			if (package_getsource(&iterator.current) && package_getversion(&iterator.current)) {
+				if (strcmp(source, iterator.current.pkgsource) == 0) {
+					retvalue r2;
+					if (num++ < limit) continue;
+
+					fprintf(stderr, "Packages '%s' of source '%s' in '%s' have multiple versions. Remove '%s' that exceeds limit '%lld'!\n",
+							name, source, target->identifier, iterator.current.version, limit);
+
+					r2 = archive_package(target, &iterator.current, NULL, causingrule, suitefrom);
+					RET_UPDATE(r, r2);
+					if (RET_WAS_ERROR(r2))
+						continue;
+					r2 = package_remove_by_cursor(&iterator, logger, trackingdata);
+					RET_UPDATE(r, r2);
+				}
+			}
+		} while (package_next(&iterator));
+		r = package_closeiterator(&iterator);
+
+		free(source);
+		free(sourceversion);
+		break;
+	}
+
 	free(newcontrol);
 	package_done(&old);
 
